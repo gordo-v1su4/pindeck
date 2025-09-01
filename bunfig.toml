@@ -1,0 +1,14 @@
+# Bun configuration file
+# This ensures consistent behavior across environments
+
+[install]
+# Use the latest compatible versions when installing
+auto = "fallback"
+
+[install.lockfile]
+# Save the exact versions to the lockfile
+save = true
+
+[install.cache]
+# Use the global cache
+disable = false
