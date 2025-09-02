@@ -16,7 +16,7 @@ export function ImageModal({ imageId, onClose }: ImageModalProps) {
 
   useEffect(() => {
     if (imageId) {
-      incrementViews({ imageId });
+      void incrementViews({ imageId });
     }
   }, [imageId, incrementViews]);
 
@@ -34,6 +34,8 @@ export function ImageModal({ imageId, onClose }: ImageModalProps) {
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="relative max-w-4xl max-h-[90vh] w-full bg-zinc-900 rounded-lg overflow-hidden">
         <button
+          type="button"
+          aria-label="Close modal"
           onClick={onClose}
           className="absolute top-4 right-4 z-10 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white transition-colors"
         >
@@ -114,7 +116,7 @@ export function ImageModal({ imageId, onClose }: ImageModalProps) {
 
             <div className="pt-4 border-t border-zinc-800">
               <button
-                onClick={handleLike}
+                onClick={() => { void handleLike(); }}
                 className={`w-full py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
                   image.isLiked
                     ? 'bg-red-500 hover:bg-red-600 text-white'

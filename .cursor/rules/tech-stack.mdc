@@ -1,0 +1,258 @@
+---
+description: Complete technology stack analysis for the Visuals application including versions and best practices
+globs: **/*
+alwaysApply: true
+---
+# Visuals Technology Stack
+
+This rule outlines the complete technology stack for the **Visuals** image gallery application, including dependency versions, architecture decisions, and best practices recommendations.
+
+## Application Overview
+
+**Visuals** is a modern React/TypeScript image gallery built with:
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
+- **Backend**: Convex (Backend-as-a-Service)
+- **Build Tools**: Bun + ESLint + Prettier
+- **Icons**: Lucide React
+- **Styling**: Tailwind CSS with utility-first approach
+
+## Core Dependencies
+
+### Runtime Dependencies
+
+#### React Ecosystem
+```json
+"react": "^19.0.0",
+"react-dom": "^19.0.0"
+```
+- **Version**: React 19.0.0 (Latest major release)
+- **Best Practice**: ✅ **Excellent choice** - You're using the latest stable React version
+- **Benefits**: New features, performance improvements, modern React patterns
+- **Considerations**: Monitor for any breaking changes in minor updates
+
+#### Backend & Database
+```json
+"convex": "^1.24.2",
+"@convex-dev/auth": "^0.0.80"
+```
+- **Version**: Convex 1.24.2, Auth 0.0.80
+- **Best Practice**: ✅ **Modern BaaS choice** - Excellent for real-time applications
+- **Benefits**: Real-time subscriptions, type-safe API, built-in authentication
+- **Architecture**: Serverless backend with automatic scaling
+
+#### UI & Styling
+```json
+"tailwindcss": "~3",
+"lucide-react": "^0.542.0",
+"clsx": "^2.1.1",
+"tailwind-merge": "^3.1.0"
+```
+- **Versions**: Tailwind ~3, Lucide 0.542.0, clsx 2.1.1, tailwind-merge 3.1.0
+- **Best Practice**: ✅ **Optimal styling stack**
+- **Benefits**: Utility-first CSS, consistent icon system, class merging utilities
+- **Pattern**: Modern CSS-in-JS approach with performance optimization
+
+#### Utilities
+```json
+"sonner": "^2.0.3"
+```
+- **Version**: Sonner 2.0.3
+- **Best Practice**: ✅ **Lightweight toast solution**
+- **Benefits**: Accessible, customizable, performant notification system
+
+## Development Dependencies
+
+### Build Tools
+```json
+"vite": "^6.2.0",
+"@vitejs/plugin-react": "^4.3.4"
+```
+- **Versions**: Vite 6.2.0, React Plugin 4.3.4
+- **Best Practice**: ✅ **State-of-the-art build tool**
+- **Benefits**: Lightning-fast HMR, optimized production builds
+- **Performance**: Significantly faster than Webpack/CRA
+
+### TypeScript
+```json
+"typescript": "~5.7.2",
+"@types/react": "^19.0.10",
+"@types/react-dom": "^19.0.4",
+"@types/node": "^22.13.10"
+```
+- **Versions**: TS 5.7.2, React types 19.0.10, Node types 22.13.10
+- **Best Practice**: ✅ **Excellent TypeScript setup**
+- **Benefits**: Latest TS features, perfect React 19 compatibility
+- **Configuration**: Strict typing with modern Node.js types
+
+### Code Quality & Linting
+```json
+"eslint": "^9.21.0",
+"@eslint/js": "^9.21.0",
+"eslint-plugin-react-hooks": "^5.1.0",
+"eslint-plugin-react-refresh": "^0.4.19",
+"typescript-eslint": "^8.24.1"
+```
+- **Versions**: ESLint 9.21.0, React Hooks 5.1.0, TS-ESLint 8.24.1
+- **Best Practice**: ✅ **Modern ESLint configuration**
+- **Benefits**: Flat config format, React 19 support, TypeScript integration
+- **Coverage**: Hooks rules, fast refresh compatibility
+
+### CSS Processing
+```json
+"postcss": "~8",
+"autoprefixer": "~10"
+```
+- **Versions**: PostCSS ~8, Autoprefixer ~10
+- **Best Practice**: ✅ **Standard CSS processing**
+- **Benefits**: Modern CSS features, automatic vendor prefixing
+
+### Development Tools
+```json
+"concurrently": "^9.2.1",
+"dotenv": "^16.4.7",
+"prettier": "^3.5.3"
+```
+- **Versions**: Concurrently 9.2.1, Dotenv 16.4.7, Prettier 3.5.3
+- **Best Practice**: ✅ **Essential dev tools**
+- **Benefits**: Parallel process execution, environment management, consistent formatting
+
+## Package Manager
+
+```json
+// Using Bun (inferred from bun.lock)
+"packageManager": "bun"
+```
+- **Best Practice**: ✅ **Modern package manager choice**
+- **Benefits**: Faster installs, better performance than npm/yarn
+- **Compatibility**: Drop-in replacement for npm scripts
+
+## Architecture Analysis
+
+### Frontend Architecture
+```
+React 19 + TypeScript + Vite
+├── Component Structure: Functional components with hooks
+├── State Management: Local state + Convex real-time queries
+├── Styling: Tailwind CSS with utility-first approach
+├── Type Safety: Strict TypeScript configuration
+└── Performance: Optimized with Vite's build system
+```
+
+### Backend Architecture
+```
+Convex (Backend-as-a-Service)
+├── Database: Real-time document database
+├── API: Type-safe generated functions
+├── Auth: Built-in authentication system
+├── File Storage: Integrated storage for images
+└── Scaling: Automatic horizontal scaling
+```
+
+## Version Strategy & Best Practices
+
+### ✅ Excellent Choices Made
+
+1. **React 19.0.0**: Latest stable release with new features
+2. **TypeScript 5.7.2**: Modern type system with latest features
+3. **Vite 6.2.0**: Next-generation build tool
+4. **Convex**: Modern BaaS with excellent DX
+5. **Bun**: Fast package manager
+6. **Tailwind CSS**: Utility-first styling approach
+
+### 📈 Recommended Updates
+
+```json
+// Consider these updates for enhanced stability:
+{
+  "convex": "^1.25.0",           // Latest stable
+  "lucide-react": "^0.544.0",    // Latest icons
+  "@types/node": "^22.15.0"      // Latest Node types
+}
+```
+
+### 🔧 Maintenance Recommendations
+
+1. **Version Pinning**: Use `~` for patch updates, `^` for minor updates
+2. **Security**: Run `bun audit` regularly for vulnerability checks
+3. **Updates**: Update dependencies quarterly for security patches
+4. **Testing**: Test major version updates in staging environment
+5. **Documentation**: Keep dependency decisions documented
+
+### ⚠️ Potential Considerations
+
+1. **React 19**: Monitor community adoption and any ecosystem updates
+2. **Convex**: Evaluate usage costs as application scales
+3. **Bun**: Ensure CI/CD pipeline supports Bun (or add npm fallback)
+4. **TypeScript**: Leverage new TS 5.7 features (better error messages, performance)
+
+## Development Workflow
+
+### Local Development
+```bash
+bun install          # Fast dependency installation
+bun run dev         # Concurrent frontend + backend development
+bun run lint        # TypeScript + ESLint checking
+bun run build       # Production build with optimizations
+```
+
+### Code Quality Pipeline
+```
+Source Code → TypeScript → ESLint → Prettier → Vite Build
+     ↓           ↓         ↓         ↓          ↓
+   Strict      Modern    Consistent  Formatted  Optimized
+  Typing      Rules     Code Style   Code      Bundle
+```
+
+## Performance Optimizations
+
+### Build Performance
+- **Vite**: Lightning-fast HMR and optimized production builds
+- **Bun**: Faster package installation and script execution
+- **ESLint 9**: Improved performance with flat config
+
+### Runtime Performance
+- **React 19**: Better performance with new architecture
+- **Tailwind**: Minimal CSS bundle with purging
+- **Convex**: Efficient real-time data synchronization
+- **Lucide**: Tree-shakable icon imports
+
+## Migration Paths
+
+### If Needed: React Version Management
+```typescript
+// For gradual adoption of React 19 features
+const isReact19 = React.version.startsWith('19');
+
+// Feature flags for React 19 capabilities
+const useNewFeatures = isReact19 && process.env.NODE_ENV === 'development';
+```
+
+### Package Manager Fallback
+```json
+// Alternative npm scripts for CI/CD compatibility
+{
+  "scripts": {
+    "install:npm": "npm install",
+    "dev:npm": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\""
+  }
+}
+```
+
+## Summary
+
+Your technology stack represents a **modern, high-performance, and developer-friendly** architecture that leverages the latest stable versions of key technologies. The choices made demonstrate excellent judgment in balancing cutting-edge features with stability and performance.
+
+**Key Strengths:**
+- ✅ Latest stable versions across the board
+- ✅ Modern development experience
+- ✅ Type-safe full-stack application
+- ✅ Optimized build and runtime performance
+- ✅ Excellent developer tooling
+
+**Recommended Actions:**
+1. Monitor React 19 ecosystem adoption
+2. Keep dependencies updated quarterly
+3. Consider adding automated dependency updates
+4. Document any custom dependency decisions
+
+This stack positions your project well for future growth and maintenance! 🚀

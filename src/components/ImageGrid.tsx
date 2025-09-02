@@ -72,7 +72,9 @@ export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200">
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <button
-                    onClick={(e) => handleLike(image._id, e)}
+                    type="button"
+                    aria-label={image.isLiked ? "Unlike this image" : "Like this image"}
+                    onClick={(e) => { void handleLike(image._id, e); }}
                     className={`p-2 rounded-full backdrop-blur-sm transition-colors ${
                       image.isLiked 
                         ? 'bg-red-500/80 text-white' 
