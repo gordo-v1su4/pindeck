@@ -17,19 +17,26 @@ export function SignInForm() {
           setSubmitting(true);
           const formData = new FormData(e.target as HTMLFormElement);
           formData.set("flow", flow);
-          void signIn("password", formData).catch((error) => {
-            let toastTitle = "";
-            if (error.message.includes("Invalid password")) {
-              toastTitle = "Invalid password. Please try again.";
-            } else {
-              toastTitle =
-                flow === "signIn"
-                  ? "Could not sign in, did you mean to sign up?"
-                  : "Could not sign up, did you mean to sign in?";
-            }
-            toast.error(toastTitle);
-            setSubmitting(false);
-          });
+          void signIn("password", formData)
+            .then(() => {
+              // Sign in successful
+              toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
+            })
+            .catch((error) => {
+              let toastTitle = "";
+              if (error.message.includes("Invalid password")) {
+                toastTitle = "Invalid password. Please try again.";
+              } else {
+                toastTitle =
+                  flow === "signIn"
+                    ? "Could not sign in, did you mean to sign up?"
+                    : "Could not sign up, did you mean to sign in?";
+              }
+              toast.error(toastTitle);
+            })
+            .finally(() => {
+              setSubmitting(false);
+            });
         }}
       >
         <input
@@ -37,6 +44,7 @@ export function SignInForm() {
           type="email"
           name="email"
           placeholder="Email"
+          autoComplete="email"
           required
         />
         <input
@@ -44,6 +52,7 @@ export function SignInForm() {
           type="password"
           name="password"
           placeholder="Password"
+          autoComplete="current-password"
           required
         />
         <button className="auth-button" type="submit" disabled={submitting}>

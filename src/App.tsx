@@ -1,4 +1,4 @@
-import { Authenticated, Unauthenticated, useQuery } from "convex/react";
+import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
@@ -6,7 +6,7 @@ import { Toaster } from "sonner";
 import { ImageGrid } from "./components/ImageGrid";
 import { SearchBar } from "./components/SearchBar";
 import { CategoryFilter } from "./components/CategoryFilter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,9 +56,13 @@ function Content({ searchTerm, selectedCategory }: {
   searchTerm: string; 
   selectedCategory: string | undefined;
 }) {
-  const loggedInUser = useQuery(api.auth.loggedInUser);
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  
+  useEffect(() => {
+    console.log("🔐 Auth State:", { isAuthenticated, isLoading });
+  }, [isAuthenticated, isLoading]);
 
-  if (loggedInUser === undefined) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-400"></div>
