@@ -132,6 +132,7 @@ export const create = mutation({
     tags: v.array(v.string()),
     category: v.string(),
     source: v.optional(v.string()),
+    sref: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -207,5 +208,66 @@ export const getCategories = query({
     const images = await ctx.db.query("images").collect();
     const categories = [...new Set(images.map(img => img.category))];
     return categories.sort();
+  },
+});
+
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to upload images");
+    }
+    
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const uploadMultiple = mutation({
+  args: {
+    uploads: v.array(v.object({
+      storageId: v.id("_storage"),
+      title: v.string(),
+      description: v.optional(v.string()),
+      tags: v.array(v.string()),
+      category: v.string(),
+      source: v.optional(v.string()),
+      sref: v.optional(v.string()),
+      colors: v.optional(v.array(v.string())),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to upload images");
+    }
+
+    const results = await Promise.all(
+      args.uploads.map(async (upload) => {
+        // Get the image URL from storage
+        const imageUrl = await ctx.storage.getUrl(upload.storageId);
+        if (!imageUrl) {
+          throw new Error("Failed to get image URL");
+        }
+
+        // Create the image record
+        return await ctx.db.insert("images", {
+          title: upload.title,
+          description: upload.description,
+          imageUrl,
+          storageId: upload.storageId,
+          tags: upload.tags,
+          category: upload.category,
+          source: upload.source,
+          sref: upload.sref,
+          colors: upload.colors,
+          uploadedBy: userId,
+          likes: 0,
+          views: 0,
+        });
+      })
+    );
+
+    return results;
   },
 });

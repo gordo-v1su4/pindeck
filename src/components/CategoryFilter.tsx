@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Tabs } from "@radix-ui/themes";
 
 interface CategoryFilterProps {
   selectedCategory: string | undefined;
@@ -11,31 +12,22 @@ export function CategoryFilter({ selectedCategory, onCategoryChange }: CategoryF
 
   if (!categories) return null;
 
+  const currentValue = selectedCategory || "all";
+
   return (
-    <div className="flex gap-2 flex-wrap">
-      <button
-        onClick={() => onCategoryChange(undefined)}
-        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-          !selectedCategory
-            ? 'bg-zinc-100 text-zinc-900'
-            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-        }`}
-      >
-        All
-      </button>
-      {categories.map((category) => (
-        <button
-          key={category}
-          onClick={() => onCategoryChange(category)}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors capitalize ${
-            selectedCategory === category
-              ? 'bg-zinc-100 text-zinc-900'
-              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-          }`}
-        >
-          {category}
-        </button>
-      ))}
-    </div>
+    <Tabs.Root
+      value={currentValue}
+      onValueChange={(value) => onCategoryChange(value === "all" ? undefined : value)}
+      className="w-full"
+    >
+      <Tabs.List>
+        <Tabs.Trigger value="all">All</Tabs.Trigger>
+        {categories.map((category) => (
+          <Tabs.Trigger key={category} value={category} className="capitalize">
+            {category}
+          </Tabs.Trigger>
+        ))}
+      </Tabs.List>
+    </Tabs.Root>
   );
 }

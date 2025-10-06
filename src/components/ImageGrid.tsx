@@ -2,7 +2,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { ImageModal } from "./ImageModal";
-import { Heart, Eye } from "lucide-react";
+import { HeartIcon, EyeOpenIcon } from "@radix-ui/react-icons";
+import { Card, IconButton, Text, Flex, Box, Spinner } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 
 interface ImageGridProps {
@@ -12,6 +13,7 @@ interface ImageGridProps {
 
 export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
+  const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | undefined>();
   
   const images = useQuery(
     searchTerm 
@@ -35,19 +37,19 @@ export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
 
   if (images === undefined) {
     return (
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-400"></div>
-      </div>
+      <Flex justify="center" align="center" className="min-h-[50vh]">
+        <Spinner size="3" />
+      </Flex>
     );
   }
 
   if (images.length === 0) {
     return (
-      <div className="text-center py-16">
-        <p className="text-zinc-400 text-lg">
+      <Box className="text-center py-16">
+        <Text size="4" color="gray">
           {searchTerm ? "No images found for your search." : "No images available."}
-        </p>
-      </div>
+        </Text>
+      </Box>
     );
   }
 
@@ -55,12 +57,19 @@ export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
     <>
       <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
         {images.map((image) => (
-          <div
+          <Card
             key={image._id}
-            className="break-inside-avoid group cursor-pointer"
-            onClick={() => setSelectedImage(image._id)}
+            className="break-inside-avoid group cursor-pointer hover:ring-2 hover:ring-gray-8 transition-all duration-200"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setTriggerPosition({
+                x: rect.left,
+                y: rect.top
+              });
+              setSelectedImage(image._id);
+            }}
           >
-            <div className="relative bg-zinc-900 rounded-lg overflow-hidden hover:ring-2 hover:ring-zinc-700 transition-all duration-200">
+            <Box className="relative overflow-hidden">
               <img
                 src={image.imageUrl}
                 alt={image.title}
@@ -69,50 +78,49 @@ export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
               />
               
               {/* Overlay */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200">
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <button
-                    type="button"
+              <Box className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200">
+                <Box className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <IconButton
+                    variant="solid"
+                    color={image.isLiked ? "red" : "gray"}
+                    size="2"
                     aria-label={image.isLiked ? "Unlike this image" : "Like this image"}
                     onClick={(e) => { void handleLike(image._id, e); }}
-                    className={`p-2 rounded-full backdrop-blur-sm transition-colors ${
-                      image.isLiked 
-                        ? 'bg-red-500/80 text-white' 
-                        : 'bg-black/40 text-white hover:bg-black/60'
-                    }`}
+                    className="backdrop-blur-sm"
                   >
-                    <Heart 
-                      size={16} 
-                      fill={image.isLiked ? "currentColor" : "none"}
-                    />
-                  </button>
-                </div>
+                    <HeartIcon />
+                  </IconButton>
+                </Box>
                 
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <h3 className="text-white font-medium text-sm mb-1 line-clamp-2">
+                <Box className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <Text size="2" weight="medium" className="text-white mb-1 line-clamp-2">
                     {image.title}
-                  </h3>
-                  <div className="flex items-center gap-3 text-zinc-300 text-xs">
-                    <div className="flex items-center gap-1">
-                      <Heart size={12} />
-                      <span>{image.likes}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Eye size={12} />
-                      <span>{image.views}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                  </Text>
+                  <Flex gap="3" align="center">
+                    <Flex gap="1" align="center">
+                      <HeartIcon width="12" height="12" />
+                      <Text size="1" color="gray">{image.likes}</Text>
+                    </Flex>
+                    <Flex gap="1" align="center">
+                      <EyeOpenIcon width="12" height="12" />
+                      <Text size="1" color="gray">{image.views}</Text>
+                    </Flex>
+                  </Flex>
+                </Box>
+              </Box>
+            </Box>
+          </Card>
         ))}
       </div>
 
       {selectedImage && (
         <ImageModal
           imageId={selectedImage}
-          onClose={() => setSelectedImage(null)}
+          onClose={() => {
+            setSelectedImage(null);
+            setTriggerPosition(undefined);
+          }}
+          triggerPosition={triggerPosition}
         />
       )}
     </>

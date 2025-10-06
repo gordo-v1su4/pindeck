@@ -2,6 +2,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { TextField, Button, Text, Flex, Box, Separator } from "@radix-ui/themes";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
@@ -9,9 +10,9 @@ export function SignInForm() {
   const [submitting, setSubmitting] = useState(false);
 
   return (
-    <div className="w-full">
-      <form
-        className="flex flex-col gap-form-field"
+    <Box className="w-full">
+      <Box as="form"
+        className="flex flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitting(true);
@@ -39,48 +40,47 @@ export function SignInForm() {
             });
         }}
       >
-        <input
-          className="auth-input-field"
+        <TextField.Root
           type="email"
           name="email"
           placeholder="Email"
           autoComplete="email"
           required
+          size="3"
         />
-        <input
-          className="auth-input-field"
+        <TextField.Root
           type="password"
           name="password"
           placeholder="Password"
           autoComplete="current-password"
           required
+          size="3"
         />
-        <button className="auth-button" type="submit" disabled={submitting}>
+        <Button type="submit" disabled={submitting} size="3" className="w-full">
           {flow === "signIn" ? "Sign in" : "Sign up"}
-        </button>
-        <div className="text-center text-sm text-secondary">
-          <span>
-            {flow === "signIn"
-              ? "Don't have an account? "
-              : "Already have an account? "}
-          </span>
-          <button
-            type="button"
-            className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
+        </Button>
+        <Text size="2" color="gray" className="text-center">
+          {flow === "signIn"
+            ? "Don't have an account? "
+            : "Already have an account? "}
+          <Button
+            variant="ghost"
+            size="1"
             onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
+            className="inline"
           >
             {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
-          </button>
-        </div>
-      </form>
-      <div className="flex items-center justify-center my-3">
-        <hr className="my-4 grow border-gray-200" />
-        <span className="mx-4 text-secondary">or</span>
-        <hr className="my-4 grow border-gray-200" />
-      </div>
-      <button className="auth-button" onClick={() => void signIn("anonymous")}>
+          </Button>
+        </Text>
+      </Box>
+      <Flex align="center" justify="center" className="my-4">
+        <Separator className="flex-1" />
+        <Text size="2" color="gray" className="mx-4">or</Text>
+        <Separator className="flex-1" />
+      </Flex>
+      <Button variant="outline" size="3" className="w-full" onClick={() => void signIn("anonymous")}>
         Sign in anonymously
-      </button>
-    </div>
+      </Button>
+    </Box>
   );
 }

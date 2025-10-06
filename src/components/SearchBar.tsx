@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { TextField, IconButton } from "@radix-ui/themes";
+import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 
 interface SearchBarProps {
   onSearch: (term: string) => void;
@@ -15,16 +16,18 @@ export function SearchBar({ onSearch }: SearchBarProps) {
 
   return (
     <form onSubmit={handleSubmit} className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400" size={18} />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search visuals..."
-          className="w-80 pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-600 focus:border-transparent"
-        />
-      </div>
+      <TextField.Root
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Search visuals..."
+        size="2"
+        variant="soft"
+        className="w-80"
+      >
+        <TextField.Slot>
+          <MagnifyingGlassIcon height="16" width="16" />
+        </TextField.Slot>
+      </TextField.Root>
     </form>
   );
 }

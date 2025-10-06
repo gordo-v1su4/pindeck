@@ -11,6 +11,8 @@ const applicationTables = {
     tags: v.array(v.string()),
     category: v.string(),
     source: v.optional(v.string()),
+    sref: v.optional(v.string()),
+    colors: v.optional(v.array(v.string())),
     uploadedBy: v.id("users"),
     likes: v.number(),
     views: v.number(),
