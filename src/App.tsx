@@ -59,7 +59,8 @@ function Content({ searchTerm, selectedCategory }: {
   const { isAuthenticated, isLoading } = useConvexAuth();
   
   useEffect(() => {
-    console.log("🔐 Auth State:", { isAuthenticated, isLoading });
+    console.log("🔐 Auth State - isAuthenticated:", isAuthenticated);
+    console.log("🔐 Auth State - isLoading:", isLoading);
   }, [isAuthenticated, isLoading]);
 
   if (isLoading) {
