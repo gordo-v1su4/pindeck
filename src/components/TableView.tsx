@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -31,9 +31,11 @@ import {
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon,
   MagnifyingGlassIcon,
+  TrashIcon,
 } from "@radix-ui/react-icons";
 import { ImageModal } from "./ImageModal";
 import { Id } from "../../convex/_generated/dataModel";
+import { toast } from "sonner";
 
 interface Image {
   _id: Id<"images">;
@@ -53,6 +55,7 @@ interface Image {
 
 export function TableView() {
   const images = useQuery(api.images.list, { limit: 1000 });
+  const deleteImage = useMutation(api.images.remove);
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -217,13 +220,24 @@ export function TableView() {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <Button
-            variant="soft"
-            size="1"
-            onClick={() => setSelectedImage(row.original._id)}
-          >
-            View
-          </Button>
+          <Flex gap="1">
+            <Button
+              variant="soft"
+              size="1"
+              onClick={() => setSelectedImage(row.original._id)}
+            >
+              View
+            </Button>
+            <IconButton
+              variant="soft"
+              color="red"
+              size="1"
+              onClick={() => handleDeleteImage(row.original._id, row.original.title)}
+              title="Delete image"
+            >
+              <TrashIcon />
+            </IconButton>
+          </Flex>
         ),
         enableSorting: false,
         enableGlobalFilter: false,
@@ -254,6 +268,20 @@ export function TableView() {
       return true;
     });
   }, [images, selectedTags, selectedColors]);
+
+  const handleDeleteImage = async (imageId: Id<"images">, imageTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${imageTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteImage({ id: imageId });
+      toast.success(`"${imageTitle}" deleted successfully!`);
+    } catch (error) {
+      console.error('Failed to delete image:', error);
+      toast.error('Failed to delete image.');
+    }
+  };
 
   const table = useReactTable({
     data: filteredImages,

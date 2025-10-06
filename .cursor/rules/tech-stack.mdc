@@ -10,11 +10,12 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 ## Application Overview
 
 **Visuals** is a modern React/TypeScript image gallery built with:
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS + Radix UI
 - **Backend**: Convex (Backend-as-a-Service)
 - **Build Tools**: Bun + ESLint + Prettier
-- **Icons**: Lucide React
-- **Styling**: Tailwind CSS with utility-first approach
+- **Icons**: Radix UI Icons + Lucide React
+- **Styling**: Tailwind CSS with utility-first approach + Radix Themes
+- **Tables**: TanStack Table for advanced data management
 
 ## Core Dependencies
 
@@ -32,33 +33,37 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 
 #### Backend & Database
 ```json
-"convex": "^1.24.2",
-"@convex-dev/auth": "^0.0.80"
+"convex": "^1.27.3",
+"@convex-dev/auth": "^0.0.90"
 ```
-- **Version**: Convex 1.24.2, Auth 0.0.80
+- **Version**: Convex 1.27.3, Auth 0.0.90
 - **Best Practice**: ✅ **Modern BaaS choice** - Excellent for real-time applications
 - **Benefits**: Real-time subscriptions, type-safe API, built-in authentication
 - **Architecture**: Serverless backend with automatic scaling
 
 #### UI & Styling
 ```json
+"@radix-ui/themes": "^3.2.1",
+"@radix-ui/react-icons": "^1.3.2",
 "tailwindcss": "~3",
 "lucide-react": "^0.542.0",
 "clsx": "^2.1.1",
 "tailwind-merge": "^3.1.0"
 ```
-- **Versions**: Tailwind ~3, Lucide 0.542.0, clsx 2.1.1, tailwind-merge 3.1.0
-- **Best Practice**: ✅ **Optimal styling stack**
-- **Benefits**: Utility-first CSS, consistent icon system, class merging utilities
-- **Pattern**: Modern CSS-in-JS approach with performance optimization
+- **Versions**: Radix Themes 3.2.1, Radix Icons 1.3.2, Tailwind ~3, Lucide 0.542.0, clsx 2.1.1, tailwind-merge 3.1.0
+- **Best Practice**: ✅ **Modern UI component system**
+- **Benefits**: Accessible components, consistent design system, utility-first CSS, class merging utilities
+- **Pattern**: Radix UI for components + Tailwind for styling + Radix Themes for theming
 
-#### Utilities
+#### Utilities & Data Management
 ```json
+"@tanstack/react-table": "^8.21.3",
 "sonner": "^2.0.3"
 ```
-- **Version**: Sonner 2.0.3
-- **Best Practice**: ✅ **Lightweight toast solution**
-- **Benefits**: Accessible, customizable, performant notification system
+- **Versions**: TanStack Table 8.21.3, Sonner 2.0.3
+- **Best Practice**: ✅ **Modern data management stack**
+- **Benefits**: Advanced table functionality (sorting, filtering, pagination), accessible toast notifications
+- **Features**: Headless table components, real-time data updates, comprehensive filtering system
 
 ## Development Dependencies
 
@@ -130,10 +135,12 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 
 ### Frontend Architecture
 ```
-React 19 + TypeScript + Vite
+React 19 + TypeScript + Vite + Radix UI
 ├── Component Structure: Functional components with hooks
 ├── State Management: Local state + Convex real-time queries
-├── Styling: Tailwind CSS with utility-first approach
+├── Styling: Radix Themes + Tailwind CSS with utility-first approach
+├── UI Components: Radix UI primitives with custom styling
+├── Data Tables: TanStack Table for advanced data management
 ├── Type Safety: Strict TypeScript configuration
 └── Performance: Optimized with Vite's build system
 ```
@@ -145,6 +152,8 @@ Convex (Backend-as-a-Service)
 ├── API: Type-safe generated functions
 ├── Auth: Built-in authentication system
 ├── File Storage: Integrated storage for images
+├── Boards: Pinterest-style collections system
+├── Color Extraction: Automatic color palette generation
 └── Scaling: Automatic horizontal scaling
 ```
 
@@ -157,16 +166,19 @@ Convex (Backend-as-a-Service)
 3. **Vite 6.2.0**: Next-generation build tool
 4. **Convex**: Modern BaaS with excellent DX
 5. **Bun**: Fast package manager
-6. **Tailwind CSS**: Utility-first styling approach
+6. **Radix UI**: Accessible component primitives
+7. **TanStack Table**: Advanced data table functionality
+8. **Tailwind CSS**: Utility-first styling approach
 
 ### 📈 Recommended Updates
 
 ```json
 // Consider these updates for enhanced stability:
 {
-  "convex": "^1.25.0",           // Latest stable
+  "convex": "^1.28.0",           // Latest stable
   "lucide-react": "^0.544.0",    // Latest icons
-  "@types/node": "^22.15.0"      // Latest Node types
+  "@types/node": "^22.15.0",     // Latest Node types
+  "@radix-ui/themes": "^3.3.0"   // Latest Radix Themes
 }
 ```
 

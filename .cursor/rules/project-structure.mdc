@@ -12,8 +12,11 @@ This rule outlines the directory structure and organization of the **Visuals** p
 **Visuals** is a curated image gallery and sharing platform that provides:
 - User authentication with Convex Auth
 - Image upload, search, and categorization
+- Pinterest-style boards and collections
+- Advanced table view with filtering and sorting
+- Automatic color extraction from images
 - Social features (likes, collections, views)
-- Responsive masonry layout with Tailwind CSS
+- Responsive masonry layout with Radix UI + Tailwind CSS
 - Real-time updates via Convex subscriptions
 - TypeScript-first development experience
 
@@ -58,8 +61,9 @@ convex/
 │
 ├── auth.config.ts             # 🔐 Authentication configuration
 ├── auth.ts                    # 👤 Authentication logic
+├── boards.ts                  # 📌 Pinterest-style boards API
 ├── http.ts                    # 🌐 HTTP utilities & external APIs
-├── images.ts                  # 🖼️ Image CRUD, search, likes API
+├── images.ts                  # 🖼️ Image CRUD, search, likes, color extraction API
 ├── router.ts                  # 🛣️ API route definitions
 ├── schema.ts                  # 📊 Database schema & indexes
 ├── seed.ts                    # 🌱 Database seeding script
@@ -73,17 +77,22 @@ convex/
 ```
 src/
 ├── 📁 components/             # 🧩 Reusable React components
+│   ├── BoardsView.tsx        # 📌 Pinterest-style boards management
 │   ├── CategoryFilter.tsx    # 🏷️ Category filtering UI
+│   ├── CreateBoardModal.tsx  # ➕ Board creation modal
 │   ├── ImageGrid.tsx         # 🎯 Main image display (masonry)
-│   ├── ImageModal.tsx        # 🔍 Image detail modal
-│   └── SearchBar.tsx         # 🔎 Search functionality
+│   ├── ImageModal.tsx        # 🔍 Image detail modal with color display
+│   ├── ImageUploadForm.tsx   # 📤 Multi-image upload with color extraction
+│   ├── SearchBar.tsx         # 🔎 Search functionality
+│   └── TableView.tsx         # 📊 Advanced data table with filtering
 │
 ├── 📁 lib/                   # 🛠️ Utilities & helpers
+│   ├── colorExtraction.ts    # 🎨 Browser-based color extraction
 │   └── utils.ts              # 🎨 Tailwind CSS utilities
 │
-├── App.tsx                   # 🎪 Main application component
+├── App.tsx                   # 🎪 Main application component with tabs
 ├── index.css                 # 🎨 Global styles & Tailwind
-├── main.tsx                  # 🚀 Application entry point
+├── main.tsx                  # 🚀 Application entry point with Radix Theme
 ├── SignInForm.tsx            # 📝 User authentication form
 ├── SignOutButton.tsx         # 🚪 Sign-out functionality
 └── vite-env.d.ts             # ⚙️ Vite environment types
@@ -95,10 +104,14 @@ src/
 
 ```
 src/components/
-├── CategoryFilter.tsx        # 🏷️ Filter images by category
+├── BoardsView.tsx           # 📌 Pinterest-style boards management
+├── CategoryFilter.tsx       # 🏷️ Filter images by category
+├── CreateBoardModal.tsx     # ➕ Board creation modal
 ├── ImageGrid.tsx            # 🎯 Responsive masonry grid layout
-├── ImageModal.tsx           # 🔍 Full-screen image viewer
-└── SearchBar.tsx            # 🔎 Real-time search interface
+├── ImageModal.tsx           # 🔍 Full-screen image viewer with colors
+├── ImageUploadForm.tsx      # 📤 Multi-image upload with color extraction
+├── SearchBar.tsx            # 🔎 Real-time search interface
+└── TableView.tsx            # 📊 Advanced data table with filtering
 ```
 
 ## Build Output Directory (`/dist/`)
@@ -130,11 +143,9 @@ dist/
 - `eslint.config.js` - 🔍 ESLint linting rules
 - `tailwind.config.js` - 🎨 Tailwind CSS configuration
 - `postcss.config.cjs` - 🎯 PostCSS configuration
-- `components.json` - 🧩 shadcn/ui component configuration
 
 ### Development Tools
 - `.gitignore` - 🚫 Git ignore rules
-- `setup.mjs` - 🛠️ Project setup script
 - `index.html` - 🌐 Main HTML template
 
 ## Component Organization Patterns
@@ -142,6 +153,7 @@ dist/
 ### React Components (`/src/components/`)
 - **Functional components**: Modern React hooks-based
 - **TypeScript interfaces**: Strongly typed props and state
+- **Radix UI components**: Accessible component primitives
 - **Tailwind styling**: Utility-first CSS approach
 - **Modular exports**: Clean import/export patterns
 
@@ -176,8 +188,12 @@ const images = {
   title: string,
   description?: string,
   imageUrl: string,
+  storageId?: storageId,
   category: string,
   tags: string[],
+  source?: string,
+  sref?: string,           // Midjourney style reference
+  colors?: string[],       // Extracted color palette
   uploadedBy: userId,
   likes: number,
   views: number
@@ -185,6 +201,7 @@ const images = {
 
 const collections = {
   name: string,
+  description?: string,
   userId: userId,
   isPublic: boolean,
   imageIds: imageId[]
@@ -201,7 +218,9 @@ const likes = {
 ### Frontend Architecture
 - **Component Structure**: Modular React components in `src/components/`
 - **State Management**: Local state with React hooks, Convex for server state
+- **UI Framework**: Radix UI components with Radix Themes
 - **Styling**: Tailwind CSS with utility-first approach
+- **Data Tables**: TanStack Table for advanced data management
 - **Authentication**: Convex Auth with protected routes
 
 ### Backend Architecture
@@ -209,6 +228,8 @@ const likes = {
 - **API Layer**: Generated API functions with type safety
 - **Authentication**: Integrated auth system with user management
 - **File Storage**: Convex storage for image uploads
+- **Boards System**: Pinterest-style collections management
+- **Color Extraction**: Automatic color palette generation
 
 ### Development Workflow
 - **Build Tool**: Vite for fast development and optimized builds
@@ -233,6 +254,9 @@ const likes = {
 
 // Image management API
 [convex/images.ts](mdc:convex/images.ts)
+
+// Boards management API
+[convex/boards.ts](mdc:convex/boards.ts)
 ```
 
 ## File Organization Guidelines

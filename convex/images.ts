@@ -271,3 +271,32 @@ export const uploadMultiple = mutation({
     return results;
   },
 });
+
+export const remove = mutation({
+  args: { id: v.id("images") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const image = await ctx.db.get(args.id);
+    if (!image) {
+      throw new Error("Image not found");
+    }
+
+    if (image.uploadedBy !== userId) {
+      throw new Error("Not authorized to delete this image");
+    }
+
+    // Delete the image from storage if it exists
+    if (image.storageId) {
+      await ctx.storage.delete(image.storageId);
+    }
+
+    // Delete the image record
+    await ctx.db.delete(args.id);
+
+    return { success: true };
+  },
+});
