@@ -40,4 +40,26 @@ window.addEventListener('message', async (message) => {
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    outDir: "dist",
+    sourcemap: mode === "development",
+    minify: mode === "production",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          convex: ["convex/react", "@convex-dev/auth/react"],
+          ui: ["@radix-ui/themes", "@radix-ui/react-icons", "lucide-react"],
+        },
+      },
+    },
+  },
+  server: {
+    port: 3000,
+    host: true,
+  },
+  preview: {
+    port: 3000,
+    host: true,
+  },
 }));
