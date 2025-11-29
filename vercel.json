@@ -4,10 +4,6 @@
   "framework": "vite",
   "installCommand": "bun install",
   "devCommand": "bun run dev:frontend",
-  "env": {
-    "VITE_CONVEX_URL": "@convex-url",
-    "CONVEX_SITE_URL": "@convex-site-url"
-  },
   "rewrites": [
     {
       "source": "/(.*)",

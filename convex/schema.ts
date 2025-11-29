@@ -16,6 +16,9 @@ const applicationTables = {
     uploadedBy: v.id("users"),
     likes: v.number(),
     views: v.number(),
+    status: v.optional(v.string()),
+    aiStatus: v.optional(v.string()),
+    uploadedAt: v.optional(v.number()),
   })
     .index("by_category", ["category"])
     .index("by_uploaded_by", ["uploadedBy"])

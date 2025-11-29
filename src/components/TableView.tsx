@@ -36,6 +36,7 @@ import {
 import { ImageModal } from "./ImageModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { getTagColor } from "../lib/utils";
 
 interface Image {
   _id: Id<"images">;
@@ -51,6 +52,7 @@ interface Image {
   likes: number;
   views: number;
   isLiked: boolean;
+  uploadedAt?: number;
 }
 
 export function TableView() {
@@ -102,6 +104,16 @@ export function TableView() {
         enableGlobalFilter: false,
       },
       {
+        accessorKey: "_id",
+        header: "ID",
+        cell: ({ row }) => (
+          <Text size="1" color="gray" className="font-mono">
+            {row.original._id.slice(-8)}
+          </Text>
+        ),
+        enableSorting: false,
+      },
+      {
         accessorKey: "title",
         header: "Title",
         cell: ({ row }) => (
@@ -127,7 +139,7 @@ export function TableView() {
           return (
             <Flex gap="1" wrap="wrap">
               {tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="soft" color="blue" size="1">
+                <Badge key={tag} variant="soft" color={getTagColor(tag)} size="1">
                   {tag}
                 </Badge>
               ))}
@@ -147,7 +159,7 @@ export function TableView() {
         cell: ({ row }) => {
           const sref = row.getValue("sref") as string;
           return sref ? (
-            <Badge variant="soft" color="purple" size="1">
+            <Badge variant="soft" color="blue" size="1">
               {sref}
             </Badge>
           ) : (
@@ -200,7 +212,7 @@ export function TableView() {
         cell: ({ row }) => {
           const source = row.getValue("source") as string;
           return source ? (
-            <Button variant="ghost" size="1" asChild>
+            <Button variant="soft" color="blue" size="1" asChild style={{ opacity: 0.9 }}>
               <a
                 href={source}
                 target="_blank"
@@ -217,14 +229,30 @@ export function TableView() {
         enableSorting: false,
       },
       {
+        accessorKey: "uploadedAt",
+        header: "Date Uploaded",
+        cell: ({ row }) => {
+          const timestamp = row.getValue("uploadedAt") as number;
+          return timestamp ? (
+            <Text size="2">
+              {new Date(timestamp).toLocaleDateString()}
+            </Text>
+          ) : (
+            <Text size="2" color="gray">-</Text>
+          );
+        },
+      },
+      {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
           <Flex gap="1">
             <Button
               variant="soft"
+              color="blue"
               size="1"
               onClick={() => setSelectedImage(row.original._id)}
+              style={{ opacity: 0.9 }}
             >
               View
             </Button>
@@ -234,6 +262,7 @@ export function TableView() {
               size="1"
               onClick={() => handleDeleteImage(row.original._id, row.original.title)}
               title="Delete image"
+              style={{ opacity: 0.9 }}
             >
               <TrashIcon />
             </IconButton>
@@ -314,7 +343,7 @@ export function TableView() {
   }
 
   return (
-    <Box className="space-y-4">
+    <Box className="space-y-4 w-full">
       <Box>
         <Text size="6" weight="bold">Image Table</Text>
         <Text size="2" color="gray" className="mt-1">
@@ -360,15 +389,18 @@ export function TableView() {
                         : [...prev, tag]
                     );
                   }}
+                  style={{ opacity: selectedTags.includes(tag) ? 1 : 0.7 }}
                 >
                   {tag}
                 </Button>
               ))}
               {selectedTags.length > 0 && (
                 <Button
-                  variant="ghost"
+                  variant="soft"
+                  color="blue"
                   size="1"
                   onClick={() => setSelectedTags([])}
+                  style={{ opacity: 0.8 }}
                 >
                   Clear
                 </Button>
@@ -408,9 +440,11 @@ export function TableView() {
               ))}
               {selectedColors.length > 0 && (
                 <Button
-                  variant="ghost"
+                  variant="soft"
+                  color="blue"
                   size="1"
                   onClick={() => setSelectedColors([])}
+                  style={{ opacity: 0.8 }}
                 >
                   Clear
                 </Button>
@@ -440,8 +474,8 @@ export function TableView() {
 
       {/* Table */}
       <Card>
-        <Box className="overflow-x-auto">
-          <Table.Root>
+        <Box className="overflow-x-auto w-full min-w-0">
+          <Table.Root className="w-full">
             <Table.Header>
               {table.getHeaderGroups().map((headerGroup) => (
                 <Table.Row key={headerGroup.id}>
@@ -506,33 +540,41 @@ export function TableView() {
             <Flex gap="2">
               <IconButton
                 variant="soft"
+                color="blue"
                 size="1"
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
+                style={{ opacity: table.getCanPreviousPage() ? 0.9 : 0.5 }}
               >
                 <DoubleArrowLeftIcon />
               </IconButton>
               <IconButton
                 variant="soft"
+                color="blue"
                 size="1"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
+                style={{ opacity: table.getCanPreviousPage() ? 0.9 : 0.5 }}
               >
                 <ChevronLeftIcon />
               </IconButton>
               <IconButton
                 variant="soft"
+                color="blue"
                 size="1"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
+                style={{ opacity: table.getCanNextPage() ? 0.9 : 0.5 }}
               >
                 <ChevronRightIcon />
               </IconButton>
               <IconButton
                 variant="soft"
+                color="blue"
                 size="1"
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
+                style={{ opacity: table.getCanNextPage() ? 0.9 : 0.5 }}
               >
                 <DoubleArrowRightIcon />
               </IconButton>
@@ -546,6 +588,8 @@ export function TableView() {
         <ImageModal
           imageId={selectedImage}
           onClose={() => setSelectedImage(null)}
+          setActiveTab={() => {}}
+          incrementBoardVersion={() => {}}
         />
       )}
     </Box>

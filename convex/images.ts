@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 
 export const list = query({
   args: {
@@ -16,11 +17,23 @@ export const list = query({
       images = await ctx.db
         .query("images")
         .withIndex("by_category", (q) => q.eq("category", args.category!))
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("status"), "active"),
+            q.eq(q.field("status"), undefined)
+          )
+        )
         .order("desc")
         .take(args.limit || 50);
     } else {
       images = await ctx.db
         .query("images")
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("status"), "active"),
+            q.eq(q.field("status"), undefined)
+          )
+        )
         .order("desc")
         .take(args.limit || 50);
     }
@@ -66,11 +79,23 @@ export const search = query({
         .withSearchIndex("search_content", (q) => 
           q.search("title", args.searchTerm).eq("category", args.category!)
         )
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("status"), "active"),
+            q.eq(q.field("status"), undefined)
+          )
+        )
         .take(50);
     } else {
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) => q.search("title", args.searchTerm))
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("status"), "active"),
+            q.eq(q.field("status"), undefined)
+          )
+        )
         .take(50);
     }
 
@@ -145,6 +170,28 @@ export const create = mutation({
       uploadedBy: userId,
       likes: 0,
       views: 0,
+      uploadedAt: Date.now(),
+    });
+  },
+});
+
+export const internalCreate = internalMutation({
+  args: {
+    title: v.string(),
+    description: v.optional(v.string()),
+    imageUrl: v.string(),
+    tags: v.array(v.string()),
+    category: v.string(),
+    source: v.optional(v.string()),
+    sref: v.optional(v.string()),
+    uploadedBy: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("images", {
+      ...args,
+      likes: 0,
+      views: 0,
+      uploadedAt: Date.now(),
     });
   },
 });
@@ -206,8 +253,25 @@ export const getCategories = query({
   args: {},
   handler: async (ctx) => {
     const images = await ctx.db.query("images").collect();
-    const categories = [...new Set(images.map(img => img.category))];
-    return categories.sort();
+    const existingCategories = new Set(images.map(img => img.category));
+    
+    const defaultCategories = [
+      "Abstract", "Architecture", "Art", "Black & White", "Character Design", 
+      "Cinematic", "Cyberpunk", "Design", "Fashion", "Film", 
+      "Food", "Gaming", "Illustration", "Interior", "Landscape", 
+      "Minimalist", "Nature", "Photography", "Portrait", "Sci-Fi", 
+      "Street", "Technology", "Texture", "Travel", "UI/UX", "Vintage"
+    ];
+
+    const allCategories = new Set([...defaultCategories, ...existingCategories]);
+    return [...allCategories].sort();
+  },
+});
+
+export const internalGenerateUploadUrl = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
   },
 });
 
@@ -251,7 +315,7 @@ export const uploadMultiple = mutation({
         }
 
         // Create the image record
-        return await ctx.db.insert("images", {
+        const imageId = await ctx.db.insert("images", {
           title: upload.title,
           description: upload.description,
           imageUrl,
@@ -264,11 +328,126 @@ export const uploadMultiple = mutation({
           uploadedBy: userId,
           likes: 0,
           views: 0,
+          aiStatus: "processing",
+          status: "draft",
+          uploadedAt: Date.now(),
         });
+
+        // Schedule the smart analysis action directly
+        try {
+          await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+            storageId: upload.storageId,
+            imageId: imageId,
+            userId: userId,
+            title: upload.title,
+            description: upload.description,
+            tags: upload.tags,
+            category: upload.category,
+            source: upload.source,
+            sref: upload.sref || undefined, // Pass undefined if sref is empty string
+          });
+        } catch (err) {
+          console.error("Failed to schedule smart analysis:", err);
+        }
+
+        return imageId;
       })
     );
 
     return results;
+  },
+});
+
+export const getDraftImages = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    return await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("status"), "draft"))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const finalizeUploads = mutation({
+  args: { imageIds: v.array(v.id("images")) },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    for (const id of args.imageIds) {
+      const image = await ctx.db.get(id);
+      if (image && image.uploadedBy === userId) {
+        await ctx.db.patch(id, { status: "active" });
+      }
+    }
+  },
+});
+
+export const getProcessingImages = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    return await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("aiStatus"), "processing"))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const getPendingImages = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    return await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const approveImage = mutation({
+  args: { imageId: v.id("images") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image) throw new Error("Image not found");
+
+    if (image.uploadedBy !== userId) throw new Error("Not authorized");
+
+    await ctx.db.patch(args.imageId, { status: "active" });
+  },
+});
+
+export const rejectImage = mutation({
+  args: { imageId: v.id("images") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image) throw new Error("Image not found");
+
+    if (image.uploadedBy !== userId) throw new Error("Not authorized");
+
+    if (image.storageId) {
+      await ctx.storage.delete(image.storageId);
+    }
+    await ctx.db.delete(args.imageId);
   },
 });
 
@@ -298,5 +477,139 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
 
     return { success: true };
+  },
+});
+
+export const internalUpdateAnalysis = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    title: v.optional(v.string()),
+    description: v.string(),
+    tags: v.optional(v.array(v.string())),
+    colors: v.array(v.string()),
+    category: v.optional(v.string()),
+    aiStatus: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const patch: any = {
+      description: args.description,
+      colors: args.colors,
+    };
+    if (args.title) patch.title = args.title;
+    if (args.tags) patch.tags = args.tags;
+    if (args.category) patch.category = args.category;
+    if (args.aiStatus) patch.aiStatus = args.aiStatus;
+
+    await ctx.db.patch(args.imageId, patch);
+  },
+});
+
+export const internalSetAiStatus = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.imageId, { aiStatus: args.status });
+  },
+});
+
+export const updateAnalysis = mutation({
+  args: {
+    imageId: v.id("images"),
+    description: v.string(),
+    colors: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image) {
+      throw new Error("Image not found");
+    }
+
+    if (image.uploadedBy !== userId) {
+      throw new Error("Not authorized to update this image");
+    }
+
+    await ctx.runMutation(internal.images.internalUpdateAnalysis, args);
+
+    return { success: true };
+  },
+});
+
+export const updateImageMetadata = mutation({
+  args: {
+    imageId: v.id("images"),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    category: v.optional(v.string()),
+    source: v.optional(v.string()),
+    sref: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const image = await ctx.db.get(args.imageId);
+    if (!image) {
+      throw new Error("Image not found");
+    }
+    if (image.uploadedBy !== userId) {
+      throw new Error("Not authorized to update this image");
+    }
+
+    const patch: any = {};
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.description !== undefined) patch.description = args.description;
+    if (args.tags !== undefined) patch.tags = args.tags;
+    if (args.category !== undefined) patch.category = args.category;
+    if (args.source !== undefined) patch.source = args.source;
+    if (args.sref !== undefined) patch.sref = args.sref;
+
+    await ctx.db.patch(args.imageId, patch);
+
+    return { success: true };
+  },
+});
+
+export const internalSaveGeneratedImages = internalMutation({
+  args: {
+    originalImageId: v.id("images"),
+    images: v.array(v.object({
+      url: v.string(),
+      title: v.string(),
+      description: v.string(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const originalImage = await ctx.db.get(args.originalImageId);
+    if (!originalImage) return;
+
+    for (const img of args.images) {
+      await ctx.db.insert("images", {
+        title: img.title,
+        description: img.description,
+        imageUrl: img.url,
+        // Inherit metadata from original (which might have been updated by analysis)
+        category: originalImage.category,
+        tags: [...originalImage.tags, "generated", "variation"],
+        uploadedBy: originalImage.uploadedBy,
+        likes: 0,
+        views: 0,
+        source: "AI Generation",
+        // sref should only be set manually by user, not auto-populated
+        status: "pending",
+        uploadedAt: Date.now(),
+      });
+    }
+
+    // Mark original image processing as completed
+    await ctx.db.patch(args.originalImageId, { aiStatus: "completed" });
   },
 });

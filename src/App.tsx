@@ -16,7 +16,21 @@ import { ImageIcon, UploadIcon, BookmarkIcon, GridIcon } from "@radix-ui/react-i
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
-  const [activeTab, setActiveTab] = useState("gallery");
+  const [activeTab, setActiveTabState] = useState("gallery");
+
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    window.location.hash = tab;
+  };
+
+  useEffect(() => {
+    if (window.location.hash) {
+      setActiveTabState(window.location.hash.substring(1));
+    }
+  }, []);
+  const [boardVersion, setBoardVersion] = useState(0);
+
+  const incrementBoardVersion = () => setBoardVersion(v => v + 1);
 
   // Debug log
   console.log("Active tab:", activeTab);
@@ -24,7 +38,7 @@ export default function App() {
   return (
     <Box className="min-h-screen">
       <Box as="header" className="sticky top-0 z-50 border-b border-gray-6 backdrop-blur-sm">
-        <Box className="max-w-7xl mx-auto px-4 py-4">
+        <Box className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Flex justify="between" align="center">
             <Flex align="center" gap="6">
               <Text size="6" weight="bold">Visuals</Text>
@@ -64,22 +78,30 @@ export default function App() {
         </Box>
       </Box>
 
-      <Box as="main" className="max-w-7xl mx-auto px-4 py-8">
+      <Box as="main" className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
         <Authenticated>
           {activeTab === "gallery" && (
             <Content 
               searchTerm={searchTerm}
               selectedCategory={selectedCategory}
+              setActiveTab={setActiveTab}
+              incrementBoardVersion={incrementBoardVersion}
             />
           )}
           {activeTab === "upload" && <ImageUploadForm />}
-          {activeTab === "boards" && <BoardsView />}
+          {activeTab === "boards" && <BoardsView 
+                                      key={boardVersion} 
+                                      setActiveTab={setActiveTab} 
+                                      incrementBoardVersion={incrementBoardVersion} 
+                                    />}
           {activeTab === "table" && <TableView />}
         </Authenticated>
         <Unauthenticated>
           <Content 
             searchTerm={searchTerm}
             selectedCategory={selectedCategory}
+            setActiveTab={setActiveTab}
+            incrementBoardVersion={incrementBoardVersion}
           />
         </Unauthenticated>
       </Box>
@@ -89,9 +111,11 @@ export default function App() {
   );
 }
 
-function Content({ searchTerm, selectedCategory }: { 
+function Content({ searchTerm, selectedCategory, setActiveTab, incrementBoardVersion }: { 
   searchTerm: string; 
   selectedCategory: string | undefined;
+  setActiveTab: (tab: string) => void;
+  incrementBoardVersion: () => void;
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   
@@ -128,6 +152,8 @@ function Content({ searchTerm, selectedCategory }: {
         <ImageGrid 
           searchTerm={searchTerm}
           selectedCategory={selectedCategory}
+          setActiveTab={setActiveTab}
+          incrementBoardVersion={incrementBoardVersion}
         />
       </Authenticated>
     </Box>

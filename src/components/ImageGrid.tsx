@@ -9,9 +9,11 @@ import { Id } from "../../convex/_generated/dataModel";
 interface ImageGridProps {
   searchTerm: string;
   selectedCategory: string | undefined;
+  setActiveTab: (tab: string) => void;
+  incrementBoardVersion: () => void;
 }
 
-export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
+export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incrementBoardVersion }: ImageGridProps) {
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | undefined>();
   
@@ -78,31 +80,32 @@ export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
               />
               
               {/* Overlay */}
-              <Box className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200">
+              <Box className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200">
                 <Box className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <IconButton
-                    variant="solid"
+                    variant="soft"
                     color={image.isLiked ? "red" : "gray"}
                     size="2"
                     aria-label={image.isLiked ? "Unlike this image" : "Like this image"}
                     onClick={(e) => { void handleLike(image._id, e); }}
-                    className="backdrop-blur-sm"
+                    className="backdrop-blur-md"
+                    style={{ opacity: 0.85 }}
                   >
                     <HeartIcon />
                   </IconButton>
                 </Box>
                 
-                <Box className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <Text size="2" weight="medium" className="text-white mb-1 line-clamp-2">
+                <Box className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <Text size="2" weight="medium" className="text-gray-11 mb-1 line-clamp-2">
                     {image.title}
                   </Text>
                   <Flex gap="3" align="center">
                     <Flex gap="1" align="center">
-                      <HeartIcon width="12" height="12" />
+                      <HeartIcon width="12" height="12" className="text-gray-10" />
                       <Text size="1" color="gray">{image.likes}</Text>
                     </Flex>
                     <Flex gap="1" align="center">
-                      <EyeOpenIcon width="12" height="12" />
+                      <EyeOpenIcon width="12" height="12" className="text-gray-10" />
                       <Text size="1" color="gray">{image.views}</Text>
                     </Flex>
                   </Flex>
@@ -121,6 +124,8 @@ export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
             setTriggerPosition(undefined);
           }}
           triggerPosition={triggerPosition}
+          setActiveTab={setActiveTab}
+          incrementBoardVersion={incrementBoardVersion}
         />
       )}
     </>
