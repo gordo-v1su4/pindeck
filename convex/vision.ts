@@ -151,7 +151,7 @@ export const internalSmartAnalyzeImage = internalAction({
           {
             role: "user",
             content: [
-              { type: "text", text: "Analyze this image. 1. Generate a short, catchy title. 2. Write a concise description. 3. Generate 5-10 relevant tags. 4. Extract 5 dominant colors (hex codes). Return ONLY a JSON object with keys: 'title', 'description', 'tags' (array of strings), 'colors' (array of hex strings)." },
+              { type: "text", text: "Analyze this image. 1. Generate a short, catchy title. 2. Write a concise description. 3. Generate 5-10 specific descriptive tags (focus on objects, lighting, mood, composition, specific elements; do NOT use broad categories like 'Photography' or 'Design'). 4. Extract 5 dominant colors (hex codes). Return ONLY a JSON object with keys: 'title', 'description', 'tags' (array of strings), 'colors' (array of hex strings)." },
               { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
