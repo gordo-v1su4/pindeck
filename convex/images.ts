@@ -298,34 +298,21 @@ export const uploadMultiple = mutation({
           views: 0,
         });
 
-        // Call the smartAnalyzeImage http action to analyze the image
-        // and potentially generate new images.
-        // We're making a direct call to the httpAction which is not ideal,
-        // but works for now given the limitations of calling the nanobanana tool.
+        // Schedule the smart analysis action directly
         try {
-          if (process.env.CONVEX_URL) {
-            await fetch(`${process.env.CONVEX_URL}/smartAnalyzeImage`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                storageId: upload.storageId,
-                imageId: imageId,
-                userId: userId,
-                title: upload.title,
-                description: upload.description,
-                tags: upload.tags,
-                category: upload.category,
-                source: upload.source,
-                sref: upload.sref,
-              }),
-            });
-          } else {
-            console.warn("CONVEX_URL env var not set, skipping smart analysis");
-          }
+          await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+            storageId: upload.storageId,
+            imageId: imageId,
+            userId: userId,
+            title: upload.title,
+            description: upload.description,
+            tags: upload.tags,
+            category: upload.category,
+            source: upload.source,
+            sref: upload.sref,
+          });
         } catch (err) {
-          console.error("Failed to trigger smart analysis:", err);
+          console.error("Failed to schedule smart analysis:", err);
         }
 
         return imageId;
@@ -416,14 +403,20 @@ export const remove = mutation({
 export const internalUpdateAnalysis = internalMutation({
   args: {
     imageId: v.id("images"),
+    title: v.optional(v.string()),
     description: v.string(),
+    tags: v.optional(v.array(v.string())),
     colors: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.imageId, {
+    const patch: any = {
       description: args.description,
       colors: args.colors,
-    });
+    };
+    if (args.title) patch.title = args.title;
+    if (args.tags) patch.tags = args.tags;
+
+    await ctx.db.patch(args.imageId, patch);
   },
 });
 

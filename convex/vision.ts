@@ -1,7 +1,7 @@
 import { httpAction, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 
 const VL_MODEL_API = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -18,7 +18,7 @@ export const internalGenerateRelatedImages = internalAction({
       return;
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenerativeAI(apiKey);
     const model = ai.getGenerativeModel({ model: "gemini-3-pro-image-preview" });
 
     // Generate 2 images
@@ -27,19 +27,10 @@ export const internalGenerateRelatedImages = internalAction({
     
     const generatePromises = [1, 2].map(async () => {
       try {
-        const response = await model.generateContent({
-          contents: { role: 'user', parts: [{ text: prompt }] },
-          config: {
-            responseModalities: ['IMAGE'], // We only want images
-            imageConfig: {
-              aspectRatio: '16:9',
-              imageSize: '2K',
-            },
-          },
-        });
+        const response = await model.generateContent(prompt);
 
         // Extract image data
-        const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        const part = response.response.candidates?.[0]?.content?.parts?.find((p: Part) => p.inlineData);
         if (!part || !part.inlineData || !part.inlineData.data) {
           console.error("No image data in response");
           return null;
@@ -53,7 +44,7 @@ export const internalGenerateRelatedImages = internalAction({
     });
 
     const results = await Promise.all(generatePromises);
-    const validResults = results.filter(r => r !== null) as string[];
+    const validResults = results.filter((r: string | null) => r !== null) as string[];
 
     if (validResults.length === 0) return;
 
@@ -145,13 +136,13 @@ export const internalSmartAnalyzeImage = internalAction({
           {
             role: "user",
             content: [
-              { type: "text", text: "Describe this image concisely. Also, extract a maximum of 5 dominant colors from the image and return them as a JSON array of hex color codes, like [\"#RRGGBB\", ...]. Combine description and colors into a single JSON object with keys 'description' and 'colors'." },
+              { type: "text", text: "Analyze this image. 1. Generate a short, catchy title. 2. Write a concise description. 3. Generate 5-10 relevant tags. 4. Extract 5 dominant colors (hex codes). Return ONLY a JSON object with keys: 'title', 'description', 'tags' (array of strings), 'colors' (array of hex strings)." },
               { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
         ],
         temperature: 0.7,
-        max_tokens: 300,
+        max_tokens: 500,
       }),
     });
 
@@ -164,22 +155,32 @@ export const internalSmartAnalyzeImage = internalAction({
     const responseData = await modelResponse.json();
     const messageContent = responseData.choices[0]?.message?.content;
 
+    let title: string | undefined;
     let description: string = "No description generated.";
+    let tags: string[] = [];
     let colors: string[] = [];
 
     try {
-      const parsedContent = JSON.parse(messageContent);
+      // Remove markdown code blocks if present
+      const cleanContent = messageContent.replace(/```json\n?|\n?```/g, "").trim();
+      const parsedContent = JSON.parse(cleanContent);
+      title = parsedContent.title;
       description = parsedContent.description || description;
+      tags = parsedContent.tags || tags;
       colors = parsedContent.colors || colors;
     } catch (jsonError) {
-      console.warn("VL model response was not pure JSON, using raw content as description.");
+      console.warn("VL model response was not pure JSON, using raw content as description.", jsonError);
       description = messageContent;
     }
 
     // 3. Update the image document in the database
+    // We only update title/tags if the original was generic or empty (though we can't easily check that here without reading the doc again)
+    // For now, we'll just update them. The user can edit later.
     await ctx.runMutation(internal.images.internalUpdateAnalysis, {
       imageId: args.imageId,
+      title,
       description,
+      tags,
       colors,
     });
 
