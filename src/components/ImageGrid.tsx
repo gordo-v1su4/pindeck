@@ -9,9 +9,11 @@ import { Id } from "../../convex/_generated/dataModel";
 interface ImageGridProps {
   searchTerm: string;
   selectedCategory: string | undefined;
+  setActiveTab: (tab: string) => void;
+  incrementBoardVersion: () => void;
 }
 
-export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
+export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incrementBoardVersion }: ImageGridProps) {
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | undefined>();
   
@@ -121,6 +123,8 @@ export function ImageGrid({ searchTerm, selectedCategory }: ImageGridProps) {
             setTriggerPosition(undefined);
           }}
           triggerPosition={triggerPosition}
+          setActiveTab={setActiveTab}
+          incrementBoardVersion={incrementBoardVersion}
         />
       )}
     </>

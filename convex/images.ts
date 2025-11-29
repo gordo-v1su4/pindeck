@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 
 export const list = query({
   args: {
@@ -149,6 +150,26 @@ export const create = mutation({
   },
 });
 
+export const internalCreate = internalMutation({
+  args: {
+    title: v.string(),
+    description: v.optional(v.string()),
+    imageUrl: v.string(),
+    tags: v.array(v.string()),
+    category: v.string(),
+    source: v.optional(v.string()),
+    sref: v.optional(v.string()),
+    uploadedBy: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("images", {
+      ...args,
+      likes: 0,
+      views: 0,
+    });
+  },
+});
+
 export const toggleLike = mutation({
   args: { imageId: v.id("images") },
   handler: async (ctx, args) => {
@@ -251,7 +272,7 @@ export const uploadMultiple = mutation({
         }
 
         // Create the image record
-        return await ctx.db.insert("images", {
+        const imageId = await ctx.db.insert("images", {
           title: upload.title,
           description: upload.description,
           imageUrl,
@@ -265,6 +286,38 @@ export const uploadMultiple = mutation({
           likes: 0,
           views: 0,
         });
+
+        // Call the smartAnalyzeImage http action to analyze the image
+        // and potentially generate new images.
+        // We're making a direct call to the httpAction which is not ideal,
+        // but works for now given the limitations of calling the nanobanana tool.
+        try {
+          if (process.env.CONVEX_URL) {
+            await fetch(`${process.env.CONVEX_URL}/smartAnalyzeImage`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                storageId: upload.storageId,
+                imageId: imageId,
+                userId: userId,
+                title: upload.title,
+                description: upload.description,
+                tags: upload.tags,
+                category: upload.category,
+                source: upload.source,
+                sref: upload.sref,
+              }),
+            });
+          } else {
+            console.warn("CONVEX_URL env var not set, skipping smart analysis");
+          }
+        } catch (err) {
+          console.error("Failed to trigger smart analysis:", err);
+        }
+
+        return imageId;
       })
     );
 
@@ -298,5 +351,77 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
 
     return { success: true };
+  },
+});
+
+export const internalUpdateAnalysis = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    description: v.string(),
+    colors: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.imageId, {
+      description: args.description,
+      colors: args.colors,
+    });
+  },
+});
+
+export const updateAnalysis = mutation({
+  args: {
+    imageId: v.id("images"),
+    description: v.string(),
+    colors: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image) {
+      throw new Error("Image not found");
+    }
+
+    if (image.uploadedBy !== userId) {
+      throw new Error("Not authorized to update this image");
+    }
+
+    await ctx.runMutation(internal.images.internalUpdateAnalysis, args);
+
+    return { success: true };
+  },
+});
+
+export const internalSaveGeneratedImages = internalMutation({
+  args: {
+    originalImageId: v.id("images"),
+    images: v.array(v.object({
+      url: v.string(),
+      title: v.string(),
+      description: v.string(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const originalImage = await ctx.db.get(args.originalImageId);
+    if (!originalImage) return;
+
+    for (const img of args.images) {
+      await ctx.db.insert("images", {
+        title: img.title,
+        description: img.description,
+        imageUrl: img.url,
+        // Inherit metadata from original
+        category: originalImage.category,
+        tags: [...originalImage.tags, "generated", "variation"],
+        uploadedBy: originalImage.uploadedBy,
+        likes: 0,
+        views: 0,
+        source: "AI Generation",
+        sref: args.originalImageId, // Reference original image as source ref
+      });
+    }
   },
 });

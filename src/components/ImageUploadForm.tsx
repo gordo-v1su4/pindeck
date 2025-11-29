@@ -133,7 +133,7 @@ export function ImageUploadForm() {
 
     setUploading(true);
     try {
-      // Upload files to storage and extract colors
+      // Upload files to storage
       const uploadPromises = files.map(async (file) => {
         const uploadUrl = await generateUploadUrl();
         const response = await fetch(uploadUrl, {
@@ -148,14 +148,6 @@ export function ImageUploadForm() {
         
         const { storageId } = await response.json();
         
-        // Extract colors from the preview URL
-        let colors: string[] = [];
-        try {
-          colors = await extractColorsFromImage(file.preview);
-        } catch (error) {
-          console.error('Color extraction failed:', error);
-        }
-        
         return {
           storageId,
           title: file.title,
@@ -164,17 +156,32 @@ export function ImageUploadForm() {
           category: file.category,
           source: file.source || undefined,
           sref: file.sref || undefined,
-          colors: colors.length > 0 ? colors : undefined,
+          colors: [], // Colors will be extracted by the backend
         };
       });
 
       const uploads = await Promise.all(uploadPromises);
       
-      // Create image records
-      await uploadMultiple({ uploads });
+      // Create image records in the database
+      const newImageIds = await uploadMultiple({ uploads });
       
       toast.success(`Successfully uploaded ${files.length} image${files.length > 1 ? 's' : ''}!`);
       
+      // Trigger smart analysis for each new image
+      if (newImageIds) {
+        for (let i = 0; i < newImageIds.length; i++) {
+          const imageId = newImageIds[i];
+          const storageId = uploads[i].storageId;
+          
+          // Don't await this, let it run in the background
+          fetch("/smartAnalyzeImage", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ storageId, imageId }),
+          }).catch(console.error);
+        }
+      }
+
       // Clean up
       files.forEach(file => URL.revokeObjectURL(file.preview));
       setFiles([]);
