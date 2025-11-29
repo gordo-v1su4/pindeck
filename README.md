@@ -109,9 +109,31 @@ This app uses [Convex Auth](https://auth.convex.dev/) with Anonymous auth for ea
 - `bun run build` - Build the application for production
 - `bun run lint` - Run TypeScript and ESLint checks
 
-## 🌐 Convex Deployment
+## 🌐 Deployment
+
+### Convex Deployment
 
 This project is connected to the Convex deployment: [`incredible-otter-369`](https://dashboard.convex.dev/t/gordo/pindeck/incredible-otter-369)
+
+### Vercel Deployment
+
+The project is configured for Vercel deployment with `vercel.json`. To deploy:
+
+1. **Connect your GitHub repository** to Vercel
+2. **Set Environment Variables** in **Vercel Dashboard** (NOT Convex):
+   - Go to your Vercel project → Settings → Environment Variables
+   - Add these variables:
+     - `VITE_CONVEX_URL` - Copy the value from your Convex dashboard (you have `https://incredible-otter-369.convex.site` or similar)
+     - `GOOGLE_API_KEY` - Your Google API key for Gemini 3 Pro (copy from Convex if already set there)
+     - `CONVEX_SITE_URL` - Your Vercel site URL (set this after first deployment, e.g., `https://your-app.vercel.app`)
+3. **Deploy** - Vercel will automatically build and deploy on push
+
+**Important**: 
+- **Convex environment variables** (what you see in Convex dashboard) are for your **backend functions** (like `vision.ts`)
+- **Vercel environment variables** are for your **frontend build** (the React app needs `VITE_CONVEX_URL` to connect to Convex)
+- You need to set `VITE_CONVEX_URL` in **both places**:
+  - In Convex (for backend functions that might need it)
+  - In Vercel (for the frontend build process)
 
 ## 📚 Learn More
 
