@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { extractColorsFromImage } from "../lib/colorExtraction";
 import { 
   Card, 
   Text, 
@@ -55,7 +56,7 @@ export function ImageUploadForm() {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
-  const handleFiles = (newFiles: FileList | File[]) => {
+  const handleFiles = async (newFiles: FileList | File[]) => {
     const fileArray = Array.from(newFiles);
     const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
     
@@ -73,6 +74,12 @@ export function ImageUploadForm() {
     }));
 
     setFiles(prev => [...prev, ...newUploadFiles]);
+
+    // Extract colors asynchronously
+    newUploadFiles.forEach(async (fileObj) => {
+      const colors = await extractColorsFromImage(fileObj.preview);
+      setFiles(prev => prev.map(f => f.id === fileObj.id ? { ...f, colors } : f));
+    });
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -164,7 +171,7 @@ export function ImageUploadForm() {
           category: file.category,
           source: file.source || undefined,
           sref: file.sref || undefined,
-          colors: [],
+          colors: file.colors,
         };
       });
 
@@ -329,6 +336,17 @@ export function ImageUploadForm() {
                     </Flex>
 
                     <Box>
+                      <Flex gap="1" wrap="wrap" className="mb-2">
+                        {file.colors.map((color) => (
+                          <Box 
+                            key={color} 
+                            className="w-4 h-4 rounded-full border border-gray-200" 
+                            style={{ backgroundColor: color }} 
+                            title={color}
+                          />
+                        ))}
+                      </Flex>
+
                       <Flex gap="1" wrap="wrap" className="mb-2">
                         {file.tags.map((tag) => (
                           <Badge key={tag} variant="soft" size="1" color="blue">

@@ -231,8 +231,18 @@ export const getCategories = query({
   args: {},
   handler: async (ctx) => {
     const images = await ctx.db.query("images").collect();
-    const categories = [...new Set(images.map(img => img.category))];
-    return categories.sort();
+    const existingCategories = new Set(images.map(img => img.category));
+    
+    const defaultCategories = [
+      "Abstract", "Architecture", "Art", "Black & White", "Character Design", 
+      "Cinematic", "Cyberpunk", "Design", "Fashion", "Film", 
+      "Food", "Gaming", "Illustration", "Interior", "Landscape", 
+      "Minimalist", "Nature", "Photography", "Portrait", "Sci-Fi", 
+      "Street", "Technology", "Texture", "Travel", "UI/UX", "Vintage"
+    ];
+
+    const allCategories = new Set([...defaultCategories, ...existingCategories]);
+    return [...allCategories].sort();
   },
 });
 
