@@ -17,6 +17,7 @@ const applicationTables = {
     likes: v.number(),
     views: v.number(),
     status: v.optional(v.string()),
+    aiStatus: v.optional(v.string()),
   })
     .index("by_category", ["category"])
     .index("by_uploaded_by", ["uploadedBy"])

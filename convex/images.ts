@@ -296,6 +296,7 @@ export const uploadMultiple = mutation({
           uploadedBy: userId,
           likes: 0,
           views: 0,
+          aiStatus: "processing",
         });
 
         // Schedule the smart analysis action directly
@@ -320,6 +321,21 @@ export const uploadMultiple = mutation({
     );
 
     return results;
+  },
+});
+
+export const getProcessingImages = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    return await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("aiStatus"), "processing"))
+      .order("desc")
+      .collect();
   },
 });
 
@@ -407,6 +423,7 @@ export const internalUpdateAnalysis = internalMutation({
     description: v.string(),
     tags: v.optional(v.array(v.string())),
     colors: v.array(v.string()),
+    aiStatus: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const patch: any = {
@@ -415,8 +432,19 @@ export const internalUpdateAnalysis = internalMutation({
     };
     if (args.title) patch.title = args.title;
     if (args.tags) patch.tags = args.tags;
+    if (args.aiStatus) patch.aiStatus = args.aiStatus;
 
     await ctx.db.patch(args.imageId, patch);
+  },
+});
+
+export const internalSetAiStatus = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.imageId, { aiStatus: args.status });
   },
 });
 
@@ -476,5 +504,8 @@ export const internalSaveGeneratedImages = internalMutation({
         status: "pending",
       });
     }
+
+    // Mark original image processing as completed
+    await ctx.db.patch(args.originalImageId, { aiStatus: "completed" });
   },
 });

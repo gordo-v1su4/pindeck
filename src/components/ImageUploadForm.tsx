@@ -47,6 +47,7 @@ export function ImageUploadForm() {
   
   // Pending Images Logic
   const pendingImages = useQuery(api.images.getPendingImages);
+  const processingImages = useQuery(api.images.getProcessingImages);
   const approveImage = useMutation(api.images.approveImage);
   const rejectImage = useMutation(api.images.rejectImage);
   
@@ -386,6 +387,45 @@ export function ImageUploadForm() {
               )}
             </Button>
           </Flex>
+        </Box>
+      )}
+
+      {/* Processing Images Section */}
+      {processingImages && processingImages.length > 0 && (
+        <Box className="mt-12 animate-in fade-in">
+          <Separator size="4" className="mb-8" />
+          <Flex align="center" gap="2" className="mb-6">
+            <Box className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <Box>
+              <Heading size="5">AI Analysis in Progress</Heading>
+              <Text size="2" color="gray">
+                Analyzing your images and generating variations...
+              </Text>
+            </Box>
+          </Flex>
+
+          <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
+            {processingImages.map((image) => (
+              <Card key={image._id} className="overflow-hidden opacity-80">
+                <Box className="relative aspect-video">
+                  <img
+                    src={image.imageUrl}
+                    alt={image.title}
+                    className="w-full h-full object-cover grayscale"
+                  />
+                  <Box className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                    <Badge color="purple" variant="solid" size="2">
+                      Processing...
+                    </Badge>
+                  </Box>
+                </Box>
+                <Box className="p-3">
+                  <Text weight="bold" size="2" className="block truncate">{image.title || "Untitled"}</Text>
+                  <Text size="1" color="gray">Analyzing image content...</Text>
+                </Box>
+              </Card>
+            ))}
+          </Grid>
         </Box>
       )}
 

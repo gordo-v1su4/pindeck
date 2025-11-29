@@ -15,6 +15,10 @@ export const internalGenerateRelatedImages = internalAction({
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       console.error("GOOGLE_API_KEY not set, skipping image generation");
+      await ctx.runMutation(internal.images.internalSetAiStatus, { 
+        imageId: args.originalImageId, 
+        status: "failed" 
+      });
       return;
     }
 
@@ -46,7 +50,14 @@ export const internalGenerateRelatedImages = internalAction({
     const results = await Promise.all(generatePromises);
     const validResults = results.filter((r: string | null) => r !== null) as string[];
 
-    if (validResults.length === 0) return;
+    if (validResults.length === 0) {
+      console.error("No valid images generated");
+      await ctx.runMutation(internal.images.internalSetAiStatus, { 
+        imageId: args.originalImageId, 
+        status: "failed" 
+      });
+      return;
+    }
 
     const generatedImages = [];
 
@@ -121,6 +132,10 @@ export const internalSmartAnalyzeImage = internalAction({
     const openRouterKey = process.env.OPEN_ROUTER_KEY;
     if (!openRouterKey) {
       console.error("OPEN_ROUTER_KEY environment variable not set");
+      await ctx.runMutation(internal.images.internalSetAiStatus, { 
+        imageId: args.imageId, 
+        status: "failed" 
+      });
       return;
     }
 
@@ -149,6 +164,10 @@ export const internalSmartAnalyzeImage = internalAction({
     if (!modelResponse.ok) {
       const errorBody = await modelResponse.text();
       console.error(`VL model API request failed: ${modelResponse.status} - ${errorBody}`);
+      await ctx.runMutation(internal.images.internalSetAiStatus, { 
+        imageId: args.imageId, 
+        status: "failed" 
+      });
       return;
     }
 
