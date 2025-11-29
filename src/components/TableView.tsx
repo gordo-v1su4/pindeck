@@ -380,7 +380,7 @@ export function TableView() {
                 <Button
                   key={tag}
                   variant={selectedTags.includes(tag) ? "solid" : "soft"}
-                  color={selectedTags.includes(tag) ? "blue" : "blue"}
+                  color={selectedTags.includes(tag) ? "blue" : "gray"}
                   size="1"
                   onClick={() => {
                     setSelectedTags(prev => 
@@ -588,6 +588,8 @@ export function TableView() {
         <ImageModal
           imageId={selectedImage}
           onClose={() => setSelectedImage(null)}
+          setActiveTab={() => {}}
+          incrementBoardVersion={() => {}}
         />
       )}
     </Box>

@@ -8,7 +8,7 @@ export async function extractColorsFromImage(imageUrl: string): Promise<string[]
   try {
     // Create an image element to load the image
     const img = new Image();
-    
+    img.crossOrigin = 'anonymous';
     
     return new Promise((resolve) => {
       img.onload = () => {

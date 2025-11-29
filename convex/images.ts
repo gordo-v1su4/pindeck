@@ -409,7 +409,7 @@ export const approveImage = mutation({
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
 
-    await ctx.db.patch(args.imageId, { status: "draft" });
+    await ctx.db.patch(args.imageId, { status: "active" });
   },
 });
 
