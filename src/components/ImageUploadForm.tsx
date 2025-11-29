@@ -335,6 +335,23 @@ export function ImageUploadForm() {
                       </Select.Root>
                     </Flex>
 
+                    <Flex gap="2">
+                      <TextField.Root
+                        value={file.sref}
+                        onChange={(e) => updateFile(file.id, { sref: e.target.value })}
+                        placeholder="Style Ref (sref)"
+                        size="1"
+                        className="flex-1"
+                      />
+                      <TextField.Root
+                        value={file.source}
+                        onChange={(e) => updateFile(file.id, { source: e.target.value })}
+                        placeholder="Source URL/Origin"
+                        size="1"
+                        className="flex-1"
+                      />
+                    </Flex>
+
                     <Box>
                       <Flex gap="1" wrap="wrap" className="mb-2">
                         {file.colors.map((color) => (
