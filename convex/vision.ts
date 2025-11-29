@@ -168,6 +168,14 @@ export const internalSmartAnalyzeImage = internalAction({
       return;
     }
 
+    const categories = [
+      "Abstract", "Architecture", "Art", "Black & White", "Character Design", 
+      "Cinematic", "Cyberpunk", "Design", "Fashion", "Film", 
+      "Food", "Gaming", "Illustration", "Interior", "Landscape", 
+      "Minimalist", "Nature", "Photography", "Portrait", "Sci-Fi", 
+      "Street", "Technology", "Texture", "Travel", "UI/UX", "Vintage"
+    ];
+
     const modelResponse = await fetch(VL_MODEL_API, {
       method: "POST",
       headers: {
@@ -180,7 +188,7 @@ export const internalSmartAnalyzeImage = internalAction({
           {
             role: "user",
             content: [
-              { type: "text", text: "Analyze this image. 1. Generate a short, catchy title. 2. Write a concise description. 3. Generate 5-10 specific descriptive tags (focus on objects, lighting, mood, composition, specific elements; do NOT use broad categories like 'Photography' or 'Design'). 4. Extract 5 dominant colors (hex codes). Return ONLY a JSON object with keys: 'title', 'description', 'tags' (array of strings), 'colors' (array of hex strings)." },
+              { type: "text", text: `Analyze this image. 1. Generate a short, catchy title. 2. Write a concise description. 3. Generate 5-10 specific descriptive tags (focus on objects, lighting, mood, composition, specific elements; do NOT use broad categories). 4. Extract 5 dominant colors (hex codes). 5. Select the single most appropriate category from this list: ${categories.join(", ")}. Return ONLY a JSON object with keys: 'title', 'description', 'tags' (array of strings), 'colors' (array of hex strings), 'category' (string).` },
               { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
@@ -207,6 +215,7 @@ export const internalSmartAnalyzeImage = internalAction({
     let description: string = "No description generated.";
     let tags: string[] = [];
     let colors: string[] = [];
+    let category: string | undefined;
 
     try {
       // Remove markdown code blocks if present
@@ -216,6 +225,7 @@ export const internalSmartAnalyzeImage = internalAction({
       description = parsedContent.description || description;
       tags = parsedContent.tags || tags;
       colors = parsedContent.colors || colors;
+      category = parsedContent.category;
     } catch (jsonError) {
       console.warn("VL model response was not pure JSON, using raw content as description.", jsonError);
       description = messageContent;
@@ -230,13 +240,14 @@ export const internalSmartAnalyzeImage = internalAction({
       description,
       tags,
       colors,
+      category,
     });
 
     // 4. Generate related images
     await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
       originalImageId: args.imageId,
       description,
-      category: args.category,
+      category: category || args.category,
     });
   },
 });
