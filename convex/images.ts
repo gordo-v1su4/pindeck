@@ -17,13 +17,23 @@ export const list = query({
       images = await ctx.db
         .query("images")
         .withIndex("by_category", (q) => q.eq("category", args.category!))
-        .filter((q) => q.eq(q.field("status"), "active"))
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("status"), "active"),
+            q.eq(q.field("status"), undefined)
+          )
+        )
         .order("desc")
         .take(args.limit || 50);
     } else {
       images = await ctx.db
         .query("images")
-        .filter((q) => q.eq(q.field("status"), "active"))
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("status"), "active"),
+            q.eq(q.field("status"), undefined)
+          )
+        )
         .order("desc")
         .take(args.limit || 50);
     }
@@ -69,13 +79,23 @@ export const search = query({
         .withSearchIndex("search_content", (q) => 
           q.search("title", args.searchTerm).eq("category", args.category!)
         )
-        .filter((q) => q.eq(q.field("status"), "active"))
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("status"), "active"),
+            q.eq(q.field("status"), undefined)
+          )
+        )
         .take(50);
     } else {
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) => q.search("title", args.searchTerm))
-        .filter((q) => q.eq(q.field("status"), "active"))
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("status"), "active"),
+            q.eq(q.field("status"), undefined)
+          )
+        )
         .take(50);
     }
 
