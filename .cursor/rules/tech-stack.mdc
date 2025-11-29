@@ -33,13 +33,26 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 
 #### Backend & Database
 ```json
-"convex": "^1.27.3",
+"convex": "1.29.3",
 "@convex-dev/auth": "^0.0.90"
 ```
-- **Version**: Convex 1.27.3, Auth 0.0.90
+- **Version**: Convex 1.29.3, Auth 0.0.90
 - **Best Practice**: ✅ **Modern BaaS choice** - Excellent for real-time applications
 - **Benefits**: Real-time subscriptions, type-safe API, built-in authentication
 - **Architecture**: Serverless backend with automatic scaling
+
+#### AI & Machine Learning
+```json
+"@google/generative-ai": "^0.24.1"
+```
+- **Version**: Google Generative AI 0.24.1
+- **Model**: Gemini 3 Pro Image Preview
+- **Best Practice**: ✅ **State-of-the-art vision model**
+- **Features**: 
+  - Image analysis (title, description, tags, colors, category, visual style)
+  - Image generation with cinematic shot type variation
+  - Memory-optimized base64 conversion for large images
+- **Configuration**: 2K resolution, configurable aspect ratio, random shot type selection
 
 #### UI & Styling
 ```json
@@ -153,6 +166,10 @@ Convex (Backend-as-a-Service)
 ├── Auth: Built-in authentication system
 ├── File Storage: Integrated storage for images
 ├── Boards: Pinterest-style collections system
+├── AI Vision: Gemini 3 Pro Image Preview integration
+│   ├── Smart Analysis: Automatic metadata extraction
+│   ├── Image Generation: Cinematic variations with random shot types
+│   └── Memory Management: Optimized for 64MB limit
 ├── Color Extraction: Automatic color palette generation
 └── Scaling: Automatic horizontal scaling
 ```
@@ -164,21 +181,22 @@ Convex (Backend-as-a-Service)
 1. **React 19.0.0**: Latest stable release with new features
 2. **TypeScript 5.7.2**: Modern type system with latest features
 3. **Vite 6.2.0**: Next-generation build tool
-4. **Convex**: Modern BaaS with excellent DX
-5. **Bun**: Fast package manager
-6. **Radix UI**: Accessible component primitives
-7. **TanStack Table**: Advanced data table functionality
-8. **Tailwind CSS**: Utility-first styling approach
+4. **Convex 1.29.3**: Modern BaaS with excellent DX
+5. **Gemini 3 Pro Image Preview**: State-of-the-art vision AI for analysis and generation
+6. **Bun**: Fast package manager
+7. **Radix UI**: Accessible component primitives
+8. **TanStack Table**: Advanced data table functionality
+9. **Tailwind CSS**: Utility-first styling approach
 
 ### 📈 Recommended Updates
 
 ```json
 // Consider these updates for enhanced stability:
 {
-  "convex": "^1.28.0",           // Latest stable
   "lucide-react": "^0.544.0",    // Latest icons
   "@types/node": "^22.15.0",     // Latest Node types
-  "@radix-ui/themes": "^3.3.0"   // Latest Radix Themes
+  "@radix-ui/themes": "^3.3.0",  // Latest Radix Themes
+  "@google/generative-ai": "^0.25.0"  // Latest Gemini SDK
 }
 ```
 

@@ -324,7 +324,7 @@ export const uploadMultiple = mutation({
             tags: upload.tags,
             category: upload.category,
             source: upload.source,
-            sref: upload.sref,
+            sref: upload.sref || undefined, // Pass undefined if sref is empty string
           });
         } catch (err) {
           console.error("Failed to schedule smart analysis:", err);
@@ -521,6 +521,43 @@ export const updateAnalysis = mutation({
   },
 });
 
+export const updateImageMetadata = mutation({
+  args: {
+    imageId: v.id("images"),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    category: v.optional(v.string()),
+    source: v.optional(v.string()),
+    sref: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const image = await ctx.db.get(args.imageId);
+    if (!image) {
+      throw new Error("Image not found");
+    }
+    if (image.uploadedBy !== userId) {
+      throw new Error("Not authorized to update this image");
+    }
+
+    const patch: any = {};
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.description !== undefined) patch.description = args.description;
+    if (args.tags !== undefined) patch.tags = args.tags;
+    if (args.category !== undefined) patch.category = args.category;
+    if (args.source !== undefined) patch.source = args.source;
+    if (args.sref !== undefined) patch.sref = args.sref;
+
+    await ctx.db.patch(args.imageId, patch);
+
+    return { success: true };
+  },
+});
+
 export const internalSaveGeneratedImages = internalMutation({
   args: {
     originalImageId: v.id("images"),
@@ -546,7 +583,7 @@ export const internalSaveGeneratedImages = internalMutation({
         likes: 0,
         views: 0,
         source: "AI Generation",
-        sref: args.originalImageId, // Reference original image as source ref
+        // sref should only be set manually by user, not auto-populated
         status: "pending",
         uploadedAt: Date.now(),
       });

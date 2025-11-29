@@ -14,6 +14,8 @@ This rule outlines the directory structure and organization of the **Visuals** p
 - Image upload, search, and categorization
 - Pinterest-style boards and collections
 - Advanced table view with filtering and sorting
+- AI-powered image analysis using Gemini 3 Pro (automatic title, description, tags, colors, category detection)
+- AI image generation with random shot type variation (9 cinematic shot types)
 - Automatic color extraction from images
 - Social features (likes, collections, views)
 - Responsive masonry layout with Radix UI + Tailwind CSS
@@ -62,11 +64,13 @@ convex/
 ├── auth.config.ts             # 🔐 Authentication configuration
 ├── auth.ts                    # 👤 Authentication logic
 ├── boards.ts                  # 📌 Pinterest-style boards API
+├── debug.ts                   # 🐛 Debug utilities
 ├── http.ts                    # 🌐 HTTP utilities & external APIs
 ├── images.ts                  # 🖼️ Image CRUD, search, likes, color extraction API
 ├── router.ts                  # 🛣️ API route definitions
 ├── schema.ts                  # 📊 Database schema & indexes
 ├── seed.ts                    # 🌱 Database seeding script
+├── vision.ts                  # 🤖 AI image analysis & generation (Gemini 3 Pro)
 └── tsconfig.json              # ⚙️ Backend TypeScript config
 ```
 
@@ -80,15 +84,15 @@ src/
 │   ├── BoardsView.tsx        # 📌 Pinterest-style boards management
 │   ├── CategoryFilter.tsx    # 🏷️ Category filtering UI
 │   ├── CreateBoardModal.tsx  # ➕ Board creation modal
-│   ├── ImageGrid.tsx         # 🎯 Main image display (masonry)
-│   ├── ImageModal.tsx        # 🔍 Image detail modal with color display
-│   ├── ImageUploadForm.tsx   # 📤 Multi-image upload with color extraction
-│   ├── SearchBar.tsx         # 🔎 Search functionality
-│   └── TableView.tsx         # 📊 Advanced data table with filtering
+│   ├── ImageGrid.tsx         # 🎯 Main image display (masonry with hover effects)
+│   ├── ImageModal.tsx        # 🔍 Image detail modal (transparent backdrop, tag colors, soft buttons)
+│   ├── ImageUploadForm.tsx   # 📤 Multi-image upload with AI analysis trigger
+│   ├── SearchBar.tsx         # 🔎 Search functionality (soft variant styling)
+│   └── TableView.tsx         # 📊 Advanced data table (ID column, tag colors, blue theme)
 │
 ├── 📁 lib/                   # 🛠️ Utilities & helpers
 │   ├── colorExtraction.ts    # 🎨 Browser-based color extraction
-│   └── utils.ts              # 🎨 Tailwind CSS utilities
+│   └── utils.ts              # 🎨 Tailwind CSS utilities & tag color mapping
 │
 ├── App.tsx                   # 🎪 Main application component with tabs
 ├── index.css                 # 🎨 Global styles & Tailwind
@@ -192,11 +196,14 @@ const images = {
   category: string,
   tags: string[],
   source?: string,
-  sref?: string,           // Midjourney style reference
+  sref?: string,           // Style reference (manually set by user)
   colors?: string[],       // Extracted color palette
   uploadedBy: userId,
   likes: number,
-  views: number
+  views: number,
+  aiStatus?: string,       // AI processing status: "processing", "completed", "failed"
+  status?: string,         // Image status: "draft", "active", "pending"
+  uploadedAt?: number      // Upload timestamp
 }
 
 const collections = {
@@ -219,9 +226,12 @@ const likes = {
 - **Component Structure**: Modular React components in `src/components/`
 - **State Management**: Local state with React hooks, Convex for server state
 - **UI Framework**: Radix UI components with Radix Themes
-- **Styling**: Tailwind CSS with utility-first approach
-- **Data Tables**: TanStack Table for advanced data management
+- **Styling**: Tailwind CSS with utility-first approach, consistent blue theme with opacity
+- **Data Tables**: TanStack Table for advanced data management (ID column, tag colors)
+- **Image Display**: Responsive masonry grid with subtle hover effects
+- **Modal Design**: Transparent backdrop, soft buttons, consistent tag colors
 - **Authentication**: Convex Auth with protected routes
+- **Responsive Design**: Full-width layout, no hard max-width constraints
 
 ### Backend Architecture
 - **Database**: Convex with defined schema and indexes
@@ -229,6 +239,10 @@ const likes = {
 - **Authentication**: Integrated auth system with user management
 - **File Storage**: Convex storage for image uploads
 - **Boards System**: Pinterest-style collections management
+- **AI Integration**: Gemini 3 Pro Image Preview for analysis and generation
+  - **Smart Analysis**: Automatic title, description, tags, colors, category, visual style detection
+  - **Image Generation**: Creates 2 cinematic variations with random shot type selection (9 shot types)
+  - **Memory Optimization**: Chunked base64 conversion, 10MB image size limits
 - **Color Extraction**: Automatic color palette generation
 
 ### Development Workflow
@@ -236,6 +250,16 @@ const likes = {
 - **Package Manager**: Bun for dependency management
 - **Linting**: ESLint with TypeScript support
 - **Type Safety**: Full TypeScript coverage across frontend and backend
+
+### AI Features Architecture
+- **Image Analysis**: Automatic metadata extraction via Gemini 3 Pro
+  - Title, description, tags, colors, category, visual style
+  - Processes on upload, updates image record
+- **Image Generation**: Creates 2 cinematic variations
+  - Random shot type selection (9 types: ELS, LS, MS, MCU, CU, ECU, Low Angle, High Angle, etc.)
+  - Memory-optimized (chunked base64, 10MB limit)
+  - Configurable aspect ratio and 2K resolution
+  - Saves as variations linked to original image
 
 ## Important Files Reference
 
@@ -257,6 +281,9 @@ const likes = {
 
 // Boards management API
 [convex/boards.ts](mdc:convex/boards.ts)
+
+// AI vision & image generation
+[convex/vision.ts](mdc:convex/vision.ts)
 ```
 
 ## File Organization Guidelines
@@ -278,10 +305,35 @@ src/
 └── api/           # Should follow backend patterns
 ```
 
+## UI Design Patterns & Styling Conventions
+
+### Color Theme
+- **Primary Color**: Blue (matching top navigation)
+- **Button Opacity**: Never 100% - use 0.7-0.9 for soft buttons, 1.0 only for selected states
+- **Tag Colors**: Use `getTagColor()` utility for consistent tag coloring across table and modal
+- **Sref Badges**: Blue color (not purple)
+
+### Modal Design
+- **Transparent Backdrop**: `bg-black/60 backdrop-blur-md` for bottom panel (matches header)
+- **No Image Borders**: Images display with transparent background
+- **Soft Buttons**: Like/Save buttons use `variant="soft"` with opacity
+- **Tag Consistency**: Tags use same color system as table view
+
+### Responsive Design
+- **Full Width**: No hard `max-w-7xl` constraints - use `w-full` with responsive padding
+- **Responsive Padding**: `px-4 sm:px-6 lg:px-8` for adaptive spacing
+- **Table**: Horizontal scroll on small screens, full width on large screens
+
+### Hover Effects
+- **Subtle Text**: Use `text-gray-11` instead of bright white
+- **Icon Blending**: Icons use `text-gray-10` with backdrop blur
+- **Smooth Transitions**: All hover effects use `transition-opacity duration-200`
+
 ## Navigation Tips
 
 - Start with `src/App.tsx` for understanding the application flow
 - Check `convex/schema.ts` for data models and relationships
 - Review `package.json` for available scripts and dependencies
 - Use `src/components/` for understanding UI patterns
+- Check `convex/vision.ts` for AI integration patterns
 - Reference `.cursor/rules/` for development guidelines

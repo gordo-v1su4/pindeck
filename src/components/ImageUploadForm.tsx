@@ -4,13 +4,13 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { extractColorsFromImage } from "../lib/colorExtraction";
 import { getTagColor } from "../lib/utils";
-import { 
-  Card, 
-  Text, 
-  Flex, 
-  Box, 
-  Button, 
-  TextField, 
+import {
+  Card,
+  Text,
+  Flex,
+  Box,
+  Button,
+  TextField,
   Select,
   Badge,
   IconButton,
@@ -18,14 +18,15 @@ import {
   Heading,
   Separator
 } from "@radix-ui/themes";
-import { 
-  UploadIcon, 
-  Cross2Icon, 
+import {
+  UploadIcon,
+  Cross2Icon,
   ImageIcon,
   PlusIcon,
   TrashIcon,
   CheckIcon,
-  MagicWandIcon
+  MagicWandIcon,
+  MagnifyingGlassIcon
 } from "@radix-ui/react-icons";
 import { toast } from "sonner";
 
@@ -46,21 +47,46 @@ export function ImageUploadForm() {
   const generateUploadUrl = useMutation(api.images.generateUploadUrl);
   const uploadMultiple = useMutation(api.images.uploadMultiple);
   const categories = useQuery(api.images.getCategories);
-  
+  const remove = useMutation(api.images.remove); // Make sure 'remove' is defined
+
   // Pending Images Logic
   const pendingImages = useQuery(api.images.getPendingImages);
   const processingImages = useQuery(api.images.getProcessingImages);
+  const draftImages = useQuery(api.images.getDraftImages);
   const approveImage = useMutation(api.images.approveImage);
   const rejectImage = useMutation(api.images.rejectImage);
-  
+  const finalizeUploads = useMutation(api.images.finalizeUploads);
+  const updateImageMetadataMutation = useMutation(api.images.updateImageMetadata);
+  const rerunSmartAnalysisMutation = useMutation(api.vision.rerunSmartAnalysis);
+
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
+  // Function to update metadata for images in draft state
+  const updateImageMetadata = async (
+    imageId: Id<"images">,
+    updates: {
+      title?: string;
+      description?: string;
+      tags?: string[];
+      category?: string;
+      source?: string;
+      sref?: string;
+    }
+  ) => {
+    try {
+      await updateImageMetadataMutation({ imageId, ...updates });
+    } catch (error) {
+      console.error("Failed to update image metadata:", error);
+      toast.error("Failed to update image metadata.");
+    }
+  };
+
   const handleFiles = async (newFiles: FileList | File[]) => {
     const fileArray = Array.from(newFiles);
     const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
-    
+
     // Create initial objects
     const newUploadFiles: UploadFile[] = imageFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -112,7 +138,7 @@ export function ImageUploadForm() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFiles(e.dataTransfer.files);
     }
@@ -141,19 +167,78 @@ export function ImageUploadForm() {
   const addTag = (fileId: string, tag: string) => {
     if (!tag.trim()) return;
     const trimmedTag = tag.trim().toLowerCase();
-    setFiles(prev => prev.map(f => 
-      f.id === fileId 
+    setFiles(prev => prev.map(f =>
+      f.id === fileId
         ? { ...f, tags: [...f.tags.filter(t => t !== trimmedTag), trimmedTag] }
         : f
     ));
   };
 
   const removeTag = (fileId: string, tag: string) => {
-    setFiles(prev => prev.map(f => 
-      f.id === fileId 
+    setFiles(prev => prev.map(f =>
+      f.id === fileId
         ? { ...f, tags: f.tags.filter(t => t !== tag) }
         : f
     ));
+  };
+
+  const addTagToDraft = async (imageId: Id<"images">, tag: string) => {
+    if (!tag.trim()) return;
+    const trimmedTag = tag.trim().toLowerCase();
+    const image = draftImages?.find(img => img._id === imageId);
+    if (image) {
+      const updatedTags = [...new Set([...image.tags, trimmedTag])];
+      await updateImageMetadata(imageId, { tags: updatedTags });
+    }
+  };
+
+  const removeTagFromDraft = async (imageId: Id<"images">, tag: string) => {
+    const image = draftImages?.find(img => img._id === imageId);
+    if (image) {
+      const updatedTags = image.tags.filter(t => t !== tag);
+      await updateImageMetadata(imageId, { tags: updatedTags });
+    }
+  };
+
+  const reRunAnalysis = async (
+    imageId: Id<"images">,
+    storageId: Id<"_storage">,
+    title: string,
+    description?: string,
+    tags?: string[],
+    category?: string,
+    source?: string,
+    sref?: string
+  ) => {
+    try {
+      toast.info("Re-running AI analysis...");
+      await rerunSmartAnalysisMutation({
+        imageId,
+        storageId,
+        title,
+        description,
+        tags: tags || [],
+        category: category || "general",
+        source,
+        sref,
+      });
+    } catch (error) {
+      console.error("Failed to re-run analysis:", error);
+      toast.error("Failed to re-run AI analysis.");
+    }
+  };
+
+  const handleFinalizeUploads = async () => {
+    if (!draftImages || draftImages.length === 0) return;
+
+    try {
+      const imageIdsToFinalize = draftImages.map(img => img._id);
+      await finalizeUploads({ imageIds: imageIdsToFinalize });
+      toast.success(`${imageIdsToFinalize.length} image(s) finalized and added to gallery!`);
+    } catch (error) {
+      console.error("Finalize uploads failed:", error);
+      toast.error("Failed to finalize uploads.");
+    }
   };
 
   const handleSubmit = async () => {
@@ -172,13 +257,13 @@ export function ImageUploadForm() {
           headers: { "Content-Type": file.file.type },
           body: file.file,
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to upload ${file.file.name}`);
         }
-        
+
         const { storageId } = await response.json();
-        
+
         return {
           storageId,
           title: file.title || file.file.name, // Use filename if title is empty
@@ -192,15 +277,13 @@ export function ImageUploadForm() {
       });
 
       const uploads = await Promise.all(uploadPromises);
-      
+
       const newImageIds = await uploadMultiple({ uploads });
-      
-      toast.success(`Successfully uploaded ${files.length} image${files.length > 1 ? 's' : ''}!`);
-      
-      // Clear files after successful upload
+
+      // Clear local files after successful initial upload and scheduling
       files.forEach(file => URL.revokeObjectURL(file.preview));
       setFiles([]);
-      
+
     } catch (error) {
       console.error("Upload failed:", error);
       toast.error("Upload failed. Please try again.");
@@ -212,18 +295,32 @@ export function ImageUploadForm() {
   const handleApprove = async (imageId: Id<"images">) => {
     try {
       await approveImage({ imageId });
-      toast.success("Image approved and added to your board!");
+      toast.success("Image approved and added to your review queue!");
     } catch (error) {
-      toast.error("Failed to approve image");
+      console.error("Failed to approve image:", error);
+      toast.error("Failed to approve image.");
     }
   };
 
   const handleReject = async (imageId: Id<"images">) => {
     try {
-      await rejectImage({ imageId });
-      toast.success("Image discarded");
+      // Check if it's a pending image (suggestion) or a draft image
+      const isPending = pendingImages?.some(img => img._id === imageId);
+      const isDraft = draftImages?.some(img => img._id === imageId);
+
+      if (isPending) {
+        await rejectImage({ imageId }); // This deletes the image and its storage
+        toast.success("Generated suggestion discarded!");
+      } else if (isDraft) {
+        await remove({ id: imageId }); // This deletes the image and its storage
+        toast.success("Draft image discarded!");
+      } else {
+        console.warn("Attempted to reject/remove an image not found in pending or draft lists.", imageId);
+        toast.error("Could not find image to discard.");
+      }
     } catch (error) {
-      toast.error("Failed to reject image");
+      console.error("Failed to discard image:", error);
+      toast.error("Failed to discard image.");
     }
   };
 
@@ -240,12 +337,12 @@ export function ImageUploadForm() {
       <Box
         className={`
           relative overflow-hidden rounded-xl transition-all duration-200 ease-in-out
-          ${dragActive 
-            ? 'bg-blue-50 ring-2 ring-blue-500 ring-offset-2' 
-            : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700'
+          ${dragActive
+            ? 'bg-blue-50 ring-2 ring-blue-500 ring-offset-2'
+            : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-900/50 dark:hover:bg-gray-900'
           }
         `}
-        style={{ minHeight: '200px' }}
+        style={{ minHeight: '150px' }}
       >
         <input
           type="file"
@@ -258,14 +355,14 @@ export function ImageUploadForm() {
           onDrop={handleDrop}
           onChange={handleFileInput}
         />
-        <Flex direction="column" align="center" justify="center" className="h-full py-10 px-4 text-center pointer-events-none">
-          <Box className="bg-white dark:bg-gray-900 p-4 rounded-full shadow-sm mb-4">
-            <UploadIcon width="32" height="32" className="text-blue-500" />
+        <Flex direction="column" align="center" justify="center" className="h-full py-6 px-4 text-center pointer-events-none">
+          <Box className="bg-white dark:bg-gray-800 p-3 rounded-full shadow-sm mb-3">
+            <UploadIcon width="24" height="24" className="text-gray-500" />
           </Box>
-          <Text size="4" weight="medium" className="mb-2">
+          <Text size="3" weight="medium" className="mb-1 text-gray-700 dark:text-gray-300">
             Click to upload or drag and drop
           </Text>
-          <Text size="2" color="gray" className="max-w-xs">
+          <Text size="1" color="gray" className="max-w-xs">
             SVG, PNG, JPG or GIF (max. 10MB)
           </Text>
         </Flex>
@@ -275,13 +372,13 @@ export function ImageUploadForm() {
       {files.length > 0 && (
         <Box className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
           <Flex justify="between" align="center">
-            <Text size="3" weight="medium">
+            <Text size="2" weight="medium">
               {files.length} image{files.length > 1 ? 's' : ''} selected
             </Text>
             <Button
               variant="ghost"
               color="red"
-              size="2"
+              size="1"
               onClick={() => {
                 files.forEach(file => URL.revokeObjectURL(file.preview));
                 setFiles([]);
@@ -296,22 +393,22 @@ export function ImageUploadForm() {
             {files.map((file) => (
               <Card key={file.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <Flex gap="4">
-                  <Box className="w-32 h-32 shrink-0 bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden">
+                  <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden">
                     <img
                       src={file.preview}
                       alt={file.title}
                       className="w-full h-full object-cover"
                     />
                   </Box>
-                  
-                  <Box className="flex-1 space-y-3 min-w-0">
+
+                  <Box className="flex-1 space-y-2 min-w-0">
                     <Flex justify="between" align="start" gap="2">
                       <Box className="flex-1">
                         <TextField.Root
                           value={file.title}
                           onChange={(e) => updateFile(file.id, { title: e.target.value })}
                           placeholder="Title (Leave blank for AI)"
-                          size="2"
+                          size="1"
                         >
                           <TextField.Slot>
                             <MagicWandIcon className="text-purple-400" />
@@ -332,10 +429,11 @@ export function ImageUploadForm() {
                       value={file.description}
                       onChange={(e) => updateFile(file.id, { description: e.target.value })}
                       placeholder="Description (Leave blank for AI)"
-                      size="2"
+                      size="1"
                     />
-
-                    <Flex gap="2" align="center">
+                    
+                    {/* ... (rest of file input fields) ... */}
+                     <Flex gap="2" align="center">
                       <Select.Root
                         value={file.category}
                         onValueChange={(value) => updateFile(file.id, { category: value })}
@@ -371,10 +469,10 @@ export function ImageUploadForm() {
                     <Box>
                       <Flex gap="1" wrap="wrap" className="mb-2">
                         {file.colors.map((color) => (
-                          <Box 
-                            key={color} 
-                            className="w-4 h-4 rounded-full border border-gray-200" 
-                            style={{ backgroundColor: color }} 
+                          <Box
+                            key={color}
+                            className="w-4 h-4 rounded-full border border-gray-200"
+                            style={{ backgroundColor: color }}
                             title={color}
                           />
                         ))}
@@ -393,7 +491,7 @@ export function ImageUploadForm() {
                           </Badge>
                         ))}
                       </Flex>
-                      
+
                       <TextField.Root
                         placeholder="Add tags..."
                         size="1"
@@ -426,7 +524,7 @@ export function ImageUploadForm() {
             <Button
               onClick={handleSubmit}
               disabled={uploading || files.length === 0}
-              size="3"
+              size="2"
             >
               {uploading ? (
                 <Flex align="center" gap="2">
@@ -443,36 +541,35 @@ export function ImageUploadForm() {
 
       {/* Processing Images Section */}
       {processingImages && processingImages.length > 0 && (
-        <Box className="mt-12 animate-in fade-in">
-          <Separator size="4" className="mb-8" />
-          <Flex align="center" gap="2" className="mb-6">
-            <Box className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <Box className="mt-8 animate-in fade-in">
+          <Separator size="4" className="mb-6" />
+          <Flex align="center" gap="2" className="mb-4">
+            <Box className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
             <Box>
-              <Heading size="5">AI Analysis in Progress</Heading>
+              <Heading size="4">AI Analysis in Progress</Heading>
               <Text size="2" color="gray">
-                Analyzing your images and generating variations...
+                Generating variations...
               </Text>
             </Box>
           </Flex>
 
-          <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
+          <Grid columns={{ initial: "2", sm: "3", md: "4" }} gap="4">
             {processingImages.map((image) => (
-              <Card key={image._id} className="overflow-hidden opacity-80">
-                <Box className="relative aspect-video">
+              <Card key={image._id} className="overflow-hidden opacity-80 p-2">
+                <Box className="relative aspect-video rounded-md overflow-hidden bg-gray-100">
                   <img
                     src={image.imageUrl}
                     alt={image.title}
                     className="w-full h-full object-cover grayscale"
                   />
                   <Box className="absolute inset-0 bg-black/10 flex items-center justify-center">
-                    <Badge color="purple" variant="solid" size="2">
+                    <Badge color="purple" variant="solid" size="1">
                       Processing...
                     </Badge>
                   </Box>
                 </Box>
-                <Box className="p-3">
-                  <Text weight="bold" size="2" className="block truncate">{image.title || "Untitled"}</Text>
-                  <Text size="1" color="gray">Analyzing image content...</Text>
+                <Box className="pt-2">
+                  <Text weight="bold" size="1" className="block truncate">{(image as any).title || "Untitled"}</Text>
                 </Box>
               </Card>
             ))}
@@ -482,48 +579,226 @@ export function ImageUploadForm() {
 
       {/* Pending Generated Images Section */}
       {pendingImages && pendingImages.length > 0 && (
-        <Box className="mt-12 animate-in fade-in">
-          <Separator size="4" className="mb-8" />
-          <Flex align="center" gap="2" className="mb-6">
-            <MagicWandIcon width="24" height="24" className="text-purple-500" />
+        <Box className="mt-8 animate-in fade-in">
+          <Separator size="4" className="mb-6" />
+          <Flex align="center" gap="2" className="mb-4">
+            <MagicWandIcon width="20" height="20" className="text-purple-500" />
             <Box>
-              <Heading size="5">AI Generated Suggestions</Heading>
+              <Heading size="4">AI Suggestions</Heading>
               <Text size="2" color="gray">
-                Review these variations generated based on your uploads.
+                Review generated variations.
               </Text>
             </Box>
           </Flex>
 
           <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
             {pendingImages.map((image) => (
-              <Card key={image._id} className="overflow-hidden">
-                <Box className="relative aspect-video group">
+              <Card key={image._id} className="overflow-hidden p-0 group relative">
+                <Box className="relative aspect-video">
                   <img
                     src={image.imageUrl}
                     alt={image.title}
                     className="w-full h-full object-cover"
                   />
-                  <Box className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button 
-                      color="green" 
-                      variant="solid" 
-                      onClick={() => handleApprove(image._id)}
+                  {/* Buttons container - Always visible on hover, bottom aligned */}
+                  <Box className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <Button
+                      color="green"
+                      variant="solid"
+                      size="1"
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        handleApprove(image._id); 
+                      }}
+                      className="flex-1 shadow-lg bg-green-500/90 hover:bg-green-500 cursor-pointer"
                     >
                       <CheckIcon /> Keep
                     </Button>
-                    <Button 
-                      color="red" 
-                      variant="solid" 
-                      onClick={() => handleReject(image._id)}
+                    <Button
+                      color="red"
+                      variant="solid"
+                      size="1"
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        handleReject(image._id); 
+                      }}
+                      className="flex-1 shadow-lg bg-red-500/90 hover:bg-red-500 cursor-pointer"
                     >
                       <Cross2Icon /> Discard
                     </Button>
                   </Box>
                 </Box>
-                <Box className="p-3">
-                  <Text weight="bold" size="2" className="block truncate">{image.title}</Text>
-                  <Text size="1" color="gray" className="line-clamp-2">{image.description}</Text>
+                <Box className="p-2 bg-gray-50 dark:bg-gray-900/50">
+                  <Text weight="medium" size="1" className="block truncate">{(image as any).title}</Text>
+                  <Text size="1" color="gray" className="line-clamp-1 text-[10px]">{(image as any).description}</Text>
                 </Box>
+              </Card>
+            ))}
+          </Grid>
+        </Box>
+      )}
+
+      {/* Images for Review Section */}
+      {draftImages && draftImages.length > 0 && (
+        <Box className="mt-8 animate-in fade-in">
+          <Separator size="4" className="mb-6" />
+          <Flex align="center" justify="between" className="mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+             <Flex align="center" gap="2">
+                <CheckIcon width="20" height="20" className="text-green-500" />
+                <Box>
+                <Heading size="4">Review & Finalize</Heading>
+                <Text size="2" color="gray">
+                    {draftImages.length} image{draftImages.length !== 1 ? 's' : ''} ready to publish
+                </Text>
+                </Box>
+             </Flex>
+             <Button
+              onClick={handleFinalizeUploads}
+              size="2"
+              color="green"
+              className="shadow-sm"
+            >
+              Finalize All
+            </Button>
+          </Flex>
+
+          <Grid columns={{ initial: "1", lg: "2" }} gap="4">
+            {draftImages.map((image) => (
+              <Card key={image._id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                <Flex gap="4">
+                  <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden relative group">
+                    <img
+                      src={image.imageUrl}
+                      alt={image.title}
+                      className="w-full h-full object-cover"
+                    />
+                    {image.aiStatus === "failed" && (
+                      <Badge color="red" variant="solid" className="absolute top-1 left-1 text-[10px]">
+                        Failed
+                      </Badge>
+                    )}
+                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <MagnifyingGlassIcon className="text-white w-6 h-6" />
+                     </div>
+                  </Box>
+
+                  <Box className="flex-1 space-y-2 min-w-0">
+                    <Flex justify="between" align="start" gap="2">
+                      <Box className="flex-1">
+                        <TextField.Root
+                          value={image.title}
+                          onChange={(e) => updateImageMetadata(image._id, { title: e.target.value })}
+                          placeholder="Title"
+                          size="1"
+                        >
+                          <TextField.Slot>
+                            <MagicWandIcon className="text-purple-400" />
+                          </TextField.Slot>
+                        </TextField.Root>
+                      </Box>
+                      <IconButton
+                        variant="ghost"
+                        color="red"
+                        size="1"
+                        onClick={() => handleReject(image._id)}
+                      >
+                        <TrashIcon />
+                      </IconButton>
+                    </Flex>
+
+                    <TextField.Root
+                      value={image.description || ""}
+                      onChange={(e) => updateImageMetadata(image._id, { description: e.target.value })}
+                      placeholder="Description"
+                      size="1"
+                    />
+
+                    {/* ... (Rest of fields, same as before but sized="1") ... */}
+                     <Flex gap="2" align="center">
+                      <Select.Root
+                        value={image.category}
+                        onValueChange={(value) => updateImageMetadata(image._id, { category: value })}
+                      >
+                        <Select.Trigger size="1" placeholder="Select category" />
+                        <Select.Content>
+                          {categories?.map((category) => (
+                            <Select.Item key={category} value={category}>
+                              {category}
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select.Root>
+                    </Flex>
+
+                    <Flex gap="2">
+                      <TextField.Root
+                        value={image.sref || ""}
+                        onChange={(e) => updateImageMetadata(image._id, { sref: e.target.value })}
+                        placeholder="Style Ref"
+                        size="1"
+                        className="flex-1"
+                      />
+                      <TextField.Root
+                        value={image.source || ""}
+                        onChange={(e) => updateImageMetadata(image._id, { source: e.target.value })}
+                        placeholder="Source"
+                        size="1"
+                        className="flex-1"
+                      />
+                    </Flex>
+
+                    <Box>
+                      <Flex gap="1" wrap="wrap" className="mb-2">
+                        {image.colors && image.colors.map((color) => (
+                          <Box
+                            key={color}
+                            className="w-3 h-3 rounded-full border border-gray-200"
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </Flex>
+
+                      <Flex gap="1" wrap="wrap" className="mb-2">
+                        {image.tags.map((tag) => (
+                          <Badge key={tag} variant="soft" size="1" color={getTagColor(tag)}>
+                            {tag}
+                            <button
+                              onClick={() => removeTagFromDraft(image._id, tag)}
+                              className="ml-1 hover:text-red-600"
+                            >
+                              <Cross2Icon width="10" height="10" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </Flex>
+
+                      <TextField.Root
+                        placeholder="Add tags..."
+                        size="1"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addTagToDraft(image._id, e.currentTarget.value);
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                      />
+                    </Box>
+
+                    {image.aiStatus === "failed" && (
+                      <Button
+                        color="orange"
+                        variant="soft"
+                        size="1"
+                        onClick={() => reRunAnalysis(image._id, image.storageId!,
+                           image.title, image.description, image.tags, image.category, image.source, image.sref)}
+                      >
+                        <MagicWandIcon /> Re-run AI Analysis
+                      </Button>
+                    )}
+                  </Box>
+                </Flex>
               </Card>
             ))}
           </Grid>

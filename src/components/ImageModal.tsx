@@ -6,6 +6,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CreateBoardModal } from "./CreateBoardModal";
+import { getTagColor } from "../lib/utils";
 
 interface ImageModalProps {
   imageId: Id<"images">;
@@ -63,28 +64,26 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
       <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
         <Dialog.Content 
           maxWidth="lg" 
-          className="max-h-[90vh] p-0 w-[600px]"
+          className="max-h-[90vh] p-0 w-[90vw] max-w-[900px]"
           style={triggerPosition ? {
             position: 'fixed',
             top: `${Math.min(triggerPosition.y, window.innerHeight - 600)}px`,
-            left: `${Math.min(triggerPosition.x, window.innerWidth - 600)}px`,
+            left: `${Math.min(triggerPosition.x, window.innerWidth - 900)}px`,
             transform: 'none'
           } : undefined}
         >
-          <Dialog.Title>{image.title}</Dialog.Title>
-          {image.description && <Dialog.Description>{image.description}</Dialog.Description>}
           <Flex direction="column" className="max-h-[90vh]">
-            {/* Image Display */}
-            <Box className="flex items-center justify-center bg-black/90">
+            {/* Image Display - No borders */}
+            <Box className="flex items-center justify-center bg-transparent">
               <img
                 src={image.imageUrl}
                 alt={image.title}
-                className="max-h-[50vh] w-auto object-contain"
+                className="max-h-[60vh] w-auto object-contain"
               />
             </Box>
 
-            {/* Content Panel */}
-            <Box className="p-6 space-y-4 flex-1 overflow-y-auto">
+            {/* Content Panel - Transparent black like header */}
+            <Box className="p-6 space-y-4 flex-1 overflow-y-auto bg-black/60 backdrop-blur-md border-t border-gray-6">
               <Dialog.Close>
                 <IconButton
                   variant="ghost"
@@ -96,16 +95,11 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                 </IconButton>
               </Dialog.Close>
 
-              <Box>
-                <Text size="5" weight="bold" className="mb-1">
-                  {image.title}
+              {image.description && (
+                <Text size="2" color="gray" className="leading-relaxed">
+                  {image.description}
                 </Text>
-                {image.description && (
-                  <Text size="2" color="gray" className="leading-relaxed">
-                    {image.description}
-                  </Text>
-                )}
-              </Box>
+              )}
 
               <Flex gap="5" align="center">
                 <Flex gap="2" align="center">
@@ -118,9 +112,9 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                 </Flex>
               </Flex>
 
-              <Box className="space-y-3">
+              <Box className="space-y-4">
                 <Flex align="center" gap="3">
-                  <Text size="2" color="gray" className="w-20">Category:</Text>
+                  <Text size="2" color="gray" className="w-24 flex-shrink-0">Category:</Text>
                   <Badge variant="soft" color="gray" size="2" className="capitalize">
                     {image.category}
                   </Badge>
@@ -128,10 +122,10 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
 
                 {image.tags.length > 0 && (
                   <Flex align="start" gap="3">
-                    <Text size="2" color="gray" className="w-20">Tags:</Text>
-                    <Flex gap="1" wrap="wrap">
+                    <Text size="2" color="gray" className="w-24 flex-shrink-0">Tags:</Text>
+                    <Flex gap="1.5" wrap="wrap" className="flex-1">
                       {image.tags.map((tag, index) => (
-                        <Badge key={index} variant="soft" color="gray" size="1">
+                        <Badge key={index} variant="soft" color={getTagColor(tag)} size="1">
                           {tag}
                         </Badge>
                       ))}
@@ -141,11 +135,13 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
 
                 {image.source && (
                   <Flex align="center" gap="3">
-                    <Text size="2" color="gray" className="w-20">Source:</Text>
+                    <Text size="2" color="gray" className="w-24 flex-shrink-0">Source:</Text>
                     <Button
-                      variant="ghost"
+                      variant="soft"
+                      color="blue"
                       size="1"
                       asChild
+                      style={{ opacity: 0.8 }}
                     >
                       <a
                         href={image.source}
@@ -162,21 +158,21 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
 
                 {image.sref && (
                   <Flex align="center" gap="3">
-                    <Text size="2" color="gray" className="w-20">Sref:</Text>
-                    <Badge variant="soft" color="purple" size="1">
+                    <Text size="2" color="gray" className="w-24 flex-shrink-0">Sref:</Text>
+                    <Badge variant="soft" color="blue" size="1">
                       {image.sref}
                     </Badge>
                   </Flex>
                 )}
 
                 {image.colors && image.colors.length > 0 && (
-                  <Flex align="center" gap="3">
-                    <Text size="2" color="gray" className="w-20">Colors:</Text>
-                    <Flex gap="2">
+                  <Flex align="start" gap="3">
+                    <Text size="2" color="gray" className="w-24 flex-shrink-0">Colors:</Text>
+                    <Flex gap="2.5" wrap="wrap" className="flex-1">
                       {image.colors.map((color, index) => (
                         <Box
                           key={index}
-                          className="w-5 h-5 rounded-full border-2 border-gray-6"
+                          className="w-6 h-6 rounded border border-gray-6 flex-shrink-0"
                           style={{ backgroundColor: color }}
                           title={color}
                         />
@@ -190,10 +186,11 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                 <Flex gap="3" align="center">
                   <Button
                     onClick={() => { void handleLike(); }}
-                    variant={image.isLiked ? "solid" : "soft"}
+                    variant="soft"
                     color={image.isLiked ? "red" : "gray"}
                     size="2"
                     className="flex-1"
+                    style={{ opacity: image.isLiked ? 0.9 : 0.7 }}
                   >
                     <HeartIcon width="16" height="16" />
                     {image.isLiked ? 'Liked' : 'Like'}
@@ -202,10 +199,11 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
                       <Button
-                        variant="solid"
+                        variant="soft"
                         color="blue"
                         size="2"
                         className="flex-1"
+                        style={{ opacity: 0.8 }}
                       >
                         <BookmarkIcon width="16" height="16" />
                         Save
