@@ -36,6 +36,7 @@ import {
 import { ImageModal } from "./ImageModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { getTagColor } from "../lib/utils";
 
 interface Image {
   _id: Id<"images">;
@@ -52,19 +53,6 @@ interface Image {
   views: number;
   isLiked: boolean;
   uploadedAt?: number;
-}
-
-const TAG_COLORS = [
-  "gray", "gold", "bronze", "brown", "yellow", "amber", "orange", "tomato", "red", "ruby", "crimson", "pink", "plum", "purple", "violet", "iris", "indigo", "blue", "cyan", "teal", "jade", "green", "grass", "lime", "mint", "sky"
-] as const;
-
-function getTagColor(tag: string) {
-  let hash = 0;
-  for (let i = 0; i < tag.length; i++) {
-    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % TAG_COLORS.length;
-  return TAG_COLORS[index];
 }
 
 export function TableView() {

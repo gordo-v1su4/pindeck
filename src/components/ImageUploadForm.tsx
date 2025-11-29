@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { extractColorsFromImage } from "../lib/colorExtraction";
+import { getTagColor } from "../lib/utils";
 import { 
   Card, 
   Text, 
@@ -60,11 +61,12 @@ export function ImageUploadForm() {
     const fileArray = Array.from(newFiles);
     const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
     
+    // Create initial objects
     const newUploadFiles: UploadFile[] = imageFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
       preview: URL.createObjectURL(file),
-      title: "", // Default to empty to trigger AI generation
+      title: "",
       description: "",
       tags: [],
       category: "general",
@@ -76,10 +78,24 @@ export function ImageUploadForm() {
     setFiles(prev => [...prev, ...newUploadFiles]);
 
     // Extract colors asynchronously
-    newUploadFiles.forEach(async (fileObj) => {
-      const colors = await extractColorsFromImage(fileObj.preview);
-      setFiles(prev => prev.map(f => f.id === fileObj.id ? { ...f, colors } : f));
-    });
+    try {
+      const filesWithColors = await Promise.all(newUploadFiles.map(async (fileObj) => {
+        try {
+          const colors = await extractColorsFromImage(fileObj.preview);
+          return { ...fileObj, colors };
+        } catch (e) {
+          console.error("Color extraction failed for", fileObj.file.name, e);
+          return fileObj;
+        }
+      }));
+
+      setFiles(prev => prev.map(f => {
+        const updated = filesWithColors.find(fwc => fwc.id === f.id);
+        return updated || f;
+      }));
+    } catch (e) {
+      console.error("Error in color extraction process", e);
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -366,7 +382,7 @@ export function ImageUploadForm() {
 
                       <Flex gap="1" wrap="wrap" className="mb-2">
                         {file.tags.map((tag) => (
-                          <Badge key={tag} variant="soft" size="1" color="blue">
+                          <Badge key={tag} variant="soft" size="1" color={getTagColor(tag)}>
                             {tag}
                             <button
                               onClick={() => removeTag(file.id, tag)}
