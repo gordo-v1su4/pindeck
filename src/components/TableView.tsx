@@ -51,6 +51,20 @@ interface Image {
   likes: number;
   views: number;
   isLiked: boolean;
+  uploadedAt?: number;
+}
+
+const TAG_COLORS = [
+  "gray", "gold", "bronze", "brown", "yellow", "amber", "orange", "tomato", "red", "ruby", "crimson", "pink", "plum", "purple", "violet", "iris", "indigo", "blue", "cyan", "teal", "jade", "green", "grass", "lime", "mint", "sky"
+] as const;
+
+function getTagColor(tag: string) {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % TAG_COLORS.length;
+  return TAG_COLORS[index];
 }
 
 export function TableView() {
@@ -127,7 +141,7 @@ export function TableView() {
           return (
             <Flex gap="1" wrap="wrap">
               {tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="soft" color="blue" size="1">
+                <Badge key={tag} variant="soft" color={getTagColor(tag)} size="1">
                   {tag}
                 </Badge>
               ))}
@@ -215,6 +229,20 @@ export function TableView() {
           );
         },
         enableSorting: false,
+      },
+      {
+        accessorKey: "uploadedAt",
+        header: "Date Uploaded",
+        cell: ({ row }) => {
+          const timestamp = row.getValue("uploadedAt") as number;
+          return timestamp ? (
+            <Text size="2">
+              {new Date(timestamp).toLocaleDateString()}
+            </Text>
+          ) : (
+            <Text size="2" color="gray">-</Text>
+          );
+        },
       },
       {
         id: "actions",

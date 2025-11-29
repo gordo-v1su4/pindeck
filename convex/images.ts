@@ -150,6 +150,7 @@ export const create = mutation({
       uploadedBy: userId,
       likes: 0,
       views: 0,
+      uploadedAt: Date.now(),
     });
   },
 });
@@ -170,6 +171,7 @@ export const internalCreate = internalMutation({
       ...args,
       likes: 0,
       views: 0,
+      uploadedAt: Date.now(),
     });
   },
 });
@@ -307,6 +309,7 @@ export const uploadMultiple = mutation({
           likes: 0,
           views: 0,
           aiStatus: "processing",
+          uploadedAt: Date.now(),
         });
 
         // Schedule the smart analysis action directly
@@ -512,6 +515,7 @@ export const internalSaveGeneratedImages = internalMutation({
         source: "AI Generation",
         sref: args.originalImageId, // Reference original image as source ref
         status: "pending",
+        uploadedAt: Date.now(),
       });
     }
 
