@@ -1,8 +1,110 @@
 import { httpAction, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { GoogleGenAI } from "@google/genai";
 
 const VL_MODEL_API = "https://openrouter.ai/api/v1/chat/completions";
+
+export const internalGenerateRelatedImages = internalAction({
+  args: {
+    originalImageId: v.id("images"),
+    description: v.string(),
+    category: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+      console.error("GOOGLE_API_KEY not set, skipping image generation");
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    const model = ai.getGenerativeModel({ model: "gemini-3-pro-image-preview" });
+
+    // Generate 2 images
+    // We run two requests in parallel to ensure we get 2 distinct images
+    const prompt = `Create a photorealistic image that looks like the next scene in a movie sequence, following this scene: ${args.description}. Maintain the same visual style, lighting, and cinematic quality. Aspect ratio 16:9.`;
+    
+    const generatePromises = [1, 2].map(async () => {
+      try {
+        const response = await model.generateContent({
+          contents: { role: 'user', parts: [{ text: prompt }] },
+          config: {
+            responseModalities: ['IMAGE'], // We only want images
+            imageConfig: {
+              aspectRatio: '16:9',
+              imageSize: '2K',
+            },
+          },
+        });
+
+        // Extract image data
+        const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (!part || !part.inlineData || !part.inlineData.data) {
+          console.error("No image data in response");
+          return null;
+        }
+
+        return part.inlineData.data; // Base64 string
+      } catch (err) {
+        console.error("Error generating image:", err);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(generatePromises);
+    const validResults = results.filter(r => r !== null) as string[];
+
+    if (validResults.length === 0) return;
+
+    const generatedImages = [];
+
+    for (const base64Data of validResults) {
+      // 1. Get upload URL
+      const uploadUrl = await ctx.runMutation(internal.images.internalGenerateUploadUrl);
+
+      // 2. Convert base64 to Blob
+      // Convex runtime supports standard Web API Blob
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: "image/png" });
+
+      // 3. Upload to storage
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": "image/png" },
+        body: blob,
+      });
+
+      if (!uploadResponse.ok) {
+        console.error("Failed to upload generated image");
+        continue;
+      }
+
+      const { storageId } = await uploadResponse.json();
+
+      // 4. Get URL (optional, but we store storageId)
+      const imageUrl = await ctx.storage.getUrl(storageId);
+      if (!imageUrl) continue;
+
+      generatedImages.push({
+        url: imageUrl,
+        title: "Generated Variation",
+        description: `Variation based on: ${args.description}`,
+      });
+    }
+
+    if (generatedImages.length > 0) {
+      await ctx.runMutation(internal.images.internalSaveGeneratedImages, {
+        originalImageId: args.originalImageId,
+        images: generatedImages,
+      });
+    }
+  },
+});
 
 export const internalSmartAnalyzeImage = internalAction({
   args: {
@@ -81,12 +183,12 @@ export const internalSmartAnalyzeImage = internalAction({
       colors,
     });
 
-    // TODO: Implement Nano Banana image generation.
-    // The `generate_image` tool cannot be called directly from Convex backend.
-    // This would require either:
-    // 1. Client-side generation: Client uploads original, gets description, calls generate_image, then uploads new images.
-    // 2. A separate serverless function/httpAction: A service that receives the description, calls generate_image, and uploads to Convex.
-    // For now, this part of the request (generating 2 additional images) will not be implemented in the backend.
+    // 4. Generate related images
+    await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
+      originalImageId: args.imageId,
+      description,
+      category: args.category,
+    });
   },
 });
 

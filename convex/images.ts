@@ -17,11 +17,13 @@ export const list = query({
       images = await ctx.db
         .query("images")
         .withIndex("by_category", (q) => q.eq("category", args.category!))
+        .filter((q) => q.neq(q.field("status"), "pending"))
         .order("desc")
         .take(args.limit || 50);
     } else {
       images = await ctx.db
         .query("images")
+        .filter((q) => q.neq(q.field("status"), "pending"))
         .order("desc")
         .take(args.limit || 50);
     }
@@ -67,11 +69,13 @@ export const search = query({
         .withSearchIndex("search_content", (q) => 
           q.search("title", args.searchTerm).eq("category", args.category!)
         )
+        .filter((q) => q.neq(q.field("status"), "pending"))
         .take(50);
     } else {
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) => q.search("title", args.searchTerm))
+        .filter((q) => q.neq(q.field("status"), "pending"))
         .take(50);
     }
 
@@ -232,6 +236,13 @@ export const getCategories = query({
   },
 });
 
+export const internalGenerateUploadUrl = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
@@ -322,6 +333,54 @@ export const uploadMultiple = mutation({
     );
 
     return results;
+  },
+});
+
+export const getPendingImages = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    return await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const approveImage = mutation({
+  args: { imageId: v.id("images") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image) throw new Error("Image not found");
+
+    if (image.uploadedBy !== userId) throw new Error("Not authorized");
+
+    await ctx.db.patch(args.imageId, { status: "active" });
+  },
+});
+
+export const rejectImage = mutation({
+  args: { imageId: v.id("images") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image) throw new Error("Image not found");
+
+    if (image.uploadedBy !== userId) throw new Error("Not authorized");
+
+    if (image.storageId) {
+      await ctx.storage.delete(image.storageId);
+    }
+    await ctx.db.delete(args.imageId);
   },
 });
 
@@ -421,6 +480,7 @@ export const internalSaveGeneratedImages = internalMutation({
         views: 0,
         source: "AI Generation",
         sref: args.originalImageId, // Reference original image as source ref
+        status: "pending",
       });
     }
   },
