@@ -56,9 +56,18 @@ export default function App() {
             <Box className="mt-4">
               <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
                 <Tabs.List>
-                  <Tabs.Trigger value="gallery">Gallery</Tabs.Trigger>
-                  <Tabs.Trigger value="upload">Upload</Tabs.Trigger>
-                  <Tabs.Trigger value="boards">Boards</Tabs.Trigger>
+                  <Tabs.Trigger value="gallery">
+                    <ImageIcon width="16" height="16" />
+                    Gallery
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="upload">
+                    <UploadIcon width="16" height="16" />
+                    Upload
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="boards">
+                    <BookmarkIcon width="16" height="16" />
+                    Boards
+                  </Tabs.Trigger>
                   <Tabs.Trigger value="table">
                     <GridIcon width="16" height="16" />
                     Table
