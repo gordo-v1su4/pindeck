@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { HeartIcon, EyeOpenIcon, ExternalLinkIcon, Cross2Icon, BookmarkIcon } from "@radix-ui/react-icons";
-import { Dialog, Button, Card, Badge, Text, Flex, Box, IconButton, Select } from "@radix-ui/themes";
+import { HeartFilledIcon, EyeOpenIcon, ExternalLinkIcon, Cross2Icon, BookmarkIcon } from "@radix-ui/react-icons";
+import { Dialog, Button, Badge, Text, Flex, Box, IconButton, Select, TextArea } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -9,10 +9,9 @@ import { toast } from "sonner";
 interface ImageModalProps {
   imageId: Id<"images">;
   onClose: () => void;
-  triggerPosition?: { x: number; y: number };
 }
 
-export function ImageModal({ imageId, onClose, triggerPosition }: ImageModalProps) {
+export function ImageModal({ imageId, onClose }: ImageModalProps) {
   const image = useQuery(api.images.getById, { id: imageId });
   const boards = useQuery(api.boards.list);
   const toggleLike = useMutation(api.images.toggleLike);
@@ -22,7 +21,7 @@ export function ImageModal({ imageId, onClose, triggerPosition }: ImageModalProp
 
   useEffect(() => {
     if (imageId) {
-      void incrementViews({ imageId });
+      incrementViews({ imageId });
     }
   }, [imageId, incrementViews]);
 
@@ -31,6 +30,7 @@ export function ImageModal({ imageId, onClose, triggerPosition }: ImageModalProp
       await toggleLike({ imageId });
     } catch (error) {
       console.error("Failed to toggle like:", error);
+      toast.error("Failed to update like status.");
     }
   };
 
@@ -42,11 +42,11 @@ export function ImageModal({ imageId, onClose, triggerPosition }: ImageModalProp
         boardId: selectedBoardId as Id<"collections">, 
         imageId: image._id 
       });
-      toast.success("Image saved to board!");
+      toast.success(`Image saved to board!`);
       setSelectedBoardId("");
     } catch (error) {
       console.error("Failed to save to board:", error);
-      toast.error("Failed to save to board");
+      toast.error("Failed to save image to board.");
     }
   };
 
@@ -54,180 +54,116 @@ export function ImageModal({ imageId, onClose, triggerPosition }: ImageModalProp
 
   return (
     <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content 
-        maxWidth="lg" 
-        className="max-h-[90vh] p-0 w-[600px]"
-        style={triggerPosition ? {
-          position: 'fixed',
-          top: `${Math.min(triggerPosition.y, window.innerHeight - 600)}px`,
-          left: `${Math.min(triggerPosition.x, window.innerWidth - 600)}px`,
-          transform: 'none'
-        } : undefined}
-      >
-        <Flex direction="column" className="max-h-[90vh]">
-          {/* Image Display */}
-          <Box className="flex items-center justify-center bg-black h-[400px] overflow-hidden">
+      <Dialog.Content size="4" className="p-0">
+        <Grid columns={{ initial: '1', md: '2' }} className="max-h-[90vh]">
+          <Box className="flex items-center justify-center bg-black/90 md:rounded-l-lg overflow-hidden">
             <img
               src={image.imageUrl}
               alt={image.title}
-              className="w-full h-full object-cover"
+              className="max-h-[90vh] w-auto h-auto object-contain"
             />
           </Box>
 
-          {/* Content Panel */}
-          <Box className="p-4 space-y-3 flex-1 overflow-y-auto">
+          <Flex direction="column" className="p-6 space-y-4 overflow-y-auto">
             <Dialog.Close>
-              <IconButton
-                variant="ghost"
-                color="gray"
-                className="absolute top-4 right-4"
-                aria-label="Close modal"
-              >
+              <IconButton variant="ghost" color="gray" className="absolute top-3 right-3" aria-label="Close modal">
                 <Cross2Icon />
               </IconButton>
             </Dialog.Close>
 
             <Box>
-              <Text size="3" weight="bold" className="mb-1">
+              <Text as="h2" size="5" weight="bold" className="mb-2">
                 {image.title}
               </Text>
               {image.description && (
-                <Text size="1" color="gray" className="leading-relaxed line-clamp-2">
+                <Text as="p" size="2" color="gray" className="leading-relaxed">
                   {image.description}
                 </Text>
               )}
             </Box>
 
-            <Flex gap="3" align="center">
+            <Flex gap="4" align="center" className="text-gray-11">
               <Flex gap="1" align="center">
-                <HeartIcon width="12" height="12" />
-                <Text size="1" color="gray">{image.likes}</Text>
+                <HeartFilledIcon className={image.isLiked ? 'text-red-500' : ''} />
+                <Text size="2">{image.likes}</Text>
               </Flex>
               <Flex gap="1" align="center">
-                <EyeOpenIcon width="12" height="12" />
-                <Text size="1" color="gray">{image.views}</Text>
+                <EyeOpenIcon />
+                <Text size="2">{image.views}</Text>
               </Flex>
             </Flex>
 
-            <Box className="space-y-2">
-              <Flex align="center" gap="2">
-                <Text size="1" color="gray">Category:</Text>
-                <Badge variant="soft" color="gray" size="1" className="capitalize">
-                  {image.category}
-                </Badge>
-              </Flex>
+            <Box className="space-y-3">
+              <InfoRow label="Category">
+                <Badge variant="soft" color="gray" size="1" className="capitalize">{image.category}</Badge>
+              </InfoRow>
 
               {image.tags.length > 0 && (
-                <Box>
-                  <Text size="1" color="gray" className="block mb-1">Tags:</Text>
+                <InfoRow label="Tags">
                   <Flex gap="1" wrap="wrap">
-                    {image.tags.slice(0, 3).map((tag, index) => (
-                      <Badge key={index} variant="soft" color="gray" size="1">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {image.tags.length > 3 && (
-                      <Badge variant="soft" color="gray" size="1">
-                        +{image.tags.length - 3}
-                      </Badge>
-                    )}
+                    {image.tags.map((tag) => <Badge key={tag} variant="soft" color="gray">{tag}</Badge>)}
                   </Flex>
-                </Box>
+                </InfoRow>
               )}
 
               {image.source && (
-                <Flex align="center" gap="2">
-                  <Text size="1" color="gray">Source:</Text>
-                  <Button
-                    variant="ghost"
-                    size="1"
-                    asChild
-                  >
-                    <a
-                      href={image.source}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1"
-                    >
-                      View Original
-                      <ExternalLinkIcon width="10" height="10" />
+                <InfoRow label="Source">
+                  <Button variant="ghost" size="1" asChild>
+                    <a href={image.source} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1">
+                      View Original <ExternalLinkIcon />
                     </a>
                   </Button>
-                </Flex>
+                </InfoRow>
               )}
 
               {image.sref && (
-                <Flex align="center" gap="2">
-                  <Text size="1" color="gray">Sref:</Text>
-                  <Badge variant="soft" color="purple" size="1">
-                    {image.sref}
-                  </Badge>
-                </Flex>
+                <InfoRow label="Sref">
+                  <Badge variant="soft" color="purple">{image.sref}</Badge>
+                </InfoRow>
               )}
 
-              {image.colors && image.colors.length > 0 && (
-                <Flex align="center" gap="2">
-                  <Text size="1" color="gray">Colors:</Text>
-                  <Flex gap="1">
-                    {image.colors.map((color, index) => (
-                      <Box
-                        key={index}
-                        className="w-4 h-4 rounded border border-gray-6"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
+              {image.colors?.length > 0 && (
+                <InfoRow label="Colors">
+                  <Flex gap="2">
+                    {image.colors.map((color, i) => (
+                      <Box key={i} className="w-5 h-5 rounded-full border border-gray-6" style={{ backgroundColor: color }} title={color} />
                     ))}
                   </Flex>
-                </Flex>
+                </InfoRow>
               )}
             </Box>
 
-            <Box className="pt-3 border-t border-gray-6 space-y-2">
-              <Button
-                onClick={() => { void handleLike(); }}
-                variant={image.isLiked ? "solid" : "soft"}
-                color={image.isLiked ? "red" : "gray"}
-                size="2"
-                className="w-full"
-              >
-                <HeartIcon width="14" height="14" />
-                {image.isLiked ? 'Liked' : 'Like'}
+            <Box className="pt-4 mt-auto border-t border-gray-6 space-y-3">
+              <Button onClick={handleLike} variant={image.isLiked ? "solid" : "soft"} color={image.isLiked ? "red" : "gray"} size="2" className="w-full">
+                <HeartFilledIcon /> {image.isLiked ? 'Liked' : 'Like'}
               </Button>
 
               {boards && boards.length > 0 && (
-                <Box className="space-y-2">
-                  <Select.Root
-                    value={selectedBoardId}
-                    onValueChange={setSelectedBoardId}
-                  >
-                    <Select.Trigger placeholder="Save to board..." size="2" className="w-full" />
+                <Flex gap="2">
+                  <Select.Root value={selectedBoardId} onValueChange={setSelectedBoardId}>
+                    <Select.Trigger placeholder="Add to a board..." size="2" className="flex-grow" />
                     <Select.Content>
-                      {boards.map((board) => (
-                        <Select.Item key={board._id} value={board._id}>
-                          {board.name}
-                        </Select.Item>
-                      ))}
+                      {boards.map((b) => <Select.Item key={b._id} value={b._id}>{b.name}</Select.Item>)}
                     </Select.Content>
                   </Select.Root>
-                  
-                  {selectedBoardId && (
-                    <Button
-                      onClick={handleSaveToBoard}
-                      variant="soft"
-                      color="blue"
-                      size="2"
-                      className="w-full"
-                    >
-                      <BookmarkIcon width="14" height="14" />
-                      Save to Board
-                    </Button>
-                  )}
-                </Box>
+                  <Button onClick={handleSaveToBoard} variant="soft" size="2" disabled={!selectedBoardId}>
+                    <BookmarkIcon /> Save
+                  </Button>
+                </Flex>
               )}
             </Box>
-          </Box>
-        </Flex>
+          </Flex>
+        </Grid>
       </Dialog.Content>
     </Dialog.Root>
+  );
+}
+
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Grid columns="3" align="center">
+      <Text size="2" color="gray" className="col-span-1">{label}</Text>
+      <Box className="col-span-2">{children}</Box>
+    </Grid>
   );
 }
