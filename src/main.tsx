@@ -6,7 +6,12 @@ import "@radix-ui/themes/styles.css";
 import "./index.css";
 import App from "./App";
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+// Vite config maps CONVEX_URL to VITE_CONVEX_URL if needed (for Convex CLI compatibility)
+const convexUrl = import.meta.env.VITE_CONVEX_URL;
+if (!convexUrl) {
+  throw new Error("Missing CONVEX_URL or VITE_CONVEX_URL environment variable. Please set one in your .env.local file.");
+}
+const convex = new ConvexReactClient(convexUrl as string);
 
 createRoot(document.getElementById("root")!).render(
   <ConvexAuthProvider client={convex}>

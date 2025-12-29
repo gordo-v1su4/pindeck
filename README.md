@@ -32,8 +32,9 @@ This project uses **Bun** as its package manager.
 bun install
 
 # Set up environment variables
-cp env.example .env.local
-# Edit .env.local and add your GOOGLE_API_KEY
+cp .env.example .env.local
+# Edit .env.local and add your actual values
+# Note: You can use either CONVEX_URL or VITE_CONVEX_URL (both are supported)
 
 # Start development servers (frontend + backend)
 bun run dev

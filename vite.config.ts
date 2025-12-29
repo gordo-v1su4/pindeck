@@ -1,9 +1,17 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current working directory.
+  const env = loadEnv(mode, process.cwd(), '');
+  
+  // Support both CONVEX_URL (Convex CLI convention) and VITE_CONVEX_URL (Vite convention)
+  // If CONVEX_URL exists but VITE_CONVEX_URL doesn't, use CONVEX_URL
+  const convexUrl = env.VITE_CONVEX_URL || env.CONVEX_URL;
+
+  return {
   plugins: [
     react(),
     // The code below enables dev tools like taking screenshots of your site
@@ -35,6 +43,11 @@ window.addEventListener('message', async (message) => {
       : null,
     // End of code for taking screenshots on chef.convex.dev.
   ].filter(Boolean),
+  define: {
+    // Expose CONVEX_URL as VITE_CONVEX_URL if it exists (for Convex CLI compatibility)
+    // This allows using either CONVEX_URL or VITE_CONVEX_URL in .env.local
+    'import.meta.env.VITE_CONVEX_URL': JSON.stringify(convexUrl || ''),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -64,4 +77,5 @@ window.addEventListener('message', async (message) => {
     host: true,
     strictPort: true, // Exit if port is already in use
   },
-}));
+  };
+});
