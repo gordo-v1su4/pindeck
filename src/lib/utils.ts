@@ -17,3 +17,47 @@ export function getTagColor(tag: string) {
   const index = Math.abs(hash) % TAG_COLORS.length;
   return TAG_COLORS[index];
 }
+
+/**
+ * Convert hex color to RGB
+ */
+function hexToRgb(hex: string): [number, number, number] | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? [
+    parseInt(result[1], 16),
+    parseInt(result[2], 16),
+    parseInt(result[3], 16)
+  ] : null;
+}
+
+/**
+ * Calculate brightness of a color (0-1 scale)
+ * Uses relative luminance formula: (r * 299 + g * 587 + b * 114) / 1000 / 255
+ */
+function getBrightness(hex: string): number {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  const [r, g, b] = rgb;
+  return (r * 299 + g * 587 + b * 114) / 1000 / 255;
+}
+
+/**
+ * Sort colors from dark to light (ascending brightness)
+ * Only uses colors that actually exist (filters out invalid hex codes)
+ */
+export function sortColorsDarkToLight(colors: string[]): string[] {
+  return colors
+    .filter(color => {
+      // Only keep valid hex colors
+      return /^#?[0-9A-Fa-f]{6}$/.test(color);
+    })
+    .map(color => {
+      // Normalize to include # prefix
+      return color.startsWith('#') ? color : `#${color}`;
+    })
+    .sort((a, b) => {
+      const brightnessA = getBrightness(a);
+      const brightnessB = getBrightness(b);
+      return brightnessA - brightnessB; // Dark to light (ascending)
+    });
+}

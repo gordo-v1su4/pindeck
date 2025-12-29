@@ -622,11 +622,12 @@ export const internalSaveGeneratedImages = internalMutation({
     for (const img of args.images) {
       await ctx.db.insert("images", {
         title: originalImage.title, // Inherit parent's exact title so they group together
-        description: img.description,
+        description: originalImage.description || img.description, // Inherit parent's full description
         imageUrl: img.url,
         // Inherit metadata from original (which might have been updated by analysis)
         category: originalImage.category,
         tags: [...originalImage.tags, "generated", "variation"],
+        colors: originalImage.colors || [], // Inherit parent's colors (from Qwen VL analysis)
         uploadedBy: originalImage.uploadedBy,
         likes: 0,
         views: 0,

@@ -3,10 +3,10 @@ import { api } from "../../convex/_generated/api";
 import { HeartIcon, EyeOpenIcon, ExternalLinkIcon, Cross2Icon, BookmarkIcon, PlusIcon } from "@radix-ui/react-icons";
 import { Dialog, Button, Card, Badge, Text, Flex, Box, IconButton, DropdownMenu } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { CreateBoardModal } from "./CreateBoardModal";
-import { getTagColor } from "../lib/utils";
+import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
 
 interface ImageModalProps {
   imageId: Id<"images">;
@@ -65,6 +65,12 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
       ? `${image.projectName} - ${image.moodboardName}`
       : image.projectName
     : image.title;
+
+  // Sort colors dark to light for aesthetic gradient display
+  const sortedColors = useMemo(() => {
+    if (!image.colors || image.colors.length === 0) return [];
+    return sortColorsDarkToLight(image.colors);
+  }, [image.colors]);
 
   return (
     <>
@@ -158,12 +164,12 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                   </Badge>
                 </Flex>
 
-                {/* Colors - Larger, more prominent */}
-                {image.colors && image.colors.length > 0 && (
+                {/* Colors - Sorted dark to light gradient */}
+                {sortedColors.length > 0 && (
                   <Flex align="start" gap="3">
                     <Text size="2" color="gray" className="w-20 flex-shrink-0">Colors:</Text>
                     <Flex gap="3" wrap="wrap" className="flex-1">
-                      {image.colors.map((color, index) => (
+                      {sortedColors.map((color, index) => (
                         <Box
                           key={index}
                           className="w-10 h-10 border border-gray-6 flex-shrink-0"

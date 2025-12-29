@@ -170,7 +170,7 @@ The frame features photorealistic textures, consistent cinematic color grading, 
         generatedImages.push({
           url: finalImageUrl,
           title: parentTitle, // Inherit parent's exact title
-          description: `Cinematic sequel to: ${args.description.substring(0, 50)}...`,
+          description: args.description, // Use parent's full description (will be inherited in internalSaveGeneratedImages)
         });
       } catch (err) {
         console.error(`Failed to process generated image ${i}:`, err);

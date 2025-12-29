@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { extractColorsFromImage } from "../lib/colorExtraction";
-import { getTagColor } from "../lib/utils";
+import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
 import {
   Card,
   Text,
@@ -562,7 +562,7 @@ export function ImageUploadForm() {
 
                     <Box>
                       <Flex gap="1" wrap="wrap" className="mb-2">
-                        {file.colors.map((color) => (
+                        {sortColorsDarkToLight(file.colors || []).map((color) => (
                           <Box
                             key={color}
                             className="w-4 h-4 rounded-full border border-gray-200"
@@ -885,7 +885,7 @@ export function ImageUploadForm() {
 
                     <Box>
                       <Flex gap="1" wrap="wrap" className="mb-2">
-                        {image.colors && image.colors.map((color) => (
+                        {image.colors && sortColorsDarkToLight(image.colors).map((color) => (
                           <Box
                             key={color}
                             className="w-3 h-3 rounded-full border border-gray-200"

@@ -36,7 +36,7 @@ import {
 import { ImageModal } from "./ImageModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import { getTagColor } from "../lib/utils";
+import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
 
 interface Image {
   _id: Id<"images">;
@@ -172,9 +172,14 @@ export function TableView() {
         header: "Colors",
         cell: ({ row }) => {
           const colors = row.getValue("colors") as string[];
-          return colors && colors.length > 0 ? (
+          if (!colors || colors.length === 0) {
+            return <Text size="1" color="gray">-</Text>;
+          }
+          // Sort colors dark to light for aesthetic gradient display
+          const sortedColors = sortColorsDarkToLight(colors);
+          return (
             <Flex gap="1">
-              {colors.slice(0, 3).map((color, index) => (
+              {sortedColors.slice(0, 3).map((color, index) => (
                 <Box
                   key={index}
                   className="w-4 h-4 rounded border border-gray-6"
@@ -182,12 +187,10 @@ export function TableView() {
                   title={color}
                 />
               ))}
-              {colors.length > 3 && (
-                <Text size="1" color="gray">+{colors.length - 3}</Text>
+              {sortedColors.length > 3 && (
+                <Text size="1" color="gray">+{sortedColors.length - 3}</Text>
               )}
             </Flex>
-          ) : (
-            <Text size="1" color="gray">-</Text>
           );
         },
         enableSorting: false,
