@@ -10,9 +10,8 @@ export function SignInForm() {
   const [submitting, setSubmitting] = useState(false);
 
   return (
-    <Box className="w-full">
+    <Flex direction="column" gap="4" className="w-full">
       <Box as="form"
-        className="flex flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitting(true);
@@ -40,47 +39,49 @@ export function SignInForm() {
             });
         }}
       >
-        <TextField.Root
-          type="email"
-          name="email"
-          placeholder="Email"
-          autoComplete="email"
-          required
-          size="3"
-        />
-        <TextField.Root
-          type="password"
-          name="password"
-          placeholder="Password"
-          autoComplete="current-password"
-          required
-          size="3"
-        />
-        <Button type="submit" disabled={submitting} size="3" className="w-full">
-          {flow === "signIn" ? "Sign in" : "Sign up"}
-        </Button>
-        <Text size="2" color="gray" className="text-center">
-          {flow === "signIn"
-            ? "Don't have an account? "
-            : "Already have an account? "}
-          <Button
-            variant="ghost"
-            size="1"
-            onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
-            className="inline"
-          >
-            {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
+        <Flex direction="column" gap="4">
+          <TextField.Root
+            type="email"
+            name="email"
+            placeholder="Email"
+            autoComplete="email"
+            required
+            size="3"
+          />
+          <TextField.Root
+            type="password"
+            name="password"
+            placeholder="Password"
+            autoComplete="current-password"
+            required
+            size="3"
+          />
+          <Button type="submit" disabled={submitting} size="3" className="w-full">
+            {flow === "signIn" ? "Sign in" : "Sign up"}
           </Button>
-        </Text>
+          <Text size="2" color="gray" className="text-center">
+            {flow === "signIn"
+              ? "Don't have an account? "
+              : "Already have an account? "}
+            <Button
+              variant="ghost"
+              size="1"
+              onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
+              className="inline"
+            >
+              {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
+            </Button>
+          </Text>
+        </Flex>
       </Box>
-      <Flex align="center" justify="center" className="my-4">
+      <Flex align="center" justify="center" gap="4">
         <Separator className="flex-1" />
-        <Text size="2" color="gray" className="mx-4">or</Text>
+        <Text size="2" color="gray">or</Text>
         <Separator className="flex-1" />
       </Flex>
       <Button variant="outline" size="3" className="w-full" onClick={() => void signIn("anonymous")}>
         Sign in anonymously
       </Button>
-    </Box>
+    </Flex>
   );
 }
