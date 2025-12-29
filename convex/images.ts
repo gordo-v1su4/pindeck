@@ -584,9 +584,8 @@ export const updateImageMetadata = mutation({
     if (!image) {
       throw new Error("Image not found");
     }
-    if (image.uploadedBy !== userId) {
-      throw new Error("Not authorized to update this image");
-    }
+    // Allow any authenticated user to edit image metadata (tags, title, description, etc.)
+    // This is a curation tool, so users should be able to organize any images
 
     const patch: any = {};
     if (args.title !== undefined) patch.title = args.title;
