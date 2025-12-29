@@ -45,6 +45,8 @@ pindeck/
 └── rules/
     ├── cursor-rules.mdc         # 📝 Rules management guide
     ├── project-structure.mdc    # 🗂️ This file (structure guide)
+    ├── tech-stack.mdc           # 🛠️ Technology stack and dependencies
+    ├── radix-ui-patterns.mdc    # 🎨 Radix UI component patterns and gotchas
     └── self-improve.mdc         # 🔄 Continuous improvement guidelines
 ```
 
@@ -306,6 +308,8 @@ src/
 ```
 
 ## UI Design Patterns & Styling Conventions
+
+> **See also:** [radix-ui-patterns.mdc](mdc:.cursor/rules/radix-ui-patterns.mdc) for detailed Radix UI component patterns and gotchas.
 
 ### Color Theme
 - **Primary Color**: Blue (matching top navigation)

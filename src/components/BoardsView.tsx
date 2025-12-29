@@ -12,7 +12,6 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
   const deleteBoard = useMutation(api.boards.deleteBoard);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectedBoardId, setSelectedBoardId] = useState<Id<"collections"> | null>(null);
-  const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | undefined>();
 
   const handleDeleteBoard = async (boardId: Id<"collections">) => {
     if (!confirm("Are you sure you want to delete this board?")) return;
@@ -35,20 +34,15 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
   }
 
   return (
-    <Box className="space-y-6">
-      <Flex justify="between" align="center">
+    <Box className="space-y-6 w-full">
+      <Flex justify="between" align="center" className="flex-col sm:flex-row gap-4">
         <Box>
           <Text size="7" weight="bold">My Boards</Text>
           <Text size="3" color="gray" className="mt-1">
             Organize your favorite images into collections
           </Text>
         </Box>
-        <Button size="3" variant="solid" onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          setTriggerPosition({
-            x: rect.left,
-            y: rect.bottom + 8
-          });
+        <Button size="3" variant="solid" onClick={() => {
           setCreateModalOpen(true);
         }}>
           <PlusIcon />
@@ -62,20 +56,9 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
           <Text size="4" color="gray" className="mb-4">
             No boards yet
           </Text>
-          <Text size="3" color="gray" className="mb-6">
+          <Text size="3" color="gray">
             Create your first board to start organizing your favorite images
           </Text>
-          <Button size="3" variant="soft" onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setTriggerPosition({
-              x: rect.left,
-              y: rect.bottom + 8
-            });
-            setCreateModalOpen(true);
-          }}>
-            <PlusIcon />
-            Create Your First Board
-          </Button>
         </Box>
       ) : (
         <Grid columns={{ initial: "1", sm: "2", lg: "3" }} gap="5">
@@ -141,9 +124,7 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
         open={createModalOpen}
         onOpenChange={(open) => {
           setCreateModalOpen(open);
-          if (!open) setTriggerPosition(undefined);
         }}
-        triggerPosition={triggerPosition}
         setActiveTab={setActiveTab}
         incrementBoardVersion={incrementBoardVersion}
       />

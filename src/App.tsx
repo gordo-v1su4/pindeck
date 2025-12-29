@@ -37,7 +37,7 @@ export default function App() {
 
   return (
     <Box className="min-h-screen">
-      <Box as="header" className="sticky top-0 z-50 border-b border-gray-6 backdrop-blur-sm">
+      <Box as="header" className="sticky top-0 z-50 border-b border-gray-6 bg-gray-2/80 backdrop-blur-md">
         <Box className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Flex justify="between" align="center">
             <Flex align="center" gap="6">

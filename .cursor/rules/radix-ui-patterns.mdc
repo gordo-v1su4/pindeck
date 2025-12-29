@@ -1,0 +1,243 @@
+---
+description: Radix UI component patterns, gotchas, and best practices for the Visuals project
+globs: src/components/**/*.tsx
+alwaysApply: true
+---
+
+# Radix UI Patterns & Gotchas
+
+This rule documents common patterns, gotchas, and best practices when working with Radix UI components in the Visuals project.
+
+## Overview
+
+The project uses:
+- **@radix-ui/themes** - Theme system and styled components
+- **@radix-ui/react-icons** - Icon components
+- **Radix UI primitives** - Accessible component primitives
+
+## Critical Gotchas
+
+### 1. Select.Item Cannot Use Empty String Values
+
+**❌ Bad:**
+```tsx
+<Select.Root value={file.group || ""}>
+  <Select.Content>
+    <Select.Item value="">None</Select.Item>  {/* ERROR! */}
+    <Select.Item value="Commercial">Commercial</Select.Item>
+  </Select.Content>
+</Select.Root>
+```
+
+**✅ Good:**
+```tsx
+<Select.Root 
+  value={file.group ? file.group : "none"}
+  onValueChange={(value) => updateFile(file.id, { 
+    group: value === "none" ? undefined : value 
+  })}
+>
+  <Select.Content>
+    <Select.Item value="none">None</Select.Item>
+    <Select.Item value="Commercial">Commercial</Select.Item>
+  </Select.Content>
+</Select.Root>
+```
+
+**Why:** Radix UI Select throws an error if `Select.Item` has an empty string value. Use a placeholder value like `"none"` and convert to `undefined` in the handler.
+
+### 2. Dark Mode Classes Don't Work with Radix Themes
+
+**❌ Bad:**
+```tsx
+<Box className="bg-gray-50 hover:bg-gray-100 dark:bg-gray-900/50 dark:hover:bg-gray-900">
+  <Text className="text-gray-700 dark:text-gray-300">Content</Text>
+</Box>
+```
+
+**✅ Good:**
+```tsx
+<Box className="bg-gray-2 hover:bg-gray-3">
+  <Text className="text-gray-11">Content</Text>
+</Box>
+```
+
+**Why:** Radix UI Themes uses its own color system (`gray-1` through `gray-12`) and doesn't support Tailwind's `dark:` prefix. Always use Radix theme colors.
+
+### 3. Dialog Requires Title and Description for Accessibility
+
+**❌ Bad:**
+```tsx
+<Dialog.Root open={true}>
+  <Dialog.Content>
+    {/* Content without title */}
+  </Dialog.Content>
+</Dialog.Root>
+```
+
+**✅ Good:**
+```tsx
+<Dialog.Root open={true}>
+  <Dialog.Content>
+    <Dialog.Title className="sr-only">{title}</Dialog.Title>
+    <Dialog.Description className="sr-only">Image details</Dialog.Description>
+    {/* Content */}
+  </Dialog.Content>
+</Dialog.Root>
+```
+
+**Why:** Radix UI requires `Dialog.Title` and `Dialog.Description` for screen reader accessibility. Use `sr-only` class to hide them visually if needed.
+
+### 4. Modal Styling Must Use Radix Theme Colors
+
+**❌ Bad:**
+```tsx
+<Dialog.Content className="bg-black/60 backdrop-blur-md">
+  {/* Content */}
+</Dialog.Content>
+```
+
+**✅ Good:**
+```tsx
+<Dialog.Content 
+  className="max-h-[85vh] p-0 !w-[70vw] !max-w-[600px]"
+  style={{
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)'
+  }}
+>
+  {/* Content */}
+</Dialog.Content>
+```
+
+**Why:** For semi-transparent modals, use inline styles for backdrop-filter effects. Radix theme colors work for solid backgrounds.
+
+## Color System Reference
+
+### Radix UI Theme Colors
+
+Use these color scales instead of Tailwind dark mode:
+
+- **Backgrounds:** `bg-gray-1` (darkest) to `bg-gray-12` (lightest)
+- **Text:** `text-gray-11` (primary), `text-gray-10` (secondary), `color="gray"` (muted)
+- **Borders:** `border-gray-6`, `border-gray-8`
+- **Badges:** `variant="soft"` with `color="blue"`, `color="gray"`, etc.
+
+### Common Patterns
+
+```tsx
+// Card/Container backgrounds
+className="bg-gray-2 hover:bg-gray-3"
+
+// Text hierarchy
+<Text size="3" weight="medium" className="text-gray-11">Primary</Text>
+<Text size="2" color="gray">Secondary</Text>
+
+// Borders
+className="border border-gray-6"
+
+// Buttons
+<Button variant="soft" color="blue" size="1">
+```
+
+## Component-Specific Patterns
+
+### Select Component
+
+```tsx
+// Always provide a default value, never empty string
+<Select.Root 
+  value={value || undefined}  // Use undefined, not ""
+  onValueChange={(val) => setValue(val || undefined)}
+>
+  <Select.Trigger placeholder="Select option" />
+  <Select.Content>
+    {/* All items must have non-empty string values */}
+    <Select.Item value="option1">Option 1</Select.Item>
+  </Select.Content>
+</Select.Root>
+```
+
+### Dialog/Modal Component
+
+```tsx
+<Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
+  <Dialog.Content 
+    className="max-h-[90vh] p-0"
+    style={{ width: '70vw', maxWidth: '600px' }}
+  >
+    <Dialog.Title className="sr-only">{title}</Dialog.Title>
+    <Dialog.Description className="sr-only">{description}</Dialog.Description>
+    {/* Content */}
+  </Dialog.Content>
+</Dialog.Root>
+```
+
+### Button Variants
+
+```tsx
+// Soft buttons (recommended for non-primary actions)
+<Button variant="soft" color="blue" size="1">Action</Button>
+
+// Solid buttons (primary actions)
+<Button variant="solid" color="blue" size="2">Primary</Button>
+
+// Ghost buttons (subtle actions)
+<Button variant="ghost" color="gray" size="1">Cancel</Button>
+```
+
+### IconButton Patterns
+
+```tsx
+// With backdrop blur for overlays
+<IconButton
+  variant="soft"
+  color="blue"
+  size="2"
+  className="backdrop-blur-md"
+  style={{ opacity: 0.85 }}
+>
+  <BookmarkIcon />
+</IconButton>
+```
+
+## Styling Guidelines
+
+### Opacity and Transparency
+
+- **Never use 100% opacity** for buttons unless selected/active state
+- **Use 0.7-0.9 opacity** for soft buttons: `style={{ opacity: 0.85 }}`
+- **Semi-transparent backgrounds:** Use inline styles: `backgroundColor: 'rgba(0, 0, 0, 0.6)'`
+
+### Aspect Ratios
+
+```tsx
+// 16:9 aspect ratio enforcement
+<Box className="relative overflow-hidden aspect-video bg-gray-900">
+  <img className="w-full h-full object-cover" />
+</Box>
+```
+
+### Spacing and Layout
+
+```tsx
+// Consistent spacing
+className="space-y-4"  // Vertical spacing
+className="gap-3"      // Flex/Grid gap
+className="p-4"        // Padding
+```
+
+## Common Mistakes to Avoid
+
+1. **Don't use Tailwind dark mode classes** - Use Radix theme colors
+2. **Don't use empty strings in Select.Item** - Use placeholder values like "none"
+3. **Don't forget Dialog.Title/Description** - Required for accessibility
+4. **Don't use 100% opacity** - Use 0.7-0.9 for soft buttons
+5. **Don't mix Tailwind and Radix colors** - Stick to Radix theme system
+
+## References
+
+- [Radix UI Themes Documentation](https://www.radix-ui.com/themes/docs/overview/getting-started)
+- [Radix UI Primitives](https://www.radix-ui.com/primitives/docs/overview/introduction)
+- Project examples: [ImageModal.tsx](mdc:src/components/ImageModal.tsx), [ImageUploadForm.tsx](mdc:src/components/ImageUploadForm.tsx)

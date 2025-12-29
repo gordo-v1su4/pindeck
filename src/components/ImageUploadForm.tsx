@@ -41,6 +41,10 @@ interface UploadFile {
   source: string;
   sref: string;
   colors: string[];
+  group?: string;
+  projectName?: string;
+  moodboardName?: string;
+  uniqueId?: string;
 }
 
 export function ImageUploadForm() {
@@ -63,6 +67,15 @@ export function ImageUploadForm() {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
+  // Loading state check
+  if (categories === undefined) {
+    return (
+      <Box className="flex items-center justify-center min-h-[50vh]">
+        <Text size="3" color="gray">Loading...</Text>
+      </Box>
+    );
+  }
+
   // Function to update metadata for images in draft state
   const updateImageMetadata = async (
     imageId: Id<"images">,
@@ -73,6 +86,10 @@ export function ImageUploadForm() {
       category?: string;
       source?: string;
       sref?: string;
+      group?: string;
+      projectName?: string;
+      moodboardName?: string;
+      uniqueId?: string;
     }
   ) => {
     try {
@@ -84,10 +101,18 @@ export function ImageUploadForm() {
   };
 
   const handleFiles = async (newFiles: FileList | File[]) => {
+    console.log("handleFiles called with", newFiles.length, "files");
     const fileArray = Array.from(newFiles);
     const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
+    console.log("Filtered to", imageFiles.length, "image files");
+    
+    if (imageFiles.length === 0) {
+      toast.error("Please select image files only");
+      return;
+    }
 
     // Create initial objects
+    const defaultCategory = categories && categories.length > 0 ? categories[0] : "General";
     const newUploadFiles: UploadFile[] = imageFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
@@ -95,10 +120,14 @@ export function ImageUploadForm() {
       title: "",
       description: "",
       tags: [],
-      category: "general",
+      category: defaultCategory,
       source: "",
       sref: "",
       colors: [],
+      group: undefined,
+      projectName: undefined,
+      moodboardName: undefined,
+      uniqueId: undefined,
     }));
 
     setFiles(prev => [...prev, ...newUploadFiles]);
@@ -139,14 +168,18 @@ export function ImageUploadForm() {
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    console.log("handleDrop called", e.dataTransfer.files?.length);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFiles(e.dataTransfer.files);
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
+    console.log("handleFileInput called", e.target.files?.length);
+    if (e.target.files && e.target.files.length > 0) {
       handleFiles(e.target.files);
+      // Reset input to allow selecting the same file again
+      e.target.value = '';
     }
   };
 
@@ -264,15 +297,34 @@ export function ImageUploadForm() {
 
         const { storageId } = await response.json();
 
+        // Auto-generate title from projectName + moodboardName if provided
+        let generatedTitle = file.title;
+        if (!generatedTitle && (file.projectName || file.moodboardName)) {
+          if (file.projectName && file.moodboardName) {
+            generatedTitle = `${file.projectName} - ${file.moodboardName}`;
+          } else if (file.projectName) {
+            generatedTitle = file.projectName;
+          } else if (file.moodboardName) {
+            generatedTitle = file.moodboardName;
+          }
+        }
+        
+        // Generate uniqueId if not provided
+        const uniqueId = file.uniqueId || `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
         return {
           storageId,
-          title: file.title || file.file.name, // Use filename if title is empty
+          title: generatedTitle || file.file.name, // Use filename if title is empty
           description: file.description || undefined,
           tags: file.tags,
           category: file.category,
           source: file.source || undefined,
           sref: file.sref || undefined,
           colors: file.colors,
+          group: file.group || undefined,
+          projectName: file.projectName || undefined,
+          moodboardName: file.moodboardName || undefined,
+          uniqueId: uniqueId,
         };
       });
 
@@ -325,7 +377,7 @@ export function ImageUploadForm() {
   };
 
   return (
-    <Box className="space-y-8 max-w-4xl mx-auto">
+    <Box className="space-y-8 max-w-4xl mx-auto w-full">
       <Box>
         <Heading size="6" weight="bold">Upload Images</Heading>
         <Text size="2" color="gray" className="mt-1">
@@ -336,10 +388,10 @@ export function ImageUploadForm() {
       {/* Refined Drop Zone */}
       <Box
         className={`
-          relative overflow-hidden rounded-xl transition-all duration-200 ease-in-out
+          relative overflow-hidden transition-all duration-200 ease-in-out border border-gray-6
           ${dragActive
-            ? 'bg-blue-50 ring-2 ring-blue-500 ring-offset-2'
-            : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-900/50 dark:hover:bg-gray-900'
+            ? 'bg-blue-3 ring-2 ring-blue-9 ring-offset-2'
+            : 'bg-gray-2 hover:bg-gray-3'
           }
         `}
         style={{ minHeight: '150px' }}
@@ -356,14 +408,14 @@ export function ImageUploadForm() {
           onChange={handleFileInput}
         />
         <Flex direction="column" align="center" justify="center" className="h-full py-6 px-4 text-center pointer-events-none">
-          <Box className="bg-white dark:bg-gray-800 p-3 rounded-full shadow-sm mb-3">
-            <UploadIcon width="24" height="24" className="text-gray-500" />
+          <Box className="bg-gray-4 p-3 shadow-sm mb-3">
+            <UploadIcon width="24" height="24" className="text-gray-11" />
           </Box>
-          <Text size="3" weight="medium" className="mb-1 text-gray-700 dark:text-gray-300">
+          <Text size="3" weight="medium" className="mb-1 text-gray-11">
             Click to upload or drag and drop
           </Text>
           <Text size="1" color="gray" className="max-w-xs">
-            SVG, PNG, JPG or GIF (max. 10MB)
+            SVG, PNG, JPG or GIF (max. 10MB per file). Multiple files supported.
           </Text>
         </Flex>
       </Box>
@@ -393,7 +445,7 @@ export function ImageUploadForm() {
             {files.map((file) => (
               <Card key={file.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <Flex gap="4">
-                  <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden">
+                  <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
                     <img
                       src={file.preview}
                       alt={file.title}
@@ -432,15 +484,14 @@ export function ImageUploadForm() {
                       size="1"
                     />
                     
-                    {/* ... (rest of file input fields) ... */}
-                     <Flex gap="2" align="center">
+                    <Flex gap="2" align="center">
                       <Select.Root
                         value={file.category}
                         onValueChange={(value) => updateFile(file.id, { category: value })}
                       >
-                        <Select.Trigger size="1" placeholder="Select category" />
+                        <Select.Trigger placeholder="Select category" />
                         <Select.Content>
-                          {categories?.map((category) => (
+                          {(categories || []).map((category) => (
                             <Select.Item key={category} value={category}>
                               {category}
                             </Select.Item>
@@ -448,6 +499,49 @@ export function ImageUploadForm() {
                         </Select.Content>
                       </Select.Root>
                     </Flex>
+
+                    {/* Group Selection */}
+                    <Select.Root
+                      value={file.group ? file.group : "none"}
+                      onValueChange={(value) => updateFile(file.id, { group: value === "none" ? undefined : value })}
+                    >
+                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
+                      <Select.Content>
+                        <Select.Item value="none">None</Select.Item>
+                        <Select.Item value="Commercial">Commercial</Select.Item>
+                        <Select.Item value="Film">Film</Select.Item>
+                        <Select.Item value="Moodboard">Moodboard</Select.Item>
+                        <Select.Item value="Spec Commercial">Spec Commercial</Select.Item>
+                        <Select.Item value="Spec Music Video">Spec Music Video</Select.Item>
+                        <Select.Item value="Music Video">Music Video</Select.Item>
+                        <Select.Item value="TV">TV</Select.Item>
+                        <Select.Item value="Other">Other</Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+
+                    {/* Project Name */}
+                    <TextField.Root
+                      value={file.projectName || ""}
+                      onChange={(e) => updateFile(file.id, { projectName: e.target.value || undefined })}
+                      placeholder="Project Name (e.g., Kitty Bite Back)"
+                      size="1"
+                    />
+
+                    {/* Moodboard Name */}
+                    <TextField.Root
+                      value={file.moodboardName || ""}
+                      onChange={(e) => updateFile(file.id, { moodboardName: e.target.value || undefined })}
+                      placeholder="Moodboard Name (e.g., pink girl smoking)"
+                      size="1"
+                    />
+
+                    {/* Unique ID */}
+                    <TextField.Root
+                      value={file.uniqueId || ""}
+                      onChange={(e) => updateFile(file.id, { uniqueId: e.target.value || undefined })}
+                      placeholder="Unique ID (auto-generated if blank)"
+                      size="1"
+                    />
 
                     <Flex gap="2">
                       <TextField.Root
@@ -510,7 +604,7 @@ export function ImageUploadForm() {
             ))}
           </Grid>
 
-          <Flex justify="end" gap="3" className="pt-4 border-t border-gray-100 dark:border-gray-800">
+          <Flex justify="end" gap="3" className="pt-4 border-t border-gray-6">
             <Button
               variant="soft"
               color="gray"
@@ -556,7 +650,7 @@ export function ImageUploadForm() {
           <Grid columns={{ initial: "2", sm: "3", md: "4" }} gap="4">
             {processingImages.map((image) => (
               <Card key={image._id} className="overflow-hidden opacity-80 p-2">
-                <Box className="relative aspect-video rounded-md overflow-hidden bg-gray-100">
+                <Box className="relative aspect-video overflow-hidden bg-gray-100">
                   <img
                     src={image.imageUrl}
                     alt={image.title}
@@ -642,7 +736,7 @@ export function ImageUploadForm() {
       {draftImages && draftImages.length > 0 && (
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
-          <Flex align="center" justify="between" className="mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+          <Flex align="center" justify="between" className="mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 border border-gray-200 dark:border-gray-800">
              <Flex align="center" gap="2">
                 <CheckIcon width="20" height="20" className="text-green-500" />
                 <Box>
@@ -666,7 +760,7 @@ export function ImageUploadForm() {
             {draftImages.map((image) => (
               <Card key={image._id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <Flex gap="4">
-                  <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden relative group">
+                  <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">
                     <img
                       src={image.imageUrl}
                       alt={image.title}
@@ -713,15 +807,14 @@ export function ImageUploadForm() {
                       size="1"
                     />
 
-                    {/* ... (Rest of fields, same as before but sized="1") ... */}
-                     <Flex gap="2" align="center">
+                    <Flex gap="2" align="center">
                       <Select.Root
                         value={image.category}
                         onValueChange={(value) => updateImageMetadata(image._id, { category: value })}
                       >
-                        <Select.Trigger size="1" placeholder="Select category" />
+                        <Select.Trigger placeholder="Select category" />
                         <Select.Content>
-                          {categories?.map((category) => (
+                          {(categories || []).map((category) => (
                             <Select.Item key={category} value={category}>
                               {category}
                             </Select.Item>
@@ -730,18 +823,61 @@ export function ImageUploadForm() {
                       </Select.Root>
                     </Flex>
 
+                    {/* Group Selection */}
+                    <Select.Root
+                      value={image.group ? image.group : "none"}
+                      onValueChange={(value) => updateImageMetadata(image._id, { group: value === "none" ? undefined : value })}
+                    >
+                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
+                      <Select.Content>
+                        <Select.Item value="none">None</Select.Item>
+                        <Select.Item value="Commercial">Commercial</Select.Item>
+                        <Select.Item value="Film">Film</Select.Item>
+                        <Select.Item value="Moodboard">Moodboard</Select.Item>
+                        <Select.Item value="Spec Commercial">Spec Commercial</Select.Item>
+                        <Select.Item value="Spec Music Video">Spec Music Video</Select.Item>
+                        <Select.Item value="Music Video">Music Video</Select.Item>
+                        <Select.Item value="TV">TV</Select.Item>
+                        <Select.Item value="Other">Other</Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+
+                    {/* Project Name */}
+                    <TextField.Root
+                      value={image.projectName || ""}
+                      onChange={(e) => updateImageMetadata(image._id, { projectName: e.target.value || undefined })}
+                      placeholder="Project Name (e.g., Kitty Bite Back)"
+                      size="1"
+                    />
+
+                    {/* Moodboard Name */}
+                    <TextField.Root
+                      value={image.moodboardName || ""}
+                      onChange={(e) => updateImageMetadata(image._id, { moodboardName: e.target.value || undefined })}
+                      placeholder="Moodboard Name (e.g., pink girl smoking)"
+                      size="1"
+                    />
+
+                    {/* Unique ID */}
+                    <TextField.Root
+                      value={image.uniqueId || ""}
+                      onChange={(e) => updateImageMetadata(image._id, { uniqueId: e.target.value || undefined })}
+                      placeholder="Unique ID (auto-generated if blank)"
+                      size="1"
+                    />
+
                     <Flex gap="2">
                       <TextField.Root
                         value={image.sref || ""}
                         onChange={(e) => updateImageMetadata(image._id, { sref: e.target.value })}
-                        placeholder="Style Ref"
+                        placeholder="Style Ref (sref)"
                         size="1"
                         className="flex-1"
                       />
                       <TextField.Root
                         value={image.source || ""}
                         onChange={(e) => updateImageMetadata(image._id, { source: e.target.value })}
-                        placeholder="Source"
+                        placeholder="Source URL/Origin"
                         size="1"
                         className="flex-1"
                       />
@@ -787,15 +923,23 @@ export function ImageUploadForm() {
                     </Box>
 
                     {image.aiStatus === "failed" && (
-                      <Button
-                        color="orange"
-                        variant="soft"
-                        size="1"
-                        onClick={() => reRunAnalysis(image._id, image.storageId!,
-                           image.title, image.description, image.tags, image.category, image.source, image.sref)}
-                      >
-                        <MagicWandIcon /> Re-run AI Analysis
-                      </Button>
+                      <Box className="space-y-2">
+                        <Badge color="red" variant="soft" size="2">
+                          AI Analysis Failed
+                        </Badge>
+                        <Text size="1" color="gray">
+                          Check console logs or ensure OPEN_ROUTER_KEY and FAL_KEY are set in Convex environment variables.
+                        </Text>
+                        <Button
+                          color="orange"
+                          variant="soft"
+                          size="1"
+                          onClick={() => reRunAnalysis(image._id, image.storageId!,
+                             image.title, image.description, image.tags, image.category, image.source, image.sref)}
+                        >
+                          <MagicWandIcon /> Re-run AI Analysis
+                        </Button>
+                      </Box>
                     )}
                   </Box>
                 </Flex>

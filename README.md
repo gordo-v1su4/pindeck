@@ -1,10 +1,10 @@
 # Visuals - AI-Powered Image Gallery Platform
 
-A modern image gallery and sharing platform built with React, TypeScript, Tailwind CSS, and Convex. Features AI-powered image analysis and generation using Gemini 3 Pro.
+A modern image gallery and sharing platform built with React, TypeScript, Tailwind CSS, and Convex. Features AI-powered image analysis and generation using Gemini 3 Flash Preview.
 
 ## ✨ Features
 
-- **AI-Powered Image Analysis**: Automatic title, description, tags, colors, and category detection using Gemini 3 Pro
+- **AI-Powered Image Analysis**: Automatic title, description, tags, colors, and category detection using Gemini 3 Flash Preview
 - **AI Image Generation**: Create cinematic variations with random shot type selection (9 different shot types)
 - **Image Gallery**: Responsive masonry grid layout with hover effects
 - **Advanced Table View**: Sortable, filterable data table with ID column and tag color coding
@@ -22,7 +22,8 @@ This project uses **Bun** as its package manager.
 
 - [Bun](https://bun.sh/) installed
 - [Convex](https://convex.dev/) account
-- Google API key for Gemini 3 Pro (for AI features)
+- OpenRouter API key (for image analysis via any VLM model)
+- fal.ai API key for Nano Banana Pro (for image generation)
 
 ### Installation
 
@@ -46,9 +47,15 @@ bun run lint
 
 ### Environment Variables
 
-Create a `.env.local` file with:
+**Set these in your Convex Dashboard** (Settings → Environment Variables):
+- `OPENROUTER_API_KEY` - Required for image analysis (any VLM model via OpenRouter)
+- `OPENROUTER_VLM_MODEL` - Optional: VLM model to use (default: `"google/gemini-flash-1.5"`)
+  - Examples: `"google/gemini-flash-1.5"`, `"google/gemini-pro-vision"`, `"anthropic/claude-3-opus"`, `"anthropic/claude-3-sonnet"`, `"openai/gpt-4-vision-preview"`
+- `OPENROUTER_PROVIDER_SORT` - Optional: Provider routing (`"price"`, `"throughput"`, or `"latency"`)
+- `FAL_KEY` - Required for image generation (Nano Banana Pro)
+
+**For local frontend development**, create a `.env.local` file:
 ```
-GOOGLE_API_KEY=your_google_api_key_here
 VITE_CONVEX_URL=your_convex_url_here
 ```
 
@@ -69,7 +76,7 @@ pindeck/
 ├── convex/                 # Backend logic and database schema
 │   ├── auth.ts             # Authentication logic
 │   ├── images.ts           # Image CRUD operations
-│   ├── vision.ts           # AI analysis & generation (Gemini 3 Pro)
+│   ├── vision.ts           # AI analysis & generation (Gemini 3 Flash Preview)
 │   ├── boards.ts           # Pinterest-style boards
 │   ├── schema.ts           # Database schema
 │   └── router.ts           # HTTP routes
@@ -88,9 +95,10 @@ pindeck/
 - **TanStack Table** - Advanced data table functionality
 
 ### Backend
-- **Convex 1.29.3** - Backend-as-a-Service with real-time updates
+- **Convex 1.31.2** - Backend-as-a-Service with real-time updates (updated December 2024)
 - **Convex Auth** - Built-in authentication system
-- **Google Generative AI** - Gemini 3 Pro Image Preview for AI features
+- **OpenRouter API** - Access to any VLM model for image analysis (default: Gemini Flash 1.5)
+- **@fal-ai/client 1.8.1** - Nano Banana Pro for image generation
 
 ### Development Tools
 - **Bun** - Fast package manager and runtime
@@ -124,16 +132,18 @@ The project is configured for Vercel deployment with `vercel.json`. To deploy:
    - Go to your Vercel project → Settings → Environment Variables
    - Add these variables:
      - `VITE_CONVEX_URL` - Copy the value from your Convex dashboard (you have `https://incredible-otter-369.convex.site` or similar)
-     - `GOOGLE_API_KEY` - Your Google API key for Gemini 3 Pro (copy from Convex if already set there)
+     - `OPENROUTER_API_KEY` - Your OpenRouter API key (set in Convex Dashboard)
+     - `OPENROUTER_VLM_MODEL` - Optional: VLM model to use (default: `"google/gemini-flash-1.5"`)
+     - `FAL_KEY` - Your fal.ai API key for Nano Banana Pro (set in Convex Dashboard)
      - `CONVEX_SITE_URL` - Your Vercel site URL (set this after first deployment, e.g., `https://your-app.vercel.app`)
 3. **Deploy** - Vercel will automatically build and deploy on push
 
 **Important**: 
-- **Convex environment variables** (what you see in Convex dashboard) are for your **backend functions** (like `vision.ts`)
+- **Convex environment variables** (`OPENROUTER_API_KEY`, `FAL_KEY`) are for your **backend functions** (like `vision.ts`)
 - **Vercel environment variables** are for your **frontend build** (the React app needs `VITE_CONVEX_URL` to connect to Convex)
-- You need to set `VITE_CONVEX_URL` in **both places**:
-  - In Convex (for backend functions that might need it)
-  - In Vercel (for the frontend build process)
+- Set `OPENROUTER_API_KEY` and `FAL_KEY` in **Convex Dashboard** → Settings → Environment Variables
+- Optionally set `OPENROUTER_VLM_MODEL` to choose a specific VLM model (defaults to Gemini Flash 1.5)
+- Set `VITE_CONVEX_URL` in **Vercel** for the frontend build process
 
 ## 📚 Learn More
 
@@ -146,22 +156,37 @@ The project is configured for Vercel deployment with `vercel.json`. To deploy:
 ## 🤖 AI Features
 
 ### Image Analysis
-When you upload an image, the system automatically:
+When you upload an image, the system automatically uses OpenRouter's VLM models to:
 - Generates a catchy title
 - Creates a detailed description
 - Extracts 5-10 descriptive tags
 - Identifies dominant colors (5 hex codes)
 - Detects visual style/medium (e.g., '35mm Film', 'VHS', 'CGI')
 - Categorizes the image
+- Suggests project name and moodboard name
+
+**Workflow:**
+1. **Image Analysis** - OpenRouter with Qwen3 VL 8B Instruct (`qwen/qwen3-vl-8b-instruct`) analyzes the uploaded image
+2. **Image Generation** - fal.ai Nano Banana Pro generates 2 cinematic variations using the analysis results
+
+**Supported VLM Models** (via OpenRouter, default: Qwen3 VL 8B Instruct):
+- Qwen3 VL 8B Instruct (default)
+- Google Gemini Flash 1.5
+- Google Gemini Pro Vision
+- Anthropic Claude 3 Opus/Sonnet
+- OpenAI GPT-4 Vision
+- Any other VLM model available on OpenRouter
+
+Configure the model via `OPENROUTER_VLM_MODEL` environment variable.
 
 ### Image Generation
-After analysis, the system generates 2 cinematic variations:
+After analysis, the system generates 2 cinematic variations using fal.ai's Nano Banana Pro:
 - **Random Shot Type Selection**: Each variation uses a randomly assigned shot type from 9 options:
   - Extreme Long Shot, Long Shot, Medium Long Shot
   - Medium Shot, Medium Close-Up, Close-Up
   - Extreme Close-Up, Low Angle, High Angle
-- **Memory Optimized**: Handles images up to 10MB with chunked base64 conversion
-- **Configurable**: 2K resolution with configurable aspect ratio
+- **Image-to-Image**: Uses the original image as input for consistent subject and environment
+- **Configurable**: 2K resolution with configurable aspect ratio (16:9, 9:16, 1:1, etc.)
 
 ## 🛣️ HTTP API
 
@@ -173,3 +198,4 @@ User-defined HTTP routes are defined in `convex/router.ts`. Authentication route
 - **Image ID**: Each image has a unique ID displayed in the table view
 - **Tag Colors**: Tags use consistent color mapping across table and modal views
 - **Responsive Design**: Full-width layout with no hard max-width constraints
+- **Convex DB API**: Uses explicit table name syntax (`db.get("table", id)`) as of Convex 1.31.2

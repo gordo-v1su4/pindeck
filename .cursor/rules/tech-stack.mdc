@@ -33,37 +33,49 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 
 #### Backend & Database
 ```json
-"convex": "1.29.3",
+"convex": "1.31.2",
 "@convex-dev/auth": "^0.0.90"
 ```
-- **Version**: Convex 1.29.3, Auth 0.0.90
+- **Version**: Convex 1.31.2, Auth 0.0.90
 - **Best Practice**: ✅ **Modern BaaS choice** - Excellent for real-time applications
 - **Benefits**: Real-time subscriptions, type-safe API, built-in authentication
 - **Architecture**: Serverless backend with automatic scaling
+- **Migration Note**: Updated to 1.31.2 with explicit table name syntax for `db.get()`, `db.patch()`, `db.delete()` operations
 
 #### AI & Machine Learning
 ```json
-"@google/generative-ai": "^0.24.1"
+"@google/generative-ai": "^0.24.1",
+"@fal-ai/client": "^1.8.1"
 ```
-- **Version**: Google Generative AI 0.24.1
-- **Model**: Gemini 3 Pro Image Preview
-- **Best Practice**: ✅ **State-of-the-art vision model**
+- **Versions**: 
+  - Google Generative AI 0.24.1 (latest available as of December 2024)
+  - fal.ai Client 1.8.1 (latest available as of December 2024)
+- **Image Analysis**: OpenRouter VLM Models (configurable, default: `qwen/qwen3-vl-8b-instruct`)
+- **Image Generation Model**: fal.ai Nano Banana Pro (`fal-ai/nano-banana-pro/edit`)
+- **Best Practice**: ✅ **Flexible and efficient vision models**
 - **Features**: 
-  - Image analysis (title, description, tags, colors, category, visual style)
-  - Image generation with cinematic shot type variation
-  - Memory-optimized base64 conversion for large images
+  - Image analysis (title, description, tags, colors, category, visual style) via OpenRouter VLM models
+  - Supports any VLM model on OpenRouter (Gemini, Claude, GPT-4 Vision, etc.)
+  - Provider routing for cost/performance optimization (price, throughput, latency)
+  - Image generation with cinematic shot type variation via fal.ai Nano Banana Pro
+  - Image-to-image editing for consistent subject and environment
 - **Configuration**: 2K resolution, configurable aspect ratio, random shot type selection
+- **API Access**: 
+  - Requires `OPENROUTER_API_KEY` environment variable for OpenRouter API (image analysis)
+  - Optional `OPENROUTER_VLM_MODEL` to specify VLM model (defaults to Gemini Flash 1.5)
+  - Optional `OPENROUTER_PROVIDER_SORT` for provider routing strategy
+  - Requires `FAL_KEY` environment variable for fal.ai API (image generation)
 
 #### UI & Styling
 ```json
 "@radix-ui/themes": "^3.2.1",
 "@radix-ui/react-icons": "^1.3.2",
 "tailwindcss": "~3",
-"lucide-react": "^0.542.0",
+"lucide-react": "^0.544.0",
 "clsx": "^2.1.1",
 "tailwind-merge": "^3.1.0"
 ```
-- **Versions**: Radix Themes 3.2.1, Radix Icons 1.3.2, Tailwind ~3, Lucide 0.542.0, clsx 2.1.1, tailwind-merge 3.1.0
+- **Versions**: Radix Themes 3.2.1, Radix Icons 1.3.2, Tailwind ~3, Lucide 0.544.0, clsx 2.1.1, tailwind-merge 3.1.0
 - **Best Practice**: ✅ **Modern UI component system**
 - **Benefits**: Accessible components, consistent design system, utility-first CSS, class merging utilities
 - **Pattern**: Radix UI for components + Tailwind for styling + Radix Themes for theming
@@ -95,9 +107,9 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 "typescript": "~5.7.2",
 "@types/react": "^19.0.10",
 "@types/react-dom": "^19.0.4",
-"@types/node": "^22.13.10"
+"@types/node": "^22.15.0"
 ```
-- **Versions**: TS 5.7.2, React types 19.0.10, Node types 22.13.10
+- **Versions**: TS 5.7.2, React types 19.0.10, Node types 22.15.0
 - **Best Practice**: ✅ **Excellent TypeScript setup**
 - **Benefits**: Latest TS features, perfect React 19 compatibility
 - **Configuration**: Strict typing with modern Node.js types
@@ -166,7 +178,7 @@ Convex (Backend-as-a-Service)
 ├── Auth: Built-in authentication system
 ├── File Storage: Integrated storage for images
 ├── Boards: Pinterest-style collections system
-├── AI Vision: Gemini 3 Pro Image Preview integration
+├── AI Vision: Gemini 3 Flash Preview integration
 │   ├── Smart Analysis: Automatic metadata extraction
 │   ├── Image Generation: Cinematic variations with random shot types
 │   └── Memory Management: Optimized for 64MB limit
@@ -181,22 +193,32 @@ Convex (Backend-as-a-Service)
 1. **React 19.0.0**: Latest stable release with new features
 2. **TypeScript 5.7.2**: Modern type system with latest features
 3. **Vite 6.2.0**: Next-generation build tool
-4. **Convex 1.29.3**: Modern BaaS with excellent DX
-5. **Gemini 3 Pro Image Preview**: State-of-the-art vision AI for analysis and generation
+4. **Convex 1.31.2**: Modern BaaS with excellent DX (migrated to explicit table name API)
+5. **Gemini 3 Flash Preview**: Fast and efficient vision AI for analysis and generation
 6. **Bun**: Fast package manager
 7. **Radix UI**: Accessible component primitives
 8. **TanStack Table**: Advanced data table functionality
 9. **Tailwind CSS**: Utility-first styling approach
 
-### 📈 Recommended Updates
+### ✅ Recently Updated (December 2024)
 
 ```json
-// Consider these updates for enhanced stability:
+// Successfully updated to latest stable versions:
 {
-  "lucide-react": "^0.544.0",    // Latest icons
-  "@types/node": "^22.15.0",     // Latest Node types
-  "@radix-ui/themes": "^3.3.0",  // Latest Radix Themes
-  "@google/generative-ai": "^0.25.0"  // Latest Gemini SDK
+  "convex": "1.31.2",              // ✅ Updated with DB API migration
+  "lucide-react": "^0.544.0",     // ✅ Updated icons
+  "@types/node": "^22.15.0",       // ✅ Updated Node types
+  "@google/generative-ai": "^0.24.1"  // ✅ Latest available Gemini SDK
+}
+```
+
+### 📈 Future Updates to Consider
+
+```json
+// Monitor for future updates:
+{
+  "@radix-ui/themes": "^3.3.0",   // When available
+  "@convex-dev/auth": "^0.0.91"   // When available
 }
 ```
 
@@ -214,6 +236,7 @@ Convex (Backend-as-a-Service)
 2. **Convex**: Evaluate usage costs as application scales
 3. **Bun**: Ensure CI/CD pipeline supports Bun (or add npm fallback)
 4. **TypeScript**: Leverage new TS 5.7 features (better error messages, performance)
+5. **Convex DB API**: All database operations now use explicit table name syntax (`db.get("table", id)`) - migration completed December 2024
 
 ## Development Workflow
 

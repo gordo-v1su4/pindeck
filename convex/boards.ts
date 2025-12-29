@@ -28,7 +28,7 @@ export const getById = query({
       throw new Error("Must be logged in to view board");
     }
 
-    const board = await ctx.db.get(args.id);
+    const board = await ctx.db.get("collections", args.id);
     if (!board || board.userId !== userId) {
       throw new Error("Board not found");
     }
@@ -36,7 +36,7 @@ export const getById = query({
     // Get the images for this board
     const images = await Promise.all(
       board.imageIds.map(async (imageId) => {
-        const image = await ctx.db.get(imageId);
+        const image = await ctx.db.get("images", imageId);
         if (!image) return null;
         
         // Check if user has liked this image
@@ -96,7 +96,7 @@ export const addImage = mutation({
       throw new Error("Must be logged in to add images to boards");
     }
 
-    const board = await ctx.db.get(args.boardId);
+    const board = await ctx.db.get("collections", args.boardId);
     if (!board || board.userId !== userId) {
       throw new Error("Board not found");
     }
@@ -106,7 +106,7 @@ export const addImage = mutation({
       throw new Error("Image already in board");
     }
 
-    await ctx.db.patch(args.boardId, {
+    await ctx.db.patch("collections", args.boardId, {
       imageIds: [...board.imageIds, args.imageId],
     });
 
@@ -125,12 +125,12 @@ export const removeImage = mutation({
       throw new Error("Must be logged in to remove images from boards");
     }
 
-    const board = await ctx.db.get(args.boardId);
+    const board = await ctx.db.get("collections", args.boardId);
     if (!board || board.userId !== userId) {
       throw new Error("Board not found");
     }
 
-    await ctx.db.patch(args.boardId, {
+    await ctx.db.patch("collections", args.boardId, {
       imageIds: board.imageIds.filter(id => id !== args.imageId),
     });
 
@@ -151,7 +151,7 @@ export const update = mutation({
       throw new Error("Must be logged in to update boards");
     }
 
-    const board = await ctx.db.get(args.boardId);
+    const board = await ctx.db.get("collections", args.boardId);
     if (!board || board.userId !== userId) {
       throw new Error("Board not found");
     }
@@ -161,7 +161,7 @@ export const update = mutation({
     if (args.description !== undefined) updates.description = args.description;
     if (args.isPublic !== undefined) updates.isPublic = args.isPublic;
 
-    await ctx.db.patch(args.boardId, updates);
+    await ctx.db.patch("collections", args.boardId, updates);
     return { success: true };
   },
 });
@@ -176,12 +176,12 @@ export const deleteBoard = mutation({
       throw new Error("Must be logged in to delete boards");
     }
 
-    const board = await ctx.db.get(args.boardId);
+    const board = await ctx.db.get("collections", args.boardId);
     if (!board || board.userId !== userId) {
       throw new Error("Board not found");
     }
 
-    await ctx.db.delete(args.boardId);
+    await ctx.db.delete("collections", args.boardId);
     return { success: true };
   },
 });

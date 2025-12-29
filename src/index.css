@@ -48,3 +48,22 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Dialog overlay - semi-blurry transparent dark background */
+[data-radix-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Dialog content - semi-transparent dark background */
+[data-radix-dialog-content] {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Ensure aspect-video works correctly */
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}

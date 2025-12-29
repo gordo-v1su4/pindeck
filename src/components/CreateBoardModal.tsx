@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Dialog, Button, TextField, Text, Box, Flex } from "@radix-ui/themes";
@@ -8,19 +8,28 @@ import { Id } from "../../convex/_generated/dataModel";
 interface CreateBoardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  triggerPosition?: { x: number; y: number };
   imageId?: Id<"images">; // Optional image to add to the board when created
   setActiveTab: (tab: string) => void;
   incrementBoardVersion: () => void;
 }
 
-export function CreateBoardModal({ open, onOpenChange, triggerPosition, imageId, setActiveTab, incrementBoardVersion }: CreateBoardModalProps) {
+export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, incrementBoardVersion }: CreateBoardModalProps) {
   const createBoard = useMutation(api.boards.create);
   const addImageToBoard = useMutation(api.boards.addImage);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setDescription("");
+      setIsPublic(false);
+      setSubmitting(false);
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,22 +89,16 @@ export function CreateBoardModal({ open, onOpenChange, triggerPosition, imageId,
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-             <Dialog.Content 
-               maxWidth="sm" 
-               className="w-96"
-               style={triggerPosition ? {
-                 position: 'fixed',
-                 top: `${Math.min(triggerPosition.y, window.innerHeight - 400)}px`,
-                 left: `${Math.min(triggerPosition.x, window.innerWidth - 384)}px`,
-                 transform: 'none'
-               } : undefined}
-             >
+      <Dialog.Content 
+        maxWidth="sm" 
+        className="w-full max-w-md border border-gray-6 !bg-black/60 backdrop-blur-md"
+      >
         <Dialog.Title size="4" weight="bold">Create New Board</Dialog.Title>
         <Dialog.Description size="2" mb="5">
           Create a new board to organize your favorite images.
         </Dialog.Description>
 
-        <Box as="form" onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <Box>
             <Text size="2" weight="medium" className="mb-2 block">
               Board Name *
@@ -146,7 +149,7 @@ export function CreateBoardModal({ open, onOpenChange, triggerPosition, imageId,
               {submitting ? "Creating..." : "Create Board"}
             </Button>
           </Flex>
-        </Box>
+        </form>
       </Dialog.Content>
     </Dialog.Root>
   );

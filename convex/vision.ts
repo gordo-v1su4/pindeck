@@ -1,10 +1,9 @@
 import { httpAction, internalAction, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { GoogleGenerativeAI, Part } from "@google/generative-ai";
+import { fal } from "@fal-ai/client";
+import OpenAI from "openai";
 import { getAuthUserId } from "@convex-dev/auth/server";
-
-const VL_MODEL_API = "https://openrouter.ai/api/v1/chat/completions";
 
 export const internalGenerateRelatedImages = internalAction({
   args: {
@@ -17,15 +16,20 @@ export const internalGenerateRelatedImages = internalAction({
     aspectRatio: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      console.error("GOOGLE_API_KEY not set, skipping image generation");
+    const falKey = process.env.FAL_KEY;
+    if (!falKey) {
+      console.error("FAL_KEY not set, skipping image generation");
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
         imageId: args.originalImageId, 
         status: "failed" 
       });
       return;
     }
+
+    // Configure fal.ai client
+    fal.config({
+      credentials: falKey
+    });
 
     // Get image URL from storage
     const imageUrl = await ctx.storage.getUrl(args.storageId);
@@ -38,149 +42,75 @@ export const internalGenerateRelatedImages = internalAction({
       return;
     }
 
-    // Fetch image and convert to base64
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      console.error(`Failed to fetch image: ${imageResponse.statusText}`);
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.originalImageId, 
-        status: "failed" 
-      });
-      return;
-    }
-
-    // Check content length to avoid memory issues
-    const contentLength = imageResponse.headers.get("content-length");
-    if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) { // 10MB limit
-      console.error(`Image too large: ${contentLength} bytes. Skipping generation.`);
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.originalImageId, 
-        status: "failed" 
-      });
-      return;
-    }
-
-    const imageBuffer = await imageResponse.arrayBuffer();
-    
-    // Check actual buffer size
-    if (imageBuffer.byteLength > 10 * 1024 * 1024) {
-      console.error(`Image buffer too large: ${imageBuffer.byteLength} bytes. Skipping generation.`);
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.originalImageId, 
-        status: "failed" 
-      });
-      return;
-    }
-
-    // More memory-efficient base64 conversion
-    const bytes = new Uint8Array(imageBuffer);
-    const chunkSize = 0x8000; // 32KB chunks
-    let binaryParts: string[] = [];
-    
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, i + chunkSize);
-      binaryParts.push(String.fromCharCode.apply(null, Array.from(chunk)));
-    }
-    
-    const base64Image = btoa(binaryParts.join(''));
-    const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
-
-    const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({ 
-      model: "gemini-3-pro-image-preview",
-      generationConfig: {
-        responseModalities: ["TEXT", "IMAGE"],
-        imageConfig: {
-          aspectRatio: args.aspectRatio || "16:9",
-          imageSize: "2K"
-        }
-      } as any
-    });
-
-    // Generate 2 images
-    // We run two requests in parallel to ensure we get 2 distinct images
-    const prompt = `
-<instruction>
-Analyze the entire composition of the input image. Identify ALL key subjects present (whether it's a single person, a group/couple, a vehicle, or a specific object) and their spatial relationship/interaction.
-Create 1 cinematic image of these subjects in the same environment, either from the same moment OR later in the scene (up to 5 minutes later), choosing from one of the following shot types. You must adapt the standard cinematic shot types to fit the content (e.g., if a group, keep the group together; if an object, frame the whole object):
-
-**Establishing Context Options:**
-1. **Extreme Long Shot (ELS):** The subject(s) are seen small within the vast environment.
-2. **Long Shot (LS):** The complete subject(s) or group is visible from top to bottom (head to toe / wheels to roof).
-3. **Medium Long Shot (American/3-4):** Framed from knees up (for people) or a 3/4 view (for objects).
-
-**Core Coverage Options:**
-4. **Medium Shot (MS):** Framed from the waist up (or the central core of the object). Focus on interaction/action.
-5. **Medium Close-Up (MCU):** Framed from chest up. Intimate framing of the main subject(s).
-6. **Close-Up (CU):** Tight framing on the face(s) or the "front" of the object.
-
-**Details & Angles Options:**
-7. **Extreme Close-Up (ECU):** Macro detail focusing intensely on a key feature (eyes, hands, logo, texture).
-8. **Low Angle Shot (Worm's Eye):** Looking up at the subject(s) from the ground (imposing/heroic).
-9. **High Angle Shot (Bird's Eye):** Looking down on the subject(s) from above.
-
-**CRITICAL - RANDOM SELECTION REQUIREMENT:** You MUST randomly select ONE of the 9 shot types below. Do NOT choose based on what seems "most appropriate" - use RANDOM selection to ensure maximum variety. Each generation should pick a DIFFERENT random shot type.
-
-**RANDOM SELECTION INSTRUCTIONS:**
-- Generate a random number between 1-9 and select that corresponding shot type
-- If the original is wide, you might randomly get a close-up (and vice versa) - this is INTENTIONAL for variety
-- If the original is eye-level, you might randomly get a low or high angle - this creates visual interest
-- The randomness ensures each generated image is UNIQUE and DIFFERENT from the original and from other variations
-
-**SHOT TYPE SELECTION (Choose RANDOMLY from 1-9):**
-Choose a shot type that provides MAXIMUM VISUAL CONTRAST and variety. The randomness is more important than matching the original framing. If depicting a later moment, show natural progression of the scene (slight position changes, continued actions, etc.). Ensure the same people/objects, same clothes, and same lighting as the original. The depth of field should be realistic for the chosen shot type (bokeh for close-ups, deeper focus for wide shots).
-</instruction>
-
-A professional cinematic image featuring the specific subjects/scene from the input image, either from the same moment or progressed 5 minutes later in the scene.
-The image showcases the subjects in one carefully chosen focal length and framing style that provides visual variety and cinematic interest.
-The frame features photorealistic textures, consistent cinematic color grading, and correct framing for the specific number of subjects or objects.
-`;
-    
-    // Log the prompt being sent for debugging
-    console.log("Prompt being sent to Gemini:", prompt);
-    console.log("Image data length:", base64Image.length, "MIME type:", mimeType);
-    
     // Generate random shot type numbers for each image (1-9) to force maximum variety
     const availableShotTypes = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     const shuffledShotTypes = [...availableShotTypes].sort(() => Math.random() - 0.5);
     
+    const shotTypeNames = {
+      1: "Extreme Long Shot (ELS)",
+      2: "Long Shot (LS)",
+      3: "Medium Long Shot (American/3-4)",
+      4: "Medium Shot (MS)",
+      5: "Medium Close-Up (MCU)",
+      6: "Close-Up (CU)",
+      7: "Extreme Close-Up (ECU)",
+      8: "Low Angle Shot (Worm's Eye)",
+      9: "High Angle Shot (Bird's Eye)"
+    };
+
+    // Generate 2 images with different random shot types
     const generatePromises = [1, 2].map(async (index) => {
       try {
-        // Assign a specific random shot type number to each image
         const assignedShotType = shuffledShotTypes[index % shuffledShotTypes.length];
-        const shotTypeNames = {
-          1: "Extreme Long Shot (ELS)",
-          2: "Long Shot (LS)",
-          3: "Medium Long Shot (American/3-4)",
-          4: "Medium Shot (MS)",
-          5: "Medium Close-Up (MCU)",
-          6: "Close-Up (CU)",
-          7: "Extreme Close-Up (ECU)",
-          8: "Low Angle Shot (Worm's Eye)",
-          9: "High Angle Shot (Bird's Eye)"
-        };
+        const shotTypeName = shotTypeNames[assignedShotType as keyof typeof shotTypeNames];
         
-        const variedPrompt = `${prompt}\n\n**MANDATORY SHOT TYPE ASSIGNMENT FOR THIS IMAGE:**\nYou MUST use shot type #${assignedShotType} - ${shotTypeNames[assignedShotType as keyof typeof shotTypeNames]}. This is a RANDOM assignment to ensure variety. Do NOT deviate from this shot type. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations being generated simultaneously.`;
-        
-        const response = await model.generateContent([
-          variedPrompt,
-          {
-            inlineData: {
-              data: base64Image,
-              mimeType: mimeType
-            }
-          }
-        ]);
+        // Create prompt with specific shot type assignment
+        const prompt = `Create a cinematic image variation of the input image. Analyze the entire composition and identify ALL key subjects present (whether it's a single person, a group/couple, a vehicle, or a specific object) and their spatial relationship/interaction.
 
-        // Extract image data
-        const part = response.response.candidates?.[0]?.content?.parts?.find((p: Part) => p.inlineData);
-        if (!part || !part.inlineData || !part.inlineData.data) {
-          console.error("No image data in response");
+**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use shot type #${assignedShotType} - ${shotTypeName}. This is a RANDOM assignment to ensure variety. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.
+
+The image should feature the same subjects in the same environment, either from the same moment OR later in the scene (up to 5 minutes later). Ensure the same people/objects, same clothes, and same lighting as the original. The depth of field should be realistic for the chosen shot type (bokeh for close-ups, deeper focus for wide shots).
+
+The frame features photorealistic textures, consistent cinematic color grading, and correct framing for the specific number of subjects or objects.`;
+
+        // Map aspect ratio - fal.ai accepts specific enum values
+        const aspectRatioMap: Record<string, "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"> = {
+          "16:9": "16:9",
+          "9:16": "9:16",
+          "1:1": "1:1",
+          "4:3": "4:3",
+          "3:4": "3:4",
+        };
+        const aspectRatio = aspectRatioMap[args.aspectRatio || "16:9"] || "16:9";
+
+        console.log(`Generating image ${index} with shot type ${assignedShotType} (${shotTypeName})`);
+
+        // Call fal.ai Nano Banana Pro
+        const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {
+          input: {
+            prompt: prompt,
+            image_urls: [imageUrl],
+            num_images: 1,
+            aspect_ratio: aspectRatio,
+            resolution: "2K",
+            output_format: "png",
+          },
+          logs: true,
+          onQueueUpdate: (update) => {
+            if (update.status === "IN_PROGRESS") {
+              update.logs?.map((log) => log.message).forEach(console.log);
+            }
+          },
+        });
+
+        if (!result.data?.images || result.data.images.length === 0) {
+          console.error("No images returned from fal.ai");
           return null;
         }
 
-        return part.inlineData.data; // Base64 string
-      } catch (err) {
+        // Return the first image URL
+        return result.data.images[0].url;
+      } catch (err: any) {
         console.error("Error generating image:", err);
         return null;
       }
@@ -198,46 +128,54 @@ The frame features photorealistic textures, consistent cinematic color grading, 
       return;
     }
 
+    // Use parent's title directly - it's already passed from the analysis
+    const parentTitle = args.title || "Untitled";
+
     const generatedImages = [];
-    const baseTitle = args.title ? `${args.title} - Var` : "Variation";
 
     for (let i = 0; i < validResults.length; i++) {
-      const base64Data = validResults[i];
-      // 1. Get upload URL
-      const uploadUrl = await ctx.runMutation(internal.images.internalGenerateUploadUrl);
+      const imageUrl = validResults[i];
+      
+      // Download the generated image and upload to Convex storage
+      try {
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+          console.error("Failed to fetch generated image from fal.ai");
+          continue;
+        }
 
-      // 2. Convert base64 to Blob
-      // Convex runtime supports standard Web API Blob
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let j = 0; j < binaryString.length; j++) {
-        bytes[j] = binaryString.charCodeAt(j);
-      }
-      const blob = new Blob([bytes], { type: "image/png" });
+        const imageBlob = await imageResponse.blob();
 
-      // 3. Upload to storage
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": "image/png" },
-        body: blob,
-      });
+        // 1. Get upload URL
+        const uploadUrl = await ctx.runMutation(internal.images.internalGenerateUploadUrl);
 
-      if (!uploadResponse.ok) {
-        console.error("Failed to upload generated image");
+        // 2. Upload to Convex storage
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": imageBlob.type || "image/png" },
+          body: imageBlob,
+        });
+
+        if (!uploadResponse.ok) {
+          console.error("Failed to upload generated image to Convex storage");
+          continue;
+        }
+
+        const { storageId } = await uploadResponse.json();
+
+        // 3. Get URL
+        const finalImageUrl = await ctx.storage.getUrl(storageId);
+        if (!finalImageUrl) continue;
+
+        generatedImages.push({
+          url: finalImageUrl,
+          title: parentTitle, // Inherit parent's exact title
+          description: `Cinematic sequel to: ${args.description.substring(0, 50)}...`,
+        });
+      } catch (err) {
+        console.error(`Failed to process generated image ${i}:`, err);
         continue;
       }
-
-      const { storageId } = await uploadResponse.json();
-
-      // 4. Get URL (optional, but we store storageId)
-      const imageUrl = await ctx.storage.getUrl(storageId);
-      if (!imageUrl) continue;
-
-      generatedImages.push({
-        url: imageUrl,
-        title: `${baseTitle} ${i + 1}`,
-        description: `Cinematic sequel to: ${args.description.substring(0, 50)}...`,
-      });
     }
 
     if (generatedImages.length > 0) {
@@ -260,6 +198,9 @@ export const internalSmartAnalyzeImage = internalAction({
     category: v.string(),
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
+    group: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+    moodboardName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Get image URL from storageId
@@ -269,16 +210,19 @@ export const internalSmartAnalyzeImage = internalAction({
       return;
     }
 
-    // 2. Call the Google Generative AI (Gemini)
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-      console.error("GOOGLE_API_KEY environment variable not set");
+    // 2. Call OpenRouter VLM API using OpenAI SDK
+    const openRouterKey = process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
+    if (!openRouterKey) {
+      console.error("OPEN_ROUTER_KEY or OPENROUTER_API_KEY environment variable not set");
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
         imageId: args.imageId, 
         status: "failed" 
       });
       return;
     }
+
+    // Use Qwen3 VL 8B Instruct for image analysis (default)
+    const vlmModel = process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
 
     const categories = [
       "Abstract", "Architecture", "Art", "Black & White", "Character Design", 
@@ -289,66 +233,56 @@ export const internalSmartAnalyzeImage = internalAction({
     ];
 
     try {
-      // Fetch image data to convert to base64
-      const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
-      
-      // Check content length to avoid memory issues (limit to 10MB to stay under 64MB memory limit)
-      const contentLength = imageResponse.headers.get("content-length");
-      if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) { // 10MB limit
-        console.error(`Image too large: ${contentLength} bytes. Skipping analysis.`);
-        await ctx.runMutation(internal.images.internalSetAiStatus, { 
-          imageId: args.imageId, 
-          status: "failed" 
-        });
-        return;
+      const prompt = `Analyze this image. 1. Generate a short, catchy title. 2. Write a concise description. 3. Generate 5-10 specific descriptive tags (focus on objects, lighting, mood, composition, specific elements; do NOT use broad categories). 4. Extract 5 distinct and vibrant dominant colors (hex codes). 5. Identify the visual style/medium (e.g., '35mm Film', 'VHS', 'CGI', 'Oil Painting'). 6. Select the single most appropriate category from this list: ${categories.join(", ")}. 7. Determine the group type: "Commercial", "Film", "Moodboard", "Spec Commercial", "Spec Music Video", "Music Video", "TV", or null if unclear. 8. If this appears to be from a specific project/movie/music video, suggest a project name (e.g., "Kitty Bite Back"). 9. If this appears to be a reference/moodboard image, suggest a moodboard name (e.g., "pink girl smoking"). Return ONLY a strict valid JSON object with keys: "title", "description", "tags" (array of strings), "colors" (array of hex strings), "category" (string), "visual_style" (string), "group" (string or null), "project_name" (string or null), "moodboard_name" (string or null). Ensure all keys and string values use double quotes.`;
+
+      // Initialize OpenAI client configured for OpenRouter
+      const openai = new OpenAI({
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey: openRouterKey,
+        defaultHeaders: {
+          "HTTP-Referer": process.env.CONVEX_SITE_URL || "http://localhost:3000",
+          "X-Title": "Visuals Image Gallery",
+        },
+      });
+
+      // Prepare provider routing options if configured
+      const providerOptions: any = {};
+      if (process.env.OPENROUTER_PROVIDER_SORT) {
+        providerOptions.provider = {
+          sort: process.env.OPENROUTER_PROVIDER_SORT as "price" | "throughput" | "latency",
+        };
       }
+
+      // Call OpenRouter API using OpenAI SDK
+      const completion = await openai.chat.completions.create({
+        model: vlmModel,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: prompt,
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageUrl,
+                },
+              },
+            ],
+          },
+        ],
+        ...providerOptions,
+      });
+
+      const messageContent = completion.choices[0]?.message?.content;
       
-      const imageBuffer = await imageResponse.arrayBuffer();
-      
-      // Check actual buffer size as well
-      if (imageBuffer.byteLength > 10 * 1024 * 1024) {
-        console.error(`Image buffer too large: ${imageBuffer.byteLength} bytes. Skipping analysis.`);
-        await ctx.runMutation(internal.images.internalSetAiStatus, { 
-          imageId: args.imageId, 
-          status: "failed" 
-        });
-        return;
+      if (!messageContent) {
+        throw new Error("No content in OpenRouter response");
       }
-      
-      // More memory-efficient base64 conversion
-      // Use Uint8Array directly with a more efficient conversion method
-      const bytes = new Uint8Array(imageBuffer);
-      // Convert in chunks to avoid creating huge intermediate strings
-      const chunkSize = 0x8000; // 32KB chunks
-      let binaryParts: string[] = [];
-      
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize);
-        binaryParts.push(String.fromCharCode.apply(null, Array.from(chunk)));
-      }
-      
-      const base64Image = btoa(binaryParts.join(''));
-      
-      const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
-      const ai = new GoogleGenerativeAI(apiKey);
-      const model = ai.getGenerativeModel({ model: "gemini-3-pro-image-preview" });
-
-      const prompt = `Analyze this image. 1. Generate a short, catchy title. 2. Write a concise description. 3. Generate 5-10 specific descriptive tags (focus on objects, lighting, mood, composition, specific elements; do NOT use broad categories). 4. Extract 5 distinct and vibrant dominant colors (hex codes). 5. Identify the visual style/medium (e.g., '35mm Film', 'VHS', 'CGI', 'Oil Painting'). 6. Select the single most appropriate category from this list: ${categories.join(", ")}. Return ONLY a strict valid JSON object with keys: "title", "description", "tags" (array of strings), "colors" (array of hex strings), "category" (string), "visual_style" (string). Ensure all keys and string values use double quotes.`;
-
-      const result = await model.generateContent([
-        prompt,
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: mimeType
-          }
-        }
-      ]);
-
-      const messageContent = result.response.text();
-      console.log("Gemini Analysis Result:", messageContent);
+      console.log(`OpenRouter VLM Analysis Result (${vlmModel}):`, messageContent);
 
       let title: string | undefined;
       let description: string = "No description generated.";
@@ -356,6 +290,9 @@ export const internalSmartAnalyzeImage = internalAction({
       let colors: string[] = [];
       let category: string | undefined;
       let visual_style: string | undefined;
+      let group: string | undefined;
+      let project_name: string | undefined;
+      let moodboard_name: string | undefined;
 
       try {
         // Remove markdown code blocks if present
@@ -388,12 +325,16 @@ export const internalSmartAnalyzeImage = internalAction({
         colors = parsedContent.colors || colors;
         category = parsedContent.category;
         visual_style = parsedContent.visual_style;
+        group = parsedContent.group || undefined;
+        project_name = parsedContent.project_name || parsedContent.projectName || undefined;
+        moodboard_name = parsedContent.moodboard_name || parsedContent.moodboardName || undefined;
       } catch (jsonError) {
-        console.warn("Gemini response parsing failed, using raw content as description.", jsonError);
+        console.warn("VLM response parsing failed, using raw content as description.", jsonError);
         description = messageContent;
       }
 
       // 3. Update the image document in the database
+      // Preserve sref from original upload - don't let AI overwrite it
       await ctx.runMutation(internal.images.internalUpdateAnalysis, {
         imageId: args.imageId,
         title,
@@ -401,6 +342,10 @@ export const internalSmartAnalyzeImage = internalAction({
         tags,
         colors,
         category,
+        group,
+        projectName: project_name,
+        moodboardName: moodboard_name,
+        sref: args.sref, // Preserve user-entered sref
       });
 
       // 4. Generate related images
@@ -413,11 +358,18 @@ export const internalSmartAnalyzeImage = internalAction({
         title, 
       });
 
-    } catch (err) {
-      console.error("Smart analysis failed:", err);
+    } catch (err: any) {
+      const errorMessage = err?.message || String(err);
+      console.error("Smart analysis failed:", errorMessage, err);
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
         imageId: args.imageId, 
         status: "failed" 
+      });
+      // Log detailed error for debugging
+      console.error("Full error details:", {
+        imageId: args.imageId,
+        error: errorMessage,
+        stack: err?.stack
       });
     }
   },
@@ -471,13 +423,16 @@ export const rerunSmartAnalysis = mutation({
     category: v.string(),
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
+    group: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+    moodboardName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("images", args.imageId);
     if (!image || image.uploadedBy !== userId) {
       throw new Error("Not authorized or image not found");
     }
@@ -499,6 +454,9 @@ export const rerunSmartAnalysis = mutation({
       category: args.category,
       source: args.source,
       sref: args.sref,
+      group: args.group,
+      projectName: args.projectName,
+      moodboardName: args.moodboardName,
     });
 
     return { success: true };

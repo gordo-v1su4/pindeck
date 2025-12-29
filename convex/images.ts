@@ -127,7 +127,7 @@ export const getById = query({
   args: { id: v.id("images") },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    const image = await ctx.db.get(args.id);
+    const image = await ctx.db.get("images", args.id);
     
     if (!image) return null;
 
@@ -211,15 +211,15 @@ export const toggleLike = mutation({
       )
       .unique();
 
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("images", args.imageId);
     if (!image) {
       throw new Error("Image not found");
     }
 
     if (existingLike) {
       // Unlike
-      await ctx.db.delete(existingLike._id);
-      await ctx.db.patch(args.imageId, {
+      await ctx.db.delete("likes", existingLike._id);
+      await ctx.db.patch("images", args.imageId, {
         likes: Math.max(0, image.likes - 1),
       });
       return false;
@@ -229,7 +229,7 @@ export const toggleLike = mutation({
         userId,
         imageId: args.imageId,
       });
-      await ctx.db.patch(args.imageId, {
+      await ctx.db.patch("images", args.imageId, {
         likes: image.likes + 1,
       });
       return true;
@@ -240,10 +240,10 @@ export const toggleLike = mutation({
 export const incrementViews = mutation({
   args: { imageId: v.id("images") },
   handler: async (ctx, args) => {
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("images", args.imageId);
     if (!image) return;
     
-    await ctx.db.patch(args.imageId, {
+    await ctx.db.patch("images", args.imageId, {
       views: image.views + 1,
     });
   },
@@ -298,6 +298,10 @@ export const uploadMultiple = mutation({
       source: v.optional(v.string()),
       sref: v.optional(v.string()),
       colors: v.optional(v.array(v.string())),
+      group: v.optional(v.string()),
+      projectName: v.optional(v.string()),
+      moodboardName: v.optional(v.string()),
+      uniqueId: v.optional(v.string()),
     })),
   },
   handler: async (ctx, args) => {
@@ -325,6 +329,10 @@ export const uploadMultiple = mutation({
           source: upload.source,
           sref: upload.sref,
           colors: upload.colors,
+          group: upload.group,
+          projectName: upload.projectName,
+          moodboardName: upload.moodboardName,
+          uniqueId: upload.uniqueId,
           uploadedBy: userId,
           likes: 0,
           views: 0,
@@ -338,6 +346,9 @@ export const uploadMultiple = mutation({
           await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
             storageId: upload.storageId,
             imageId: imageId,
+            group: upload.group,
+            projectName: upload.projectName,
+            moodboardName: upload.moodboardName,
             userId: userId,
             title: upload.title,
             description: upload.description,
@@ -380,9 +391,9 @@ export const finalizeUploads = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     for (const id of args.imageIds) {
-      const image = await ctx.db.get(id);
+      const image = await ctx.db.get("images", id);
       if (image && image.uploadedBy === userId) {
-        await ctx.db.patch(id, { status: "active" });
+        await ctx.db.patch("images", id, { status: "active" });
       }
     }
   },
@@ -424,12 +435,12 @@ export const approveImage = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("images", args.imageId);
     if (!image) throw new Error("Image not found");
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
 
-    await ctx.db.patch(args.imageId, { status: "active" });
+    await ctx.db.patch("images", args.imageId, { status: "active" });
   },
 });
 
@@ -439,7 +450,7 @@ export const rejectImage = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("images", args.imageId);
     if (!image) throw new Error("Image not found");
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
@@ -447,7 +458,7 @@ export const rejectImage = mutation({
     if (image.storageId) {
       await ctx.storage.delete(image.storageId);
     }
-    await ctx.db.delete(args.imageId);
+    await ctx.db.delete("images", args.imageId);
   },
 });
 
@@ -459,7 +470,7 @@ export const remove = mutation({
       throw new Error("Not authenticated");
     }
 
-    const image = await ctx.db.get(args.id);
+    const image = await ctx.db.get("images", args.id);
     if (!image) {
       throw new Error("Image not found");
     }
@@ -474,7 +485,7 @@ export const remove = mutation({
     }
 
     // Delete the image record
-    await ctx.db.delete(args.id);
+    await ctx.db.delete("images", args.id);
 
     return { success: true };
   },
@@ -489,6 +500,10 @@ export const internalUpdateAnalysis = internalMutation({
     colors: v.array(v.string()),
     category: v.optional(v.string()),
     aiStatus: v.optional(v.string()),
+    group: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+    moodboardName: v.optional(v.string()),
+    sref: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const patch: any = {
@@ -499,8 +514,13 @@ export const internalUpdateAnalysis = internalMutation({
     if (args.tags) patch.tags = args.tags;
     if (args.category) patch.category = args.category;
     if (args.aiStatus) patch.aiStatus = args.aiStatus;
+    if (args.group !== undefined) patch.group = args.group;
+    if (args.projectName !== undefined) patch.projectName = args.projectName;
+    if (args.moodboardName !== undefined) patch.moodboardName = args.moodboardName;
+    // Preserve sref if provided, otherwise don't overwrite existing value
+    if (args.sref !== undefined) patch.sref = args.sref;
 
-    await ctx.db.patch(args.imageId, patch);
+    await ctx.db.patch("images", args.imageId, patch);
   },
 });
 
@@ -510,7 +530,7 @@ export const internalSetAiStatus = internalMutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.imageId, { aiStatus: args.status });
+    await ctx.db.patch("images", args.imageId, { aiStatus: args.status });
   },
 });
 
@@ -526,7 +546,7 @@ export const updateAnalysis = mutation({
       throw new Error("Not authenticated");
     }
 
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("images", args.imageId);
     if (!image) {
       throw new Error("Image not found");
     }
@@ -550,13 +570,17 @@ export const updateImageMetadata = mutation({
     category: v.optional(v.string()),
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
+    group: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+    moodboardName: v.optional(v.string()),
+    uniqueId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("images", args.imageId);
     if (!image) {
       throw new Error("Image not found");
     }
@@ -571,8 +595,12 @@ export const updateImageMetadata = mutation({
     if (args.category !== undefined) patch.category = args.category;
     if (args.source !== undefined) patch.source = args.source;
     if (args.sref !== undefined) patch.sref = args.sref;
+    if (args.group !== undefined) patch.group = args.group;
+    if (args.projectName !== undefined) patch.projectName = args.projectName;
+    if (args.moodboardName !== undefined) patch.moodboardName = args.moodboardName;
+    if (args.uniqueId !== undefined) patch.uniqueId = args.uniqueId;
 
-    await ctx.db.patch(args.imageId, patch);
+    await ctx.db.patch("images", args.imageId, patch);
 
     return { success: true };
   },
@@ -588,12 +616,12 @@ export const internalSaveGeneratedImages = internalMutation({
     })),
   },
   handler: async (ctx, args) => {
-    const originalImage = await ctx.db.get(args.originalImageId);
+    const originalImage = await ctx.db.get("images", args.originalImageId);
     if (!originalImage) return;
 
     for (const img of args.images) {
       await ctx.db.insert("images", {
-        title: img.title,
+        title: originalImage.title, // Inherit parent's exact title so they group together
         description: img.description,
         imageUrl: img.url,
         // Inherit metadata from original (which might have been updated by analysis)
@@ -603,6 +631,11 @@ export const internalSaveGeneratedImages = internalMutation({
         likes: 0,
         views: 0,
         source: "AI Generation",
+        // Inherit group, projectName, moodboardName, uniqueId from parent
+        group: originalImage.group,
+        projectName: originalImage.projectName,
+        moodboardName: originalImage.moodboardName,
+        uniqueId: originalImage.uniqueId,
         // sref should only be set manually by user, not auto-populated
         status: "pending",
         uploadedAt: Date.now(),
@@ -610,6 +643,6 @@ export const internalSaveGeneratedImages = internalMutation({
     }
 
     // Mark original image processing as completed
-    await ctx.db.patch(args.originalImageId, { aiStatus: "completed" });
+    await ctx.db.patch("images", args.originalImageId, { aiStatus: "completed" });
   },
 });

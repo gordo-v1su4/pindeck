@@ -57,9 +57,11 @@ window.addEventListener('message', async (message) => {
   server: {
     port: 3000,
     host: true,
+    strictPort: true, // Exit if port is already in use
   },
   preview: {
     port: 3000,
     host: true,
+    strictPort: true, // Exit if port is already in use
   },
 }));
