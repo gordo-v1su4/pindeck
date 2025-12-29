@@ -32,8 +32,10 @@ import {
   DoubleArrowRightIcon,
   MagnifyingGlassIcon,
   TrashIcon,
+  Pencil1Icon,
 } from "@radix-ui/react-icons";
 import { ImageModal } from "./ImageModal";
+import { EditImageModal } from "./EditImageModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
@@ -59,6 +61,7 @@ export function TableView() {
   const images = useQuery(api.images.list, { limit: 1000 });
   const deleteImage = useMutation(api.images.remove);
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
+  const [editingImage, setEditingImage] = useState<Id<"images"> | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -259,6 +262,16 @@ export function TableView() {
             >
               View
             </Button>
+            <IconButton
+              variant="soft"
+              color="blue"
+              size="1"
+              onClick={() => setEditingImage(row.original._id)}
+              title="Edit image"
+              style={{ opacity: 0.9 }}
+            >
+              <Pencil1Icon />
+            </IconButton>
             <IconButton
               variant="soft"
               color="red"
@@ -593,6 +606,15 @@ export function TableView() {
           onClose={() => setSelectedImage(null)}
           setActiveTab={() => {}}
           incrementBoardVersion={() => {}}
+        />
+      )}
+
+      {/* Edit Image Modal */}
+      {editingImage && (
+        <EditImageModal
+          imageId={editingImage}
+          open={!!editingImage}
+          onOpenChange={(open) => !open && setEditingImage(null)}
         />
       )}
     </Box>

@@ -90,8 +90,15 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content 
-        maxWidth="sm" 
-        className="w-full max-w-md border border-gray-6 !bg-black/60 backdrop-blur-md"
+        className="w-full max-w-lg !rounded-none"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: 'none',
+          boxShadow: 'none',
+          outline: 'none'
+        }}
       >
         <Dialog.Title size="4" weight="bold">Create New Board</Dialog.Title>
         <Dialog.Description size="2" mb="5">

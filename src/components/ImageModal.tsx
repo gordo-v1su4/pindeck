@@ -82,19 +82,25 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
     <>
       <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
         <Dialog.Content 
-          className="max-h-[85vh] p-0 !w-[70vw] !max-w-[600px] bg-gray-2"
-          style={triggerPosition ? {
-            position: 'fixed',
-            top: `${Math.min(triggerPosition.y, window.innerHeight - 500)}px`,
-            left: `${Math.min(triggerPosition.x, window.innerWidth - 600)}px`,
-            transform: 'none'
-          } : undefined}
+          className="max-h-[85vh] p-0 w-full max-w-[600px] !rounded-none bg-transparent"
+          style={{
+            border: 'none',
+            boxShadow: 'none',
+            outline: 'none',
+            backgroundColor: 'transparent',
+            ...(triggerPosition ? {
+              position: 'fixed',
+              top: `${Math.min(triggerPosition.y, window.innerHeight - 500)}px`,
+              left: `${Math.min(triggerPosition.x, window.innerWidth - 600)}px`,
+              transform: 'none'
+            } : {})
+          }}
         >
           <Dialog.Title className="sr-only">{displayTitle}</Dialog.Title>
           <Dialog.Description className="sr-only">Image details and metadata</Dialog.Description>
           <Flex direction="column" className="max-h-[90vh]">
             {/* Image Display */}
-            <Box className="flex items-center justify-center bg-transparent aspect-video overflow-hidden">
+            <Box className="flex items-center justify-center bg-transparent aspect-video overflow-hidden relative z-10">
               <img
                 src={image.imageUrl}
                 alt={displayTitle}
@@ -103,7 +109,14 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
             </Box>
 
             {/* Content Panel */}
-            <Box className="p-5 space-y-4 flex-1 overflow-y-auto border-t border-gray-6" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+            <Box 
+              className="p-5 space-y-4 flex-1 overflow-y-auto relative z-20" 
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+                backdropFilter: 'blur(12px)', 
+                WebkitBackdropFilter: 'blur(12px)' 
+              }}
+            >
               <Dialog.Close>
                 <IconButton
                   variant="ghost"
@@ -117,7 +130,7 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
 
               {/* Project/Group Header - Prominent like ShotDeck */}
               {(image.projectName || image.group) && (
-                <Box className="space-y-2 pb-3 border-b border-gray-6">
+                <Box className="space-y-2 pb-3">
                   {image.projectName && (
                     <Text size="5" weight="bold" className="block">
                       {image.projectName}
@@ -242,7 +255,7 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                 )}
               </Box>
 
-              <Box className="pt-3 mt-3 border-t border-gray-6">
+              <Box className="pt-3 mt-3">
                 <Flex gap="3" align="center">
                   <Button
                     onClick={() => { void handleLike(); }}
