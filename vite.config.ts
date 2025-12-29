@@ -8,8 +8,13 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
   // Support both CONVEX_URL (Convex CLI convention) and VITE_CONVEX_URL (Vite convention)
-  // If CONVEX_URL exists but VITE_CONVEX_URL doesn't, use CONVEX_URL
-  const convexUrl = env.VITE_CONVEX_URL || env.CONVEX_URL;
+  // Check both .env files (via loadEnv) and process environment variables (for CI/CD)
+  // Priority: VITE_CONVEX_URL > CONVEX_URL, and process.env overrides .env files
+  const convexUrl = 
+    process.env.VITE_CONVEX_URL || 
+    process.env.CONVEX_URL || 
+    env.VITE_CONVEX_URL || 
+    env.CONVEX_URL;
 
   return {
   plugins: [

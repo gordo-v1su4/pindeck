@@ -14,7 +14,7 @@ interface ImageGridProps {
   incrementBoardVersion: () => void;
 }
 
-type ViewMode = "random" | "project-rows" | "list";
+type ViewMode = "random" | "project-rows";
 
 export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incrementBoardVersion }: ImageGridProps) {
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
@@ -114,73 +114,9 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
             Project Rows
           </Button>
         )}
-        <Button
-          variant={viewMode === "list" ? "solid" : "soft"}
-          size="1"
-          onClick={() => setViewMode("list")}
-        >
-          List
-        </Button>
       </Flex>
 
-      {viewMode === "list" ? (
-        // Simple list view - no metadata clutter
-        <Box className="space-y-1">
-          {images.map((image) => (
-            <Box
-              key={image._id}
-              className="group cursor-pointer transition-all duration-200 p-2 hover:bg-gray-3"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setTriggerPosition({
-                  x: rect.left,
-                  y: rect.top
-                });
-                setSelectedImage(image._id);
-              }}
-            >
-              <Flex gap="3" align="center">
-                {/* Thumbnail */}
-                <Box className="relative overflow-hidden aspect-video bg-gray-900 flex-shrink-0" style={{ width: '100px' }}>
-                  <img
-                    src={image.imageUrl}
-                    alt={image.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </Box>
-                
-                {/* Title only */}
-                <Text size="2" weight="medium" className="flex-1 line-clamp-1">
-                  {image.title}
-                </Text>
-                
-                {/* Actions */}
-                <Flex gap="1" className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <IconButton
-                    variant="soft"
-                    color={image.isLiked ? "red" : "gray"}
-                    size="1"
-                    aria-label={image.isLiked ? "Unlike this image" : "Like this image"}
-                    onClick={(e) => { void handleLike(image._id, e); }}
-                  >
-                    <HeartIcon />
-                  </IconButton>
-                  <IconButton
-                    variant="soft"
-                    color="blue"
-                    size="1"
-                    aria-label="Save to board"
-                    onClick={(e) => { void handleQuickSave(image._id, e); }}
-                  >
-                    <BookmarkIcon />
-                  </IconButton>
-                </Flex>
-              </Flex>
-            </Box>
-          ))}
-        </Box>
-      ) : viewMode === "project-rows" && groupedImages ? (
+      {viewMode === "project-rows" && groupedImages ? (
         // Project Rows view - ShotDeck style
         <Box className="space-y-6">
           {Object.entries(groupedImages)

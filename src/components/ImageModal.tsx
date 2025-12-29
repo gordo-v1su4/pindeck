@@ -30,6 +30,24 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
     }
   }, [imageId, incrementViews]);
 
+  // Sort colors dark to light for aesthetic gradient display
+  // Must be called before early return to maintain hook order
+  const sortedColors = useMemo(() => {
+    if (!image?.colors || image.colors.length === 0) return [];
+    return sortColorsDarkToLight(image.colors);
+  }, [image?.colors]);
+
+  // Generate display title from projectName + moodboardName or fallback to title
+  // Must be called before early return to maintain hook order
+  const displayTitle = useMemo(() => {
+    if (!image) return '';
+    return image.projectName 
+      ? image.moodboardName 
+        ? `${image.projectName} - ${image.moodboardName}`
+        : image.projectName
+      : image.title;
+  }, [image]);
+
   const handleLike = async () => {
     try {
       await toggleLike({ imageId });
@@ -57,20 +75,8 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
     }
   };
 
+  // Early return AFTER all hooks have been called
   if (!image) return null;
-
-  // Generate display title from projectName + moodboardName or fallback to title
-  const displayTitle = image.projectName 
-    ? image.moodboardName 
-      ? `${image.projectName} - ${image.moodboardName}`
-      : image.projectName
-    : image.title;
-
-  // Sort colors dark to light for aesthetic gradient display
-  const sortedColors = useMemo(() => {
-    if (!image.colors || image.colors.length === 0) return [];
-    return sortColorsDarkToLight(image.colors);
-  }, [image.colors]);
 
   return (
     <>
