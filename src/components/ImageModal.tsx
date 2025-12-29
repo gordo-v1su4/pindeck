@@ -76,7 +76,7 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
     <>
       <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
         <Dialog.Content 
-          className="max-h-[85vh] p-0 !w-[70vw] !max-w-[600px]"
+          className="max-h-[85vh] p-0 !w-[70vw] !max-w-[600px] bg-gray-2"
           style={triggerPosition ? {
             position: 'fixed',
             top: `${Math.min(triggerPosition.y, window.innerHeight - 500)}px`,
