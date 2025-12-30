@@ -67,7 +67,7 @@ window.addEventListener('message', async (message) => {
         manualChunks: {
           vendor: ["react", "react-dom"],
           convex: ["convex/react", "@convex-dev/auth/react"],
-          ui: ["@radix-ui/themes", "@radix-ui/react-icons", "lucide-react"],
+          ui: ["@radix-ui/themes", "@radix-ui/react-icons"],
         },
       },
     },

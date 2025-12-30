@@ -2,12 +2,13 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TextField, Button, Text, Flex, Box, Separator } from "@radix-ui/themes";
+import { TextField, Button, Text, Flex, Box, Separator, Spinner } from "@radix-ui/themes";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
+  const [isAnonSigningIn, setIsAnonSigningIn] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -63,6 +64,7 @@ export function SignInForm() {
             type="email"
             name="email"
             placeholder="Email"
+            aria-label="Email"
             autoComplete="email"
             required
             size="3"
@@ -71,6 +73,7 @@ export function SignInForm() {
             type="password"
             name="password"
             placeholder="Password"
+            aria-label="Password"
             autoComplete="current-password"
             required
             size="3"
@@ -109,12 +112,19 @@ export function SignInForm() {
       <Button 
         variant="outline" 
         size="3" 
-        className="w-full" 
-        onClick={() => {
-          void signIn("anonymous");
+        className="w-full"
+        disabled={isAnonSigningIn || submitting}
+        onClick={async () => {
+          setIsAnonSigningIn(true);
+          try {
+            await signIn("anonymous");
+          } catch (error) {
+            toast.error("Failed to sign in anonymously");
+            setIsAnonSigningIn(false);
+          }
         }}
       >
-        Sign in anonymously
+        {isAnonSigningIn ? <Spinner /> : "Sign in anonymously"}
       </Button>
     </Flex>
   );
