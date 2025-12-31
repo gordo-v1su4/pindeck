@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { ConvexProvider } from "convex/react";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import { Theme } from "@radix-ui/themes";
@@ -31,9 +32,11 @@ const convex = new ConvexReactClient(convexUrl as string, {
 });
 
 createRoot(document.getElementById("root")!).render(
-  <ConvexAuthProvider client={convex}>
-    <Theme appearance="dark" grayColor="slate" radius="large" scaling="100%">
-      <App />
-    </Theme>
-  </ConvexAuthProvider>,
+  <ConvexProvider client={convex}>
+    <ConvexAuthProvider client={convex}>
+      <Theme appearance="dark" grayColor="slate" radius="large" scaling="100%">
+        <App />
+      </Theme>
+    </ConvexAuthProvider>
+  </ConvexProvider>,
 );

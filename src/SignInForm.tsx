@@ -27,10 +27,17 @@ export function SignInForm() {
     formData.set("flow", flow);
     
     try {
-      await signIn("password", formData);
+      const result = await signIn("password", formData);
+      console.log("✅ Sign-in result:", result);
       toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
       form.reset();
+      
+      // Wait a moment for auth state to update
+      setTimeout(() => {
+        console.log("🔐 After sign-in - checking localStorage:", localStorage.getItem("convex-auth") ? "exists" : "missing");
+      }, 1000);
     } catch (error: any) {
+      console.error("❌ Sign-in error:", error);
       let toastTitle = "";
       const errorMsg = error.message || "";
       
