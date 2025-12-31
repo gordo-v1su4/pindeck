@@ -1,13 +1,40 @@
 "use client";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useState } from "react";
+import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { TextField, Button, Text, Flex, Box, Separator } from "@radix-ui/themes";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
+  const [signInStarted, setSignInStarted] = useState(false);
+
+  // Monitor auth state changes after sign-in attempt
+  useEffect(() => {
+    if (signInStarted) {
+      console.log("🔐 Auth state changed - isAuthenticated:", isAuthenticated);
+      const authStorage = localStorage.getItem("convex-auth");
+      console.log("🔐 LocalStorage Auth:", authStorage ? "exists" : "missing");
+      if (authStorage) {
+        try {
+          const parsed = JSON.parse(authStorage);
+          console.log("🔐 Auth Token Keys:", Object.keys(parsed));
+        } catch (e) {
+          console.log("🔐 Auth Storage Parse Error:", e);
+        }
+      }
+      
+      // When authentication completes, show success and reset
+      if (isAuthenticated) {
+        console.log("✅ Authentication completed successfully!");
+        toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
+        setSignInStarted(false);
+        setSubmitting(false);
+      }
+    }
+  }, [isAuthenticated, signInStarted, flow]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,18 +51,38 @@ export function SignInForm() {
     }
     
     setSubmitting(true);
+    setSignInStarted(true);
     formData.set("flow", flow);
+    
+    let waitingForAuth = false;
     
     try {
       const result = await signIn("password", formData);
       console.log("✅ Sign-in result:", result);
-      toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
-      form.reset();
       
-      // Wait a moment for auth state to update
-      setTimeout(() => {
-        console.log("🔐 After sign-in - checking localStorage:", localStorage.getItem("convex-auth") ? "exists" : "missing");
-      }, 1000);
+      // Check if result indicates sign-in is complete or in progress
+      if (result && typeof result === 'object' && 'signingIn' in result) {
+        if (result.signingIn === true) {
+          console.log("⏳ Sign-in in progress, waiting for auth state update...");
+          waitingForAuth = true;
+          // Don't show success toast yet - wait for auth state to update via useEffect
+          // Don't reset form or set submitting to false yet - wait for auth completion
+        } else {
+          // Sign-in completed immediately
+          console.log("✅ Sign-in completed immediately");
+          toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
+          form.reset();
+          setSubmitting(false);
+          setSignInStarted(false);
+        }
+      } else {
+        // If result doesn't have signingIn property, assume it completed
+        console.log("✅ Sign-in completed (no signingIn property)");
+        toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
+        form.reset();
+        setSubmitting(false);
+        setSignInStarted(false);
+      }
     } catch (error: any) {
       console.error("❌ Sign-in error:", error);
       let toastTitle = "";
@@ -57,9 +104,10 @@ export function SignInForm() {
             : `Could not sign up: ${errorMsg || "Unknown error"}. Please try again.`;
       }
       toast.error(toastTitle);
-    } finally {
+      setSignInStarted(false);
       setSubmitting(false);
     }
+    // Note: If waitingForAuth is true, useEffect will handle resetting submitting when auth completes
   };
 
   return (
