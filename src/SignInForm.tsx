@@ -7,15 +7,16 @@ import { TextField, Button, Text, Flex, Box, Separator } from "@radix-ui/themes"
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
   const [signInStarted, setSignInStarted] = useState(false);
 
   // Monitor auth state changes after sign-in attempt
   useEffect(() => {
+    console.log("🔐 Auth state:", { isAuthenticated, isLoading, signInStarted });
+    
     if (signInStarted) {
-      console.log("🔐 Auth state changed - isAuthenticated:", isAuthenticated);
       const authStorage = localStorage.getItem("convex-auth");
       console.log("🔐 LocalStorage Auth:", authStorage ? "exists" : "missing");
       if (authStorage) {
@@ -35,7 +36,27 @@ export function SignInForm() {
         setSubmitting(false);
       }
     }
-  }, [isAuthenticated, signInStarted, flow]);
+  }, [isAuthenticated, isLoading, signInStarted, flow]);
+
+  // Timeout to detect stuck auth (after 10 seconds)
+  useEffect(() => {
+    if (signInStarted && !isAuthenticated) {
+      const timeout = setTimeout(() => {
+        if (signInStarted && !isAuthenticated) {
+          console.error("⏰ Auth timeout - sign-in did not complete within 10 seconds");
+          console.log("🔍 Debug info:", {
+            isAuthenticated,
+            isLoading,
+            localStorage: localStorage.getItem("convex-auth") ? "exists" : "missing"
+          });
+          toast.error("Sign-in timed out. Please check your connection and try again.");
+          setSignInStarted(false);
+          setSubmitting(false);
+        }
+      }, 10000);
+      return () => clearTimeout(timeout);
+    }
+  }, [signInStarted, isAuthenticated, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -166,9 +187,21 @@ export function SignInForm() {
         variant="outline" 
         size="3" 
         className="w-full" 
-        onClick={() => {
-          void signIn("anonymous");
+        onClick={async () => {
+          console.log("🔐 Starting anonymous sign-in...");
+          setSubmitting(true);
+          setSignInStarted(true);
+          try {
+            const result = await signIn("anonymous");
+            console.log("🔐 Anonymous sign-in result:", result);
+          } catch (error) {
+            console.error("❌ Anonymous sign-in error:", error);
+            toast.error("Anonymous sign-in failed: " + (error as Error).message);
+            setSubmitting(false);
+            setSignInStarted(false);
+          }
         }}
+        disabled={submitting}
       >
         Sign in anonymously
       </Button>
