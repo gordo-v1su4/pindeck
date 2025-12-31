@@ -77,7 +77,7 @@ export default function App() {
 
   return (
     <Box className="min-h-screen">
-      <Box as="header" className="sticky top-0 z-50 border-b border-gray-6 bg-gray-2/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-gray-6 bg-gray-2/80 backdrop-blur-md">
         <Box className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Flex justify="between" align="center">
             <Flex align="center" gap="6">
@@ -123,9 +123,9 @@ export default function App() {
             </Box>
           )}
         </Box>
-      </Box>
+      </header>
 
-      <Box as="main" className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
+      <main className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
         {/* Show authenticated content if frontend says authenticated OR backend says user exists */}
         {(isAuthenticated || loggedInUser) ? (
           <>
@@ -153,7 +153,7 @@ export default function App() {
             incrementBoardVersion={incrementBoardVersion}
           />
         )}
-      </Box>
+      </main>
       
       <Toaster theme="dark" />
     </Box>
