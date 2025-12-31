@@ -1,4 +1,4 @@
-import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
+import { Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
@@ -18,6 +18,9 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [activeTab, setActiveTabState] = useState("gallery");
   const { isAuthenticated, isLoading } = useConvexAuth();
+  
+  // Check backend auth state to verify if user is actually logged in
+  const loggedInUser = useQuery(api.auth.loggedInUser);
 
   const setActiveTab = (tab: string) => {
     console.log("🔄 Setting active tab to:", tab);
@@ -27,10 +30,23 @@ export default function App() {
   
   // Debug authentication state - CRITICAL for diagnosing "can't access pages" issue
   useEffect(() => {
-    const authState = { isLoading, isAuthenticated };
+    const authState = { isLoading, isAuthenticated, loggedInUser: loggedInUser !== undefined ? (loggedInUser !== null ? "logged in" : "not logged in") : "loading" };
     console.log("🔐 App Auth State:", JSON.stringify(authState, null, 2));
     console.log("🔐 Convex URL:", import.meta.env.VITE_CONVEX_URL);
-  }, [isAuthenticated, isLoading]);
+    console.log("🔐 Backend User:", loggedInUser);
+    
+    // Check localStorage for auth tokens
+    const convexAuthStorage = localStorage.getItem("convex-auth");
+    console.log("🔐 LocalStorage Auth:", convexAuthStorage ? "exists" : "missing");
+    if (convexAuthStorage) {
+      try {
+        const parsed = JSON.parse(convexAuthStorage);
+        console.log("🔐 Auth Token Keys:", Object.keys(parsed));
+      } catch (e) {
+        console.log("🔐 Auth Storage Parse Error:", e);
+      }
+    }
+  }, [isAuthenticated, isLoading, loggedInUser]);
 
   useEffect(() => {
     // Set initial tab from hash
@@ -76,7 +92,8 @@ export default function App() {
               </Authenticated>
             </Flex>
           </Flex>
-          <Authenticated>
+          {/* Show tabs if authenticated OR if backend says user is logged in (workaround) */}
+          {(isAuthenticated || loggedInUser) && (
             <Box className="mt-4">
               <Tabs.Root 
                 value={activeTab} 
@@ -96,44 +113,46 @@ export default function App() {
                 </Tabs.List>
               </Tabs.Root>
             </Box>
-            {activeTab === "gallery" && (
-              <Box className="mt-4">
-                <CategoryFilter 
-                  selectedCategory={selectedCategory}
-                  onCategoryChange={setSelectedCategory}
-                />
-              </Box>
-            )}
-          </Authenticated>
+          )}
+          {(isAuthenticated || loggedInUser) && activeTab === "gallery" && (
+            <Box className="mt-4">
+              <CategoryFilter 
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+              />
+            </Box>
+          )}
         </Box>
       </Box>
 
       <Box as="main" className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-        <Authenticated>
-          {activeTab === "gallery" && (
-            <Content 
-              searchTerm={searchTerm}
-              selectedCategory={selectedCategory}
-              setActiveTab={setActiveTab}
-              incrementBoardVersion={incrementBoardVersion}
-            />
-          )}
-          {activeTab === "upload" && <ImageUploadForm />}
-          {activeTab === "boards" && <BoardsView 
-                                      key={boardVersion} 
-                                      setActiveTab={setActiveTab} 
-                                      incrementBoardVersion={incrementBoardVersion} 
-                                    />}
-          {activeTab === "table" && <TableView />}
-        </Authenticated>
-        <Unauthenticated>
+        {/* Show authenticated content if frontend says authenticated OR backend says user exists */}
+        {(isAuthenticated || loggedInUser) ? (
+          <>
+            {activeTab === "gallery" && (
+              <Content 
+                searchTerm={searchTerm}
+                selectedCategory={selectedCategory}
+                setActiveTab={setActiveTab}
+                incrementBoardVersion={incrementBoardVersion}
+              />
+            )}
+            {activeTab === "upload" && <ImageUploadForm />}
+            {activeTab === "boards" && <BoardsView 
+                                        key={boardVersion} 
+                                        setActiveTab={setActiveTab} 
+                                        incrementBoardVersion={incrementBoardVersion} 
+                                      />}
+            {activeTab === "table" && <TableView />}
+          </>
+        ) : (
           <Content 
             searchTerm={searchTerm}
             selectedCategory={selectedCategory}
             setActiveTab={setActiveTab}
             incrementBoardVersion={incrementBoardVersion}
           />
-        </Unauthenticated>
+        )}
       </Box>
       
       <Toaster theme="dark" />
