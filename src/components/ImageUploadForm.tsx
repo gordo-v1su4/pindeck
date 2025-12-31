@@ -16,7 +16,7 @@ import {
   IconButton,
   Grid,
   Heading,
-  Separator
+  Separator,
 } from "@radix-ui/themes";
 import {
   UploadIcon,
@@ -26,7 +26,7 @@ import {
   TrashIcon,
   CheckIcon,
   MagicWandIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
 } from "@radix-ui/react-icons";
 import { toast } from "sonner";
 
@@ -60,7 +60,9 @@ export function ImageUploadForm() {
   const approveImage = useMutation(api.images.approveImage);
   const rejectImage = useMutation(api.images.rejectImage);
   const finalizeUploads = useMutation(api.images.finalizeUploads);
-  const updateImageMetadataMutation = useMutation(api.images.updateImageMetadata);
+  const updateImageMetadataMutation = useMutation(
+    api.images.updateImageMetadata,
+  );
   const rerunSmartAnalysisMutation = useMutation(api.vision.rerunSmartAnalysis);
 
   const [files, setFiles] = useState<UploadFile[]>([]);
@@ -71,7 +73,9 @@ export function ImageUploadForm() {
   if (categories === undefined) {
     return (
       <Box className="flex items-center justify-center min-h-[50vh]">
-        <Text size="3" color="gray">Loading...</Text>
+        <Text size="3" color="gray">
+          Loading...
+        </Text>
       </Box>
     );
   }
@@ -90,7 +94,7 @@ export function ImageUploadForm() {
       projectName?: string;
       moodboardName?: string;
       uniqueId?: string;
-    }
+    },
   ) => {
     try {
       await updateImageMetadataMutation({ imageId, ...updates });
@@ -103,17 +107,20 @@ export function ImageUploadForm() {
   const handleFiles = async (newFiles: FileList | File[]) => {
     console.log("handleFiles called with", newFiles.length, "files");
     const fileArray = Array.from(newFiles);
-    const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
+    const imageFiles = fileArray.filter((file) =>
+      file.type.startsWith("image/"),
+    );
     console.log("Filtered to", imageFiles.length, "image files");
-    
+
     if (imageFiles.length === 0) {
       toast.error("Please select image files only");
       return;
     }
 
     // Create initial objects
-    const defaultCategory = categories && categories.length > 0 ? categories[0] : "General";
-    const newUploadFiles: UploadFile[] = imageFiles.map(file => ({
+    const defaultCategory =
+      categories && categories.length > 0 ? categories[0] : "General";
+    const newUploadFiles: UploadFile[] = imageFiles.map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
       preview: URL.createObjectURL(file),
@@ -130,24 +137,28 @@ export function ImageUploadForm() {
       uniqueId: undefined,
     }));
 
-    setFiles(prev => [...prev, ...newUploadFiles]);
+    setFiles((prev) => [...prev, ...newUploadFiles]);
 
     // Extract colors asynchronously
     try {
-      const filesWithColors = await Promise.all(newUploadFiles.map(async (fileObj) => {
-        try {
-          const colors = await extractColorsFromImage(fileObj.preview);
-          return { ...fileObj, colors };
-        } catch (e) {
-          console.error("Color extraction failed for", fileObj.file.name, e);
-          return fileObj;
-        }
-      }));
+      const filesWithColors = await Promise.all(
+        newUploadFiles.map(async (fileObj) => {
+          try {
+            const colors = await extractColorsFromImage(fileObj.preview);
+            return { ...fileObj, colors };
+          } catch (e) {
+            console.error("Color extraction failed for", fileObj.file.name, e);
+            return fileObj;
+          }
+        }),
+      );
 
-      setFiles(prev => prev.map(f => {
-        const updated = filesWithColors.find(fwc => fwc.id === f.id);
-        return updated || f;
-      }));
+      setFiles((prev) =>
+        prev.map((f) => {
+          const updated = filesWithColors.find((fwc) => fwc.id === f.id);
+          return updated || f;
+        }),
+      );
     } catch (e) {
       console.error("Error in color extraction process", e);
     }
@@ -179,46 +190,53 @@ export function ImageUploadForm() {
     if (e.target.files && e.target.files.length > 0) {
       handleFiles(e.target.files);
       // Reset input to allow selecting the same file again
-      e.target.value = '';
+      e.target.value = "";
     }
   };
 
   const removeFile = (id: string) => {
-    setFiles(prev => {
-      const file = prev.find(f => f.id === id);
+    setFiles((prev) => {
+      const file = prev.find((f) => f.id === id);
       if (file) {
         URL.revokeObjectURL(file.preview);
       }
-      return prev.filter(f => f.id !== id);
+      return prev.filter((f) => f.id !== id);
     });
   };
 
   const updateFile = (id: string, updates: Partial<UploadFile>) => {
-    setFiles(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
+    setFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...updates } : f)),
+    );
   };
 
   const addTag = (fileId: string, tag: string) => {
     if (!tag.trim()) return;
     const trimmedTag = tag.trim().toLowerCase();
-    setFiles(prev => prev.map(f =>
-      f.id === fileId
-        ? { ...f, tags: [...f.tags.filter(t => t !== trimmedTag), trimmedTag] }
-        : f
-    ));
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === fileId
+          ? {
+              ...f,
+              tags: [...f.tags.filter((t) => t !== trimmedTag), trimmedTag],
+            }
+          : f,
+      ),
+    );
   };
 
   const removeTag = (fileId: string, tag: string) => {
-    setFiles(prev => prev.map(f =>
-      f.id === fileId
-        ? { ...f, tags: f.tags.filter(t => t !== tag) }
-        : f
-    ));
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === fileId ? { ...f, tags: f.tags.filter((t) => t !== tag) } : f,
+      ),
+    );
   };
 
   const addTagToDraft = async (imageId: Id<"images">, tag: string) => {
     if (!tag.trim()) return;
     const trimmedTag = tag.trim().toLowerCase();
-    const image = draftImages?.find(img => img._id === imageId);
+    const image = draftImages?.find((img) => img._id === imageId);
     if (image) {
       const updatedTags = [...new Set([...image.tags, trimmedTag])];
       await updateImageMetadata(imageId, { tags: updatedTags });
@@ -226,9 +244,9 @@ export function ImageUploadForm() {
   };
 
   const removeTagFromDraft = async (imageId: Id<"images">, tag: string) => {
-    const image = draftImages?.find(img => img._id === imageId);
+    const image = draftImages?.find((img) => img._id === imageId);
     if (image) {
-      const updatedTags = image.tags.filter(t => t !== tag);
+      const updatedTags = image.tags.filter((t) => t !== tag);
       await updateImageMetadata(imageId, { tags: updatedTags });
     }
   };
@@ -241,7 +259,7 @@ export function ImageUploadForm() {
     tags?: string[],
     category?: string,
     source?: string,
-    sref?: string
+    sref?: string,
   ) => {
     try {
       toast.info("Re-running AI analysis...");
@@ -265,9 +283,11 @@ export function ImageUploadForm() {
     if (!draftImages || draftImages.length === 0) return;
 
     try {
-      const imageIdsToFinalize = draftImages.map(img => img._id);
+      const imageIdsToFinalize = draftImages.map((img) => img._id);
       await finalizeUploads({ imageIds: imageIdsToFinalize });
-      toast.success(`${imageIdsToFinalize.length} image(s) finalized and added to gallery!`);
+      toast.success(
+        `${imageIdsToFinalize.length} image(s) finalized and added to gallery!`,
+      );
     } catch (error) {
       console.error("Finalize uploads failed:", error);
       toast.error("Failed to finalize uploads.");
@@ -308,9 +328,11 @@ export function ImageUploadForm() {
             generatedTitle = file.moodboardName;
           }
         }
-        
+
         // Generate uniqueId if not provided
-        const uniqueId = file.uniqueId || `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const uniqueId =
+          file.uniqueId ||
+          `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         return {
           storageId,
@@ -333,9 +355,8 @@ export function ImageUploadForm() {
       const newImageIds = await uploadMultiple({ uploads });
 
       // Clear local files after successful initial upload and scheduling
-      files.forEach(file => URL.revokeObjectURL(file.preview));
+      files.forEach((file) => URL.revokeObjectURL(file.preview));
       setFiles([]);
-
     } catch (error) {
       console.error("Upload failed:", error);
       toast.error("Upload failed. Please try again.");
@@ -357,8 +378,8 @@ export function ImageUploadForm() {
   const handleReject = async (imageId: Id<"images">) => {
     try {
       // Check if it's a pending image (suggestion) or a draft image
-      const isPending = pendingImages?.some(img => img._id === imageId);
-      const isDraft = draftImages?.some(img => img._id === imageId);
+      const isPending = pendingImages?.some((img) => img._id === imageId);
+      const isDraft = draftImages?.some((img) => img._id === imageId);
 
       if (isPending) {
         await rejectImage({ imageId }); // This deletes the image and its storage
@@ -367,7 +388,10 @@ export function ImageUploadForm() {
         await remove({ id: imageId }); // This deletes the image and its storage
         toast.success("Draft image discarded!");
       } else {
-        console.warn("Attempted to reject/remove an image not found in pending or draft lists.", imageId);
+        console.warn(
+          "Attempted to reject/remove an image not found in pending or draft lists.",
+          imageId,
+        );
         toast.error("Could not find image to discard.");
       }
     } catch (error) {
@@ -379,9 +403,12 @@ export function ImageUploadForm() {
   return (
     <Box className="space-y-8 max-w-4xl mx-auto w-full">
       <Box>
-        <Heading size="6" weight="bold">Upload Images</Heading>
+        <Heading size="6" weight="bold">
+          Upload Images
+        </Heading>
         <Text size="2" color="gray" className="mt-1">
-          Upload images to your collection. Leave details blank to let AI generate them.
+          Upload images to your collection. Leave details blank to let AI
+          generate them.
         </Text>
       </Box>
 
@@ -389,17 +416,20 @@ export function ImageUploadForm() {
       <Box
         className={`
           relative overflow-hidden transition-all duration-200 ease-in-out border border-gray-6
-          ${dragActive
-            ? 'bg-blue-3 ring-2 ring-blue-9 ring-offset-2'
-            : 'bg-gray-2 hover:bg-gray-3'
+          ${
+            dragActive
+              ? "bg-blue-3 ring-2 ring-blue-9 ring-offset-2"
+              : "bg-gray-2 hover:bg-gray-3"
           }
         `}
-        style={{ minHeight: '150px' }}
+        style={{ minHeight: "150px" }}
       >
         <input
           type="file"
           multiple
           accept="image/*"
+          aria-label="Upload images"
+          title="Upload images"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -407,7 +437,12 @@ export function ImageUploadForm() {
           onDrop={handleDrop}
           onChange={handleFileInput}
         />
-        <Flex direction="column" align="center" justify="center" className="h-full py-6 px-4 text-center pointer-events-none">
+        <Flex
+          direction="column"
+          align="center"
+          justify="center"
+          className="h-full py-6 px-4 text-center pointer-events-none"
+        >
           <Box className="bg-gray-4 p-3 shadow-sm mb-3">
             <UploadIcon width="24" height="24" className="text-gray-11" />
           </Box>
@@ -425,14 +460,14 @@ export function ImageUploadForm() {
         <Box className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
           <Flex justify="between" align="center">
             <Text size="2" weight="medium">
-              {files.length} image{files.length > 1 ? 's' : ''} selected
+              {files.length} image{files.length > 1 ? "s" : ""} selected
             </Text>
             <Button
               variant="ghost"
               color="red"
               size="1"
               onClick={() => {
-                files.forEach(file => URL.revokeObjectURL(file.preview));
+                files.forEach((file) => URL.revokeObjectURL(file.preview));
                 setFiles([]);
               }}
             >
@@ -443,7 +478,10 @@ export function ImageUploadForm() {
 
           <Grid columns={{ initial: "1", lg: "2" }} gap="4">
             {files.map((file) => (
-              <Card key={file.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <Card
+                key={file.id}
+                className="overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
                 <Flex gap="4">
                   <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
                     <img
@@ -458,7 +496,9 @@ export function ImageUploadForm() {
                       <Box className="flex-1">
                         <TextField.Root
                           value={file.title}
-                          onChange={(e) => updateFile(file.id, { title: e.target.value })}
+                          onChange={(e) =>
+                            updateFile(file.id, { title: e.target.value })
+                          }
                           placeholder="Title (Leave blank for AI)"
                           size="1"
                         >
@@ -472,6 +512,7 @@ export function ImageUploadForm() {
                         color="red"
                         size="1"
                         onClick={() => removeFile(file.id)}
+                        aria-label="Remove image"
                       >
                         <Cross2Icon />
                       </IconButton>
@@ -479,15 +520,19 @@ export function ImageUploadForm() {
 
                     <TextField.Root
                       value={file.description}
-                      onChange={(e) => updateFile(file.id, { description: e.target.value })}
+                      onChange={(e) =>
+                        updateFile(file.id, { description: e.target.value })
+                      }
                       placeholder="Description (Leave blank for AI)"
                       size="1"
                     />
-                    
+
                     <Flex gap="2" align="center">
                       <Select.Root
                         value={file.category}
-                        onValueChange={(value) => updateFile(file.id, { category: value })}
+                        onValueChange={(value) =>
+                          updateFile(file.id, { category: value })
+                        }
                       >
                         <Select.Trigger placeholder="Select category" />
                         <Select.Content>
@@ -503,7 +548,11 @@ export function ImageUploadForm() {
                     {/* Group Selection */}
                     <Select.Root
                       value={file.group ? file.group : "none"}
-                      onValueChange={(value) => updateFile(file.id, { group: value === "none" ? undefined : value })}
+                      onValueChange={(value) =>
+                        updateFile(file.id, {
+                          group: value === "none" ? undefined : value,
+                        })
+                      }
                     >
                       <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
                       <Select.Content>
@@ -511,9 +560,15 @@ export function ImageUploadForm() {
                         <Select.Item value="Commercial">Commercial</Select.Item>
                         <Select.Item value="Film">Film</Select.Item>
                         <Select.Item value="Moodboard">Moodboard</Select.Item>
-                        <Select.Item value="Spec Commercial">Spec Commercial</Select.Item>
-                        <Select.Item value="Spec Music Video">Spec Music Video</Select.Item>
-                        <Select.Item value="Music Video">Music Video</Select.Item>
+                        <Select.Item value="Spec Commercial">
+                          Spec Commercial
+                        </Select.Item>
+                        <Select.Item value="Spec Music Video">
+                          Spec Music Video
+                        </Select.Item>
+                        <Select.Item value="Music Video">
+                          Music Video
+                        </Select.Item>
                         <Select.Item value="TV">TV</Select.Item>
                         <Select.Item value="Other">Other</Select.Item>
                       </Select.Content>
@@ -522,7 +577,11 @@ export function ImageUploadForm() {
                     {/* Project Name */}
                     <TextField.Root
                       value={file.projectName || ""}
-                      onChange={(e) => updateFile(file.id, { projectName: e.target.value || undefined })}
+                      onChange={(e) =>
+                        updateFile(file.id, {
+                          projectName: e.target.value || undefined,
+                        })
+                      }
                       placeholder="Project Name (e.g., Kitty Bite Back)"
                       size="1"
                     />
@@ -530,7 +589,11 @@ export function ImageUploadForm() {
                     {/* Moodboard Name */}
                     <TextField.Root
                       value={file.moodboardName || ""}
-                      onChange={(e) => updateFile(file.id, { moodboardName: e.target.value || undefined })}
+                      onChange={(e) =>
+                        updateFile(file.id, {
+                          moodboardName: e.target.value || undefined,
+                        })
+                      }
                       placeholder="Moodboard Name (e.g., pink girl smoking)"
                       size="1"
                     />
@@ -538,7 +601,11 @@ export function ImageUploadForm() {
                     {/* Unique ID */}
                     <TextField.Root
                       value={file.uniqueId || ""}
-                      onChange={(e) => updateFile(file.id, { uniqueId: e.target.value || undefined })}
+                      onChange={(e) =>
+                        updateFile(file.id, {
+                          uniqueId: e.target.value || undefined,
+                        })
+                      }
                       placeholder="Unique ID (auto-generated if blank)"
                       size="1"
                     />
@@ -546,14 +613,18 @@ export function ImageUploadForm() {
                     <Flex gap="2">
                       <TextField.Root
                         value={file.sref}
-                        onChange={(e) => updateFile(file.id, { sref: e.target.value })}
+                        onChange={(e) =>
+                          updateFile(file.id, { sref: e.target.value })
+                        }
                         placeholder="Style Ref (sref)"
                         size="1"
                         className="flex-1"
                       />
                       <TextField.Root
                         value={file.source}
-                        onChange={(e) => updateFile(file.id, { source: e.target.value })}
+                        onChange={(e) =>
+                          updateFile(file.id, { source: e.target.value })
+                        }
                         placeholder="Source URL/Origin"
                         size="1"
                         className="flex-1"
@@ -562,23 +633,31 @@ export function ImageUploadForm() {
 
                     <Box>
                       <Flex gap="1" wrap="wrap" className="mb-2">
-                        {sortColorsDarkToLight(file.colors || []).map((color) => (
-                          <Box
-                            key={color}
-                            className="w-4 h-4 rounded-full border border-gray-200"
-                            style={{ backgroundColor: color }}
-                            title={color}
-                          />
-                        ))}
+                        {sortColorsDarkToLight(file.colors || []).map(
+                          (color) => (
+                            <Box
+                              key={color}
+                              className="w-4 h-4 rounded-full border border-gray-200"
+                              style={{ backgroundColor: color }}
+                              title={color}
+                            />
+                          ),
+                        )}
                       </Flex>
 
                       <Flex gap="1" wrap="wrap" className="mb-2">
                         {file.tags.map((tag) => (
-                          <Badge key={tag} variant="soft" size="1" color={getTagColor(tag)}>
+                          <Badge
+                            key={tag}
+                            variant="soft"
+                            size="1"
+                            color={getTagColor(tag)}
+                          >
                             {tag}
                             <button
                               onClick={() => removeTag(file.id, tag)}
                               className="ml-1 hover:text-red-600"
+                              aria-label={`Remove tag ${tag}`}
                             >
                               <Cross2Icon width="10" height="10" />
                             </button>
@@ -589,11 +668,12 @@ export function ImageUploadForm() {
                       <TextField.Root
                         placeholder="Add tags..."
                         size="1"
+                        aria-label="Add tags"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             e.preventDefault();
                             addTag(file.id, e.currentTarget.value);
-                            e.currentTarget.value = '';
+                            e.currentTarget.value = "";
                           }
                         }}
                       />
@@ -609,7 +689,7 @@ export function ImageUploadForm() {
               variant="soft"
               color="gray"
               onClick={() => {
-                files.forEach(file => URL.revokeObjectURL(file.preview));
+                files.forEach((file) => URL.revokeObjectURL(file.preview));
                 setFiles([]);
               }}
             >
@@ -626,7 +706,7 @@ export function ImageUploadForm() {
                   Uploading...
                 </Flex>
               ) : (
-                `Upload ${files.length} Image${files.length > 1 ? 's' : ''}`
+                `Upload ${files.length} Image${files.length > 1 ? "s" : ""}`
               )}
             </Button>
           </Flex>
@@ -663,7 +743,9 @@ export function ImageUploadForm() {
                   </Box>
                 </Box>
                 <Box className="pt-2">
-                  <Text weight="bold" size="1" className="block truncate">{(image as any).title || "Untitled"}</Text>
+                  <Text weight="bold" size="1" className="block truncate">
+                    {(image as any).title || "Untitled"}
+                  </Text>
                 </Box>
               </Card>
             ))}
@@ -687,7 +769,10 @@ export function ImageUploadForm() {
 
           <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
             {pendingImages.map((image) => (
-              <Card key={image._id} className="overflow-hidden p-0 group relative">
+              <Card
+                key={image._id}
+                className="overflow-hidden p-0 group relative"
+              >
                 <Box className="relative aspect-video">
                   <img
                     src={image.imageUrl}
@@ -700,11 +785,12 @@ export function ImageUploadForm() {
                       color="green"
                       variant="solid"
                       size="1"
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        handleApprove(image._id); 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleApprove(image._id);
                       }}
                       className="flex-1 shadow-lg bg-green-500/90 hover:bg-green-500 cursor-pointer"
+                      aria-label="Keep generated image"
                     >
                       <CheckIcon /> Keep
                     </Button>
@@ -712,19 +798,28 @@ export function ImageUploadForm() {
                       color="red"
                       variant="solid"
                       size="1"
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        handleReject(image._id); 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReject(image._id);
                       }}
                       className="flex-1 shadow-lg bg-red-500/90 hover:bg-red-500 cursor-pointer"
+                      aria-label="Discard generated image"
                     >
                       <Cross2Icon /> Discard
                     </Button>
                   </Box>
                 </Box>
                 <Box className="p-2 bg-gray-50 dark:bg-gray-900/50">
-                  <Text weight="medium" size="1" className="block truncate">{(image as any).title}</Text>
-                  <Text size="1" color="gray" className="line-clamp-1 text-[10px]">{(image as any).description}</Text>
+                  <Text weight="medium" size="1" className="block truncate">
+                    {(image as any).title}
+                  </Text>
+                  <Text
+                    size="1"
+                    color="gray"
+                    className="line-clamp-1 text-[10px]"
+                  >
+                    {(image as any).description}
+                  </Text>
                 </Box>
               </Card>
             ))}
@@ -736,17 +831,22 @@ export function ImageUploadForm() {
       {draftImages && draftImages.length > 0 && (
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
-          <Flex align="center" justify="between" className="mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 border border-gray-200 dark:border-gray-800">
-             <Flex align="center" gap="2">
-                <CheckIcon width="20" height="20" className="text-green-500" />
-                <Box>
+          <Flex
+            align="center"
+            justify="between"
+            className="mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 border border-gray-200 dark:border-gray-800"
+          >
+            <Flex align="center" gap="2">
+              <CheckIcon width="20" height="20" className="text-green-500" />
+              <Box>
                 <Heading size="4">Review & Finalize</Heading>
                 <Text size="2" color="gray">
-                    {draftImages.length} image{draftImages.length !== 1 ? 's' : ''} ready to publish
+                  {draftImages.length} image
+                  {draftImages.length !== 1 ? "s" : ""} ready to publish
                 </Text>
-                </Box>
-             </Flex>
-             <Button
+              </Box>
+            </Flex>
+            <Button
               onClick={handleFinalizeUploads}
               size="2"
               color="green"
@@ -758,7 +858,10 @@ export function ImageUploadForm() {
 
           <Grid columns={{ initial: "1", lg: "2" }} gap="4">
             {draftImages.map((image) => (
-              <Card key={image._id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <Card
+                key={image._id}
+                className="overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
                 <Flex gap="4">
                   <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">
                     <img
@@ -767,13 +870,17 @@ export function ImageUploadForm() {
                       className="w-full h-full object-cover"
                     />
                     {image.aiStatus === "failed" && (
-                      <Badge color="red" variant="solid" className="absolute top-1 left-1 text-[10px]">
+                      <Badge
+                        color="red"
+                        variant="solid"
+                        className="absolute top-1 left-1 text-[10px]"
+                      >
                         Failed
                       </Badge>
                     )}
-                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                        <MagnifyingGlassIcon className="text-white w-6 h-6" />
-                     </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                      <MagnifyingGlassIcon className="text-white w-6 h-6" />
+                    </div>
                   </Box>
 
                   <Box className="flex-1 space-y-2 min-w-0">
@@ -781,7 +888,11 @@ export function ImageUploadForm() {
                       <Box className="flex-1">
                         <TextField.Root
                           value={image.title}
-                          onChange={(e) => updateImageMetadata(image._id, { title: e.target.value })}
+                          onChange={(e) =>
+                            updateImageMetadata(image._id, {
+                              title: e.target.value,
+                            })
+                          }
                           placeholder="Title"
                           size="1"
                         >
@@ -795,6 +906,7 @@ export function ImageUploadForm() {
                         color="red"
                         size="1"
                         onClick={() => handleReject(image._id)}
+                        aria-label="Discard draft"
                       >
                         <TrashIcon />
                       </IconButton>
@@ -802,7 +914,11 @@ export function ImageUploadForm() {
 
                     <TextField.Root
                       value={image.description || ""}
-                      onChange={(e) => updateImageMetadata(image._id, { description: e.target.value })}
+                      onChange={(e) =>
+                        updateImageMetadata(image._id, {
+                          description: e.target.value,
+                        })
+                      }
                       placeholder="Description"
                       size="1"
                     />
@@ -810,7 +926,9 @@ export function ImageUploadForm() {
                     <Flex gap="2" align="center">
                       <Select.Root
                         value={image.category}
-                        onValueChange={(value) => updateImageMetadata(image._id, { category: value })}
+                        onValueChange={(value) =>
+                          updateImageMetadata(image._id, { category: value })
+                        }
                       >
                         <Select.Trigger placeholder="Select category" />
                         <Select.Content>
@@ -826,7 +944,11 @@ export function ImageUploadForm() {
                     {/* Group Selection */}
                     <Select.Root
                       value={image.group ? image.group : "none"}
-                      onValueChange={(value) => updateImageMetadata(image._id, { group: value === "none" ? undefined : value })}
+                      onValueChange={(value) =>
+                        updateImageMetadata(image._id, {
+                          group: value === "none" ? undefined : value,
+                        })
+                      }
                     >
                       <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
                       <Select.Content>
@@ -834,9 +956,15 @@ export function ImageUploadForm() {
                         <Select.Item value="Commercial">Commercial</Select.Item>
                         <Select.Item value="Film">Film</Select.Item>
                         <Select.Item value="Moodboard">Moodboard</Select.Item>
-                        <Select.Item value="Spec Commercial">Spec Commercial</Select.Item>
-                        <Select.Item value="Spec Music Video">Spec Music Video</Select.Item>
-                        <Select.Item value="Music Video">Music Video</Select.Item>
+                        <Select.Item value="Spec Commercial">
+                          Spec Commercial
+                        </Select.Item>
+                        <Select.Item value="Spec Music Video">
+                          Spec Music Video
+                        </Select.Item>
+                        <Select.Item value="Music Video">
+                          Music Video
+                        </Select.Item>
                         <Select.Item value="TV">TV</Select.Item>
                         <Select.Item value="Other">Other</Select.Item>
                       </Select.Content>
@@ -845,7 +973,11 @@ export function ImageUploadForm() {
                     {/* Project Name */}
                     <TextField.Root
                       value={image.projectName || ""}
-                      onChange={(e) => updateImageMetadata(image._id, { projectName: e.target.value || undefined })}
+                      onChange={(e) =>
+                        updateImageMetadata(image._id, {
+                          projectName: e.target.value || undefined,
+                        })
+                      }
                       placeholder="Project Name (e.g., Kitty Bite Back)"
                       size="1"
                     />
@@ -853,7 +985,11 @@ export function ImageUploadForm() {
                     {/* Moodboard Name */}
                     <TextField.Root
                       value={image.moodboardName || ""}
-                      onChange={(e) => updateImageMetadata(image._id, { moodboardName: e.target.value || undefined })}
+                      onChange={(e) =>
+                        updateImageMetadata(image._id, {
+                          moodboardName: e.target.value || undefined,
+                        })
+                      }
                       placeholder="Moodboard Name (e.g., pink girl smoking)"
                       size="1"
                     />
@@ -861,7 +997,11 @@ export function ImageUploadForm() {
                     {/* Unique ID */}
                     <TextField.Root
                       value={image.uniqueId || ""}
-                      onChange={(e) => updateImageMetadata(image._id, { uniqueId: e.target.value || undefined })}
+                      onChange={(e) =>
+                        updateImageMetadata(image._id, {
+                          uniqueId: e.target.value || undefined,
+                        })
+                      }
                       placeholder="Unique ID (auto-generated if blank)"
                       size="1"
                     />
@@ -869,14 +1009,22 @@ export function ImageUploadForm() {
                     <Flex gap="2">
                       <TextField.Root
                         value={image.sref || ""}
-                        onChange={(e) => updateImageMetadata(image._id, { sref: e.target.value })}
+                        onChange={(e) =>
+                          updateImageMetadata(image._id, {
+                            sref: e.target.value,
+                          })
+                        }
                         placeholder="Style Ref (sref)"
                         size="1"
                         className="flex-1"
                       />
                       <TextField.Root
                         value={image.source || ""}
-                        onChange={(e) => updateImageMetadata(image._id, { source: e.target.value })}
+                        onChange={(e) =>
+                          updateImageMetadata(image._id, {
+                            source: e.target.value,
+                          })
+                        }
                         placeholder="Source URL/Origin"
                         size="1"
                         className="flex-1"
@@ -885,23 +1033,30 @@ export function ImageUploadForm() {
 
                     <Box>
                       <Flex gap="1" wrap="wrap" className="mb-2">
-                        {image.colors && sortColorsDarkToLight(image.colors).map((color) => (
-                          <Box
-                            key={color}
-                            className="w-3 h-3 rounded-full border border-gray-200"
-                            style={{ backgroundColor: color }}
-                            title={color}
-                          />
-                        ))}
+                        {image.colors &&
+                          sortColorsDarkToLight(image.colors).map((color) => (
+                            <Box
+                              key={color}
+                              className="w-3 h-3 rounded-full border border-gray-200"
+                              style={{ backgroundColor: color }}
+                              title={color}
+                            />
+                          ))}
                       </Flex>
 
                       <Flex gap="1" wrap="wrap" className="mb-2">
                         {image.tags.map((tag) => (
-                          <Badge key={tag} variant="soft" size="1" color={getTagColor(tag)}>
+                          <Badge
+                            key={tag}
+                            variant="soft"
+                            size="1"
+                            color={getTagColor(tag)}
+                          >
                             {tag}
                             <button
                               onClick={() => removeTagFromDraft(image._id, tag)}
                               className="ml-1 hover:text-red-600"
+                              aria-label={`Remove tag ${tag}`}
                             >
                               <Cross2Icon width="10" height="10" />
                             </button>
@@ -912,11 +1067,12 @@ export function ImageUploadForm() {
                       <TextField.Root
                         placeholder="Add tags..."
                         size="1"
+                        aria-label="Add tags"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             e.preventDefault();
                             addTagToDraft(image._id, e.currentTarget.value);
-                            e.currentTarget.value = '';
+                            e.currentTarget.value = "";
                           }
                         }}
                       />
@@ -928,14 +1084,25 @@ export function ImageUploadForm() {
                           AI Analysis Failed
                         </Badge>
                         <Text size="1" color="gray">
-                          Check console logs or ensure OPEN_ROUTER_KEY and FAL_KEY are set in Convex environment variables.
+                          Check console logs or ensure OPEN_ROUTER_KEY and
+                          FAL_KEY are set in Convex environment variables.
                         </Text>
                         <Button
                           color="orange"
                           variant="soft"
                           size="1"
-                          onClick={() => reRunAnalysis(image._id, image.storageId!,
-                             image.title, image.description, image.tags, image.category, image.source, image.sref)}
+                          onClick={() =>
+                            reRunAnalysis(
+                              image._id,
+                              image.storageId!,
+                              image.title,
+                              image.description,
+                              image.tags,
+                              image.category,
+                              image.source,
+                              image.sref,
+                            )
+                          }
                         >
                           <MagicWandIcon /> Re-run AI Analysis
                         </Button>
