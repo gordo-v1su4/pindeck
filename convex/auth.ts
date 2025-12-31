@@ -13,13 +13,18 @@ export const loggedInUser = query({
   returns: v.union(v.object({
     _id: v.id("users"),
     _creationTime: v.number(),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    image: v.optional(v.string()),
+    isAnonymous: v.optional(v.boolean()),
   }), v.null()),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
     }
-    const user = await ctx.db.get("users", userId);
+    const user = await ctx.db.get(userId);
     if (!user) {
       return null;
     }
