@@ -6,8 +6,10 @@ A modern image gallery and sharing platform built with React, TypeScript, Tailwi
 
 - **AI-Powered Image Analysis**: Automatic title, description, tags, colors, and category detection using Gemini 3 Flash Preview
 - **AI Image Generation**: Create cinematic variations with random shot type selection (9 different shot types)
+- **Parent Image Lineage**: Suno-style remix links showing generation trail from parent to variations
+- **Original Image Tagging**: Automatically tag user uploads; filter to show only original (non-AI) images
 - **Image Gallery**: Responsive masonry grid layout with hover effects
-- **Advanced Table View**: Sortable, filterable data table with ID column and tag color coding
+- **Advanced Table View**: Sortable, filterable data table with ID column, parent column, and tag color coding
 - **Pinterest-Style Boards**: Organize images into collections
 - **Smart Search**: Real-time search across all image metadata
 - **Color Extraction**: Automatic color palette generation
@@ -195,8 +197,11 @@ User-defined HTTP routes are defined in `convex/router.ts`. Authentication route
 
 ## 📝 Notes
 
+- **Parent Image Lineage**: AI-generated variations automatically store `parentImageId` reference to source image
+- **Original Tagging**: User uploads automatically tagged with "original"; AI variations excluded
 - **sref Field**: Style reference field is manually set by users, not auto-populated
 - **Image ID**: Each image has a unique ID displayed in the table view
 - **Tag Colors**: Tags use consistent color mapping across table and modal views
 - **Responsive Design**: Full-width layout with no hard max-width constraints
 - **Convex DB API**: Uses explicit table name syntax (`db.get("table", id)`) as of Convex 1.31.2
+- **Convex Functions**: All 33+ functions include proper `args` and `returns` validators per Convex best practices

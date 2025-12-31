@@ -205,7 +205,8 @@ const images = {
   views: number,
   aiStatus?: string,       // AI processing status: "processing", "completed", "failed"
   status?: string,         // Image status: "draft", "active", "pending"
-  uploadedAt?: number      // Upload timestamp
+  uploadedAt?: number,     // Upload timestamp
+  parentImageId?: imageId  // Reference to parent image if AI-generated variation
 }
 
 const collections = {
@@ -262,6 +263,16 @@ const likes = {
   - Memory-optimized (chunked base64, 10MB limit)
   - Configurable aspect ratio and 2K resolution
   - Saves as variations linked to original image
+- **Parent Image Lineage**: Suno-style remix links
+  - AI variations store `parentImageId` reference to source
+  - ImageModal displays "Generated from: [Parent Title]" link
+  - TableView has "Parent" column with clickable navigation
+  - Cross-component navigation via custom events
+- **Original Image Tagging**: Auto-tagging system
+  - User uploads automatically tagged with "original"
+  - AI-generated variations excluded from "original" tag
+  - TableView filter toggle to show only original images
+  - Filter logic: `!parentImageId` OR has "original" tag
 
 ## Important Files Reference
 

@@ -88,9 +88,10 @@ convex/
 ### Database Schema (Convex)
 Key tables:
 - **images**: Main image records with metadata
-  - Fields: `title`, `description`, `imageUrl`, `storageId`, `tags[]`, `category`, `colors[]`, `sref`, `uploadedBy`, `likes`, `views`, `status`, `aiStatus`, `group`, `projectName`, `moodboardName`, `uniqueId`
-  - Indexes: `by_category`, `by_uploaded_by`, `by_likes`, `by_group`, `by_project_name`, `by_unique_id`
+  - Fields: `title`, `description`, `imageUrl`, `storageId`, `tags[]`, `category`, `colors[]`, `sref`, `uploadedBy`, `likes`, `views`, `status`, `aiStatus`, `group`, `projectName`, `moodboardName`, `uniqueId`, `parentImageId`
+  - Indexes: `by_category`, `by_uploaded_by`, `by_likes`, `by_group`, `by_project_name`, `by_unique_id`, `by_parent`
   - Search: Full-text search on `title` with filters
+  - **Lineage**: `parentImageId` tracks AI-generated variations back to source image
 - **collections**: User-created boards/collections
   - Fields: `name`, `description`, `userId`, `isPublic`, `imageIds[]`
 - **likes**: User likes (userId + imageId)
@@ -211,6 +212,21 @@ className="bg-gray-2 hover:bg-gray-3"  // Radix theme colors (gray-1 to gray-12)
 - **Shot Types**: 9 types (Extreme Long Shot, Long Shot, Medium Shot, Close-Up, etc.)
 - **Config**: 2K resolution, configurable aspect ratio
 - **Memory Optimization**: Chunked base64 conversion, 10MB image size limits
+- **Lineage Tracking**: Generated variations automatically store `parentImageId` reference
+
+#### Parent Image Lineage (Suno-style)
+- **Schema**: `parentImageId` field links AI variations to source image
+- **UI Display**: 
+  - ImageModal shows "Generated from: [Parent Title]" link
+  - TableView has "Parent" column with clickable links
+  - Cross-component navigation via custom events
+- **Navigation**: Click parent link to view source image in new modal
+
+#### Original Image Tagging
+- **Auto-tagging**: User uploads automatically get "original" tag added
+- **AI Exclusion**: Generated variations do NOT get "original" tag
+- **Filtering**: TableView toggle to show only original (non-AI) images
+- **Logic**: Filter by `!parentImageId` OR "original" tag
 
 ### Authentication
 - Uses **Convex Auth** with anonymous auth enabled
@@ -272,7 +288,10 @@ const colorMap = getTagColor(tagName);
 
 - **Bun as Package Manager**: This project uses Bun exclusively. Do not use npm/yarn/pnpm commands.
 - **Convex Deployment**: Connected to `incredible-otter-369` deployment
+- **Convex Functions**: All 33+ functions include proper `args` and `returns` validators (Convex 1.31.2+ compliance)
 - **No npm Fallback**: All scripts assume Bun is available
+- **Parent Lineage**: AI-generated images automatically link back to source via `parentImageId`
+- **Original Tagging**: User uploads auto-tagged with "original"; AI variations excluded
 - **sref Field**: Style reference is manually set by users, not auto-populated
 - **Windows Environment**: Includes PowerShell scripts for port management
 - **Path Aliases**: `@/*` maps to `./src/*` (configured in tsconfig.json)
