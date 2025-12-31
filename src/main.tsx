@@ -12,6 +12,9 @@ if (!convexUrl) {
   throw new Error("Missing CONVEX_URL or VITE_CONVEX_URL environment variable. Please set one in your .env.local file.");
 }
 
+// Log the Convex URL being used (for debugging auth issues)
+console.log("🌐 Convex URL:", convexUrl);
+
 // Validate URL format and provide helpful error
 if (convexUrl.endsWith('.convex.site')) {
   console.warn(

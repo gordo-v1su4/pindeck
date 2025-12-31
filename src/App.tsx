@@ -17,16 +17,54 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [activeTab, setActiveTabState] = useState("gallery");
+  const { isAuthenticated, isLoading } = useConvexAuth();
 
   const setActiveTab = (tab: string) => {
+    console.log("🔄 Setting active tab to:", tab);
     setActiveTabState(tab);
     window.location.hash = tab;
   };
+  
+  // Debug authentication state - CRITICAL for diagnosing "can't access pages" issue
+  useEffect(() => {
+    const authState = { isLoading, isAuthenticated };
+    console.log("🔐 App Auth State:", JSON.stringify(authState, null, 2));
+    console.log("🔐 Convex URL:", import.meta.env.VITE_CONVEX_URL);
+  }, [isAuthenticated, isLoading]);
+  
+  // CRITICAL: Show loading state while auth is hydrating
+  // This prevents rendering protected routes before auth is ready
+  if (isLoading) {
+    return (
+      <Box className="min-h-screen flex items-center justify-center">
+        <Flex direction="column" align="center" gap="4">
+          <Spinner size="3" />
+          <Text color="gray">Loading authentication...</Text>
+          <Text size="1" color="gray">isLoading: true</Text>
+        </Flex>
+      </Box>
+    );
+  }
 
   useEffect(() => {
+    // Set initial tab from hash
     if (window.location.hash) {
-      setActiveTabState(window.location.hash.substring(1));
+      const hashTab = window.location.hash.substring(1);
+      if (["gallery", "upload", "boards", "table"].includes(hashTab)) {
+        setActiveTabState(hashTab);
+      }
     }
+    
+    // Listen for hash changes
+    const handleHashChange = () => {
+      const hashTab = window.location.hash.substring(1);
+      if (["gallery", "upload", "boards", "table"].includes(hashTab)) {
+        setActiveTabState(hashTab);
+      }
+    };
+    
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
   const [boardVersion, setBoardVersion] = useState(0);
 
@@ -54,7 +92,13 @@ export default function App() {
           </Flex>
           <Authenticated>
             <Box className="mt-4">
-              <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+              <Tabs.Root 
+                value={activeTab} 
+                onValueChange={(value) => {
+                  console.log("📑 Tab changed to:", value);
+                  if (value) setActiveTab(value);
+                }}
+              >
                 <Tabs.List>
                   <Tabs.Trigger value="gallery">Gallery</Tabs.Trigger>
                   <Tabs.Trigger value="upload">Upload</Tabs.Trigger>
