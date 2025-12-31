@@ -1,5 +1,6 @@
 "use client";
-import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth } from "convex/react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { TextField, Button, Text, Flex, Box, Separator } from "@radix-ui/themes";
