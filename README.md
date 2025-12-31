@@ -132,6 +132,24 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt_private_ke
    - Value: Paste the entire PEM key (multi-line format)
 3. Ensure there's no leading/trailing whitespace
 
+**Generating JWKS (JSON Web Key Set):**
+
+If you need the `JWKS` environment variable, generate it from your public key:
+
+1. Extract the public key from the private key:
+```bash
+openssl pkey -in jwt_private_key.pem -pubout -out jwt_public_key.pem
+```
+
+2. Convert the public key to JWKS format:
+```bash
+node -e "import { readFileSync } from 'fs'; import { importSPKI, exportJWK } from 'jose'; const spki = readFileSync('jwt_public_key.pem','utf8'); const key = await importSPKI(spki,'RS256'); const jwk = await exportJWK(key); jwk.use='sig'; jwk.alg='RS256'; jwk.kid='convex'; console.log(JSON.stringify({ keys: [jwk] }));"
+```
+
+3. Copy the JSON output and set it in **Convex Dashboard** → Production → Settings → Environment Variables:
+   - Name: `JWKS`
+   - Value: Paste the JSON output
+
 **Important:** 
 - The private key file (`jwt_private_key.pem`) is automatically ignored by git (see `.gitignore`)
 - Never commit private keys to version control
