@@ -313,6 +313,21 @@ export const exampleQuery = query({
 ```
 - Convex storage stores items as `Blob` objects. You must convert all items to/from a `Blob` when using Convex storage.
 
+## Authentication guidelines
+### Convex Auth JWT Private Key
+- Convex Auth requires an **RSA private key in PKCS#8 format** for JWT token signing.
+- **CRITICAL**: Convex Auth specifically requires RSA keys. Ed25519 or other algorithms will NOT work.
+- Generate the key using OpenSSL:
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt_private_key.pem
+```
+- Set the key in **Convex Dashboard** → Production → Settings → Environment Variables:
+  - Name: `JWT_PRIVATE_KEY`
+  - Value: Paste the entire PEM key (including `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines)
+  - Ensure there's no leading/trailing whitespace
+- The private key file (`jwt_private_key.pem`) should be in `.gitignore` and never committed to version control.
+- Common error: "PrivateKeyInfo algorithm is not rsaEncryption" means you're using the wrong key type (e.g., Ed25519 instead of RSA).
+
 
 # Examples:
 ## Example: chat-app

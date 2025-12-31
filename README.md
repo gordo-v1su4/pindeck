@@ -51,6 +51,7 @@ bun run lint
 ### Environment Variables
 
 **Set these in your Convex Dashboard** (Settings → Environment Variables):
+- `JWT_PRIVATE_KEY` - **Required for authentication** - PKCS#8 formatted private key (see [Authentication](#-authentication) section for generation instructions)
 - `OPENROUTER_API_KEY` - Required for image analysis (any VLM model via OpenRouter)
 - `OPENROUTER_VLM_MODEL` - Optional: VLM model to use (default: `"google/gemini-flash-1.5"`)
   - Examples: `"google/gemini-flash-1.5"`, `"google/gemini-pro-vision"`, `"anthropic/claude-3-opus"`, `"anthropic/claude-3-sonnet"`, `"openai/gpt-4-vision-preview"`
@@ -110,7 +111,31 @@ pindeck/
 
 ## 🔐 Authentication
 
-This app uses [Convex Auth](https://auth.convex.dev/) with Anonymous auth for easy sign-in. You may wish to configure additional auth providers before deploying to production.
+This app uses [Convex Auth](https://auth.convex.dev/) with Password and Anonymous auth providers.
+
+### Generating JWT Private Key
+
+Convex Auth requires an **RSA private key in PKCS#8 format** for JWT token signing. Generate a new key using:
+
+**RSA Key (2048-bit) - Required**
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt_private_key.pem
+```
+
+**Note:** Convex Auth specifically requires RSA keys. Ed25519 or other algorithms will not work.
+
+**After generating the key:**
+
+1. Copy the entire contents of `jwt_private_key.pem` (including `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines)
+2. Set it in **Convex Dashboard** → Production → Settings → Environment Variables:
+   - Name: `JWT_PRIVATE_KEY`
+   - Value: Paste the entire PEM key (multi-line format)
+3. Ensure there's no leading/trailing whitespace
+
+**Important:** 
+- The private key file (`jwt_private_key.pem`) is automatically ignored by git (see `.gitignore`)
+- Never commit private keys to version control
+- Keep your private key secure and never share it publicly
 
 ## 📦 Available Scripts
 

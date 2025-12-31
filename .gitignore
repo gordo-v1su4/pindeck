@@ -28,6 +28,12 @@ dist-ssr
 .env.local
 .env.production
 
+# Private keys (never commit these!)
+*.pem
+jwt_private_key.pem
+auth_private_key.pem
+auth_public_key.pem
+
 # Convex
 .convex/
 
