@@ -23,6 +23,7 @@ const applicationTables = {
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
+    parentImageId: v.optional(v.id("images")), // Reference to parent image if this is an AI-generated variation
   })
     .index("by_category", ["category"])
     .index("by_uploaded_by", ["uploadedBy"])
@@ -30,6 +31,7 @@ const applicationTables = {
     .index("by_group", ["group"])
     .index("by_project_name", ["projectName"])
     .index("by_unique_id", ["uniqueId"])
+    .index("by_parent", ["parentImageId"])
     .searchIndex("search_content", {
       searchField: "title",
       filterFields: ["category", "uploadedBy", "group", "projectName"],

@@ -23,6 +23,12 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
   const incrementViews = useMutation(api.images.incrementViews);
   const addImageToBoard = useMutation(api.boards.addImage);
   const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
+  
+  // Query parent image if this is a generated variation
+  const parentImage = useQuery(
+    api.images.getById, 
+    image?.parentImageId ? { id: image.parentImageId } : "skip"
+  );
 
   useEffect(() => {
     if (imageId) {
@@ -127,6 +133,34 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                   <Cross2Icon />
                 </IconButton>
               </Dialog.Close>
+
+              {/* Parent Image Lineage - Show if this is a generated variation */}
+              {image.parentImageId && parentImage && (
+                <Box className="pb-4 border-b border-gray-6">
+                  <Flex gap="2" align="center">
+                    <Text size="2" color="gray">Generated from:</Text>
+                    <Button
+                      variant="soft"
+                      color="blue"
+                      size="1"
+                      onClick={() => {
+                        onClose();
+                        // Small delay to allow modal to close before opening new one
+                        setTimeout(() => {
+                          // Navigate to parent image by triggering parent selection
+                          const event = new CustomEvent('open-image-modal', { 
+                            detail: { imageId: image.parentImageId } 
+                          });
+                          window.dispatchEvent(event);
+                        }, 100);
+                      }}
+                      style={{ opacity: 0.85 }}
+                    >
+                      {parentImage.title}
+                    </Button>
+                  </Flex>
+                </Box>
+              )}
 
               {/* Project/Group Header - Prominent like ShotDeck */}
               {(image.projectName || image.group) && (

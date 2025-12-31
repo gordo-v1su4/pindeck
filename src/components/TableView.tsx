@@ -55,6 +55,7 @@ interface Image {
   views: number;
   isLiked: boolean;
   uploadedAt?: number;
+  parentImageId?: Id<"images">;
 }
 
 export function TableView() {
@@ -67,6 +68,7 @@ export function TableView() {
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [showOnlyOriginals, setShowOnlyOriginals] = useState(false);
 
   // Extract unique tags and colors for filters
   const allTags = useMemo(() => {
@@ -88,6 +90,17 @@ export function TableView() {
     });
     return Array.from(colorSet).sort();
   }, [images]);
+
+  // Listen for custom events to open image modals (for parent image navigation)
+  useEffect(() => {
+    const handleOpenImageModal = (event: Event) => {
+      const customEvent = event as CustomEvent<{ imageId: Id<"images"> }>;
+      setSelectedImage(customEvent.detail.imageId);
+    };
+
+    window.addEventListener('open-image-modal', handleOpenImageModal);
+    return () => window.removeEventListener('open-image-modal', handleOpenImageModal);
+  }, []);
 
   const columns = useMemo<ColumnDef<Image>[]>(
     () => [
@@ -199,6 +212,32 @@ export function TableView() {
         enableSorting: false,
       },
       {
+        accessorKey: "parentImageId",
+        header: "Parent",
+        cell: ({ row }) => {
+          const parentId = row.original.parentImageId;
+          if (!parentId) {
+            return <Text size="1" color="gray">-</Text>;
+          }
+          // Find parent image from the list
+          const parentImage = images?.find(img => img._id === parentId);
+          return parentImage ? (
+            <Button
+              variant="soft"
+              color="blue"
+              size="1"
+              onClick={() => setSelectedImage(parentId)}
+              style={{ opacity: 0.85 }}
+            >
+              {parentImage.title.substring(0, 20)}{parentImage.title.length > 20 ? '...' : ''}
+            </Button>
+          ) : (
+            <Text size="1" color="gray">-</Text>
+          );
+        },
+        enableSorting: false,
+      },
+      {
         accessorKey: "likes",
         header: "Likes",
         cell: ({ row }) => (
@@ -291,11 +330,17 @@ export function TableView() {
     []
   );
 
-  // Filter images based on selected tags and colors
+  // Filter images based on selected tags, colors, and original filter
   const filteredImages = useMemo(() => {
     if (!images) return [];
     
     return images.filter(image => {
+      // Original images filter (show only images without parentImageId or with "original" tag)
+      if (showOnlyOriginals) {
+        const isOriginal = !image.parentImageId || image.tags.includes("original");
+        if (!isOriginal) return false;
+      }
+      
       // Tag filter
       if (selectedTags.length > 0) {
         const hasSelectedTag = selectedTags.some(tag => image.tags.includes(tag));
@@ -312,7 +357,7 @@ export function TableView() {
       
       return true;
     });
-  }, [images, selectedTags, selectedColors]);
+  }, [images, selectedTags, selectedColors, showOnlyOriginals]);
 
   const handleDeleteImage = async (imageId: Id<"images">, imageTitle: string) => {
     if (!confirm(`Are you sure you want to delete "${imageTitle}"? This action cannot be undone.`)) {
@@ -387,6 +432,22 @@ export function TableView() {
               {table.getFilteredRowModel().rows.length} of {images.length} images
             </Text>
           </Flex>
+
+          {/* Original Images Filter */}
+          <Box className="mb-4">
+            <Flex gap="2" align="center">
+              <Text size="2" weight="medium">Show Only Original Images:</Text>
+              <Button
+                variant={showOnlyOriginals ? "solid" : "soft"}
+                color={showOnlyOriginals ? "blue" : "gray"}
+                size="1"
+                onClick={() => setShowOnlyOriginals(!showOnlyOriginals)}
+                style={{ opacity: showOnlyOriginals ? 1 : 0.7 }}
+              >
+                {showOnlyOriginals ? 'On' : 'Off'}
+              </Button>
+            </Flex>
+          </Box>
 
           {/* Tag Filters */}
           <Box className="mb-4">

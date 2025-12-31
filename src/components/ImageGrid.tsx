@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ImageModal } from "./ImageModal";
 import { HeartIcon, EyeOpenIcon, BookmarkIcon } from "@radix-ui/react-icons";
 import { IconButton, Text, Flex, Box, Spinner, Button, Badge } from "@radix-ui/themes";
@@ -33,6 +33,18 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
   );
 
   const toggleLike = useMutation(api.images.toggleLike);
+
+  // Listen for custom events to open image modals (for parent image navigation)
+  useEffect(() => {
+    const handleOpenImageModal = (event: Event) => {
+      const customEvent = event as CustomEvent<{ imageId: Id<"images"> }>;
+      setSelectedImage(customEvent.detail.imageId);
+      setTriggerPosition(undefined); // Center the modal when navigating programmatically
+    };
+
+    window.addEventListener('open-image-modal', handleOpenImageModal);
+    return () => window.removeEventListener('open-image-modal', handleOpenImageModal);
+  }, []);
 
   const handleLike = async (imageId: Id<"images">, e: React.MouseEvent) => {
     e.stopPropagation();

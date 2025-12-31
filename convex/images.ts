@@ -8,6 +8,7 @@ export const list = query({
     category: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     
@@ -68,6 +69,7 @@ export const search = query({
     searchTerm: v.string(),
     category: v.optional(v.string()),
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     
@@ -125,6 +127,7 @@ export const search = query({
 
 export const getById = query({
   args: { id: v.id("images") },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     const image = await ctx.db.get("images", args.id);
@@ -159,6 +162,7 @@ export const create = mutation({
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
   },
+  returns: v.id("images"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -167,6 +171,7 @@ export const create = mutation({
 
     return await ctx.db.insert("images", {
       ...args,
+      tags: [...args.tags, "original"], // Tag as original user upload
       uploadedBy: userId,
       likes: 0,
       views: 0,
@@ -186,6 +191,7 @@ export const internalCreate = internalMutation({
     sref: v.optional(v.string()),
     uploadedBy: v.id("users"),
   },
+  returns: v.id("images"),
   handler: async (ctx, args) => {
     return await ctx.db.insert("images", {
       ...args,
@@ -198,6 +204,7 @@ export const internalCreate = internalMutation({
 
 export const toggleLike = mutation({
   args: { imageId: v.id("images") },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -241,16 +248,18 @@ export const incrementViews = mutation({
   args: { imageId: v.id("images") },
   handler: async (ctx, args) => {
     const image = await ctx.db.get("images", args.imageId);
-    if (!image) return;
+    if (!image) return null;
     
     await ctx.db.patch("images", args.imageId, {
       views: image.views + 1,
     });
+    return null;
   },
 });
 
 export const getCategories = query({
   args: {},
+  returns: v.array(v.string()),
   handler: async (ctx) => {
     const images = await ctx.db.query("images").collect();
     const existingCategories = new Set(images.map(img => img.category));
@@ -270,6 +279,7 @@ export const getCategories = query({
 
 export const internalGenerateUploadUrl = internalMutation({
   args: {},
+  returns: v.string(),
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl();
   },
@@ -277,6 +287,7 @@ export const internalGenerateUploadUrl = internalMutation({
 
 export const generateUploadUrl = mutation({
   args: {},
+  returns: v.string(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -304,6 +315,7 @@ export const uploadMultiple = mutation({
       uniqueId: v.optional(v.string()),
     })),
   },
+  returns: v.array(v.id("images")),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -324,7 +336,7 @@ export const uploadMultiple = mutation({
           description: upload.description,
           imageUrl,
           storageId: upload.storageId,
-          tags: upload.tags,
+          tags: [...upload.tags, "original"], // Tag as original user upload
           category: upload.category,
           source: upload.source,
           sref: upload.sref,
@@ -371,6 +383,7 @@ export const uploadMultiple = mutation({
 
 export const getDraftImages = query({
   args: {},
+  returns: v.array(v.any()),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
@@ -386,6 +399,7 @@ export const getDraftImages = query({
 
 export const finalizeUploads = mutation({
   args: { imageIds: v.array(v.id("images")) },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
@@ -396,11 +410,13 @@ export const finalizeUploads = mutation({
         await ctx.db.patch("images", id, { status: "active" });
       }
     }
+    return null;
   },
 });
 
 export const getProcessingImages = query({
   args: {},
+  returns: v.array(v.any()),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
@@ -416,6 +432,7 @@ export const getProcessingImages = query({
 
 export const getPendingImages = query({
   args: {},
+  returns: v.array(v.any()),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
@@ -431,6 +448,7 @@ export const getPendingImages = query({
 
 export const approveImage = mutation({
   args: { imageId: v.id("images") },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
@@ -441,11 +459,13 @@ export const approveImage = mutation({
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
 
     await ctx.db.patch("images", args.imageId, { status: "active" });
+    return null;
   },
 });
 
 export const rejectImage = mutation({
   args: { imageId: v.id("images") },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
@@ -459,11 +479,13 @@ export const rejectImage = mutation({
       await ctx.storage.delete(image.storageId);
     }
     await ctx.db.delete("images", args.imageId);
+    return null;
   },
 });
 
 export const remove = mutation({
   args: { id: v.id("images") },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -505,6 +527,7 @@ export const internalUpdateAnalysis = internalMutation({
     moodboardName: v.optional(v.string()),
     sref: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const patch: any = {
       description: args.description,
@@ -521,6 +544,7 @@ export const internalUpdateAnalysis = internalMutation({
     if (args.sref !== undefined) patch.sref = args.sref;
 
     await ctx.db.patch("images", args.imageId, patch);
+    return null;
   },
 });
 
@@ -529,8 +553,10 @@ export const internalSetAiStatus = internalMutation({
     imageId: v.id("images"),
     status: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch("images", args.imageId, { aiStatus: args.status });
+    return null;
   },
 });
 
@@ -540,6 +566,7 @@ export const updateAnalysis = mutation({
     description: v.string(),
     colors: v.array(v.string()),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -575,6 +602,7 @@ export const updateImageMetadata = mutation({
     moodboardName: v.optional(v.string()),
     uniqueId: v.optional(v.string()),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -614,6 +642,7 @@ export const internalSaveGeneratedImages = internalMutation({
       description: v.string(),
     })),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const originalImage = await ctx.db.get("images", args.originalImageId);
     if (!originalImage) return;
@@ -637,6 +666,7 @@ export const internalSaveGeneratedImages = internalMutation({
         moodboardName: originalImage.moodboardName,
         uniqueId: originalImage.uniqueId,
         // sref should only be set manually by user, not auto-populated
+        parentImageId: args.originalImageId, // Link back to parent image (lineage tracking)
         status: "pending",
         uploadedAt: Date.now(),
       });
@@ -644,5 +674,6 @@ export const internalSaveGeneratedImages = internalMutation({
 
     // Mark original image processing as completed
     await ctx.db.patch("images", args.originalImageId, { aiStatus: "completed" });
+    return null;
   },
 });
