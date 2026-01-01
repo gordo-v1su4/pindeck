@@ -400,6 +400,7 @@ export function ImageUploadForm() {
           type="file"
           multiple
           accept="image/*"
+          aria-label="Upload image files"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -460,6 +461,7 @@ export function ImageUploadForm() {
                           value={file.title}
                           onChange={(e) => updateFile(file.id, { title: e.target.value })}
                           placeholder="Title (Leave blank for AI)"
+                          aria-label="Image title"
                           size="1"
                         >
                           <TextField.Slot>
@@ -471,6 +473,7 @@ export function ImageUploadForm() {
                         variant="ghost"
                         color="red"
                         size="1"
+                        aria-label="Remove file"
                         onClick={() => removeFile(file.id)}
                       >
                         <Cross2Icon />
@@ -481,6 +484,7 @@ export function ImageUploadForm() {
                       value={file.description}
                       onChange={(e) => updateFile(file.id, { description: e.target.value })}
                       placeholder="Description (Leave blank for AI)"
+                      aria-label="Image description"
                       size="1"
                     />
                     
@@ -489,7 +493,7 @@ export function ImageUploadForm() {
                         value={file.category}
                         onValueChange={(value) => updateFile(file.id, { category: value })}
                       >
-                        <Select.Trigger placeholder="Select category" />
+                        <Select.Trigger placeholder="Select category" aria-label="Category" />
                         <Select.Content>
                           {(categories || []).map((category) => (
                             <Select.Item key={category} value={category}>
@@ -505,7 +509,7 @@ export function ImageUploadForm() {
                       value={file.group ? file.group : "none"}
                       onValueChange={(value) => updateFile(file.id, { group: value === "none" ? undefined : value })}
                     >
-                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
+                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" aria-label="Group" />
                       <Select.Content>
                         <Select.Item value="none">None</Select.Item>
                         <Select.Item value="Commercial">Commercial</Select.Item>
@@ -524,6 +528,7 @@ export function ImageUploadForm() {
                       value={file.projectName || ""}
                       onChange={(e) => updateFile(file.id, { projectName: e.target.value || undefined })}
                       placeholder="Project Name (e.g., Kitty Bite Back)"
+                      aria-label="Project Name"
                       size="1"
                     />
 
@@ -532,6 +537,7 @@ export function ImageUploadForm() {
                       value={file.moodboardName || ""}
                       onChange={(e) => updateFile(file.id, { moodboardName: e.target.value || undefined })}
                       placeholder="Moodboard Name (e.g., pink girl smoking)"
+                      aria-label="Moodboard Name"
                       size="1"
                     />
 
@@ -540,6 +546,7 @@ export function ImageUploadForm() {
                       value={file.uniqueId || ""}
                       onChange={(e) => updateFile(file.id, { uniqueId: e.target.value || undefined })}
                       placeholder="Unique ID (auto-generated if blank)"
+                      aria-label="Unique ID"
                       size="1"
                     />
 
@@ -548,6 +555,7 @@ export function ImageUploadForm() {
                         value={file.sref}
                         onChange={(e) => updateFile(file.id, { sref: e.target.value })}
                         placeholder="Style Ref (sref)"
+                        aria-label="Style Reference"
                         size="1"
                         className="flex-1"
                       />
@@ -555,6 +563,7 @@ export function ImageUploadForm() {
                         value={file.source}
                         onChange={(e) => updateFile(file.id, { source: e.target.value })}
                         placeholder="Source URL/Origin"
+                        aria-label="Source URL"
                         size="1"
                         className="flex-1"
                       />
@@ -579,6 +588,7 @@ export function ImageUploadForm() {
                             <button
                               onClick={() => removeTag(file.id, tag)}
                               className="ml-1 hover:text-red-600"
+                              aria-label={`Remove tag ${tag}`}
                             >
                               <Cross2Icon width="10" height="10" />
                             </button>
@@ -588,6 +598,7 @@ export function ImageUploadForm() {
 
                       <TextField.Root
                         placeholder="Add tags..."
+                        aria-label="Add tags"
                         size="1"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -783,6 +794,7 @@ export function ImageUploadForm() {
                           value={image.title}
                           onChange={(e) => updateImageMetadata(image._id, { title: e.target.value })}
                           placeholder="Title"
+                          aria-label="Image title"
                           size="1"
                         >
                           <TextField.Slot>
@@ -794,6 +806,7 @@ export function ImageUploadForm() {
                         variant="ghost"
                         color="red"
                         size="1"
+                        aria-label="Discard draft"
                         onClick={() => handleReject(image._id)}
                       >
                         <TrashIcon />
@@ -804,6 +817,7 @@ export function ImageUploadForm() {
                       value={image.description || ""}
                       onChange={(e) => updateImageMetadata(image._id, { description: e.target.value })}
                       placeholder="Description"
+                      aria-label="Image description"
                       size="1"
                     />
 
@@ -812,7 +826,7 @@ export function ImageUploadForm() {
                         value={image.category}
                         onValueChange={(value) => updateImageMetadata(image._id, { category: value })}
                       >
-                        <Select.Trigger placeholder="Select category" />
+                        <Select.Trigger placeholder="Select category" aria-label="Category" />
                         <Select.Content>
                           {(categories || []).map((category) => (
                             <Select.Item key={category} value={category}>
@@ -828,7 +842,7 @@ export function ImageUploadForm() {
                       value={image.group ? image.group : "none"}
                       onValueChange={(value) => updateImageMetadata(image._id, { group: value === "none" ? undefined : value })}
                     >
-                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
+                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" aria-label="Group" />
                       <Select.Content>
                         <Select.Item value="none">None</Select.Item>
                         <Select.Item value="Commercial">Commercial</Select.Item>
@@ -847,6 +861,7 @@ export function ImageUploadForm() {
                       value={image.projectName || ""}
                       onChange={(e) => updateImageMetadata(image._id, { projectName: e.target.value || undefined })}
                       placeholder="Project Name (e.g., Kitty Bite Back)"
+                      aria-label="Project Name"
                       size="1"
                     />
 
@@ -855,6 +870,7 @@ export function ImageUploadForm() {
                       value={image.moodboardName || ""}
                       onChange={(e) => updateImageMetadata(image._id, { moodboardName: e.target.value || undefined })}
                       placeholder="Moodboard Name (e.g., pink girl smoking)"
+                      aria-label="Moodboard Name"
                       size="1"
                     />
 
@@ -863,6 +879,7 @@ export function ImageUploadForm() {
                       value={image.uniqueId || ""}
                       onChange={(e) => updateImageMetadata(image._id, { uniqueId: e.target.value || undefined })}
                       placeholder="Unique ID (auto-generated if blank)"
+                      aria-label="Unique ID"
                       size="1"
                     />
 
@@ -871,6 +888,7 @@ export function ImageUploadForm() {
                         value={image.sref || ""}
                         onChange={(e) => updateImageMetadata(image._id, { sref: e.target.value })}
                         placeholder="Style Ref (sref)"
+                        aria-label="Style Reference"
                         size="1"
                         className="flex-1"
                       />
@@ -878,6 +896,7 @@ export function ImageUploadForm() {
                         value={image.source || ""}
                         onChange={(e) => updateImageMetadata(image._id, { source: e.target.value })}
                         placeholder="Source URL/Origin"
+                        aria-label="Source URL"
                         size="1"
                         className="flex-1"
                       />
@@ -902,6 +921,7 @@ export function ImageUploadForm() {
                             <button
                               onClick={() => removeTagFromDraft(image._id, tag)}
                               className="ml-1 hover:text-red-600"
+                              aria-label={`Remove tag ${tag}`}
                             >
                               <Cross2Icon width="10" height="10" />
                             </button>
@@ -911,6 +931,7 @@ export function ImageUploadForm() {
 
                       <TextField.Root
                         placeholder="Add tags..."
+                        aria-label="Add tags"
                         size="1"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
