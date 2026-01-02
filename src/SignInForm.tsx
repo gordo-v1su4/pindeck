@@ -3,7 +3,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { TextField, Button, Text, Flex, Box, Separator } from "@radix-ui/themes";
+import { TextField, Button, Text, Flex, Box, Separator, Spinner } from "@radix-ui/themes";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
@@ -11,6 +11,7 @@ export function SignInForm() {
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
   const [signInStarted, setSignInStarted] = useState(false);
+  const [authMethod, setAuthMethod] = useState<"email" | "anonymous" | null>(null);
 
   // Monitor auth state changes after sign-in attempt
   useEffect(() => {
@@ -74,6 +75,7 @@ export function SignInForm() {
     
     setSubmitting(true);
     setSignInStarted(true);
+    setAuthMethod("email");
     formData.set("flow", flow);
     
     let waitingForAuth = false;
@@ -104,6 +106,7 @@ export function SignInForm() {
         form.reset();
         setSubmitting(false);
         setSignInStarted(false);
+        setAuthMethod(null);
       }
     } catch (error: any) {
       console.error("❌ Sign-in error:", error);
@@ -128,6 +131,7 @@ export function SignInForm() {
       toast.error(toastTitle);
       setSignInStarted(false);
       setSubmitting(false);
+      setAuthMethod(null);
     }
     // Note: If waitingForAuth is true, useEffect will handle resetting submitting when auth completes
   };
@@ -139,6 +143,7 @@ export function SignInForm() {
           <TextField.Root
             type="email"
             name="email"
+            aria-label="Email address"
             placeholder="Email"
             autoComplete="email"
             required
@@ -147,6 +152,7 @@ export function SignInForm() {
           <TextField.Root
             type="password"
             name="password"
+            aria-label="Password"
             placeholder="Password"
             autoComplete="current-password"
             required
@@ -158,6 +164,7 @@ export function SignInForm() {
             size="3" 
             className="w-full"
           >
+            {submitting && authMethod === "email" && <Spinner size="1" />}
             {flow === "signIn" ? "Sign in" : "Sign up"}
           </Button>
           <Text size="2" color="gray" className="text-center">
@@ -191,6 +198,7 @@ export function SignInForm() {
           console.log("🔐 Starting anonymous sign-in...");
           setSubmitting(true);
           setSignInStarted(true);
+          setAuthMethod("anonymous");
           try {
             const result = await signIn("anonymous");
             console.log("🔐 Anonymous sign-in result:", result);
@@ -199,10 +207,12 @@ export function SignInForm() {
             toast.error("Anonymous sign-in failed: " + (error as Error).message);
             setSubmitting(false);
             setSignInStarted(false);
+            setAuthMethod(null);
           }
         }}
         disabled={submitting}
       >
+        {submitting && authMethod === "anonymous" && <Spinner size="1" />}
         Sign in anonymously
       </Button>
     </Flex>
