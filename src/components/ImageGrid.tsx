@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { ImageModal } from "./ImageModal";
-import { HeartIcon, EyeOpenIcon, BookmarkIcon, PlusIcon } from "@radix-ui/react-icons";
+import { HeartIcon, EyeOpenIcon, BookmarkIcon, MagicWandIcon } from "@radix-ui/react-icons";
 import { IconButton, Text, Flex, Box, Spinner, Button, Badge, DropdownMenu } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
   const [createBoardImageId, setCreateBoardImageId] = useState<Id<"images"> | null>(null);
   const boards = useQuery(api.boards.list);
   const addImageToBoard = useMutation(api.boards.addImage);
+  const generateOutput = useMutation(api.generations.generate);
   
   const images = useQuery(
     searchTerm 
@@ -58,6 +59,47 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
       }
     }
   };
+
+  const handleGenerate = async (
+    imageId: Id<"images">,
+    type: "storyboard" | "deck",
+    e?: React.MouseEvent
+  ) => {
+    e?.stopPropagation();
+    try {
+      const result = await generateOutput({ imageId, type });
+      toast.success(`${result.templateName} created`);
+    } catch (error) {
+      console.error("Failed to generate output:", error);
+      toast.error("Failed to generate output");
+    }
+  };
+
+  const renderGenerateMenu = (imageId: Id<"images">, size: "1" | "2") => (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <IconButton
+          variant="soft"
+          color="purple"
+          size={size}
+          aria-label="Generate options"
+          onClick={(event) => event.stopPropagation()}
+          className="backdrop-blur-md"
+          style={{ opacity: 0.85 }}
+        >
+          <MagicWandIcon />
+        </IconButton>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content>
+        <DropdownMenu.Item onClick={(event) => void handleGenerate(imageId, "storyboard", event)}>
+          Storyboard
+        </DropdownMenu.Item>
+        <DropdownMenu.Item onClick={(event) => void handleGenerate(imageId, "deck", event)}>
+          Deck
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  );
 
   if (images === undefined) {
     return (
@@ -176,6 +218,18 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                                 >
                                   <HeartIcon />
                                 </IconButton>
+                                <IconButton
+                                  variant="soft"
+                                  color="blue"
+                                  size="1"
+                                  aria-label="Save to board"
+                                  onClick={(e) => { void handleQuickSave(image._id, e); }}
+                                  className="backdrop-blur-md"
+                                  style={{ opacity: 0.85 }}
+                                >
+                                  <BookmarkIcon />
+                                </IconButton>
+                                {renderGenerateMenu(image._id, "1")}
                                 {renderSaveToBoardDropdown(image, '1')}
                               </Flex>
                             </Box>
@@ -226,6 +280,18 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                   >
                     <HeartIcon />
                   </IconButton>
+                  <IconButton
+                    variant="soft"
+                    color="blue"
+                    size="2"
+                    aria-label="Save to board"
+                    onClick={(e) => { void handleQuickSave(image._id, e); }}
+                    className="backdrop-blur-md"
+                    style={{ opacity: 0.85 }}
+                  >
+                    <BookmarkIcon />
+                  </IconButton>
+                  {renderGenerateMenu(image._id, "2")}
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
                       <IconButton
