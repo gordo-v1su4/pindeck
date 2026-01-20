@@ -225,7 +225,7 @@ export const internalSmartAnalyzeImage = internalAction({
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
     variationCount: v.optional(v.number()),
-    variationType: v.optional(v.string()),
+    variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
     variationDetail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
