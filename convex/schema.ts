@@ -44,6 +44,42 @@ const applicationTables = {
     imageIds: v.array(v.id("images")),
   }).index("by_user", ["userId"]),
 
+  storyboards: defineTable({
+    boardId: v.id("collections"),
+    userId: v.id("users"),
+    title: v.string(),
+    templateId: v.string(),
+    sourceImageIds: v.array(v.id("images")),
+    panels: v.array(
+      v.object({
+        imageId: v.id("images"),
+        layout: v.string(),
+        order: v.number(),
+      })
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_board", ["boardId"]),
+
+  decks: defineTable({
+    boardId: v.id("collections"),
+    userId: v.id("users"),
+    title: v.string(),
+    templateId: v.string(),
+    sourceImageIds: v.array(v.id("images")),
+    slides: v.array(
+      v.object({
+        imageId: v.id("images"),
+        layout: v.string(),
+        order: v.number(),
+      })
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_board", ["boardId"]),
+
   likes: defineTable({
     userId: v.id("users"),
     imageId: v.id("images"),
