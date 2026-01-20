@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { Card, Text, Flex, Box, Button, Badge, IconButton, Grid } from "@radix-ui/themes";
-import { PlusIcon, TrashIcon, EditIcon, EyeOpenIcon, BookmarkIcon } from "@radix-ui/react-icons";
+import { PlusIcon, TrashIcon, EyeOpenIcon, BookmarkIcon } from "@radix-ui/react-icons";
 import { CreateBoardModal } from "./CreateBoardModal";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
@@ -10,6 +10,8 @@ import { Id } from "../../convex/_generated/dataModel";
 export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveTab: (tab: string) => void, incrementBoardVersion: () => void }) {
   const boards = useQuery(api.boards.list);
   const deleteBoard = useMutation(api.boards.deleteBoard);
+  const createStoryboard = useMutation(api.storyboards.createFromBoard);
+  const createDeck = useMutation(api.decks.createFromBoard);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectedBoardId, setSelectedBoardId] = useState<Id<"collections"> | null>(null);
 
@@ -22,6 +24,26 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
     } catch (error) {
       console.error("Failed to delete board:", error);
       toast.error("Failed to delete board");
+    }
+  };
+
+  const handleConvertToStoryboard = async (boardId: Id<"collections">) => {
+    try {
+      await createStoryboard({ boardId });
+      toast.success("Storyboard created from board!");
+    } catch (error) {
+      console.error("Failed to convert board to storyboard:", error);
+      toast.error("Failed to convert board");
+    }
+  };
+
+  const handleConvertToDeck = async (boardId: Id<"collections">) => {
+    try {
+      await createDeck({ boardId });
+      toast.success("Deck created from board!");
+    } catch (error) {
+      console.error("Failed to convert board to deck:", error);
+      toast.error("Failed to convert board");
     }
   };
 
@@ -112,6 +134,25 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
                     onClick={() => setSelectedBoardId(board._id)}
                   >
                     View Board
+                  </Button>
+                </Flex>
+
+                <Flex gap="2" wrap="wrap" className="mt-4">
+                  <Button
+                    variant="soft"
+                    size="2"
+                    disabled={board.imageIds.length === 0}
+                    onClick={() => handleConvertToStoryboard(board._id)}
+                  >
+                    Convert to Storyboard
+                  </Button>
+                  <Button
+                    variant="soft"
+                    size="2"
+                    disabled={board.imageIds.length === 0}
+                    onClick={() => handleConvertToDeck(board._id)}
+                  >
+                    Convert to Deck
                   </Button>
                 </Flex>
               </Box>
