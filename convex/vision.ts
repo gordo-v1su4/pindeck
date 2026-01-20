@@ -81,9 +81,10 @@ export const internalGenerateRelatedImages = internalAction({
       try {
         const assignedShotType = shuffledShotTypes[index % shuffledShotTypes.length];
         const shotTypeName = shotTypeNames[assignedShotType as keyof typeof shotTypeNames];
-        const shotTypeInstruction = useCustomShotType
-          ? `**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use the following shot type: ${trimmedVariationDetail}. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.`
-          : `**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use shot type #${assignedShotType} - ${shotTypeName}. This is a RANDOM assignment to ensure variety. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.`;
+        const shotTypeDetail = useCustomShotType
+          ? `the following shot type: ${trimmedVariationDetail}`
+          : `shot type #${assignedShotType} - ${shotTypeName}. This is a RANDOM assignment to ensure variety`;
+        const shotTypeInstruction = `**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use ${shotTypeDetail}. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.`;
         
         // Create prompt with specific shot type assignment
         const prompt = `Create a cinematic image variation of the input image. Analyze the entire composition and identify ALL key subjects present (whether it's a single person, a group/couple, a vehicle, or a specific object) and their spatial relationship/interaction.
