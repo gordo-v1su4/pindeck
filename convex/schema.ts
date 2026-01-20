@@ -50,6 +50,21 @@ const applicationTables = {
     .index("by_user", ["userId"])
     .index("by_image", ["imageId"])
     .index("by_user_and_image", ["userId", "imageId"]),
+
+  generations: defineTable({
+    imageId: v.id("images"),
+    type: v.string(),
+    templateId: v.string(),
+    templateName: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    content: v.string(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_image", ["imageId"])
+    .index("by_created_by", ["createdBy"])
+    .index("by_type", ["type"]),
 };
 
 export default defineSchema({

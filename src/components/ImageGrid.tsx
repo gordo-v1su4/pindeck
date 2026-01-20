@@ -2,8 +2,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { ImageModal } from "./ImageModal";
-import { HeartIcon, EyeOpenIcon, BookmarkIcon } from "@radix-ui/react-icons";
-import { IconButton, Text, Flex, Box, Spinner, Button, Badge } from "@radix-ui/themes";
+import { HeartIcon, EyeOpenIcon, BookmarkIcon, MagicWandIcon } from "@radix-ui/react-icons";
+import { IconButton, Text, Flex, Box, Spinner, Button, Badge, DropdownMenu } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 
@@ -22,6 +22,7 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
   const [viewMode, setViewMode] = useState<ViewMode>("random");
   const boards = useQuery(api.boards.list);
   const addImageToBoard = useMutation(api.boards.addImage);
+  const generateOutput = useMutation(api.generations.generate);
   
   const images = useQuery(
     searchTerm 
@@ -62,6 +63,47 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
       }
     }
   };
+
+  const handleGenerate = async (
+    imageId: Id<"images">,
+    type: "storyboard" | "deck",
+    e?: React.MouseEvent
+  ) => {
+    e?.stopPropagation();
+    try {
+      const result = await generateOutput({ imageId, type });
+      toast.success(`${result.templateName} created`);
+    } catch (error) {
+      console.error("Failed to generate output:", error);
+      toast.error("Failed to generate output");
+    }
+  };
+
+  const renderGenerateMenu = (imageId: Id<"images">, size: "1" | "2") => (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <IconButton
+          variant="soft"
+          color="purple"
+          size={size}
+          aria-label="Generate options"
+          onClick={(event) => event.stopPropagation()}
+          className="backdrop-blur-md"
+          style={{ opacity: 0.85 }}
+        >
+          <MagicWandIcon />
+        </IconButton>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content onClick={(event) => event.stopPropagation()}>
+        <DropdownMenu.Item onClick={(event) => void handleGenerate(imageId, "storyboard", event)}>
+          Storyboard
+        </DropdownMenu.Item>
+        <DropdownMenu.Item onClick={(event) => void handleGenerate(imageId, "deck", event)}>
+          Deck
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  );
 
   if (images === undefined) {
     return (
@@ -191,6 +233,7 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                                 >
                                   <BookmarkIcon />
                                 </IconButton>
+                                {renderGenerateMenu(image._id, "1")}
                               </Flex>
                             </Box>
                           </Box>
@@ -251,6 +294,7 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                   >
                     <BookmarkIcon />
                   </IconButton>
+                  {renderGenerateMenu(image._id, "2")}
                 </Flex>
                 
                 <Box className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
