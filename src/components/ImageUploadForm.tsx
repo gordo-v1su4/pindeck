@@ -979,8 +979,8 @@ export function ImageUploadForm() {
                              image.category,
                              image.source,
                              image.sref,
-                             (image as any).variationCount,
-                             (image as any).modificationMode
+image.variationCount,
+image.modificationMode
                            )}
                         >
                           <MagicWandIcon /> Re-run AI Analysis
