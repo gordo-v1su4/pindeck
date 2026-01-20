@@ -427,7 +427,7 @@ export function ImageUploadForm() {
                     max={12}
                     value={variationCount.toString()}
                     onChange={(e) => {
-                      const nextValue = Number(e.target.value);
+                      const nextValue = parseInt(e.target.value, 10);
                       if (Number.isNaN(nextValue)) {
                         setVariationCount(1);
                         return;
