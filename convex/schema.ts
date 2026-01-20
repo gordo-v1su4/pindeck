@@ -53,7 +53,8 @@ const applicationTables = {
 
   generations: defineTable({
     imageId: v.id("images"),
-    type: v.string(),
+    type: v.union(v.literal("storyboard"), v.literal("deck")),
+
     templateId: v.string(),
     templateName: v.string(),
     title: v.string(),
