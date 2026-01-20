@@ -313,10 +313,8 @@ export const uploadMultiple = mutation({
       projectName: v.optional(v.string()),
       moodboardName: v.optional(v.string()),
       uniqueId: v.optional(v.string()),
+      // Variation count: 0 means no auto-generation at upload (user decides later)
       variationCount: v.optional(v.number()),
-      modificationMode: v.optional(v.string()),
-      variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
-      variationDetail: v.optional(v.string()),
     })),
   },
   returns: v.array(v.id("images")),
@@ -334,7 +332,7 @@ export const uploadMultiple = mutation({
           throw new Error("Failed to get image URL");
         }
 
-        // Create the image record
+        // Create the image record - NO variation settings at upload time
         const imageId = await ctx.db.insert("images", {
           title: upload.title,
           description: upload.description,
@@ -349,10 +347,6 @@ export const uploadMultiple = mutation({
           projectName: upload.projectName,
           moodboardName: upload.moodboardName,
           uniqueId: upload.uniqueId,
-          variationCount: upload.variationCount,
-          modificationMode: upload.modificationMode,
-          variationType: upload.variationType,
-          variationDetail: upload.variationDetail,
           uploadedBy: userId,
           likes: 0,
           views: 0,
@@ -361,7 +355,7 @@ export const uploadMultiple = mutation({
           uploadedAt: Date.now(),
         });
 
-        // Schedule the smart analysis action directly
+        // Schedule the smart analysis action - NO variation generation at upload
         try {
           await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
             storageId: upload.storageId,
@@ -376,11 +370,8 @@ export const uploadMultiple = mutation({
             category: upload.category,
             source: upload.source,
             sref: upload.sref || undefined,
-            // Pass user's variation settings
-            variationCount: upload.variationCount,
-            modificationMode: upload.modificationMode,
-            variationType: upload.variationType,
-            variationDetail: upload.variationDetail,
+            // No variations at upload - user decides after reviewing
+            variationCount: 0,
           });
         } catch (err) {
           console.error("Failed to schedule smart analysis:", err);

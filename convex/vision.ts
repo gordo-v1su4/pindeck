@@ -6,28 +6,59 @@ import OpenAI from "openai";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Shot type definitions for random assignment
-const SHOT_TYPES = {
-  1: "extreme wide shot",
-  2: "wide shot", 
-  3: "medium-wide shot",
-  4: "medium shot",
-  5: "medium close-up",
-  6: "close-up",
-  7: "extreme close-up",
-  8: "low angle",
-  9: "high angle"
-} as const;
+const SHOT_TYPES = [
+  "extreme wide shot",
+  "wide shot", 
+  "medium-wide shot",
+  "medium shot",
+  "medium close-up",
+  "close-up",
+  "extreme close-up",
+  "low angle shot",
+  "high angle shot",
+  "dutch angle",
+  "over-the-shoulder",
+  "point of view shot",
+] as const;
 
-// Modification modes with their prompt templates
-const MODE_PROMPTS: Record<string, (shotType: string, style?: string) => string> = {
-  "shot-variation": (shotType, style) => 
-    `${shotType} of the same scene.${style ? ` ${style} style.` : ""} Keep subjects and lighting consistent.`,
+// Modification modes with their SHORT prompt templates
+// These are designed for image-to-image editing models that work best with concise prompts
+const MODE_PROMPTS: Record<string, (detail?: string) => string> = {
+  // Different camera angle of SAME people/subjects
+  "shot-variation": (detail) => 
+    detail 
+      ? `${detail} of the same subjects. Different angle, same people and wardrobe.`
+      : `Different camera angle. Same subjects, wardrobe, and lighting.`,
   
-  "subtle-variation": (_, style) => 
-    `Subtle variation. Same composition, minor pose/expression changes.${style ? ` ${style} style.` : ""}`,
+  // B-ROLL: Same scene/environment but NO people - exteriors, establishing shots
+  "b-roll": (detail) => 
+    detail
+      ? `${detail}. Same location/environment. No people visible.`
+      : `Establishing shot of the environment. No people. Same location and lighting.`,
   
-  "style-variation": (_, style) => 
-    `Same scene with ${style || "different"} visual style. Keep subjects identical.`,
+  // Dynamic, action-oriented framing
+  "action-shot": (detail) =>
+    detail
+      ? `${detail}. Dynamic motion blur, action framing.`
+      : `Dynamic action shot. Motion blur, dramatic angle. Same subjects.`,
+  
+  // Different mood/color grade
+  "style-variation": (detail) => 
+    detail
+      ? `Same scene. ${detail} color grade and mood.`
+      : `Same scene with different color grading and mood.`,
+  
+  // Minor pose/expression changes only
+  "subtle-variation": (detail) => 
+    detail
+      ? `Subtle variation. ${detail}. Same framing.`
+      : `Subtle variation. Minor pose or expression change. Same framing.`,
+
+  // Cinematic coverage - mix of angles for scene coverage
+  "coverage": (detail) =>
+    detail
+      ? `${detail}. Cinematic scene coverage.`
+      : `Cinematic coverage shot. Different framing for scene variety.`,
 };
 
 export const internalGenerateRelatedImages = internalAction({
@@ -39,7 +70,7 @@ export const internalGenerateRelatedImages = internalAction({
     style: v.optional(v.string()),
     title: v.optional(v.string()),
     aspectRatio: v.optional(v.string()),
-    // NEW: User-configurable options
+    // User-configurable options
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
     variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
@@ -69,11 +100,11 @@ export const internalGenerateRelatedImages = internalAction({
       return;
     }
 
-    // Use user's count or default to 2, max 12
-    const count = Math.min(Math.max(args.variationCount ?? 2, 0), 12);
+    // Use user's count or default to 0 (NO AUTO-GENERATION)
+    const count = Math.min(Math.max(args.variationCount ?? 0, 0), 12);
     
     if (count === 0) {
-      // User chose 0 variations - just mark complete
+      // No variations requested - just mark complete
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
         imageId: args.originalImageId, 
         status: "completed" 
@@ -82,12 +113,10 @@ export const internalGenerateRelatedImages = internalAction({
     }
 
     const mode = args.modificationMode || "shot-variation";
-    const userShotType = args.variationType === "shot_type" && args.variationDetail?.trim();
-    const userStyle = args.variationType === "style" ? args.variationDetail?.trim() : args.style;
+    const userDetail = args.variationDetail?.trim();
 
-    // Shuffle shot types for variety
-    const shotTypeKeys = Object.keys(SHOT_TYPES).map(Number);
-    const shuffledShots = [...shotTypeKeys].sort(() => Math.random() - 0.5);
+    // For shot-variation without user detail, pick random shot types
+    const shuffledShots = [...SHOT_TYPES].sort(() => Math.random() - 0.5);
 
     // Map aspect ratio
     const aspectRatioMap: Record<string, "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"> = {
@@ -99,13 +128,16 @@ export const internalGenerateRelatedImages = internalAction({
     const generatePromises = Array.from({ length: count }, (_, i) => {
       return (async () => {
         try {
-          // Get shot type - use user's custom one or pick from shuffled list
-          const shotTypeKey = shuffledShots[i % shuffledShots.length] as keyof typeof SHOT_TYPES;
-          const shotType = userShotType || SHOT_TYPES[shotTypeKey];
-          
-          // Build SHORT prompt based on mode
+          // Build prompt based on mode
           const promptBuilder = MODE_PROMPTS[mode] || MODE_PROMPTS["shot-variation"];
-          const prompt = promptBuilder(shotType, userStyle);
+          
+          // For shot-variation, use random shot type if no user detail
+          let detail = userDetail;
+          if (mode === "shot-variation" && !detail) {
+            detail = shuffledShots[i % shuffledShots.length];
+          }
+          
+          const prompt = promptBuilder(detail);
 
           console.log(`[Gen ${i + 1}/${count}] Mode: ${mode}, Prompt: "${prompt}"`);
 
@@ -195,6 +227,53 @@ export const internalGenerateRelatedImages = internalAction({
   },
 });
 
+// NEW: Standalone action to generate variations AFTER user reviews the image
+export const generateVariations = mutation({
+  args: {
+    imageId: v.id("images"),
+    variationCount: v.number(),
+    modificationMode: v.string(),
+    variationDetail: v.optional(v.string()),
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const image = await ctx.db.get("images", args.imageId);
+    if (!image || image.uploadedBy !== userId) {
+      throw new Error("Not authorized or image not found");
+    }
+
+    if (!image.storageId) {
+      throw new Error("Image has no storage ID");
+    }
+
+    // Update image with variation settings
+    await ctx.db.patch("images", args.imageId, {
+      aiStatus: "processing",
+      variationCount: args.variationCount,
+      modificationMode: args.modificationMode,
+      variationDetail: args.variationDetail,
+    });
+
+    // Schedule the generation
+    await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
+      originalImageId: args.imageId,
+      storageId: image.storageId,
+      description: image.description || "",
+      category: image.category,
+      style: undefined,
+      title: image.title,
+      variationCount: args.variationCount,
+      modificationMode: args.modificationMode,
+      variationDetail: args.variationDetail,
+    });
+
+    return { success: true };
+  },
+});
+
 export const internalSmartAnalyzeImage = internalAction({
   args: {
     storageId: v.id("_storage"),
@@ -209,7 +288,7 @@ export const internalSmartAnalyzeImage = internalAction({
     group: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
-    // NEW: Pass through user's variation settings
+    // Variation settings - but we won't auto-generate anymore
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
     variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
@@ -328,20 +407,29 @@ export const internalSmartAnalyzeImage = internalAction({
         sref: args.sref,
       });
 
-      // Generate variations with user's settings
-      await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
-        originalImageId: args.imageId,
-        storageId: args.storageId,
-        description,
-        category: category || args.category,
-        style: visual_style,
-        title,
-        // Pass through user's variation settings
-        variationCount: args.variationCount,
-        modificationMode: args.modificationMode,
-        variationType: args.variationType,
-        variationDetail: args.variationDetail,
-      });
+      // CHANGED: Only generate variations if user explicitly requested them (count > 0)
+      const requestedCount = args.variationCount ?? 0;
+      
+      if (requestedCount > 0) {
+        await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
+          originalImageId: args.imageId,
+          storageId: args.storageId,
+          description,
+          category: category || args.category,
+          style: visual_style,
+          title,
+          variationCount: requestedCount,
+          modificationMode: args.modificationMode,
+          variationType: args.variationType,
+          variationDetail: args.variationDetail,
+        });
+      } else {
+        // No variations requested - mark as completed immediately
+        await ctx.runMutation(internal.images.internalSetAiStatus, { 
+          imageId: args.imageId, 
+          status: "completed" 
+        });
+      }
       
       return null;
 
@@ -433,7 +521,7 @@ export const rerunSmartAnalysis = mutation({
       group: args.group,
       projectName: args.projectName,
       moodboardName: args.moodboardName,
-      variationCount: args.variationCount ?? image.variationCount,
+      variationCount: args.variationCount ?? 0, // Default to 0 - no auto generation
       modificationMode: args.modificationMode ?? image.modificationMode,
       variationType: image.variationType,
       variationDetail: image.variationDetail,

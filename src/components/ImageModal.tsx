@@ -357,7 +357,7 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                     <DropdownMenu.Trigger>
                       <Button
                         variant="soft"
-                        color="purple"
+                        color="teal"
                         size="2"
                         className="flex-1"
                         style={{ opacity: 0.8 }}
