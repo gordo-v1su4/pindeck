@@ -23,6 +23,8 @@ const applicationTables = {
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
     // AI variation metadata
     variationCount: v.optional(v.number()),
     variationType: v.optional(

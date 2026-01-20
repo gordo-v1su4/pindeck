@@ -337,6 +337,7 @@ export const uploadMultiple = mutation({
           moodboardName: upload.moodboardName,
           uniqueId: upload.uniqueId,
           variationCount: upload.variationCount,
+          modificationMode: upload.modificationMode,
           variationType: upload.variationType,
           variationDetail: upload.variationDetail,
           uploadedBy: userId,
@@ -363,6 +364,7 @@ export const uploadMultiple = mutation({
             source: upload.source,
             sref: upload.sref || undefined, // Pass undefined if sref is empty string
             variationCount: upload.variationCount,
+            modificationMode: upload.modificationMode,
             variationType: upload.variationType,
             variationDetail: upload.variationDetail,
           });
@@ -646,6 +648,8 @@ export const internalSaveGeneratedImages = internalMutation({
         projectName: originalImage.projectName,
         moodboardName: originalImage.moodboardName,
         uniqueId: originalImage.uniqueId,
+        variationCount: originalImage.variationCount,
+        modificationMode: originalImage.modificationMode,
         // sref should only be set manually by user, not auto-populated
         status: "pending",
         uploadedAt: Date.now(),
