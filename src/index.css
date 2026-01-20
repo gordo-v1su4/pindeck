@@ -1,6 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Font Family */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* Border Radius */
+  --radius: 8px;
+  --radius-secondary: 4px;
+  --radius-container: 12px;
+
+  /* Box Shadows */
+  --shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  --shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.12);
+
+  /* Custom Colors */
+  --color-primary: #4F46E5;
+  --color-primary-hover: #4338CA;
+  --color-secondary: #6B7280;
+  --color-secondary-hover: #4B5563;
+  --color-accent: #8B5CF6;
+  --color-accent-hover: #7C3AED;
+}
 
 :root {
   --color-light: #09090b;

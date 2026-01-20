@@ -6,6 +6,7 @@ import { HeartIcon, EyeOpenIcon, BookmarkIcon, MagicWandIcon } from "@radix-ui/r
 import { IconButton, Text, Flex, Box, Spinner, Button, Badge, DropdownMenu } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { CreateBoardModal } from "./CreateBoardModal";
 
 interface ImageGridProps {
   searchTerm: string;
@@ -20,6 +21,8 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | undefined>();
   const [viewMode, setViewMode] = useState<ViewMode>("random");
+  const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
+  const [createBoardImageId, setCreateBoardImageId] = useState<Id<"images"> | null>(null);
   const boards = useQuery(api.boards.list);
   const addImageToBoard = useMutation(api.boards.addImage);
   const generateOutput = useMutation(api.generations.generate);
@@ -44,22 +47,15 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
     }
   };
 
-  const handleQuickSave = async (imageId: Id<"images">, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!boards || boards.length === 0) {
-      setActiveTab("boards");
-      toast.info("Create a board first to save images");
-      return;
-    }
-    // Save to first board for quick save
+  const handleQuickSave = async (boardId: Id<"collections">, imageId: Id<"images">) => {
     try {
-      await addImageToBoard({ boardId: boards[0]._id, imageId });
-      toast.success("Saved to board!");
+      await addImageToBoard({ boardId, imageId });
+      toast.success("Image saved to board!");
     } catch (error: any) {
       if (error.message?.includes("already in board")) {
-        toast.info("Already in board");
+        toast.error("Image is already in this board");
       } else {
-        toast.error("Failed to save");
+        toast.error("Failed to save to board");
       }
     }
   };
@@ -194,8 +190,8 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                           onClick={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setTriggerPosition({
-                              x: rect.left,
-                              y: rect.top
+                              x: rect.left + rect.width / 2,
+                              y: rect.top + rect.height / 2
                             });
                             setSelectedImage(image._id);
                           }}
@@ -234,6 +230,7 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                                   <BookmarkIcon />
                                 </IconButton>
                                 {renderGenerateMenu(image._id, "1")}
+                                {renderSaveToBoardDropdown(image, '1')}
                               </Flex>
                             </Box>
                           </Box>
@@ -255,8 +252,8 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               setTriggerPosition({
-                x: rect.left,
-                y: rect.top
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
               });
               setSelectedImage(image._id);
             }}
@@ -295,6 +292,49 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                     <BookmarkIcon />
                   </IconButton>
                   {renderGenerateMenu(image._id, "2")}
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <IconButton
+                        variant="soft"
+                        color="blue"
+                        size="2"
+                        aria-label="Save to board"
+                        onClick={(e) => e.stopPropagation()}
+                        className="backdrop-blur-md"
+                        style={{ opacity: 0.85 }}
+                      >
+                        <BookmarkIcon />
+                      </IconButton>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content>
+                      {boards && boards.length > 0 ? (
+                        <>
+                          {boards.map((board) => (
+                            <DropdownMenu.Item
+                              key={board._id}
+                              onClick={() => handleQuickSave(board._id, image._id)}
+                            >
+                              {board.name}
+                            </DropdownMenu.Item>
+                          ))}
+                          <DropdownMenu.Separator />
+                        </>
+                      ) : (
+                        <DropdownMenu.Item disabled>
+                          No boards yet
+                        </DropdownMenu.Item>
+                      )}
+                      <DropdownMenu.Item
+                        onClick={() => {
+                          setCreateBoardImageId(image._id);
+                          setCreateBoardModalOpen(true);
+                        }}
+                      >
+                        <PlusIcon width="14" height="14" />
+                        Create board
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
                 </Flex>
                 
                 <Box className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -331,6 +371,19 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
           incrementBoardVersion={incrementBoardVersion}
         />
       )}
+
+      <CreateBoardModal
+        open={createBoardModalOpen}
+        onOpenChange={(open) => {
+          setCreateBoardModalOpen(open);
+          if (!open) {
+            setCreateBoardImageId(null);
+          }
+        }}
+        imageId={createBoardImageId ?? undefined}
+        setActiveTab={setActiveTab}
+        incrementBoardVersion={incrementBoardVersion}
+      />
     </>
   );
 }

@@ -23,6 +23,14 @@ const applicationTables = {
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
+    // AI variation metadata
+    variationCount: v.optional(v.number()),
+    variationType: v.optional(
+      v.union(v.literal("shot_type"), v.literal("style"))
+    ),
+    variationDetail: v.optional(v.string()),
+    // Relationship to original image (for AI-generated variations)
+    parentImageId: v.optional(v.id("images")),
   })
     .index("by_category", ["category"])
     .index("by_uploaded_by", ["uploadedBy"])
@@ -42,6 +50,42 @@ const applicationTables = {
     isPublic: v.boolean(),
     imageIds: v.array(v.id("images")),
   }).index("by_user", ["userId"]),
+
+  storyboards: defineTable({
+    boardId: v.id("collections"),
+    userId: v.id("users"),
+    title: v.string(),
+    templateId: v.string(),
+    sourceImageIds: v.array(v.id("images")),
+    panels: v.array(
+      v.object({
+        imageId: v.id("images"),
+        layout: v.string(),
+        order: v.number(),
+      })
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_board", ["boardId"]),
+
+  decks: defineTable({
+    boardId: v.id("collections"),
+    userId: v.id("users"),
+    title: v.string(),
+    templateId: v.string(),
+    sourceImageIds: v.array(v.id("images")),
+    slides: v.array(
+      v.object({
+        imageId: v.id("images"),
+        layout: v.string(),
+        order: v.number(),
+      })
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_board", ["boardId"]),
 
   likes: defineTable({
     userId: v.id("users"),

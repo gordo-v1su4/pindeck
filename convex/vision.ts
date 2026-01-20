@@ -14,6 +14,9 @@ export const internalGenerateRelatedImages = internalAction({
     style: v.optional(v.string()),
     title: v.optional(v.string()),
     aspectRatio: v.optional(v.string()),
+    variationCount: v.optional(v.number()),
+    variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
+    variationDetail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const falKey = process.env.FAL_KEY;
@@ -42,6 +45,21 @@ export const internalGenerateRelatedImages = internalAction({
       return;
     }
 
+    const requestedCount = args.variationCount ?? 2;
+    if (requestedCount <= 0) {
+      await ctx.runMutation(internal.images.internalSetAiStatus, { 
+        imageId: args.originalImageId, 
+        status: "completed" 
+      });
+      return;
+    }
+
+    const trimmedVariationDetail = args.variationDetail?.trim();
+    const useCustomShotType = args.variationType === "shot_type" && trimmedVariationDetail;
+    const styleDirection = args.variationType === "style" && trimmedVariationDetail
+      ? `\n\nAdditional style direction: ${trimmedVariationDetail}.`
+      : "";
+
     // Generate random shot type numbers for each image (1-9) to force maximum variety
     const availableShotTypes = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     const shuffledShotTypes = [...availableShotTypes].sort(() => Math.random() - 0.5);
@@ -58,20 +76,24 @@ export const internalGenerateRelatedImages = internalAction({
       9: "High Angle Shot (Bird's Eye)"
     };
 
-    // Generate 2 images with different random shot types
-    const generatePromises = [1, 2].map(async (index) => {
+    // Generate requested images with different random shot types
+    const generatePromises = Array.from({ length: requestedCount }, (_, index) => index + 1).map(async (index) => {
       try {
         const assignedShotType = shuffledShotTypes[index % shuffledShotTypes.length];
         const shotTypeName = shotTypeNames[assignedShotType as keyof typeof shotTypeNames];
+        const shotTypeDetail = useCustomShotType
+          ? `the following shot type: ${trimmedVariationDetail}`
+          : `shot type #${assignedShotType} - ${shotTypeName}. This is a RANDOM assignment to ensure variety`;
+        const shotTypeInstruction = `**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use ${shotTypeDetail}. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.`;
         
         // Create prompt with specific shot type assignment
         const prompt = `Create a cinematic image variation of the input image. Analyze the entire composition and identify ALL key subjects present (whether it's a single person, a group/couple, a vehicle, or a specific object) and their spatial relationship/interaction.
 
-**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use shot type #${assignedShotType} - ${shotTypeName}. This is a RANDOM assignment to ensure variety. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.
+${shotTypeInstruction}
 
 The image should feature the same subjects in the same environment, either from the same moment OR later in the scene (up to 5 minutes later). Ensure the same people/objects, same clothes, and same lighting as the original. The depth of field should be realistic for the chosen shot type (bokeh for close-ups, deeper focus for wide shots).
 
-The frame features photorealistic textures, consistent cinematic color grading, and correct framing for the specific number of subjects or objects.`;
+The frame features photorealistic textures, consistent cinematic color grading, and correct framing for the specific number of subjects or objects.${styleDirection}`;
 
         // Map aspect ratio - fal.ai accepts specific enum values
         const aspectRatioMap: Record<string, "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"> = {
@@ -83,7 +105,8 @@ The frame features photorealistic textures, consistent cinematic color grading, 
         };
         const aspectRatio = aspectRatioMap[args.aspectRatio || "16:9"] || "16:9";
 
-        console.log(`Generating image ${index} with shot type ${assignedShotType} (${shotTypeName})`);
+        const logShotType = useCustomShotType ? trimmedVariationDetail : `${assignedShotType} (${shotTypeName})`;
+        console.log(`Generating image ${index} with shot type ${logShotType}`);
 
         // Call fal.ai Nano Banana Pro
         const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {
@@ -201,6 +224,9 @@ export const internalSmartAnalyzeImage = internalAction({
     group: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
+    variationCount: v.optional(v.number()),
+    variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
+    variationDetail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Get image URL from storageId
@@ -356,6 +382,9 @@ export const internalSmartAnalyzeImage = internalAction({
         category: category || args.category,
         style: visual_style,
         title, 
+        variationCount: args.variationCount,
+        variationType: args.variationType,
+        variationDetail: args.variationDetail,
       });
 
     } catch (err: any) {
@@ -377,7 +406,20 @@ export const internalSmartAnalyzeImage = internalAction({
 
 export const smartAnalyzeImage = httpAction(async (ctx, request) => {
   try {
-    const { storageId, imageId, userId, title, description, tags, category, source, sref } = await request.json();
+    const {
+      storageId,
+      imageId,
+      userId,
+      title,
+      description,
+      tags,
+      category,
+      source,
+      sref,
+      variationCount,
+      variationType,
+      variationDetail,
+    } = await request.json();
 
     if (!storageId || !imageId || !userId) {
       return new Response(JSON.stringify({ error: "storageId, imageId, and userId are required" }), {
@@ -396,7 +438,10 @@ export const smartAnalyzeImage = httpAction(async (ctx, request) => {
         tags,
         category,
         source,
-        sref
+        sref,
+        variationCount,
+        variationType,
+        variationDetail,
     });
 
     return new Response(JSON.stringify({ success: true }), {
@@ -457,6 +502,9 @@ export const rerunSmartAnalysis = mutation({
       group: args.group,
       projectName: args.projectName,
       moodboardName: args.moodboardName,
+      variationCount: image.variationCount,
+      variationType: image.variationType,
+      variationDetail: image.variationDetail,
     });
 
     return { success: true };
