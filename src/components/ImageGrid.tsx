@@ -152,8 +152,8 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                           onClick={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setTriggerPosition({
-                              x: rect.left,
-                              y: rect.top
+                              x: rect.left + rect.width / 2,
+                              y: rect.top + rect.height / 2
                             });
                             setSelectedImage(image._id);
                           }}
@@ -212,8 +212,8 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               setTriggerPosition({
-                x: rect.left,
-                y: rect.top
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
               });
               setSelectedImage(image._id);
             }}
