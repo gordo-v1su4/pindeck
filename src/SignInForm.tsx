@@ -56,29 +56,30 @@ export function SignInForm() {
           required
           size="3"
         />
-        <Button type="submit" disabled={submitting} size="3" className="w-full">
+        <Button type="submit" disabled={submitting} size="3" style={{ width: '100%' }}>
           {flow === "signIn" ? "Sign in" : "Sign up"}
         </Button>
-        <Text size="2" color="gray" className="text-center">
-          {flow === "signIn"
-            ? "Don't have an account? "
-            : "Already have an account? "}
+        <Flex justify="center" align="center" gap="1" wrap="wrap">
+          <Text size="2" color="gray">
+            {flow === "signIn"
+              ? "Don't have an account?"
+              : "Already have an account?"}
+          </Text>
           <Button
             variant="ghost"
             size="1"
             onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
-            className="inline"
           >
             {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
           </Button>
-        </Text>
+        </Flex>
       </Box>
       <Flex align="center" justify="center" className="my-4">
         <Separator className="flex-1" />
         <Text size="2" color="gray" className="mx-4">or</Text>
         <Separator className="flex-1" />
       </Flex>
-      <Button variant="outline" size="3" className="w-full" onClick={() => void signIn("anonymous")}>
+      <Button variant="outline" size="3" style={{ width: '100%' }} onClick={() => void signIn("anonymous")}>
         Sign in anonymously
       </Button>
     </Box>

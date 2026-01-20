@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { HeartIcon, EyeOpenIcon, ExternalLinkIcon, Cross2Icon, BookmarkIcon, PlusIcon } from "@radix-ui/react-icons";
+import { HeartIcon, EyeOpenIcon, ExternalLinkIcon, Cross2Icon, BookmarkIcon, PlusIcon, MagicWandIcon } from "@radix-ui/react-icons";
 import { Dialog, Button, Card, Badge, Text, Flex, Box, IconButton, DropdownMenu } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useState, useMemo } from "react";
@@ -22,7 +22,9 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
   const toggleLike = useMutation(api.images.toggleLike);
   const incrementViews = useMutation(api.images.incrementViews);
   const addImageToBoard = useMutation(api.boards.addImage);
+  const generateOutput = useMutation(api.generations.generate);
   const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
+  const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
   useEffect(() => {
     if (imageId) {
@@ -75,6 +77,29 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
     }
   };
 
+  const handleGenerate = async (type: "storyboard" | "deck") => {
+    try {
+      const result = await generateOutput({ imageId, type });
+      toast.success(`${result.templateName} created`);
+    } catch (error) {
+      console.error("Failed to generate output:", error);
+      toast.error("Failed to generate output");
+    }
+  };
+  const positionedStyle = triggerPosition ? (() => {
+    const modalWidth = Math.min(window.innerWidth * 0.7, 600);
+    const modalHeight = Math.min(window.innerHeight * 0.85, 650);
+    const maxLeft = Math.max(16, window.innerWidth - modalWidth - 16);
+    const maxTop = Math.max(16, window.innerHeight - modalHeight - 16);
+
+    return {
+      position: 'fixed' as const,
+      top: `${clampValue(triggerPosition.y - modalHeight / 2, 16, maxTop)}px`,
+      left: `${clampValue(triggerPosition.x - modalWidth / 2, 16, maxLeft)}px`,
+      transform: 'none'
+    };
+  })() : undefined;
+
   // Early return AFTER all hooks have been called
   if (!image) return null;
 
@@ -83,12 +108,7 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
       <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
         <Dialog.Content 
           className="max-h-[85vh] p-0 !w-[70vw] !max-w-[600px] bg-gray-2"
-          style={triggerPosition ? {
-            position: 'fixed',
-            top: `${Math.min(triggerPosition.y, window.innerHeight - 500)}px`,
-            left: `${Math.min(triggerPosition.x, window.innerWidth - 600)}px`,
-            transform: 'none'
-          } : undefined}
+          style={positionedStyle}
         >
           <Dialog.Title className="sr-only">{displayTitle}</Dialog.Title>
           <Dialog.Description className="sr-only">Image details and metadata</Dialog.Description>
@@ -288,6 +308,29 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                       >
                         <PlusIcon width="14" height="14" />
                         Create board
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <Button
+                        variant="soft"
+                        color="purple"
+                        size="2"
+                        className="flex-1"
+                        style={{ opacity: 0.8 }}
+                      >
+                        <MagicWandIcon width="16" height="16" />
+                        Generate
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content>
+                      <DropdownMenu.Item onClick={() => void handleGenerate("storyboard")}>
+                        Storyboard
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => void handleGenerate("deck")}>
+                        Deck
                       </DropdownMenu.Item>
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>

@@ -135,17 +135,17 @@ function Content({ searchTerm, selectedCategory, setActiveTab, incrementBoardVer
   return (
     <Box className="space-y-8">
       <Unauthenticated>
-        <Box className="text-center space-y-6 py-16">
-          <Text size="8" weight="bold" className="mb-4">
+        <Flex direction="column" align="center" gap="6" className="py-16">
+          <Text size="8" weight="bold" align="center">
             Discover Visual Inspiration
           </Text>
-          <Text size="4" color="gray" className="max-w-2xl mx-auto">
+          <Text size="4" color="gray" align="center" className="max-w-2xl">
             A curated collection of visual references, design inspiration, and creative shots
           </Text>
-          <Box className="max-w-md mx-auto">
+          <Box className="w-full max-w-md">
             <SignInForm />
           </Box>
-        </Box>
+        </Flex>
       </Unauthenticated>
 
       <Authenticated>

@@ -303,7 +303,8 @@ export const uploadMultiple = mutation({
       moodboardName: v.optional(v.string()),
       uniqueId: v.optional(v.string()),
       variationCount: v.optional(v.number()),
-      modificationMode: v.optional(v.string()),
+      variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
+      variationDetail: v.optional(v.string()),
     })),
   },
   handler: async (ctx, args) => {
@@ -337,6 +338,8 @@ export const uploadMultiple = mutation({
           uniqueId: upload.uniqueId,
           variationCount: upload.variationCount,
           modificationMode: upload.modificationMode,
+          variationType: upload.variationType,
+          variationDetail: upload.variationDetail,
           uploadedBy: userId,
           likes: 0,
           views: 0,
@@ -362,6 +365,8 @@ export const uploadMultiple = mutation({
             sref: upload.sref || undefined, // Pass undefined if sref is empty string
             variationCount: upload.variationCount,
             modificationMode: upload.modificationMode,
+            variationType: upload.variationType,
+            variationDetail: upload.variationDetail,
           });
         } catch (err) {
           console.error("Failed to schedule smart analysis:", err);

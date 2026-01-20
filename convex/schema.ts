@@ -25,6 +25,14 @@ const applicationTables = {
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
+    // AI variation metadata
+    variationCount: v.optional(v.number()),
+    variationType: v.optional(
+      v.union(v.literal("shot_type"), v.literal("style"))
+    ),
+    variationDetail: v.optional(v.string()),
+    // Relationship to original image (for AI-generated variations)
+    parentImageId: v.optional(v.id("images")),
   })
     .index("by_category", ["category"])
     .index("by_uploaded_by", ["uploadedBy"])
@@ -45,6 +53,42 @@ const applicationTables = {
     imageIds: v.array(v.id("images")),
   }).index("by_user", ["userId"]),
 
+  storyboards: defineTable({
+    boardId: v.id("collections"),
+    userId: v.id("users"),
+    title: v.string(),
+    templateId: v.string(),
+    sourceImageIds: v.array(v.id("images")),
+    panels: v.array(
+      v.object({
+        imageId: v.id("images"),
+        layout: v.string(),
+        order: v.number(),
+      })
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_board", ["boardId"]),
+
+  decks: defineTable({
+    boardId: v.id("collections"),
+    userId: v.id("users"),
+    title: v.string(),
+    templateId: v.string(),
+    sourceImageIds: v.array(v.id("images")),
+    slides: v.array(
+      v.object({
+        imageId: v.id("images"),
+        layout: v.string(),
+        order: v.number(),
+      })
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_board", ["boardId"]),
+
   likes: defineTable({
     userId: v.id("users"),
     imageId: v.id("images"),
@@ -52,6 +96,22 @@ const applicationTables = {
     .index("by_user", ["userId"])
     .index("by_image", ["imageId"])
     .index("by_user_and_image", ["userId", "imageId"]),
+
+  generations: defineTable({
+    imageId: v.id("images"),
+    type: v.union(v.literal("storyboard"), v.literal("deck")),
+
+    templateId: v.string(),
+    templateName: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    content: v.string(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_image", ["imageId"])
+    .index("by_created_by", ["createdBy"])
+    .index("by_type", ["type"]),
 };
 
 export default defineSchema({
