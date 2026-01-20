@@ -303,7 +303,7 @@ export const uploadMultiple = mutation({
       moodboardName: v.optional(v.string()),
       uniqueId: v.optional(v.string()),
       variationCount: v.optional(v.number()),
-      variationType: v.optional(v.string()),
+      variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
       variationDetail: v.optional(v.string()),
     })),
   },
