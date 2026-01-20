@@ -94,7 +94,7 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
           <MagicWandIcon />
         </IconButton>
       </DropdownMenu.Trigger>
-      <DropdownMenu.Content onClick={(event) => event.stopPropagation()}>
+      <DropdownMenu.Content>
         <DropdownMenu.Item onClick={(event) => void handleGenerate(imageId, "storyboard", event)}>
           Storyboard
         </DropdownMenu.Item>
