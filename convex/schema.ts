@@ -23,6 +23,8 @@ const applicationTables = {
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
   })
     .index("by_category", ["category"])
     .index("by_uploaded_by", ["uploadedBy"])

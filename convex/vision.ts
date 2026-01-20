@@ -14,6 +14,8 @@ export const internalGenerateRelatedImages = internalAction({
     style: v.optional(v.string()),
     title: v.optional(v.string()),
     aspectRatio: v.optional(v.string()),
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const falKey = process.env.FAL_KEY;
@@ -58,20 +60,43 @@ export const internalGenerateRelatedImages = internalAction({
       9: "High Angle Shot (Bird's Eye)"
     };
 
-    // Generate 2 images with different random shot types
-    const generatePromises = [1, 2].map(async (index) => {
+    const variationCount = Math.min(
+      Math.max(args.variationCount ?? 2, 1),
+      availableShotTypes.length
+    );
+    const modificationMode = args.modificationMode ?? "shot-variation";
+    const styleLine = args.style ? `\nVisual style reference: ${args.style}.` : "";
+
+    const buildPrompt = (assignedShotType: number, shotTypeName: string) => {
+      switch (modificationMode) {
+        case "subtle-variation":
+          return `Create a subtle, photorealistic variation of the input image. Keep the same subjects, environment, and moment, but introduce small differences (pose, expression, micro-actions, or minor props). Maintain similar framing and camera angle with only gentle shifts. Preserve lighting continuity, wardrobe, and spatial relationships. Avoid dramatic reframing or new subjects.${styleLine}
+
+Maintain cinematic color grading and realistic textures.`;
+        case "style-variation":
+          return `Create a stylized variation of the input image. Keep the same subjects, environment, and composition, but adjust lighting, color grading, and texture to emphasize a distinct visual style while remaining photorealistic. Preserve wardrobe and spatial relationships. Avoid changing the number of subjects or adding new ones.${styleLine}
+
+Ensure the image still feels like the same scene, just treated with a different stylistic approach.`;
+        case "shot-variation":
+        default:
+          return `Create a cinematic image variation of the input image. Analyze the entire composition and identify ALL key subjects present (whether it's a single person, a group/couple, a vehicle, or a specific object) and their spatial relationship/interaction.
+
+**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use shot type #${assignedShotType} - ${shotTypeName}. This is a RANDOM assignment to ensure variety. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.
+
+The image should feature the same subjects in the same environment, either from the same moment OR later in the scene (up to 5 minutes later). Ensure the same people/objects, same clothes, and same lighting as the original. The depth of field should be realistic for the chosen shot type (bokeh for close-ups, deeper focus for wide shots).${styleLine}
+
+The frame features photorealistic textures, consistent cinematic color grading, and correct framing for the specific number of subjects or objects.`;
+      }
+    };
+
+    // Generate images with different random shot types
+    const generatePromises = Array.from({ length: variationCount }, (_, index) => {
       try {
         const assignedShotType = shuffledShotTypes[index % shuffledShotTypes.length];
         const shotTypeName = shotTypeNames[assignedShotType as keyof typeof shotTypeNames];
         
         // Create prompt with specific shot type assignment
-        const prompt = `Create a cinematic image variation of the input image. Analyze the entire composition and identify ALL key subjects present (whether it's a single person, a group/couple, a vehicle, or a specific object) and their spatial relationship/interaction.
-
-**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use shot type #${assignedShotType} - ${shotTypeName}. This is a RANDOM assignment to ensure variety. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.
-
-The image should feature the same subjects in the same environment, either from the same moment OR later in the scene (up to 5 minutes later). Ensure the same people/objects, same clothes, and same lighting as the original. The depth of field should be realistic for the chosen shot type (bokeh for close-ups, deeper focus for wide shots).
-
-The frame features photorealistic textures, consistent cinematic color grading, and correct framing for the specific number of subjects or objects.`;
+        const prompt = buildPrompt(assignedShotType, shotTypeName);
 
         // Map aspect ratio - fal.ai accepts specific enum values
         const aspectRatioMap: Record<string, "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"> = {
@@ -83,7 +108,7 @@ The frame features photorealistic textures, consistent cinematic color grading, 
         };
         const aspectRatio = aspectRatioMap[args.aspectRatio || "16:9"] || "16:9";
 
-        console.log(`Generating image ${index} with shot type ${assignedShotType} (${shotTypeName})`);
+        console.log(`Generating image ${index + 1} with mode ${modificationMode} and shot type ${assignedShotType} (${shotTypeName})`);
 
         // Call fal.ai Nano Banana Pro
         const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {
@@ -201,6 +226,8 @@ export const internalSmartAnalyzeImage = internalAction({
     group: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Get image URL from storageId
@@ -355,7 +382,9 @@ export const internalSmartAnalyzeImage = internalAction({
         description,
         category: category || args.category,
         style: visual_style,
-        title, 
+        title,
+        variationCount: args.variationCount,
+        modificationMode: args.modificationMode,
       });
 
     } catch (err: any) {
@@ -377,7 +406,19 @@ export const internalSmartAnalyzeImage = internalAction({
 
 export const smartAnalyzeImage = httpAction(async (ctx, request) => {
   try {
-    const { storageId, imageId, userId, title, description, tags, category, source, sref } = await request.json();
+    const {
+      storageId,
+      imageId,
+      userId,
+      title,
+      description,
+      tags,
+      category,
+      source,
+      sref,
+      variationCount,
+      modificationMode,
+    } = await request.json();
 
     if (!storageId || !imageId || !userId) {
       return new Response(JSON.stringify({ error: "storageId, imageId, and userId are required" }), {
@@ -396,7 +437,9 @@ export const smartAnalyzeImage = httpAction(async (ctx, request) => {
         tags,
         category,
         source,
-        sref
+        sref,
+        variationCount,
+        modificationMode,
     });
 
     return new Response(JSON.stringify({ success: true }), {
@@ -426,6 +469,8 @@ export const rerunSmartAnalysis = mutation({
     group: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -457,6 +502,8 @@ export const rerunSmartAnalysis = mutation({
       group: args.group,
       projectName: args.projectName,
       moodboardName: args.moodboardName,
+      variationCount: args.variationCount ?? image.variationCount,
+      modificationMode: args.modificationMode ?? image.modificationMode,
     });
 
     return { success: true };

@@ -45,6 +45,8 @@ interface UploadFile {
   projectName?: string;
   moodboardName?: string;
   uniqueId?: string;
+  variationCount: number;
+  modificationMode: string;
 }
 
 export function ImageUploadForm() {
@@ -128,6 +130,8 @@ export function ImageUploadForm() {
       projectName: undefined,
       moodboardName: undefined,
       uniqueId: undefined,
+      variationCount: 2,
+      modificationMode: "shot-variation",
     }));
 
     setFiles(prev => [...prev, ...newUploadFiles]);
@@ -241,7 +245,9 @@ export function ImageUploadForm() {
     tags?: string[],
     category?: string,
     source?: string,
-    sref?: string
+    sref?: string,
+    variationCount?: number,
+    modificationMode?: string
   ) => {
     try {
       toast.info("Re-running AI analysis...");
@@ -254,6 +260,8 @@ export function ImageUploadForm() {
         category: category || "general",
         source,
         sref,
+        variationCount,
+        modificationMode,
       });
     } catch (error) {
       console.error("Failed to re-run analysis:", error);
@@ -325,6 +333,8 @@ export function ImageUploadForm() {
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
           uniqueId: uniqueId,
+          variationCount: file.variationCount,
+          modificationMode: file.modificationMode,
         };
       });
 
@@ -496,6 +506,34 @@ export function ImageUploadForm() {
                               {category}
                             </Select.Item>
                           ))}
+                        </Select.Content>
+                      </Select.Root>
+                    </Flex>
+
+                    <Flex gap="2" align="center" wrap="wrap">
+                      <Select.Root
+                        value={String(file.variationCount)}
+                        onValueChange={(value) => updateFile(file.id, { variationCount: Number(value) })}
+                      >
+                        <Select.Trigger placeholder="Variation count" />
+                        <Select.Content>
+                          {[1, 2, 3, 4, 5, 6].map((count) => (
+                            <Select.Item key={count} value={String(count)}>
+                              {count} variation{count === 1 ? "" : "s"}
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select.Root>
+
+                      <Select.Root
+                        value={file.modificationMode}
+                        onValueChange={(value) => updateFile(file.id, { modificationMode: value })}
+                      >
+                        <Select.Trigger placeholder="Modification mode" />
+                        <Select.Content>
+                          <Select.Item value="shot-variation">Shot variation (new framing)</Select.Item>
+                          <Select.Item value="subtle-variation">Subtle variation (same framing)</Select.Item>
+                          <Select.Item value="style-variation">Style variation (new grading)</Select.Item>
                         </Select.Content>
                       </Select.Root>
                     </Flex>
@@ -935,7 +973,15 @@ export function ImageUploadForm() {
                           variant="soft"
                           size="1"
                           onClick={() => reRunAnalysis(image._id, image.storageId!,
-                             image.title, image.description, image.tags, image.category, image.source, image.sref)}
+                             image.title,
+                             image.description,
+                             image.tags,
+                             image.category,
+                             image.source,
+                             image.sref,
+                             (image as any).variationCount,
+                             (image as any).modificationMode
+                           )}
                         >
                           <MagicWandIcon /> Re-run AI Analysis
                         </Button>
