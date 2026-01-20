@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { ImageModal } from "./ImageModal";
-import { HeartIcon, EyeOpenIcon, BookmarkIcon, MagicWandIcon } from "@radix-ui/react-icons";
+import { HeartIcon, EyeOpenIcon, BookmarkIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons";
 import { IconButton, Text, Flex, Box, Spinner, Button, Badge, DropdownMenu } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";

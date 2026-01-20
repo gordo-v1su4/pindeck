@@ -343,7 +343,6 @@ export function ImageUploadForm() {
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
           uniqueId: uniqueId,
-          variationCount: file.variationCount,
           modificationMode: file.modificationMode,
           variationCount: selectedVariationCount,
           variationType: selectedVariationType,
