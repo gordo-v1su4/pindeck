@@ -16,7 +16,8 @@ import {
   IconButton,
   Grid,
   Heading,
-  Separator
+  Separator,
+  Dialog
 } from "@radix-ui/themes";
 import {
   UploadIcon,
@@ -62,10 +63,18 @@ export function ImageUploadForm() {
   const finalizeUploads = useMutation(api.images.finalizeUploads);
   const updateImageMetadataMutation = useMutation(api.images.updateImageMetadata);
   const rerunSmartAnalysisMutation = useMutation(api.vision.rerunSmartAnalysis);
+  const generateVariationsMutation = useMutation(api.vision.generateVariations);
 
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  
+  // Post-upload variation modal state
+  const [variationModalOpen, setVariationModalOpen] = useState(false);
+  const [variationTargetImage, setVariationTargetImage] = useState<Id<"images"> | null>(null);
+  const [variationCount, setVariationCount] = useState(2);
+  const [modificationMode, setModificationMode] = useState("shot-variation");
+  const [variationDetail, setVariationDetail] = useState("");
 
   // Loading state check
   if (categories === undefined) {
@@ -241,7 +250,9 @@ export function ImageUploadForm() {
     tags?: string[],
     category?: string,
     source?: string,
-    sref?: string
+    sref?: string,
+    variationCount?: number,
+    modificationMode?: string
   ) => {
     try {
       toast.info("Re-running AI analysis...");
@@ -254,6 +265,8 @@ export function ImageUploadForm() {
         category: category || "general",
         source,
         sref,
+        variationCount,
+        modificationMode,
       });
     } catch (error) {
       console.error("Failed to re-run analysis:", error);
@@ -282,7 +295,7 @@ export function ImageUploadForm() {
 
     setUploading(true);
     try {
-      // Upload files to storage
+      // Upload files to storage - NO variation generation at upload time
       const uploadPromises = files.map(async (file) => {
         const uploadUrl = await generateUploadUrl();
         const response = await fetch(uploadUrl, {
@@ -314,7 +327,7 @@ export function ImageUploadForm() {
 
         return {
           storageId,
-          title: generatedTitle || file.file.name, // Use filename if title is empty
+          title: generatedTitle || file.file.name,
           description: file.description || undefined,
           tags: file.tags,
           category: file.category,
@@ -325,6 +338,8 @@ export function ImageUploadForm() {
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
           uniqueId: uniqueId,
+          // No variation settings at upload - user decides AFTER reviewing
+          variationCount: 0,
         };
       });
 
@@ -376,8 +391,154 @@ export function ImageUploadForm() {
     }
   };
 
+  // Handle generating variations for a specific image
+  const handleGenerateVariations = async () => {
+    if (!variationTargetImage || variationCount < 1) return;
+    
+    try {
+      await generateVariationsMutation({
+        imageId: variationTargetImage,
+        variationCount,
+        modificationMode,
+        variationDetail: variationDetail.trim() || undefined,
+      });
+      toast.success(`Generating ${variationCount} variations...`);
+      setVariationModalOpen(false);
+      setVariationTargetImage(null);
+      setVariationCount(2);
+      setModificationMode("shot-variation");
+      setVariationDetail("");
+    } catch (error) {
+      console.error("Failed to generate variations:", error);
+      toast.error("Failed to start variation generation");
+    }
+  };
+
+  // Open the variation modal for a specific image
+  const openVariationModal = (imageId: Id<"images">) => {
+    setVariationTargetImage(imageId);
+    setVariationModalOpen(true);
+  };
+
   return (
     <Box className="space-y-8 max-w-4xl mx-auto w-full">
+      {/* Generate Variations Modal - shown AFTER image is uploaded and analyzed */}
+      <Dialog.Root open={variationModalOpen} onOpenChange={(open) => {
+        setVariationModalOpen(open);
+        if (!open) setVariationTargetImage(null);
+      }}>
+        <Dialog.Content style={{ maxWidth: 520 }}>
+          <Dialog.Title>Generate Variations</Dialog.Title>
+          <Dialog.Description size="2" color="gray">
+            Create AI-generated variations of this image. Choose what kind of variations you want.
+          </Dialog.Description>
+
+          <Flex direction="column" gap="4" className="mt-4">
+            {/* Variation Type */}
+            <Box>
+              <Text size="2" weight="medium" className="mb-2 block">
+                Variation Type
+              </Text>
+              <Select.Root
+                value={modificationMode}
+                onValueChange={setModificationMode}
+              >
+                <Select.Trigger className="w-full" />
+                <Select.Content>
+                  <Select.Group>
+                    <Select.Label>Camera & Framing</Select.Label>
+                    <Select.Item value="shot-variation">
+                      Shot Variation — Different angles of same subjects
+                    </Select.Item>
+                    <Select.Item value="action-shot">
+                      Action Shot — Dynamic, motion-based framing
+                    </Select.Item>
+                    <Select.Item value="coverage">
+                      Coverage — Cinematic scene coverage mix
+                    </Select.Item>
+                  </Select.Group>
+                  <Select.Separator />
+                  <Select.Group>
+                    <Select.Label>Environment</Select.Label>
+                    <Select.Item value="b-roll">
+                      B-Roll — Same location, NO people (establishing shots)
+                    </Select.Item>
+                  </Select.Group>
+                  <Select.Separator />
+                  <Select.Group>
+                    <Select.Label>Style & Mood</Select.Label>
+                    <Select.Item value="style-variation">
+                      Style Variation — Different color grade/mood
+                    </Select.Item>
+                    <Select.Item value="subtle-variation">
+                      Subtle Variation — Minor pose/expression changes
+                    </Select.Item>
+                  </Select.Group>
+                </Select.Content>
+              </Select.Root>
+            </Box>
+
+            {/* Variation Count */}
+            <Box>
+              <Text size="2" weight="medium" className="mb-2 block">
+                How Many? (1-12)
+              </Text>
+              <TextField.Root
+                type="number"
+                min={1}
+                max={12}
+                value={variationCount.toString()}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!Number.isNaN(val)) {
+                    setVariationCount(Math.min(Math.max(val, 1), 12));
+                  }
+                }}
+                size="2"
+              />
+            </Box>
+
+            {/* Custom Detail */}
+            <Box>
+              <Text size="2" weight="medium" className="mb-2 block">
+                Custom Direction (optional)
+              </Text>
+              <TextField.Root
+                value={variationDetail}
+                onChange={(e) => setVariationDetail(e.target.value)}
+                placeholder={
+                  modificationMode === "shot-variation" ? "e.g., close-up on hands, wide shot" :
+                  modificationMode === "b-roll" ? "e.g., exterior of building, sunset sky" :
+                  modificationMode === "action-shot" ? "e.g., mid-jump, running motion blur" :
+                  modificationMode === "style-variation" ? "e.g., 35mm film grain, neon cyberpunk" :
+                  "e.g., slight smile, different hand position"
+                }
+                size="2"
+              />
+              <Text size="1" color="gray" className="mt-1">
+                Leave blank for automatic random variations
+              </Text>
+            </Box>
+          </Flex>
+
+          <Flex justify="end" gap="3" className="mt-6">
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => setVariationModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="teal"
+              onClick={handleGenerateVariations}
+            >
+              <MagicWandIcon /> Generate {variationCount} Variation{variationCount !== 1 ? "s" : ""}
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+
       <Box>
         <Heading size="6" weight="bold">Upload Images</Heading>
         <Text size="2" color="gray" className="mt-1">
@@ -463,7 +624,7 @@ export function ImageUploadForm() {
                           size="1"
                         >
                           <TextField.Slot>
-                            <MagicWandIcon className="text-purple-400" />
+                            <MagicWandIcon className="text-teal-400" />
                           </TextField.Slot>
                         </TextField.Root>
                       </Box>
@@ -638,7 +799,7 @@ export function ImageUploadForm() {
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
           <Flex align="center" gap="2" className="mb-4">
-            <Box className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <Box className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
             <Box>
               <Heading size="4">AI Analysis in Progress</Heading>
               <Text size="2" color="gray">
@@ -676,7 +837,7 @@ export function ImageUploadForm() {
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
           <Flex align="center" gap="2" className="mb-4">
-            <MagicWandIcon width="20" height="20" className="text-purple-500" />
+            <MagicWandIcon width="20" height="20" className="text-teal-500" />
             <Box>
               <Heading size="4">AI Suggestions</Heading>
               <Text size="2" color="gray">
@@ -786,7 +947,7 @@ export function ImageUploadForm() {
                           size="1"
                         >
                           <TextField.Slot>
-                            <MagicWandIcon className="text-purple-400" />
+                            <MagicWandIcon className="text-teal-400" />
                           </TextField.Slot>
                         </TextField.Root>
                       </Box>
@@ -935,11 +1096,40 @@ export function ImageUploadForm() {
                           variant="soft"
                           size="1"
                           onClick={() => reRunAnalysis(image._id, image.storageId!,
-                             image.title, image.description, image.tags, image.category, image.source, image.sref)}
+                             image.title,
+                             image.description,
+                             image.tags,
+                             image.category,
+                             image.source,
+                             image.sref,
+                             image.variationCount,
+                             image.modificationMode
+                           )}
                         >
                           <MagicWandIcon /> Re-run AI Analysis
                         </Button>
                       </Box>
+                    )}
+
+                    {/* Generate Variations Button - shown when analysis is complete */}
+                    {image.aiStatus === "completed" && (
+                      <Flex gap="2" className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <Button
+                          color="teal"
+                          variant="soft"
+                          size="1"
+                          onClick={() => openVariationModal(image._id)}
+                          className="flex-1"
+                        >
+                          <MagicWandIcon /> Generate Variations
+                        </Button>
+                      </Flex>
+                    )}
+                    {image.aiStatus === "processing" && (
+                      <Flex align="center" gap="2" className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <Box className="w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                        <Text size="1" color="gray">Generating variations...</Text>
+                      </Flex>
                     )}
                   </Box>
                 </Flex>

@@ -156,14 +156,16 @@ export function SignInForm() {
             type="submit" 
             disabled={submitting} 
             size="3" 
-            className="w-full"
+            style={{ width: '100%' }}
           >
             {flow === "signIn" ? "Sign in" : "Sign up"}
           </Button>
-          <Text size="2" color="gray" className="text-center">
-            {flow === "signIn"
-              ? "Don't have an account? "
-              : "Already have an account? "}
+          <Flex justify="center" align="center" gap="1" wrap="wrap">
+            <Text size="2" color="gray">
+              {flow === "signIn"
+                ? "Don't have an account?"
+                : "Already have an account?"}
+            </Text>
             <Button
               type="button"
               variant="ghost"
@@ -171,11 +173,10 @@ export function SignInForm() {
               onClick={() => {
                 setFlow(flow === "signIn" ? "signUp" : "signIn");
               }}
-              className="inline"
             >
               {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
             </Button>
-          </Text>
+          </Flex>
         </Flex>
       </form>
       <Flex align="center" justify="center" gap="3">
@@ -186,7 +187,7 @@ export function SignInForm() {
       <Button 
         variant="outline" 
         size="3" 
-        className="w-full" 
+        style={{ width: '100%' }}
         onClick={async () => {
           console.log("🔐 Starting anonymous sign-in...");
           setSubmitting(true);

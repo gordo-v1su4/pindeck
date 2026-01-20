@@ -11,10 +11,13 @@
 import type * as auth from "../auth.js";
 import type * as boards from "../boards.js";
 import type * as debug from "../debug.js";
+import type * as decks from "../decks.js";
+import type * as generations from "../generations.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
 import type * as router from "../router.js";
 import type * as seed from "../seed.js";
+import type * as storyboards from "../storyboards.js";
 import type * as vision from "../vision.js";
 
 import type {
@@ -27,10 +30,13 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   boards: typeof boards;
   debug: typeof debug;
+  decks: typeof decks;
+  generations: typeof generations;
   http: typeof http;
   images: typeof images;
   router: typeof router;
   seed: typeof seed;
+  storyboards: typeof storyboards;
   vision: typeof vision;
 }>;
 

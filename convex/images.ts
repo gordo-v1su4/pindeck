@@ -313,6 +313,8 @@ export const uploadMultiple = mutation({
       projectName: v.optional(v.string()),
       moodboardName: v.optional(v.string()),
       uniqueId: v.optional(v.string()),
+      // Variation count: 0 means no auto-generation at upload (user decides later)
+      variationCount: v.optional(v.number()),
     })),
   },
   returns: v.array(v.id("images")),
@@ -330,7 +332,7 @@ export const uploadMultiple = mutation({
           throw new Error("Failed to get image URL");
         }
 
-        // Create the image record
+        // Create the image record - NO variation settings at upload time
         const imageId = await ctx.db.insert("images", {
           title: upload.title,
           description: upload.description,
@@ -353,7 +355,7 @@ export const uploadMultiple = mutation({
           uploadedAt: Date.now(),
         });
 
-        // Schedule the smart analysis action directly
+        // Schedule the smart analysis action - NO variation generation at upload
         try {
           await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
             storageId: upload.storageId,
@@ -367,7 +369,9 @@ export const uploadMultiple = mutation({
             tags: upload.tags,
             category: upload.category,
             source: upload.source,
-            sref: upload.sref || undefined, // Pass undefined if sref is empty string
+            sref: upload.sref || undefined,
+            // No variations at upload - user decides after reviewing
+            variationCount: 0,
           });
         } catch (err) {
           console.error("Failed to schedule smart analysis:", err);
@@ -665,6 +669,8 @@ export const internalSaveGeneratedImages = internalMutation({
         projectName: originalImage.projectName,
         moodboardName: originalImage.moodboardName,
         uniqueId: originalImage.uniqueId,
+        variationCount: originalImage.variationCount,
+        modificationMode: originalImage.modificationMode,
         // sref should only be set manually by user, not auto-populated
         parentImageId: args.originalImageId, // Link back to parent image (lineage tracking)
         status: "pending",
