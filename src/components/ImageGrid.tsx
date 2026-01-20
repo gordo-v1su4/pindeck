@@ -176,49 +176,7 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
                                 >
                                   <HeartIcon />
                                 </IconButton>
-                                <DropdownMenu.Root>
-                                  <DropdownMenu.Trigger asChild>
-                                    <IconButton
-                                      variant="soft"
-                                      color="blue"
-                                      size="1"
-                                      aria-label="Save to board"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="backdrop-blur-md"
-                                      style={{ opacity: 0.85 }}
-                                    >
-                                      <BookmarkIcon />
-                                    </IconButton>
-                                  </DropdownMenu.Trigger>
-                                  <DropdownMenu.Content>
-                                    {boards && boards.length > 0 ? (
-                                      <>
-                                        {boards.map((board) => (
-                                          <DropdownMenu.Item
-                                            key={board._id}
-                                            onClick={() => handleQuickSave(board._id, image._id)}
-                                          >
-                                            {board.name}
-                                          </DropdownMenu.Item>
-                                        ))}
-                                        <DropdownMenu.Separator />
-                                      </>
-                                    ) : (
-                                      <DropdownMenu.Item disabled>
-                                        No boards yet
-                                      </DropdownMenu.Item>
-                                    )}
-                                    <DropdownMenu.Item
-                                      onClick={() => {
-                                        setCreateBoardImageId(image._id);
-                                        setCreateBoardModalOpen(true);
-                                      }}
-                                    >
-                                      <PlusIcon width="14" height="14" />
-                                      Create board
-                                    </DropdownMenu.Item>
-                                  </DropdownMenu.Content>
-                                </DropdownMenu.Root>
+                                {renderSaveToBoardDropdown(image, '1')}
                               </Flex>
                             </Box>
                           </Box>
