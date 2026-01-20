@@ -16,7 +16,8 @@ import {
   IconButton,
   Grid,
   Heading,
-  Separator
+  Separator,
+  Dialog
 } from "@radix-ui/themes";
 import {
   UploadIcon,
@@ -66,6 +67,11 @@ export function ImageUploadForm() {
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [variationModalOpen, setVariationModalOpen] = useState(false);
+  const [wantsVariations, setWantsVariations] = useState(false);
+  const [variationCount, setVariationCount] = useState(2);
+  const [variationType, setVariationType] = useState<"shot_type" | "style">("shot_type");
+  const [variationDetail, setVariationDetail] = useState("");
 
   // Loading state check
   if (categories === undefined) {
@@ -280,6 +286,10 @@ export function ImageUploadForm() {
       return;
     }
 
+    const selectedVariationCount = wantsVariations ? Math.max(1, variationCount) : 0;
+    const selectedVariationType = wantsVariations ? variationType : undefined;
+    const selectedVariationDetail = wantsVariations ? variationDetail.trim() || undefined : undefined;
+
     setUploading(true);
     try {
       // Upload files to storage
@@ -325,6 +335,9 @@ export function ImageUploadForm() {
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
           uniqueId: uniqueId,
+          variationCount: selectedVariationCount,
+          variationType: selectedVariationType,
+          variationDetail: selectedVariationDetail,
         };
       });
 
@@ -378,6 +391,109 @@ export function ImageUploadForm() {
 
   return (
     <Box className="space-y-8 max-w-4xl mx-auto w-full">
+      <Dialog.Root open={variationModalOpen} onOpenChange={setVariationModalOpen}>
+        <Dialog.Content style={{ maxWidth: 500 }}>
+          <Dialog.Title>Request additional variations?</Dialog.Title>
+          <Dialog.Description size="2" color="gray">
+            Choose whether to generate extra variations and define how they should differ.
+          </Dialog.Description>
+
+          <Flex direction="column" gap="3" className="mt-4">
+            <Box>
+              <Text size="2" weight="medium" className="mb-2 block">
+                Generate additional variations
+              </Text>
+              <Select.Root
+                value={wantsVariations ? "yes" : "no"}
+                onValueChange={(value) => setWantsVariations(value === "yes")}
+              >
+                <Select.Trigger />
+                <Select.Content>
+                  <Select.Item value="no">No</Select.Item>
+                  <Select.Item value="yes">Yes</Select.Item>
+                </Select.Content>
+              </Select.Root>
+            </Box>
+
+            {wantsVariations && (
+              <>
+                <Box>
+                  <Text size="2" weight="medium" className="mb-2 block">
+                    Variation count
+                  </Text>
+                  <TextField.Root
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={variationCount.toString()}
+                    onChange={(e) => {
+                      const nextValue = Number(e.target.value);
+                      if (Number.isNaN(nextValue)) {
+                        setVariationCount(1);
+                        return;
+                      }
+                      setVariationCount(Math.min(Math.max(nextValue, 1), 12));
+                    }}
+                    placeholder="How many variations?"
+                    size="2"
+                  />
+                </Box>
+
+                <Box>
+                  <Text size="2" weight="medium" className="mb-2 block">
+                    Modification type
+                  </Text>
+                  <Select.Root
+                    value={variationType}
+                    onValueChange={(value) => setVariationType(value as "shot_type" | "style")}
+                  >
+                    <Select.Trigger />
+                    <Select.Content>
+                      <Select.Item value="shot_type">Shot type</Select.Item>
+                      <Select.Item value="style">Style</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                </Box>
+
+                <Box>
+                  <Text size="2" weight="medium" className="mb-2 block">
+                    {variationType === "shot_type" ? "Shot type details" : "Style direction"}
+                  </Text>
+                  <TextField.Root
+                    value={variationDetail}
+                    onChange={(e) => setVariationDetail(e.target.value)}
+                    placeholder={
+                      variationType === "shot_type"
+                        ? "e.g., Close-Up, Low Angle, Wide Shot"
+                        : "e.g., 35mm Film, VHS, Oil Painting"
+                    }
+                    size="2"
+                  />
+                </Box>
+              </>
+            )}
+          </Flex>
+
+          <Flex justify="end" gap="3" className="mt-6">
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => setVariationModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setVariationModalOpen(false);
+                handleSubmit();
+              }}
+            >
+              Continue upload
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+
       <Box>
         <Heading size="6" weight="bold">Upload Images</Heading>
         <Text size="2" color="gray" className="mt-1">
@@ -616,7 +732,7 @@ export function ImageUploadForm() {
               Cancel
             </Button>
             <Button
-              onClick={handleSubmit}
+              onClick={() => setVariationModalOpen(true)}
               disabled={uploading || files.length === 0}
               size="2"
             >
