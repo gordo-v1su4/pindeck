@@ -19,6 +19,7 @@ export const internalGenerateRelatedImages = internalAction({
     variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
     variationDetail: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const falKey = process.env.FAL_KEY;
     if (!falKey) {
@@ -241,6 +242,7 @@ The frame features photorealistic textures, consistent cinematic color grading, 
         images: generatedImages,
       });
     }
+    return null;
   },
 });
 
@@ -263,6 +265,7 @@ export const internalSmartAnalyzeImage = internalAction({
     variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
     variationDetail: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     // 1. Get image URL from storageId
     const imageUrl = await ctx.storage.getUrl(args.storageId);
@@ -424,6 +427,7 @@ export const internalSmartAnalyzeImage = internalAction({
         variationType: args.variationType,
         variationDetail: args.variationDetail,
       });
+      return null;
 
     } catch (err: any) {
       const errorMessage = err?.message || String(err);
@@ -438,6 +442,7 @@ export const internalSmartAnalyzeImage = internalAction({
         error: errorMessage,
         stack: err?.stack
       });
+      return null;
     }
   },
 });
@@ -514,6 +519,7 @@ export const rerunSmartAnalysis = mutation({
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {

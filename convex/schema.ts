@@ -23,7 +23,6 @@ const applicationTables = {
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
-    variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
     // AI variation metadata
     variationCount: v.optional(v.number()),
@@ -40,6 +39,7 @@ const applicationTables = {
     .index("by_group", ["group"])
     .index("by_project_name", ["projectName"])
     .index("by_unique_id", ["uniqueId"])
+    .index("by_parent", ["parentImageId"])
     .searchIndex("search_content", {
       searchField: "title",
       filterFields: ["category", "uploadedBy", "group", "projectName"],

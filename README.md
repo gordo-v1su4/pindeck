@@ -6,8 +6,10 @@ A modern image gallery and sharing platform built with React, TypeScript, Tailwi
 
 - **AI-Powered Image Analysis**: Automatic title, description, tags, colors, and category detection using Gemini 3 Flash Preview
 - **AI Image Generation**: Create cinematic variations with random shot type selection (9 different shot types)
+- **Parent Image Lineage**: Suno-style remix links showing generation trail from parent to variations
+- **Original Image Tagging**: Automatically tag user uploads; filter to show only original (non-AI) images
 - **Image Gallery**: Responsive masonry grid layout with hover effects
-- **Advanced Table View**: Sortable, filterable data table with ID column and tag color coding
+- **Advanced Table View**: Sortable, filterable data table with ID column, parent column, and tag color coding
 - **Pinterest-Style Boards**: Organize images into collections
 - **Smart Search**: Real-time search across all image metadata
 - **Color Extraction**: Automatic color palette generation
@@ -49,6 +51,7 @@ bun run lint
 ### Environment Variables
 
 **Set these in your Convex Dashboard** (Settings → Environment Variables):
+- `JWT_PRIVATE_KEY` - **Required for authentication** - PKCS#8 formatted private key (see [Authentication](#-authentication) section for generation instructions)
 - `OPENROUTER_API_KEY` - Required for image analysis (any VLM model via OpenRouter)
 - `OPENROUTER_VLM_MODEL` - Optional: VLM model to use (default: `"google/gemini-flash-1.5"`)
   - Examples: `"google/gemini-flash-1.5"`, `"google/gemini-pro-vision"`, `"anthropic/claude-3-opus"`, `"anthropic/claude-3-sonnet"`, `"openai/gpt-4-vision-preview"`
@@ -108,7 +111,49 @@ pindeck/
 
 ## 🔐 Authentication
 
-This app uses [Convex Auth](https://auth.convex.dev/) with Anonymous auth for easy sign-in. You may wish to configure additional auth providers before deploying to production.
+This app uses [Convex Auth](https://auth.convex.dev/) with Password and Anonymous auth providers.
+
+### Generating JWT Private Key
+
+Convex Auth requires an **RSA private key in PKCS#8 format** for JWT token signing. Generate a new key using:
+
+**RSA Key (2048-bit) - Required**
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt_private_key.pem
+```
+
+**Note:** Convex Auth specifically requires RSA keys. Ed25519 or other algorithms will not work.
+
+**After generating the key:**
+
+1. Copy the entire contents of `jwt_private_key.pem` (including `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines)
+2. Set it in **Convex Dashboard** → Production → Settings → Environment Variables:
+   - Name: `JWT_PRIVATE_KEY`
+   - Value: Paste the entire PEM key (multi-line format)
+3. Ensure there's no leading/trailing whitespace
+
+**Generating JWKS (JSON Web Key Set):**
+
+If you need the `JWKS` environment variable, generate it from your public key:
+
+1. Extract the public key from the private key:
+```bash
+openssl pkey -in jwt_private_key.pem -pubout -out jwt_public_key.pem
+```
+
+2. Convert the public key to JWKS format:
+```bash
+node -e "import { readFileSync } from 'fs'; import { importSPKI, exportJWK } from 'jose'; const spki = readFileSync('jwt_public_key.pem','utf8'); const key = await importSPKI(spki,'RS256'); const jwk = await exportJWK(key); jwk.use='sig'; jwk.alg='RS256'; jwk.kid='convex'; console.log(JSON.stringify({ keys: [jwk] }));"
+```
+
+3. Copy the JSON output and set it in **Convex Dashboard** → Production → Settings → Environment Variables:
+   - Name: `JWKS`
+   - Value: Paste the JSON output
+
+**Important:** 
+- The private key file (`jwt_private_key.pem`) is automatically ignored by git (see `.gitignore`)
+- Never commit private keys to version control
+- Keep your private key secure and never share it publicly
 
 ## 📦 Available Scripts
 
@@ -195,8 +240,11 @@ User-defined HTTP routes are defined in `convex/router.ts`. Authentication route
 
 ## 📝 Notes
 
+- **Parent Image Lineage**: AI-generated variations automatically store `parentImageId` reference to source image
+- **Original Tagging**: User uploads automatically tagged with "original"; AI variations excluded
 - **sref Field**: Style reference field is manually set by users, not auto-populated
 - **Image ID**: Each image has a unique ID displayed in the table view
 - **Tag Colors**: Tags use consistent color mapping across table and modal views
 - **Responsive Design**: Full-width layout with no hard max-width constraints
 - **Convex DB API**: Uses explicit table name syntax (`db.get("table", id)`) as of Convex 1.31.2
+- **Convex Functions**: All 33+ functions include proper `args` and `returns` validators per Convex best practices

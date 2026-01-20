@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { Card, Text, Flex, Box, Button, Badge, IconButton, Grid } from "@radix-ui/themes";
-import { PlusIcon, TrashIcon, EyeOpenIcon, BookmarkIcon } from "@radix-ui/react-icons";
+import { PlusIcon, TrashIcon, Pencil1Icon, EyeOpenIcon, BookmarkIcon } from "@radix-ui/react-icons";
 import { CreateBoardModal } from "./CreateBoardModal";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";

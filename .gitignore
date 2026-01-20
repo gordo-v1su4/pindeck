@@ -28,6 +28,20 @@ dist-ssr
 .env.local
 .env.production
 
+# Private keys (never commit these!)
+*.pem
+jwt_private_key.pem
+jwt_public_key.pem
+jwt_new_key.pem
+auth_private_key.pem
+auth_public_key.pem
+
+# JWKS and key generation scripts (contain sensitive data)
+jwks-value.txt
+jwks.json
+generate-jwks.cjs
+set-jwks.cjs
+
 # Convex
 .convex/
 

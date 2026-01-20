@@ -4,6 +4,15 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
   args: {},
+  returns: v.array(v.object({
+    _id: v.id("collections"),
+    _creationTime: v.number(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    userId: v.id("users"),
+    isPublic: v.boolean(),
+    imageIds: v.array(v.id("images")),
+  })),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -22,6 +31,16 @@ export const list = query({
 
 export const getById = query({
   args: { id: v.id("collections") },
+  returns: v.object({
+    _id: v.id("collections"),
+    _creationTime: v.number(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    userId: v.id("users"),
+    isPublic: v.boolean(),
+    imageIds: v.array(v.id("images")),
+    images: v.array(v.any()),
+  }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -69,6 +88,7 @@ export const create = mutation({
     description: v.optional(v.string()),
     isPublic: v.optional(v.boolean()),
   },
+  returns: v.id("collections"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -90,6 +110,7 @@ export const addImage = mutation({
     boardId: v.id("collections"),
     imageId: v.id("images"),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -119,6 +140,7 @@ export const removeImage = mutation({
     boardId: v.id("collections"),
     imageId: v.id("images"),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -145,6 +167,7 @@ export const update = mutation({
     description: v.optional(v.string()),
     isPublic: v.optional(v.boolean()),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -170,6 +193,7 @@ export const deleteBoard = mutation({
   args: {
     boardId: v.id("collections"),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {

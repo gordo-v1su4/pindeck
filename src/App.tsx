@@ -1,4 +1,4 @@
-import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
+import { Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
@@ -17,16 +17,56 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [activeTab, setActiveTabState] = useState("gallery");
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  
+  // Check backend auth state to verify if user is actually logged in
+  const loggedInUser = useQuery(api.auth.loggedInUser);
 
   const setActiveTab = (tab: string) => {
+    console.log("🔄 Setting active tab to:", tab);
     setActiveTabState(tab);
     window.location.hash = tab;
   };
+  
+  // Debug authentication state - CRITICAL for diagnosing "can't access pages" issue
+  useEffect(() => {
+    const authState = { isLoading, isAuthenticated, loggedInUser: loggedInUser !== undefined ? (loggedInUser !== null ? "logged in" : "not logged in") : "loading" };
+    console.log("🔐 App Auth State:", JSON.stringify(authState, null, 2));
+    console.log("🔐 Convex URL:", import.meta.env.VITE_CONVEX_URL);
+    console.log("🔐 Backend User:", loggedInUser);
+    
+    // Check localStorage for auth tokens
+    const convexAuthStorage = localStorage.getItem("convex-auth");
+    console.log("🔐 LocalStorage Auth:", convexAuthStorage ? "exists" : "missing");
+    if (convexAuthStorage) {
+      try {
+        const parsed = JSON.parse(convexAuthStorage);
+        console.log("🔐 Auth Token Keys:", Object.keys(parsed));
+      } catch (e) {
+        console.log("🔐 Auth Storage Parse Error:", e);
+      }
+    }
+  }, [isAuthenticated, isLoading, loggedInUser]);
 
   useEffect(() => {
+    // Set initial tab from hash
     if (window.location.hash) {
-      setActiveTabState(window.location.hash.substring(1));
+      const hashTab = window.location.hash.substring(1);
+      if (["gallery", "upload", "boards", "table"].includes(hashTab)) {
+        setActiveTabState(hashTab);
+      }
     }
+    
+    // Listen for hash changes
+    const handleHashChange = () => {
+      const hashTab = window.location.hash.substring(1);
+      if (["gallery", "upload", "boards", "table"].includes(hashTab)) {
+        setActiveTabState(hashTab);
+      }
+    };
+    
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
   const [boardVersion, setBoardVersion] = useState(0);
 
@@ -37,7 +77,7 @@ export default function App() {
 
   return (
     <Box className="min-h-screen">
-      <Box as="header" className="sticky top-0 z-50 border-b border-gray-6 bg-gray-2/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-gray-6 bg-gray-2/80 backdrop-blur-md">
         <Box className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Flex justify="between" align="center">
             <Flex align="center" gap="6">
@@ -52,9 +92,16 @@ export default function App() {
               </Authenticated>
             </Flex>
           </Flex>
-          <Authenticated>
+          {/* Show tabs if authenticated OR if backend says user is logged in (workaround) */}
+          {(isAuthenticated || loggedInUser) && (
             <Box className="mt-4">
-              <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+              <Tabs.Root 
+                value={activeTab} 
+                onValueChange={(value) => {
+                  console.log("📑 Tab changed to:", value);
+                  if (value) setActiveTab(value);
+                }}
+              >
                 <Tabs.List>
                   <Tabs.Trigger value="gallery">Gallery</Tabs.Trigger>
                   <Tabs.Trigger value="upload">Upload</Tabs.Trigger>
@@ -66,45 +113,47 @@ export default function App() {
                 </Tabs.List>
               </Tabs.Root>
             </Box>
-            {activeTab === "gallery" && (
-              <Box className="mt-4">
-                <CategoryFilter 
-                  selectedCategory={selectedCategory}
-                  onCategoryChange={setSelectedCategory}
-                />
-              </Box>
-            )}
-          </Authenticated>
-        </Box>
-      </Box>
-
-      <Box as="main" className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-        <Authenticated>
-          {activeTab === "gallery" && (
-            <Content 
-              searchTerm={searchTerm}
-              selectedCategory={selectedCategory}
-              setActiveTab={setActiveTab}
-              incrementBoardVersion={incrementBoardVersion}
-            />
           )}
-          {activeTab === "upload" && <ImageUploadForm />}
-          {activeTab === "boards" && <BoardsView 
-                                      key={boardVersion} 
-                                      setActiveTab={setActiveTab} 
-                                      incrementBoardVersion={incrementBoardVersion} 
-                                    />}
-          {activeTab === "table" && <TableView />}
-        </Authenticated>
-        <Unauthenticated>
+          {(isAuthenticated || loggedInUser) && activeTab === "gallery" && (
+            <Box className="mt-4">
+              <CategoryFilter 
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+              />
+            </Box>
+          )}
+        </Box>
+      </header>
+
+      <main className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
+        {/* Show authenticated content if frontend says authenticated OR backend says user exists */}
+        {(isAuthenticated || loggedInUser) ? (
+          <>
+            {activeTab === "gallery" && (
+              <Content 
+                searchTerm={searchTerm}
+                selectedCategory={selectedCategory}
+                setActiveTab={setActiveTab}
+                incrementBoardVersion={incrementBoardVersion}
+              />
+            )}
+            {activeTab === "upload" && <ImageUploadForm />}
+            {activeTab === "boards" && <BoardsView 
+                                        key={boardVersion} 
+                                        setActiveTab={setActiveTab} 
+                                        incrementBoardVersion={incrementBoardVersion} 
+                                      />}
+            {activeTab === "table" && <TableView />}
+          </>
+        ) : (
           <Content 
             searchTerm={searchTerm}
             selectedCategory={selectedCategory}
             setActiveTab={setActiveTab}
             incrementBoardVersion={incrementBoardVersion}
           />
-        </Unauthenticated>
-      </Box>
+        )}
+      </main>
       
       <Toaster theme="dark" />
     </Box>
@@ -133,16 +182,16 @@ function Content({ searchTerm, selectedCategory, setActiveTab, incrementBoardVer
   }
 
   return (
-    <Box className="space-y-8">
+    <Flex direction="column" gap="8">
       <Unauthenticated>
-        <Flex direction="column" align="center" gap="6" className="py-16">
-          <Text size="8" weight="bold" align="center">
+        <Flex direction="column" align="center" gap="6" className="text-center py-16">
+          <Text size="8" weight="bold">
             Discover Visual Inspiration
           </Text>
-          <Text size="4" color="gray" align="center" className="max-w-2xl">
+          <Text size="4" color="gray" className="max-w-2xl">
             A curated collection of visual references, design inspiration, and creative shots
           </Text>
-          <Box className="w-full max-w-md">
+          <Box className="max-w-md w-full">
             <SignInForm />
           </Box>
         </Flex>
@@ -156,6 +205,6 @@ function Content({ searchTerm, selectedCategory, setActiveTab, incrementBoardVer
           incrementBoardVersion={incrementBoardVersion}
         />
       </Authenticated>
-    </Box>
+    </Flex>
   );
 }

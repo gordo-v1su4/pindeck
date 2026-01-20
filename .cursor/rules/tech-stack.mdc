@@ -13,8 +13,8 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS + Radix UI
 - **Backend**: Convex (Backend-as-a-Service)
 - **Build Tools**: Bun + ESLint + Prettier
-- **Icons**: Radix UI Icons + Lucide React
-- **Styling**: Tailwind CSS with utility-first approach + Radix Themes
+- **Icons**: Radix UI Icons
+- **Styling**: Tailwind CSS 4 with utility-first approach + Radix Themes
 - **Tables**: TanStack Table for advanced data management
 
 ## Core Dependencies
@@ -70,25 +70,26 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 ```json
 "@radix-ui/themes": "^3.2.1",
 "@radix-ui/react-icons": "^1.3.2",
-"tailwindcss": "~3",
-"lucide-react": "^0.544.0",
+"tailwindcss": "^4",
 "clsx": "^2.1.1",
 "tailwind-merge": "^3.1.0"
 ```
-- **Versions**: Radix Themes 3.2.1, Radix Icons 1.3.2, Tailwind ~3, Lucide 0.544.0, clsx 2.1.1, tailwind-merge 3.1.0
+- **Versions**: Radix Themes 3.2.1, Radix Icons 1.3.2, Tailwind 4, clsx 2.1.1, tailwind-merge 3.1.0
 - **Best Practice**: ✅ **Modern UI component system**
-- **Benefits**: Accessible components, consistent design system, utility-first CSS, class merging utilities
-- **Pattern**: Radix UI for components + Tailwind for styling + Radix Themes for theming
+- **Benefits**: Accessible components, consistent design system, utility-first CSS 4, class merging utilities
+- **Pattern**: Radix UI for components + Tailwind 4 for styling + Radix Themes for theming
 
 #### Utilities & Data Management
 ```json
 "@tanstack/react-table": "^8.21.3",
-"sonner": "^2.0.3"
+"sonner": "^2.0.3",
+"openai": "^6.15.0"
 ```
-- **Versions**: TanStack Table 8.21.3, Sonner 2.0.3
+- **Versions**: TanStack Table 8.21.3, Sonner 2.0.3, OpenAI SDK 6.15.0
 - **Best Practice**: ✅ **Modern data management stack**
 - **Benefits**: Advanced table functionality (sorting, filtering, pagination), accessible toast notifications
 - **Features**: Headless table components, real-time data updates, comprehensive filtering system
+- **OpenAI SDK**: Used for OpenRouter API communication (compatible API)
 
 ## Development Dependencies
 
@@ -130,21 +131,25 @@ This rule outlines the complete technology stack for the **Visuals** image galle
 ### CSS Processing
 ```json
 "postcss": "~8",
-"autoprefixer": "~10"
+"autoprefixer": "~10",
+"@tailwindcss/postcss": "^4.1.18"
 ```
-- **Versions**: PostCSS ~8, Autoprefixer ~10
-- **Best Practice**: ✅ **Standard CSS processing**
-- **Benefits**: Modern CSS features, automatic vendor prefixing
+- **Versions**: PostCSS ~8, Autoprefixer ~10, Tailwind PostCSS 4.1.18
+- **Best Practice**: ✅ **Modern CSS processing with Tailwind 4**
+- **Benefits**: Modern CSS features, automatic vendor prefixing, Tailwind 4 engine integration
 
 ### Development Tools
 ```json
 "concurrently": "^9.2.1",
 "dotenv": "^16.4.7",
-"prettier": "^3.5.3"
+"prettier": "^3.5.3",
+"@playwright/test": "^1.57.0",
+"playwright": "^1.57.0",
+"tw-animate-css": "^1.0.0"
 ```
-- **Versions**: Concurrently 9.2.1, Dotenv 16.4.7, Prettier 3.5.3
+- **Versions**: Concurrently 9.2.1, Dotenv 16.4.7, Prettier 3.5.3, Playwright 1.57.0, TW Animate 1.0.0
 - **Best Practice**: ✅ **Essential dev tools**
-- **Benefits**: Parallel process execution, environment management, consistent formatting
+- **Benefits**: Parallel process execution, environment management, consistent formatting, E2E testing with Playwright, Tailwind animations
 
 ## Package Manager
 
@@ -195,20 +200,21 @@ Convex (Backend-as-a-Service)
 3. **Vite 6.2.0**: Next-generation build tool
 4. **Convex 1.31.2**: Modern BaaS with excellent DX (migrated to explicit table name API)
 5. **Gemini 3 Flash Preview**: Fast and efficient vision AI for analysis and generation
-6. **Bun**: Fast package manager
+6. **Bun 1.3.2**: Fast package manager
 7. **Radix UI**: Accessible component primitives
 8. **TanStack Table**: Advanced data table functionality
-9. **Tailwind CSS**: Utility-first styling approach
+9. **Tailwind CSS 4**: Next-generation utility-first styling
 
 ### ✅ Recently Updated (December 2024)
 
 ```json
 // Successfully updated to latest stable versions:
 {
-  "convex": "1.31.2",              // ✅ Updated with DB API migration
-  "lucide-react": "^0.544.0",     // ✅ Updated icons
-  "@types/node": "^22.15.0",       // ✅ Updated Node types
-  "@google/generative-ai": "^0.24.1"  // ✅ Latest available Gemini SDK
+  "convex": "1.31.2",                   // ✅ Updated with DB API migration
+  "tailwindcss": "^4",                  // ✅ Updated to Tailwind CSS 4
+  "@types/node": "^22.15.0",            // ✅ Updated Node types
+  "@google/generative-ai": "^0.24.1",  // ✅ Latest available Gemini SDK
+  "vite": "^6.2.0"                      // ✅ Updated to Vite 6.2
 }
 ```
 
@@ -265,9 +271,9 @@ Source Code → TypeScript → ESLint → Prettier → Vite Build
 
 ### Runtime Performance
 - **React 19**: Better performance with new architecture
-- **Tailwind**: Minimal CSS bundle with purging
+- **Tailwind 4**: Minimal CSS bundle with new engine and purging
 - **Convex**: Efficient real-time data synchronization
-- **Lucide**: Tree-shakable icon imports
+- **Radix Icons**: Tree-shakable icon imports
 
 ## Migration Paths
 

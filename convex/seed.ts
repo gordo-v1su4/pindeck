@@ -1,7 +1,9 @@
 import { mutation } from "./_generated/server";
+import { v } from "convex/values";
 
 export const seedImages = mutation({
   args: {},
+  returns: v.string(),
   handler: async (ctx) => {
     // Sample images for demonstration
     const sampleImages = [

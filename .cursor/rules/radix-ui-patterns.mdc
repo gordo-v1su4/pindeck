@@ -1,3 +1,4 @@
+
 ---
 description: Radix UI component patterns, gotchas, and best practices for the Visuals project
 globs: src/components/**/*.tsx

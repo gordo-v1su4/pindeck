@@ -25,6 +25,12 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
   const generateOutput = useMutation(api.generations.generate);
   const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
   const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+  
+  // Query parent image if this is a generated variation
+  const parentImage = useQuery(
+    api.images.getById, 
+    image?.parentImageId ? { id: image.parentImageId } : "skip"
+  );
 
   useEffect(() => {
     if (imageId) {
@@ -114,7 +120,7 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
           <Dialog.Description className="sr-only">Image details and metadata</Dialog.Description>
           <Flex direction="column" className="max-h-[90vh]">
             {/* Image Display */}
-            <Box className="flex items-center justify-center bg-transparent aspect-video overflow-hidden">
+            <Box className="flex items-center justify-center bg-transparent aspect-video overflow-hidden relative z-10">
               <img
                 src={image.imageUrl}
                 alt={displayTitle}
@@ -123,7 +129,14 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
             </Box>
 
             {/* Content Panel */}
-            <Box className="p-5 space-y-4 flex-1 overflow-y-auto border-t border-gray-6" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+            <Box 
+              className="p-5 space-y-4 flex-1 overflow-y-auto relative z-20" 
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+                backdropFilter: 'blur(12px)', 
+                WebkitBackdropFilter: 'blur(12px)' 
+              }}
+            >
               <Dialog.Close>
                 <IconButton
                   variant="ghost"
@@ -135,9 +148,37 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                 </IconButton>
               </Dialog.Close>
 
+              {/* Parent Image Lineage - Show if this is a generated variation */}
+              {image.parentImageId && parentImage && (
+                <Box className="pb-4 border-b border-gray-6">
+                  <Flex gap="2" align="center">
+                    <Text size="2" color="gray">Generated from:</Text>
+                    <Button
+                      variant="soft"
+                      color="blue"
+                      size="1"
+                      onClick={() => {
+                        onClose();
+                        // Small delay to allow modal to close before opening new one
+                        setTimeout(() => {
+                          // Navigate to parent image by triggering parent selection
+                          const event = new CustomEvent('open-image-modal', { 
+                            detail: { imageId: image.parentImageId } 
+                          });
+                          window.dispatchEvent(event);
+                        }, 100);
+                      }}
+                      style={{ opacity: 0.85 }}
+                    >
+                      {parentImage.title}
+                    </Button>
+                  </Flex>
+                </Box>
+              )}
+
               {/* Project/Group Header - Prominent like ShotDeck */}
               {(image.projectName || image.group) && (
-                <Box className="space-y-2 pb-3 border-b border-gray-6">
+                <Box className="space-y-2 pb-3">
                   {image.projectName && (
                     <Text size="5" weight="bold" className="block">
                       {image.projectName}
@@ -262,7 +303,7 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
                 )}
               </Box>
 
-              <Box className="pt-3 mt-3 border-t border-gray-6">
+              <Box className="pt-3 mt-3">
                 <Flex gap="3" align="center">
                   <Button
                     onClick={() => { void handleLike(); }}
