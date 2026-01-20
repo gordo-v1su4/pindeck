@@ -1,0 +1,79 @@
+# Convex Deployment Configuration
+
+This rule documents the Convex deployment setup for the Visuals/Pindeck project.
+
+## Deployments
+
+| Environment | Deployment Name | URL |
+|-------------|-----------------|-----|
+| **Development** | `incredible-otter-369` | `https://incredible-otter-369.convex.cloud` |
+| **Production** | `tremendous-jaguar-953` | `https://tremendous-jaguar-953.convex.cloud` |
+
+## Working with Production Locally
+
+To develop against **production** data:
+
+### 1. Update `.env.local`
+
+```bash
+# Production Convex deployment
+CONVEX_DEPLOYMENT=prod:tremendous-jaguar-953
+VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud
+```
+
+### 2. Run Frontend Only
+
+```bash
+bun run dev:frontend
+```
+
+**Important:** Do NOT run `convex dev` when working with production. It will overwrite `.env.local` with the dev deployment.
+
+### 3. Deploy Backend Changes
+
+After editing files in `convex/`, deploy to production:
+
+```bash
+bunx convex deploy --yes
+```
+
+## Working with Development
+
+To switch back to **development**:
+
+### 1. Update `.env.local`
+
+```bash
+# Development Convex deployment
+CONVEX_DEPLOYMENT=dev:incredible-otter-369
+VITE_CONVEX_URL=https://incredible-otter-369.convex.cloud
+```
+
+### 2. Run Full Dev Server
+
+```bash
+bun run dev
+```
+
+This runs both frontend and `convex dev` for hot-reloading backend changes.
+
+## Vercel Production Setup
+
+Vercel environment variables must be set for production:
+
+- `VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud`
+
+## Commands Reference
+
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start frontend + backend dev server (uses dev deployment) |
+| `bun run dev:frontend` | Start frontend only (uses `.env.local` deployment) |
+| `bunx convex deploy --yes` | Deploy backend to production |
+| `bunx convex env list --prod` | List production environment variables |
+
+## Caution
+
+- **Never** run `convex dev` when `.env.local` points to production
+- Always verify which deployment you're connected to before making changes
+- Test changes in development before deploying to production

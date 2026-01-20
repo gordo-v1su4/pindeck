@@ -50,14 +50,6 @@
     "eventsource",
     "Ints",
     "bytestrings",
-    "Bytestrings",
-    "convex",
-    "radix",
-    "tailwindcss",
-    "postcss",
-    "pindeck",
-    "Noco",
-    "NocoDB",
-    "Storyception"
+    "Bytestrings"
   ]
 }

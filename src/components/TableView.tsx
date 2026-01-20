@@ -22,6 +22,7 @@ import {
   Badge,
   IconButton,
   Table,
+  DropdownMenu,
 } from "@radix-ui/themes";
 import {
   ArrowUpIcon,
@@ -33,6 +34,7 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
   Pencil1Icon,
+  MagicWandIcon,
 } from "@radix-ui/react-icons";
 import { ImageModal } from "./ImageModal";
 import { EditImageModal } from "./EditImageModal";
@@ -61,6 +63,7 @@ interface Image {
 export function TableView() {
   const images = useQuery(api.images.list, { limit: 1000 });
   const deleteImage = useMutation(api.images.remove);
+  const generateOutput = useMutation(api.generations.generate);
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [editingImage, setEditingImage] = useState<Id<"images"> | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -195,17 +198,14 @@ export function TableView() {
           const sortedColors = sortColorsDarkToLight(colors);
           return (
             <Flex gap="1">
-              {sortedColors.slice(0, 3).map((color, index) => (
+              {sortedColors.map((color, index) => (
                 <Box
                   key={index}
-                  className="w-4 h-4 rounded border border-gray-6"
+                  className="w-4 h-4 rounded"
                   style={{ backgroundColor: color }}
                   title={color}
                 />
               ))}
-              {sortedColors.length > 3 && (
-                <Text size="1" color="gray">+{sortedColors.length - 3}</Text>
-              )}
             </Flex>
           );
         },
@@ -301,6 +301,27 @@ export function TableView() {
             >
               View
             </Button>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <IconButton
+                  variant="soft"
+                  color="teal"
+                  size="1"
+                  title="Generate"
+                  style={{ opacity: 0.9 }}
+                >
+                  <MagicWandIcon />
+                </IconButton>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content>
+                <DropdownMenu.Item onClick={() => handleGenerate(row.original._id, "storyboard")}>
+                  Storyboard
+                </DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => handleGenerate(row.original._id, "deck")}>
+                  Deck
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
             <IconButton
               variant="soft"
               color="blue"
@@ -370,6 +391,16 @@ export function TableView() {
     } catch (error) {
       console.error('Failed to delete image:', error);
       toast.error('Failed to delete image.');
+    }
+  };
+
+  const handleGenerate = async (imageId: Id<"images">, type: "storyboard" | "deck") => {
+    try {
+      const result = await generateOutput({ imageId, type });
+      toast.success(`${result.templateName} created`);
+    } catch (error) {
+      console.error("Failed to generate output:", error);
+      toast.error("Failed to generate output");
     }
   };
 

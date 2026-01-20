@@ -5,6 +5,62 @@ import { fal } from "@fal-ai/client";
 import OpenAI from "openai";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
+// Shot type definitions for random assignment
+const SHOT_TYPES = [
+  "extreme wide shot",
+  "wide shot", 
+  "medium-wide shot",
+  "medium shot",
+  "medium close-up",
+  "close-up",
+  "extreme close-up",
+  "low angle shot",
+  "high angle shot",
+  "dutch angle",
+  "over-the-shoulder",
+  "point of view shot",
+] as const;
+
+// Modification modes with their SHORT prompt templates
+// These are designed for image-to-image editing models that work best with concise prompts
+const MODE_PROMPTS: Record<string, (detail?: string) => string> = {
+  // Different camera angle of SAME people/subjects
+  "shot-variation": (detail) => 
+    detail 
+      ? `${detail} of the same subjects. Different angle, same people and wardrobe.`
+      : `Different camera angle. Same subjects, wardrobe, and lighting.`,
+  
+  // B-ROLL: Same scene/environment but NO people - exteriors, establishing shots
+  "b-roll": (detail) => 
+    detail
+      ? `${detail}. Same location/environment. No people visible.`
+      : `Establishing shot of the environment. No people. Same location and lighting.`,
+  
+  // Dynamic, action-oriented framing
+  "action-shot": (detail) =>
+    detail
+      ? `${detail}. Dynamic motion blur, action framing.`
+      : `Dynamic action shot. Motion blur, dramatic angle. Same subjects.`,
+  
+  // Different mood/color grade
+  "style-variation": (detail) => 
+    detail
+      ? `Same scene. ${detail} color grade and mood.`
+      : `Same scene with different color grading and mood.`,
+  
+  // Minor pose/expression changes only
+  "subtle-variation": (detail) => 
+    detail
+      ? `Subtle variation. ${detail}. Same framing.`
+      : `Subtle variation. Minor pose or expression change. Same framing.`,
+
+  // Cinematic coverage - mix of angles for scene coverage
+  "coverage": (detail) =>
+    detail
+      ? `${detail}. Cinematic scene coverage.`
+      : `Cinematic coverage shot. Different framing for scene variety.`,
+};
+
 export const internalGenerateRelatedImages = internalAction({
   args: {
     originalImageId: v.id("images"),
@@ -14,6 +70,11 @@ export const internalGenerateRelatedImages = internalAction({
     style: v.optional(v.string()),
     title: v.optional(v.string()),
     aspectRatio: v.optional(v.string()),
+    // User-configurable options
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
+    variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
+    variationDetail: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -27,12 +88,8 @@ export const internalGenerateRelatedImages = internalAction({
       return;
     }
 
-    // Configure fal.ai client
-    fal.config({
-      credentials: falKey
-    });
+    fal.config({ credentials: falKey });
 
-    // Get image URL from storage
     const imageUrl = await ctx.storage.getUrl(args.storageId);
     if (!imageUrl) {
       console.error("Failed to get image URL from storage");
@@ -43,84 +100,81 @@ export const internalGenerateRelatedImages = internalAction({
       return;
     }
 
-    // Generate random shot type numbers for each image (1-9) to force maximum variety
-    const availableShotTypes = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    const shuffledShotTypes = [...availableShotTypes].sort(() => Math.random() - 0.5);
+    // Use user's count or default to 0 (NO AUTO-GENERATION)
+    const count = Math.min(Math.max(args.variationCount ?? 0, 0), 12);
     
-    const shotTypeNames = {
-      1: "Extreme Long Shot (ELS)",
-      2: "Long Shot (LS)",
-      3: "Medium Long Shot (American/3-4)",
-      4: "Medium Shot (MS)",
-      5: "Medium Close-Up (MCU)",
-      6: "Close-Up (CU)",
-      7: "Extreme Close-Up (ECU)",
-      8: "Low Angle Shot (Worm's Eye)",
-      9: "High Angle Shot (Bird's Eye)"
+    if (count === 0) {
+      // No variations requested - just mark complete
+      await ctx.runMutation(internal.images.internalSetAiStatus, { 
+        imageId: args.originalImageId, 
+        status: "completed" 
+      });
+      return;
+    }
+
+    const mode = args.modificationMode || "shot-variation";
+    const userDetail = args.variationDetail?.trim();
+
+    // For shot-variation without user detail, pick random shot types
+    const shuffledShots = [...SHOT_TYPES].sort(() => Math.random() - 0.5);
+
+    // Map aspect ratio
+    const aspectRatioMap: Record<string, "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"> = {
+      "16:9": "16:9", "9:16": "9:16", "1:1": "1:1", "4:3": "4:3", "3:4": "3:4",
     };
+    const aspectRatio = aspectRatioMap[args.aspectRatio || "16:9"] || "16:9";
 
-    // Generate 2 images with different random shot types
-    const generatePromises = [1, 2].map(async (index) => {
-      try {
-        const assignedShotType = shuffledShotTypes[index % shuffledShotTypes.length];
-        const shotTypeName = shotTypeNames[assignedShotType as keyof typeof shotTypeNames];
-        
-        // Create prompt with specific shot type assignment
-        const prompt = `Create a cinematic image variation of the input image. Analyze the entire composition and identify ALL key subjects present (whether it's a single person, a group/couple, a vehicle, or a specific object) and their spatial relationship/interaction.
+    // Generate images
+    const generatePromises = Array.from({ length: count }, (_, i) => {
+      return (async () => {
+        try {
+          // Build prompt based on mode
+          const promptBuilder = MODE_PROMPTS[mode] || MODE_PROMPTS["shot-variation"];
+          
+          // For shot-variation, use random shot type if no user detail
+          let detail = userDetail;
+          if (mode === "shot-variation" && !detail) {
+            detail = shuffledShots[i % shuffledShots.length];
+          }
+          
+          const prompt = promptBuilder(detail);
 
-**MANDATORY SHOT TYPE ASSIGNMENT:** You MUST use shot type #${assignedShotType} - ${shotTypeName}. This is a RANDOM assignment to ensure variety. Create the image using EXACTLY this framing and perspective. Ensure this image is VISUALLY DISTINCT and DIFFERENT from any other variations.
+          console.log(`[Gen ${i + 1}/${count}] Mode: ${mode}, Prompt: "${prompt}"`);
 
-The image should feature the same subjects in the same environment, either from the same moment OR later in the scene (up to 5 minutes later). Ensure the same people/objects, same clothes, and same lighting as the original. The depth of field should be realistic for the chosen shot type (bokeh for close-ups, deeper focus for wide shots).
+          const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {
+            input: {
+              prompt,
+              image_urls: [imageUrl],
+              num_images: 1,
+              aspect_ratio: aspectRatio,
+              resolution: "2K",
+              output_format: "png",
+            },
+            logs: true,
+            onQueueUpdate: (update) => {
+              if (update.status === "IN_PROGRESS") {
+                update.logs?.map((log) => log.message).forEach(console.log);
+              }
+            },
+          });
 
-The frame features photorealistic textures, consistent cinematic color grading, and correct framing for the specific number of subjects or objects.`;
+          if (!result.data?.images?.[0]?.url) {
+            console.error(`[Gen ${i + 1}] No image returned`);
+            return null;
+          }
 
-        // Map aspect ratio - fal.ai accepts specific enum values
-        const aspectRatioMap: Record<string, "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"> = {
-          "16:9": "16:9",
-          "9:16": "9:16",
-          "1:1": "1:1",
-          "4:3": "4:3",
-          "3:4": "3:4",
-        };
-        const aspectRatio = aspectRatioMap[args.aspectRatio || "16:9"] || "16:9";
-
-        console.log(`Generating image ${index} with shot type ${assignedShotType} (${shotTypeName})`);
-
-        // Call fal.ai Nano Banana Pro
-        const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {
-          input: {
-            prompt: prompt,
-            image_urls: [imageUrl],
-            num_images: 1,
-            aspect_ratio: aspectRatio,
-            resolution: "2K",
-            output_format: "png",
-          },
-          logs: true,
-          onQueueUpdate: (update) => {
-            if (update.status === "IN_PROGRESS") {
-              update.logs?.map((log) => log.message).forEach(console.log);
-            }
-          },
-        });
-
-        if (!result.data?.images || result.data.images.length === 0) {
-          console.error("No images returned from fal.ai");
+          return result.data.images[0].url;
+        } catch (err) {
+          console.error(`[Gen ${i + 1}] Error:`, err);
           return null;
         }
-
-        // Return the first image URL
-        return result.data.images[0].url;
-      } catch (err: any) {
-        console.error("Error generating image:", err);
-        return null;
-      }
+      })();
     });
 
     const results = await Promise.all(generatePromises);
-    const validResults = results.filter((r: string | null) => r !== null) as string[];
+    const validUrls = results.filter((r): r is string => r !== null);
 
-    if (validResults.length === 0) {
+    if (validUrls.length === 0) {
       console.error("No valid images generated");
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
         imageId: args.originalImageId, 
@@ -129,53 +183,36 @@ The frame features photorealistic textures, consistent cinematic color grading, 
       return;
     }
 
-    // Use parent's title directly - it's already passed from the analysis
     const parentTitle = args.title || "Untitled";
-
     const generatedImages = [];
 
-    for (let i = 0; i < validResults.length; i++) {
-      const imageUrl = validResults[i];
-      
-      // Download the generated image and upload to Convex storage
+    for (let i = 0; i < validUrls.length; i++) {
       try {
-        const imageResponse = await fetch(imageUrl);
-        if (!imageResponse.ok) {
-          console.error("Failed to fetch generated image from fal.ai");
-          continue;
-        }
+        const imageResponse = await fetch(validUrls[i]);
+        if (!imageResponse.ok) continue;
 
         const imageBlob = await imageResponse.blob();
-
-        // 1. Get upload URL
         const uploadUrl = await ctx.runMutation(internal.images.internalGenerateUploadUrl);
 
-        // 2. Upload to Convex storage
         const uploadResponse = await fetch(uploadUrl, {
           method: "POST",
           headers: { "Content-Type": imageBlob.type || "image/png" },
           body: imageBlob,
         });
 
-        if (!uploadResponse.ok) {
-          console.error("Failed to upload generated image to Convex storage");
-          continue;
-        }
+        if (!uploadResponse.ok) continue;
 
         const { storageId } = await uploadResponse.json();
-
-        // 3. Get URL
         const finalImageUrl = await ctx.storage.getUrl(storageId);
         if (!finalImageUrl) continue;
 
         generatedImages.push({
           url: finalImageUrl,
-          title: parentTitle, // Inherit parent's exact title
-          description: args.description, // Use parent's full description (will be inherited in internalSaveGeneratedImages)
+          title: parentTitle,
+          description: args.description,
         });
       } catch (err) {
-        console.error(`Failed to process generated image ${i}:`, err);
-        continue;
+        console.error(`Failed to save generated image ${i}:`, err);
       }
     }
 
@@ -185,7 +222,55 @@ The frame features photorealistic textures, consistent cinematic color grading, 
         images: generatedImages,
       });
     }
+    
     return null;
+  },
+});
+
+// NEW: Standalone action to generate variations AFTER user reviews the image
+export const generateVariations = mutation({
+  args: {
+    imageId: v.id("images"),
+    variationCount: v.number(),
+    modificationMode: v.string(),
+    variationDetail: v.optional(v.string()),
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const image = await ctx.db.get("images", args.imageId);
+    if (!image || image.uploadedBy !== userId) {
+      throw new Error("Not authorized or image not found");
+    }
+
+    if (!image.storageId) {
+      throw new Error("Image has no storage ID");
+    }
+
+    // Update image with variation settings
+    await ctx.db.patch("images", args.imageId, {
+      aiStatus: "processing",
+      variationCount: args.variationCount,
+      modificationMode: args.modificationMode,
+      variationDetail: args.variationDetail,
+    });
+
+    // Schedule the generation
+    await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
+      originalImageId: args.imageId,
+      storageId: image.storageId,
+      description: image.description || "",
+      category: image.category,
+      style: undefined,
+      title: image.title,
+      variationCount: args.variationCount,
+      modificationMode: args.modificationMode,
+      variationDetail: args.variationDetail,
+    });
+
+    return { success: true };
   },
 });
 
@@ -203,20 +288,23 @@ export const internalSmartAnalyzeImage = internalAction({
     group: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
+    // Variation settings - but we won't auto-generate anymore
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
+    variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
+    variationDetail: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // 1. Get image URL from storageId
     const imageUrl = await ctx.storage.getUrl(args.storageId);
     if (!imageUrl) {
       console.error("Image not found in storage");
       return;
     }
 
-    // 2. Call OpenRouter VLM API using OpenAI SDK
     const openRouterKey = process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
     if (!openRouterKey) {
-      console.error("OPEN_ROUTER_KEY or OPENROUTER_API_KEY environment variable not set");
+      console.error("OPENROUTER_API_KEY not set");
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
         imageId: args.imageId, 
         status: "failed" 
@@ -224,7 +312,6 @@ export const internalSmartAnalyzeImage = internalAction({
       return;
     }
 
-    // Use Qwen3 VL 8B Instruct for image analysis (default)
     const vlmModel = process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
 
     const categories = [
@@ -236,9 +323,8 @@ export const internalSmartAnalyzeImage = internalAction({
     ];
 
     try {
-      const prompt = `Analyze this image. 1. Generate a short, catchy title. 2. Write a concise description. 3. Generate 5-10 specific descriptive tags (focus on objects, lighting, mood, composition, specific elements; do NOT use broad categories). 4. Extract 5 distinct and vibrant dominant colors (hex codes). 5. Identify the visual style/medium (e.g., '35mm Film', 'VHS', 'CGI', 'Oil Painting'). 6. Select the single most appropriate category from this list: ${categories.join(", ")}. 7. Determine the group type: "Commercial", "Film", "Moodboard", "Spec Commercial", "Spec Music Video", "Music Video", "TV", or null if unclear. 8. If this appears to be from a specific project/movie/music video, suggest a project name (e.g., "Kitty Bite Back"). 9. If this appears to be a reference/moodboard image, suggest a moodboard name (e.g., "pink girl smoking"). Return ONLY a strict valid JSON object with keys: "title", "description", "tags" (array of strings), "colors" (array of hex strings), "category" (string), "visual_style" (string), "group" (string or null), "project_name" (string or null), "moodboard_name" (string or null). Ensure all keys and string values use double quotes.`;
+      const prompt = `Analyze this image. Return JSON with: "title" (short catchy), "description" (concise), "tags" (5-10 specific descriptive tags), "colors" (5 hex codes), "category" (one of: ${categories.join(", ")}), "visual_style" (e.g., '35mm Film', 'CGI'), "group" ("Commercial"/"Film"/"Moodboard"/"Spec Commercial"/"Spec Music Video"/"Music Video"/"TV" or null), "project_name" (if recognizable, else null), "moodboard_name" (if reference image, else null). Return ONLY valid JSON.`;
 
-      // Initialize OpenAI client configured for OpenRouter
       const openai = new OpenAI({
         baseURL: "https://openrouter.ai/api/v1",
         apiKey: openRouterKey,
@@ -248,7 +334,6 @@ export const internalSmartAnalyzeImage = internalAction({
         },
       });
 
-      // Prepare provider routing options if configured
       const providerOptions: any = {};
       if (process.env.OPENROUTER_PROVIDER_SORT) {
         providerOptions.provider = {
@@ -256,23 +341,14 @@ export const internalSmartAnalyzeImage = internalAction({
         };
       }
 
-      // Call OpenRouter API using OpenAI SDK
       const completion = await openai.chat.completions.create({
         model: vlmModel,
         messages: [
           {
             role: "user",
             content: [
-              {
-                type: "text",
-                text: prompt,
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageUrl,
-                },
-              },
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
         ],
@@ -280,15 +356,12 @@ export const internalSmartAnalyzeImage = internalAction({
       });
 
       const messageContent = completion.choices[0]?.message?.content;
-      
-      if (!messageContent) {
-        throw new Error("No content in OpenRouter response");
-      }
+      if (!messageContent) throw new Error("No content in response");
 
-      console.log(`OpenRouter VLM Analysis Result (${vlmModel}):`, messageContent);
+      console.log(`VLM Analysis (${vlmModel}):`, messageContent);
 
       let title: string | undefined;
-      let description: string = "No description generated.";
+      let description = "No description generated.";
       let tags: string[] = [];
       let colors: string[] = [];
       let category: string | undefined;
@@ -298,46 +371,29 @@ export const internalSmartAnalyzeImage = internalAction({
       let moodboard_name: string | undefined;
 
       try {
-        // Remove markdown code blocks if present
         const cleanContent = messageContent.replace(/```(?:json)?\s*/g, "").replace(/```/g, "").trim();
         
-        let parsedContent;
+        let parsed;
         try {
-          parsedContent = JSON.parse(cleanContent);
-        } catch (e) {
-          // Fallback: Try to parse as JS object (handles single quotes)
-          // This is safe here as input comes from our own AI call
-          parsedContent = new Function("return " + cleanContent)();
+          parsed = JSON.parse(cleanContent);
+        } catch {
+          parsed = new Function("return " + cleanContent)();
         }
 
-        title = parsedContent.title;
-        description = typeof parsedContent.description === 'string' ? parsedContent.description : JSON.stringify(parsedContent.description);
-        if (description.startsWith('```json')) {
-          description = description.replace(/```json\n?|```/g, '').trim();
-        } else if (description.startsWith('{') && description.endsWith('}')) {
-          try {
-            const tempDesc = JSON.parse(description);
-            if (typeof tempDesc.description === 'string') {
-              description = tempDesc.description;
-            }
-          } catch (e) {
-            // ignore
-          }
-        }
-        tags = parsedContent.tags || tags;
-        colors = parsedContent.colors || colors;
-        category = parsedContent.category;
-        visual_style = parsedContent.visual_style;
-        group = parsedContent.group || undefined;
-        project_name = parsedContent.project_name || parsedContent.projectName || undefined;
-        moodboard_name = parsedContent.moodboard_name || parsedContent.moodboardName || undefined;
+        title = parsed.title;
+        description = typeof parsed.description === 'string' ? parsed.description : JSON.stringify(parsed.description);
+        tags = parsed.tags || [];
+        colors = parsed.colors || [];
+        category = parsed.category;
+        visual_style = parsed.visual_style;
+        group = parsed.group || undefined;
+        project_name = parsed.project_name || parsed.projectName || undefined;
+        moodboard_name = parsed.moodboard_name || parsed.moodboardName || undefined;
       } catch (jsonError) {
-        console.warn("VLM response parsing failed, using raw content as description.", jsonError);
+        console.warn("JSON parse failed, using raw content", jsonError);
         description = messageContent;
       }
 
-      // 3. Update the image document in the database
-      // Preserve sref from original upload - don't let AI overwrite it
       await ctx.runMutation(internal.images.internalUpdateAnalysis, {
         imageId: args.imageId,
         title,
@@ -348,32 +404,40 @@ export const internalSmartAnalyzeImage = internalAction({
         group,
         projectName: project_name,
         moodboardName: moodboard_name,
-        sref: args.sref, // Preserve user-entered sref
+        sref: args.sref,
       });
 
-      // 4. Generate related images
-      await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
-        originalImageId: args.imageId,
-        storageId: args.storageId,
-        description,
-        category: category || args.category,
-        style: visual_style,
-        title, 
-      });
+      // CHANGED: Only generate variations if user explicitly requested them (count > 0)
+      const requestedCount = args.variationCount ?? 0;
+      
+      if (requestedCount > 0) {
+        await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
+          originalImageId: args.imageId,
+          storageId: args.storageId,
+          description,
+          category: category || args.category,
+          style: visual_style,
+          title,
+          variationCount: requestedCount,
+          modificationMode: args.modificationMode,
+          variationType: args.variationType,
+          variationDetail: args.variationDetail,
+        });
+      } else {
+        // No variations requested - mark as completed immediately
+        await ctx.runMutation(internal.images.internalSetAiStatus, { 
+          imageId: args.imageId, 
+          status: "completed" 
+        });
+      }
+      
       return null;
 
     } catch (err: any) {
-      const errorMessage = err?.message || String(err);
-      console.error("Smart analysis failed:", errorMessage, err);
+      console.error("Smart analysis failed:", err?.message || err);
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
         imageId: args.imageId, 
         status: "failed" 
-      });
-      // Log detailed error for debugging
-      console.error("Full error details:", {
-        imageId: args.imageId,
-        error: errorMessage,
-        stack: err?.stack
       });
       return null;
     }
@@ -382,7 +446,10 @@ export const internalSmartAnalyzeImage = internalAction({
 
 export const smartAnalyzeImage = httpAction(async (ctx, request) => {
   try {
-    const { storageId, imageId, userId, title, description, tags, category, source, sref } = await request.json();
+    const { 
+      storageId, imageId, userId, title, description, tags, category, source, sref,
+      variationCount, modificationMode, variationType, variationDetail 
+    } = await request.json();
 
     if (!storageId || !imageId || !userId) {
       return new Response(JSON.stringify({ error: "storageId, imageId, and userId are required" }), {
@@ -391,17 +458,9 @@ export const smartAnalyzeImage = httpAction(async (ctx, request) => {
       });
     }
 
-    // Schedule the internal action to run
     await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-        storageId,
-        imageId,
-        userId,
-        title,
-        description,
-        tags,
-        category,
-        source,
-        sref
+      storageId, imageId, userId, title, description, tags, category, source, sref,
+      variationCount, modificationMode, variationType, variationDetail,
     });
 
     return new Response(JSON.stringify({ success: true }), {
@@ -431,29 +490,28 @@ export const rerunSmartAnalysis = mutation({
     group: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
+    if (!userId) throw new Error("Not authenticated");
+    
     const image = await ctx.db.get("images", args.imageId);
     if (!image || image.uploadedBy !== userId) {
       throw new Error("Not authorized or image not found");
     }
 
-    // Set status back to processing
     await ctx.runMutation(internal.images.internalSetAiStatus, {
       imageId: args.imageId,
       status: "processing",
     });
 
-    // Schedule the analysis again
     await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
       storageId: args.storageId,
       imageId: args.imageId,
-      userId: userId,
+      userId,
       title: args.title,
       description: args.description,
       tags: args.tags,
@@ -463,6 +521,10 @@ export const rerunSmartAnalysis = mutation({
       group: args.group,
       projectName: args.projectName,
       moodboardName: args.moodboardName,
+      variationCount: args.variationCount ?? 0, // Default to 0 - no auto generation
+      modificationMode: args.modificationMode ?? image.modificationMode,
+      variationType: image.variationType,
+      variationDetail: image.variationDetail,
     });
 
     return { success: true };

@@ -82,6 +82,47 @@ export const getById = query({
   },
 });
 
+export const getBoardImages = query({
+  args: { boardId: v.id("collections") },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to view board images");
+    }
+
+    const board = await ctx.db.get("collections", args.boardId);
+    if (!board || board.userId !== userId) {
+      throw new Error("Board not found");
+    }
+
+    // Get the images for this board
+    const images = await Promise.all(
+      board.imageIds.map(async (imageId) => {
+        const image = await ctx.db.get("images", imageId);
+        if (!image) return null;
+        
+        // Check if user has liked this image
+        let isLiked = false;
+        const like = await ctx.db
+          .query("likes")
+          .withIndex("by_user_and_image", (q) => 
+            q.eq("userId", userId).eq("imageId", imageId)
+          )
+          .unique();
+        isLiked = !!like;
+        
+        return {
+          ...image,
+          isLiked,
+        };
+      })
+    );
+
+    return images.filter(Boolean);
+  },
+});
+
 export const create = mutation({
   args: {
     name: v.string(),
