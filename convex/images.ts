@@ -375,7 +375,12 @@ export const uploadMultiple = mutation({
             tags: upload.tags,
             category: upload.category,
             source: upload.source,
-            sref: upload.sref || undefined, // Pass undefined if sref is empty string
+            sref: upload.sref || undefined,
+            // Pass user's variation settings
+            variationCount: upload.variationCount,
+            modificationMode: upload.modificationMode,
+            variationType: upload.variationType,
+            variationDetail: upload.variationDetail,
           });
         } catch (err) {
           console.error("Failed to schedule smart analysis:", err);
