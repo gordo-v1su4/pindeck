@@ -24,7 +24,7 @@ const applicationTables = {
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
     variationCount: v.optional(v.number()),
-    variationType: v.optional(v.string()),
+    variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
     variationDetail: v.optional(v.string()),
   })
     .index("by_category", ["category"])
