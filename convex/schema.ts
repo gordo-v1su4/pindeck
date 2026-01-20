@@ -23,7 +23,14 @@ const applicationTables = {
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
-    parentImageId: v.optional(v.id("images")), // Reference to parent image (for AI-generated variations)
+    // AI variation metadata
+    variationCount: v.optional(v.number()),
+    variationType: v.optional(
+      v.union(v.literal("shot_type"), v.literal("style"))
+    ),
+    variationDetail: v.optional(v.string()),
+    // Relationship to original image (for AI-generated variations)
+    parentImageId: v.optional(v.id("images")),
   })
     .index("by_category", ["category"])
     .index("by_uploaded_by", ["uploadedBy"])
