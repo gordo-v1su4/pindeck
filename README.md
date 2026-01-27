@@ -209,7 +209,7 @@ When you upload an image, the system automatically uses OpenRouter's VLM models 
 - Identifies dominant colors (5 hex codes)
 - Detects visual style/medium (e.g., '35mm Film', 'VHS', 'CGI')
 - Categorizes the image
-- Suggests project name and moodboard name
+- Suggests project name and mood board name
 
 **Workflow:**
 1. **Image Analysis** - OpenRouter with Qwen3 VL 8B Instruct (`qwen/qwen3-vl-8b-instruct`) analyzes the uploaded image
