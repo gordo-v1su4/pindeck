@@ -265,11 +265,10 @@ export const getCategories = query({
     const existingCategories = new Set(images.map(img => img.category));
     
     const defaultCategories = [
-      "Abstract", "Architecture", "Art", "Black & White", "Character Design", 
-      "Cinematic", "Cyberpunk", "Design", "Fashion", "Film", 
-      "Food", "Gaming", "Illustration", "Interior", "Landscape", 
-      "Minimalist", "Nature", "Photography", "Portrait", "Sci-Fi", 
-      "Street", "Technology", "Texture", "Travel", "UI/UX", "Vintage"
+      "Abstract", "Architecture", "Art", "Blockbuster Film", "Character Design", 
+      "Cinematic", "Commercial", "Design", "Environment", "Fashion", "Film", 
+      "Gaming", "Headshot", "Indy Film", "Illustration", "Interior", "Landscape", 
+      "Photography", "Sci-Fi", "Streetwear", "Technology", "Texture", "UI/UX", "Vintage"
     ];
 
     const allCategories = new Set([...defaultCategories, ...existingCategories]);

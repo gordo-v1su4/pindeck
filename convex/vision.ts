@@ -315,11 +315,10 @@ export const internalSmartAnalyzeImage = internalAction({
     const vlmModel = process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
 
     const categories = [
-      "Abstract", "Architecture", "Art", "Black & White", "Character Design", 
-      "Cinematic", "Cyberpunk", "Design", "Fashion", "Film", 
-      "Food", "Gaming", "Illustration", "Interior", "Landscape", 
-      "Minimalist", "Nature", "Photography", "Portrait", "Sci-Fi", 
-      "Street", "Technology", "Texture", "Travel", "UI/UX", "Vintage"
+      "Abstract", "Architecture", "Art", "Blockbuster Film", "Character Design", 
+      "Cinematic", "Commercial", "Design", "Environment", "Fashion", "Film", 
+      "Gaming", "Headshot", "Indy Film", "Illustration", "Interior", "Landscape", 
+      "Photography", "Sci-Fi", "Streetwear", "Technology", "Texture", "UI/UX", "Vintage"
     ];
 
     try {
@@ -377,7 +376,30 @@ export const internalSmartAnalyzeImage = internalAction({
         try {
           parsed = JSON.parse(cleanContent);
         } catch {
-          parsed = new Function("return " + cleanContent)();
+          // Try to fix common JSON issues before parsing again
+          // Replace single quotes with double quotes (but not inside strings)
+          // Remove trailing commas
+          // This is a safer alternative to using Function constructor
+          const fixedContent = cleanContent
+            .replace(/'/g, '"') // Replace single quotes with double quotes
+            .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
+          
+          try {
+            parsed = JSON.parse(fixedContent);
+          } catch {
+            // If still fails, try to extract JSON object from the string
+            const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                parsed = JSON.parse(jsonMatch[0]);
+              } catch {
+                // Last resort: return a basic structure with the raw content
+                parsed = { description: cleanContent };
+              }
+            } else {
+              parsed = { description: cleanContent };
+            }
+          }
         }
 
         title = parsed.title;
