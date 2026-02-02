@@ -313,7 +313,7 @@ export function TableView() {
                   <MagicWandIcon />
                 </IconButton>
               </DropdownMenu.Trigger>
-              <DropdownMenu.Content>
+              <DropdownMenu.Content className="dropdown-teal">
                 <DropdownMenu.Item onClick={() => handleGenerate(row.original._id, "storyboard")}>
                   Storyboard
                 </DropdownMenu.Item>

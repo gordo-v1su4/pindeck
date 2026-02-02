@@ -1,12 +1,18 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { HeartIcon, EyeOpenIcon, ExternalLinkIcon, Cross2Icon, BookmarkIcon, PlusIcon, MagicWandIcon } from "@radix-ui/react-icons";
-import { Dialog, Button, Card, Badge, Text, Flex, Box, IconButton, DropdownMenu } from "@radix-ui/themes";
+import { HeartIcon, HeartFilledIcon, Cross2Icon, BookmarkIcon, PlusIcon, MagicWandIcon, CopyIcon } from "@radix-ui/react-icons";
+import { Dialog, Button, Text, Flex, Box, IconButton, DropdownMenu, Badge, Tooltip } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { CreateBoardModal } from "./CreateBoardModal";
-import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
+import { GenerateVariationsModal } from "./GenerateVariationsModal";
+import { sortColorsDarkToLight, getTagColor } from "../lib/utils";
+
+const copyToClipboard = (text: string, label: string) => {
+  navigator.clipboard.writeText(text);
+  toast.success(`${label} copied!`);
+};
 
 interface ImageModalProps {
   imageId: Id<"images">;
@@ -16,7 +22,7 @@ interface ImageModalProps {
   incrementBoardVersion: () => void;
 }
 
-export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, incrementBoardVersion }: ImageModalProps) {
+export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersion }: ImageModalProps) {
   const image = useQuery(api.images.getById, { id: imageId });
   const boards = useQuery(api.boards.list);
   const toggleLike = useMutation(api.images.toggleLike);
@@ -24,13 +30,7 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
   const addImageToBoard = useMutation(api.boards.addImage);
   const generateOutput = useMutation(api.generations.generate);
   const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
-  const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-  
-  // Query parent image if this is a generated variation
-  const parentImage = useQuery(
-    api.images.getById, 
-    image?.parentImageId ? { id: image.parentImageId } : "skip"
-  );
+  const [variationsModalOpen, setVariationsModalOpen] = useState(false);
 
   useEffect(() => {
     if (imageId) {
@@ -38,19 +38,20 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
     }
   }, [imageId, incrementViews]);
 
-  // Sort colors dark to light for aesthetic gradient display
-  // Must be called before early return to maintain hook order
   const sortedColors = useMemo(() => {
     if (!image?.colors || image.colors.length === 0) return [];
     return sortColorsDarkToLight(image.colors);
   }, [image?.colors]);
 
-  // Generate display title from projectName + moodboardName or fallback to title
-  // Must be called before early return to maintain hook order
+  const isSavedToAnyBoard = useMemo(() => {
+    if (!boards || !imageId) return false;
+    return boards.some(board => board.imageIds.includes(imageId));
+  }, [boards, imageId]);
+
   const displayTitle = useMemo(() => {
     if (!image) return '';
-    return image.projectName 
-      ? image.moodboardName 
+    return image.projectName
+      ? image.moodboardName
         ? `${image.projectName} - ${image.moodboardName}`
         : image.projectName
       : image.title;
@@ -66,19 +67,14 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
 
   const handleSaveToBoard = async (boardId: Id<"collections">) => {
     if (!image) return;
-    
     try {
-      await addImageToBoard({ 
-        boardId, 
-        imageId: image._id 
-      });
-      toast.success("Image saved to board!");
+      await addImageToBoard({ boardId, imageId: image._id });
+      toast.success("Saved to board!");
     } catch (error: any) {
-      console.error("Failed to save to board:", error);
       if (error.message?.includes("already in board")) {
-        toast.error("Image is already in this board");
+        toast.error("Already in this board");
       } else {
-        toast.error("Failed to save to board");
+        toast.error("Failed to save");
       }
     }
   };
@@ -88,305 +84,252 @@ export function ImageModal({ imageId, onClose, triggerPosition, setActiveTab, in
       const result = await generateOutput({ imageId, type });
       toast.success(`${result.templateName} created`);
     } catch (error) {
-      console.error("Failed to generate output:", error);
-      toast.error("Failed to generate output");
+      toast.error("Failed to generate");
     }
   };
-  const positionedStyle = triggerPosition ? (() => {
-    const modalWidth = Math.min(window.innerWidth * 0.7, 600);
-    const modalHeight = Math.min(window.innerHeight * 0.85, 650);
-    const maxLeft = Math.max(16, window.innerWidth - modalWidth - 16);
-    const maxTop = Math.max(16, window.innerHeight - modalHeight - 16);
 
-    return {
-      position: 'fixed' as const,
-      top: `${clampValue(triggerPosition.y - modalHeight / 2, 16, maxTop)}px`,
-      left: `${clampValue(triggerPosition.x - modalWidth / 2, 16, maxLeft)}px`,
-      transform: 'none'
-    };
-  })() : undefined;
-
-  // Early return AFTER all hooks have been called
   if (!image) return null;
 
   return (
     <>
       <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
-        <Dialog.Content 
-          className="max-h-[85vh] p-0 !w-[70vw] !max-w-[600px] bg-gray-2"
-          style={positionedStyle}
+        <Dialog.Content
+          className="p-0 overflow-hidden"
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '520px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
+            background: '#111',
+            borderRadius: '8px',
+            border: 'none',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+            overflowY: 'auto',
+          }}
         >
           <Dialog.Title className="sr-only">{displayTitle}</Dialog.Title>
-          <Dialog.Description className="sr-only">Image details and metadata</Dialog.Description>
-          <Flex direction="column" className="max-h-[90vh]">
-            {/* Image Display */}
-            <Box className="flex items-center justify-center bg-transparent aspect-video overflow-hidden relative z-10">
-              <img
-                src={image.imageUrl}
-                alt={displayTitle}
-                className="w-full h-full object-cover"
-              />
-            </Box>
+          <Dialog.Description className="sr-only">Image details</Dialog.Description>
 
-            {/* Content Panel */}
-            <Box 
-              className="p-5 space-y-4 flex-1 overflow-y-auto relative z-20" 
-              style={{ 
-                backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-                backdropFilter: 'blur(12px)', 
-                WebkitBackdropFilter: 'blur(12px)' 
-              }}
-            >
-              <Dialog.Close>
+          {/* Close button - top right corner over image */}
+          <IconButton
+            variant="soft"
+            color="gray"
+            size="2"
+            className="absolute top-3 right-3 z-50"
+            style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '50%' }}
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <Cross2Icon />
+          </IconButton>
+
+          {/* Image - full width, natural aspect */}
+          <Box style={{ width: '100%', aspectRatio: '16/9', background: '#000' }}>
+            <img
+              src={image.imageUrl}
+              alt={displayTitle}
+              className="w-full h-full object-contain"
+            />
+          </Box>
+
+          {/* Metadata panel */}
+          <Box className="p-5">
+            {/* Title row with copy */}
+            <Flex align="center" justify="between" className="mb-2">
+              <Text size="4" weight="bold" style={{ color: '#fff' }}>
+                {displayTitle}
+              </Text>
+              <Tooltip content="Copy title">
                 <IconButton
                   variant="ghost"
                   color="gray"
-                  className="absolute top-2 right-2"
-                  aria-label="Close modal"
+                  size="1"
+                  onClick={() => copyToClipboard(displayTitle, 'Title')}
                 >
-                  <Cross2Icon />
+                  <CopyIcon />
                 </IconButton>
-              </Dialog.Close>
+              </Tooltip>
+            </Flex>
 
-              {/* Parent Image Lineage - Show if this is a generated variation */}
-              {image.parentImageId && parentImage && (
-                <Box className="pb-4 border-b border-gray-6">
-                  <Flex gap="2" align="center">
-                    <Text size="2" color="gray">Generated from:</Text>
-                    <Button
-                      variant="soft"
-                      color="blue"
-                      size="1"
-                      onClick={() => {
-                        onClose();
-                        // Small delay to allow modal to close before opening new one
-                        setTimeout(() => {
-                          // Navigate to parent image by triggering parent selection
-                          const event = new CustomEvent('open-image-modal', { 
-                            detail: { imageId: image.parentImageId } 
-                          });
-                          window.dispatchEvent(event);
-                        }, 100);
-                      }}
-                      style={{ opacity: 0.85 }}
-                    >
-                      {parentImage.title}
-                    </Button>
-                  </Flex>
-                </Box>
+            {/* Category & Group badges */}
+            <Flex gap="2" className="mb-3">
+              <Badge color="gray" variant="soft" style={{ textTransform: 'capitalize' }}>
+                {image.category}
+              </Badge>
+              {image.group && (
+                <Badge color="gray" variant="outline" style={{ textTransform: 'capitalize' }}>
+                  {image.group}
+                </Badge>
               )}
+            </Flex>
 
-              {/* Project/Group Header - Prominent like ShotDeck */}
-              {(image.projectName || image.group) && (
-                <Box className="space-y-2 pb-3">
-                  {image.projectName && (
-                    <Text size="5" weight="bold" className="block">
-                      {image.projectName}
-                    </Text>
-                  )}
-                  {image.group && (
-                    <Flex gap="2" align="center">
-                      <Badge variant="soft" color="blue" size="2">
-                        {image.group}
-                      </Badge>
-                      {image.moodboardName && (
-                        <Text size="2" color="gray">
-                          {image.moodboardName}
-                        </Text>
-                      )}
-                    </Flex>
-                  )}
-                </Box>
-              )}
-
-              {/* Title (if different from project name) */}
-              {(!image.projectName || image.title !== image.projectName) && (
-                <Text size="3" weight="medium" className="block">
-                  {image.title}
-                </Text>
-              )}
-
-              {image.description && (
-                <Text size="2" color="gray" className="leading-relaxed">
+            {/* Description with copy */}
+            {image.description && (
+              <Flex align="start" gap="2" className="mb-4">
+                <Text size="2" style={{ color: '#aaa', lineHeight: 1.5, flex: 1 }}>
                   {image.description}
                 </Text>
-              )}
-
-              <Flex gap="4" align="center">
-                <Flex gap="2" align="center">
-                  <HeartIcon width="14" height="14" />
-                  <Text size="2" color="gray">{image.likes}</Text>
-                </Flex>
-                <Flex gap="2" align="center">
-                  <EyeOpenIcon width="14" height="14" />
-                  <Text size="2" color="gray">{image.views}</Text>
-                </Flex>
-              </Flex>
-
-              <Box className="space-y-3">
-                <Flex align="center" gap="3">
-                  <Text size="2" color="gray" className="w-20 flex-shrink-0">Category:</Text>
-                  <Badge variant="soft" color="gray" size="2" className="capitalize">
-                    {image.category}
-                  </Badge>
-                </Flex>
-
-                {/* Colors - Sorted dark to light gradient */}
-                {sortedColors.length > 0 && (
-                  <Flex align="start" gap="3">
-                    <Text size="2" color="gray" className="w-20 flex-shrink-0">Colors:</Text>
-                    <Flex gap="3" wrap="wrap" className="flex-1">
-                      {sortedColors.map((color, index) => (
-                        <Box
-                          key={index}
-                          className="w-10 h-10 border border-gray-6 flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                          title={color}
-                        />
-                      ))}
-                    </Flex>
-                  </Flex>
-                )}
-
-                {image.tags.length > 0 && (
-                  <Flex align="start" gap="3">
-                    <Text size="2" color="gray" className="w-20 flex-shrink-0">Tags:</Text>
-                    <Flex gap="1.5" wrap="wrap" className="flex-1">
-                      {image.tags.map((tag, index) => (
-                        <Badge key={index} variant="soft" color={getTagColor(tag)} size="1">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </Flex>
-                  </Flex>
-                )}
-
-                {image.source && (
-                  <Flex align="center" gap="3">
-                    <Text size="2" color="gray" className="w-20 flex-shrink-0">Source:</Text>
-                    <Button
-                      variant="soft"
-                      color="blue"
-                      size="1"
-                      asChild
-                      style={{ opacity: 0.8 }}
-                    >
-                      <a
-                        href={image.source}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1"
-                      >
-                        View Original
-                        <ExternalLinkIcon width="12" height="12" />
-                      </a>
-                    </Button>
-                  </Flex>
-                )}
-
-                {image.sref && (
-                  <Flex align="center" gap="3">
-                    <Text size="2" color="gray" className="w-20 flex-shrink-0">Sref:</Text>
-                    <Badge variant="soft" color="blue" size="1">
-                      {image.sref}
-                    </Badge>
-                  </Flex>
-                )}
-
-                {image.uniqueId && (
-                  <Flex align="center" gap="3">
-                    <Text size="2" color="gray" className="w-20 flex-shrink-0">ID:</Text>
-                    <Text size="1" color="gray" className="font-mono">
-                      {image.uniqueId}
-                    </Text>
-                  </Flex>
-                )}
-              </Box>
-
-              <Box className="pt-3 mt-3">
-                <Flex gap="3" align="center">
-                  <Button
-                    onClick={() => { void handleLike(); }}
-                    variant="soft"
-                    color={image.isLiked ? "red" : "gray"}
-                    size="2"
-                    className="flex-1"
-                    style={{ opacity: image.isLiked ? 0.9 : 0.7 }}
+                <Tooltip content="Copy description">
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={() => copyToClipboard(image.description || '', 'Description')}
                   >
-                    <HeartIcon width="16" height="16" />
-                    {image.isLiked ? 'Liked' : 'Like'}
-                  </Button>
+                    <CopyIcon />
+                  </IconButton>
+                </Tooltip>
+              </Flex>
+            )}
 
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                      <Button
-                        variant="soft"
-                        color="blue"
-                        size="2"
-                        className="flex-1"
-                        style={{ opacity: 0.8 }}
-                      >
-                        <BookmarkIcon width="16" height="16" />
-                        Save
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content>
-                      {boards && boards.length > 0 ? (
-                        <>
-                          {boards.map((board) => (
-                            <DropdownMenu.Item
-                              key={board._id}
-                              onClick={() => handleSaveToBoard(board._id)}
-                            >
-                              {board.name}
-                            </DropdownMenu.Item>
-                          ))}
-                          <DropdownMenu.Separator />
-                        </>
-                      ) : null}
-                      <DropdownMenu.Item
-                        onClick={() => setCreateBoardModalOpen(true)}
-                      >
-                        <PlusIcon width="14" height="14" />
-                        Create board
-                      </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
+            {/* sref - code-style clickable box */}
+            {image.sref && (
+              <Flex
+                align="center"
+                gap="2"
+                onClick={() => copyToClipboard(`--sref ${image.sref}`, 'sref code')}
+                className="mb-3 cursor-pointer group"
+                style={{
+                  background: '#1a1a1a',
+                  borderRadius: '4px',
+                  border: '1px solid #333',
+                  padding: '6px 10px',
+                }}
+              >
+                <Text size="1" style={{ color: '#888', fontFamily: 'monospace' }}>
+                  --sref
+                </Text>
+                <Text size="2" weight="medium" style={{ color: '#fff', fontFamily: 'monospace', flex: 1 }}>
+                  {image.sref}
+                </Text>
+                <CopyIcon style={{ color: '#666' }} className="group-hover:text-white transition-colors" />
+              </Flex>
+            )}
 
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                      <Button
-                        variant="soft"
-                        color="teal"
-                        size="2"
-                        className="flex-1"
-                        style={{ opacity: 0.8 }}
-                      >
-                        <MagicWandIcon width="16" height="16" />
-                        Generate
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content>
-                      <DropdownMenu.Item onClick={() => void handleGenerate("storyboard")}>
-                        Storyboard
-                      </DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => void handleGenerate("deck")}>
-                        Deck
-                      </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
+            {/* Colors - clickable swatches */}
+            {sortedColors.length > 0 && (
+              <Box className="mb-4">
+                <Text size="1" style={{ color: '#666' }} className="block mb-2">Colors</Text>
+                <Flex gap="2" wrap="wrap">
+                  {sortedColors.slice(0, 8).map((color, i) => (
+                    <Tooltip key={i} content={`Copy ${color}`}>
+                      <Box
+                        onClick={() => copyToClipboard(color, 'Color')}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          backgroundColor: color,
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          transition: 'transform 0.1s',
+                        }}
+                        className="hover:scale-110"
+                      />
+                    </Tooltip>
+                  ))}
                 </Flex>
               </Box>
-            </Box>
-          </Flex>
+            )}
+
+            {/* Tags - colored badges matching table view */}
+            {image.tags.length > 0 && (
+              <Box className="mb-4">
+                <Text size="1" style={{ color: '#666' }} className="block mb-2">Tags</Text>
+                <Flex gap="1" wrap="wrap">
+                  {image.tags.slice(0, 12).map((tag, i) => (
+                    <Badge
+                      key={i}
+                      color={getTagColor(tag)}
+                      variant="soft"
+                      size="1"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => copyToClipboard(tag, 'Tag')}
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                  {image.tags.length > 12 && (
+                    <Badge color="gray" variant="soft" size="1">
+                      +{image.tags.length - 12}
+                    </Badge>
+                  )}
+                </Flex>
+              </Box>
+            )}
+
+            {/* Stats row */}
+            <Flex gap="3" align="center" className="mb-4">
+              <Text size="1" style={{ color: '#888' }}>♥ {image.likes}</Text>
+              <Text size="1" style={{ color: '#888' }}>{image.views} views</Text>
+            </Flex>
+
+            {/* Action buttons */}
+            <Flex gap="2">
+              <Button
+                onClick={() => { void handleLike(); }}
+                variant="soft"
+                color={image.isLiked ? "red" : "gray"}
+                size="2"
+              >
+                {image.isLiked ? <HeartFilledIcon /> : <HeartIcon />}
+                {image.isLiked ? 'Liked' : 'Like'}
+              </Button>
+
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  <Button variant="soft" color={isSavedToAnyBoard ? "blue" : "gray"} size="2">
+                    <BookmarkIcon /> {isSavedToAnyBoard ? 'Saved' : 'Save'}
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  {boards && boards.length > 0 && boards.map((board) => (
+                    <DropdownMenu.Item key={board._id} onClick={() => void handleSaveToBoard(board._id)}>
+                      {board.name}
+                    </DropdownMenu.Item>
+                  ))}
+                  <DropdownMenu.Separator />
+                  <DropdownMenu.Item onClick={() => setCreateBoardModalOpen(true)}>
+                    <PlusIcon width="14" height="14" /> New board
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  <Button variant="soft" color="teal" size="2">
+                    <MagicWandIcon /> Generate
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content className="dropdown-teal">
+                  <DropdownMenu.Item onClick={() => setVariationsModalOpen(true)}>
+                    Variations
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item onClick={() => void handleGenerate("storyboard")}>
+                    Storyboard
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item onClick={() => void handleGenerate("deck")}>
+                    Deck
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+            </Flex>
+          </Box>
         </Dialog.Content>
       </Dialog.Root>
 
+      <GenerateVariationsModal
+        imageId={image._id}
+        open={variationsModalOpen}
+        onOpenChange={setVariationsModalOpen}
+      />
+
       <CreateBoardModal
         open={createBoardModalOpen}
-        onOpenChange={(open) => {
-          setCreateBoardModalOpen(open);
-        }}
+        onOpenChange={setCreateBoardModalOpen}
         imageId={image._id}
         setActiveTab={setActiveTab}
         incrementBoardVersion={incrementBoardVersion}

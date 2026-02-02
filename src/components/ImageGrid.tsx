@@ -1,28 +1,73 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ImageModal } from "./ImageModal";
-import { HeartIcon, HeartFilledIcon, EyeOpenIcon, BookmarkIcon, BookmarkFilledIcon, MagicWandIcon, PlusIcon } from "@radix-ui/react-icons";
+import { HeartIcon, HeartFilledIcon, EyeOpenIcon, BookmarkIcon, BookmarkFilledIcon, MagicWandIcon, PlusIcon, DragHandleDots2Icon } from "@radix-ui/react-icons";
 import { IconButton, Text, Flex, Box, Spinner, Button, Badge, DropdownMenu } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { CreateBoardModal } from "./CreateBoardModal";
+import { GenerateVariationsModal } from "./GenerateVariationsModal";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
 
 interface ImageGridProps {
   searchTerm: string;
+  selectedGroup: string | undefined;
   selectedCategory: string | undefined;
   setActiveTab: (tab: string) => void;
   incrementBoardVersion: () => void;
 }
 
+function DroppableRow({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={isOver ? "ring-2 ring-blue-9 rounded-lg" : ""}>
+      {children}
+    </div>
+  );
+}
+
+function DraggableCard({
+  id,
+  children,
+}: {
+  id: Id<"images">;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: id as string,
+    data: { id },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`flex-shrink-0 ${isDragging ? "opacity-50 z-10" : ""}`}
+      style={{ width: "180px" }}
+    >
+      {children}
+    </div>
+  );
+}
+
 type ViewMode = "random" | "project-rows";
 
-export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incrementBoardVersion }: ImageGridProps) {
+export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActiveTab, incrementBoardVersion }: ImageGridProps) {
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | undefined>();
   const [viewMode, setViewMode] = useState<ViewMode>("random");
   const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
   const [createBoardImageId, setCreateBoardImageId] = useState<Id<"images"> | null>(null);
+  const [variationsModalImageId, setVariationsModalImageId] = useState<Id<"images"> | null>(null);
   const boards = useQuery(api.boards.list);
   const addImageToBoard = useMutation(api.boards.addImage);
   const generateOutput = useMutation(api.generations.generate);
@@ -32,11 +77,35 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
       ? api.images.search 
       : api.images.list,
     searchTerm 
-      ? { searchTerm, category: selectedCategory }
-      : { category: selectedCategory }
+      ? { searchTerm, category: selectedCategory, group: selectedGroup }
+      : { category: selectedCategory, group: selectedGroup }
   );
 
   const toggleLike = useMutation(api.images.toggleLike);
+  const setProjectRowOrder = useMutation(api.images.setProjectRowOrder);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  // Shuffle images for random view - use a seeded shuffle based on date so it's consistent per session
+  const shuffledImages = useMemo(() => {
+    if (!images || viewMode !== "random") return images;
+    // Fisher-Yates shuffle with a seed based on session start
+    const arr = [...images];
+    const seed = Math.floor(Date.now() / (1000 * 60 * 60)); // Changes every hour
+    let m = arr.length;
+    let t, i;
+    let s = seed;
+    while (m) {
+      s = (s * 9301 + 49297) % 233280;
+      i = Math.floor((s / 233280) * m--);
+      t = arr[m];
+      arr[m] = arr[i];
+      arr[i] = t;
+    }
+    return arr;
+  }, [images, viewMode]);
 
   // Listen for custom events to open image modals (for parent image navigation)
   useEffect(() => {
@@ -102,7 +171,10 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
           <MagicWandIcon />
         </IconButton>
       </DropdownMenu.Trigger>
-      <DropdownMenu.Content>
+      <DropdownMenu.Content onClick={(e) => e.stopPropagation()} className="dropdown-teal">
+        <DropdownMenu.Item onClick={(e) => { e.stopPropagation(); setVariationsModalImageId(imageId); }}>
+          Variations
+        </DropdownMenu.Item>
         <DropdownMenu.Item onClick={(event) => void handleGenerate(imageId, "storyboard", event)}>
           Storyboard
         </DropdownMenu.Item>
@@ -181,17 +253,65 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
     );
   }
 
-  // Group images by projectName for project-rows view
-  const groupedImages = viewMode === "project-rows" && images.some(img => img.projectName) 
-    ? images.reduce((acc, image) => {
-        const key = image.projectName || "Ungrouped";
-        if (!acc[key]) {
-          acc[key] = [];
+  // Group images by projectName for project-rows view; sort each row by projectOrder
+  const groupedImages = viewMode === "project-rows" && images.some(img => img.projectName)
+    ? (() => {
+        const acc: Record<string, typeof images> = {};
+        for (const image of images) {
+          const key = image.projectName || "Ungrouped";
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(image);
         }
-        acc[key].push(image);
+        for (const key of Object.keys(acc)) {
+          acc[key].sort((a, b) => {
+            const oA = (a as { projectOrder?: number }).projectOrder ?? 999;
+            const oB = (b as { projectOrder?: number }).projectOrder ?? 999;
+            return oA - oB;
+          });
+        }
         return acc;
-      }, {} as Record<string, typeof images>)
+      })()
     : null;
+
+  const handleProjectRowDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || !groupedImages) return;
+    const draggedId = active.id as string;
+    const overId = over.id as string;
+    const imageIdToInfo: Record<string, { projectName: string; index: number }> = {};
+    for (const [projectName, arr] of Object.entries(groupedImages)) {
+      arr.forEach((img, idx) => {
+        imageIdToInfo[img._id] = { projectName, index: idx };
+      });
+    }
+    const sourceInfo = imageIdToInfo[draggedId];
+    if (!sourceInfo) return;
+    const sourceProjectName = sourceInfo.projectName;
+    let targetProjectName: string;
+    let insertIndex: number;
+    if (String(overId).startsWith("row-")) {
+      targetProjectName = String(overId).slice(4);
+      insertIndex = groupedImages[targetProjectName]?.length ?? 0;
+    } else {
+      const targetInfo = imageIdToInfo[overId];
+      if (!targetInfo) return;
+      targetProjectName = targetInfo.projectName;
+      insertIndex = targetInfo.index;
+    }
+    const sourceIds = groupedImages[sourceProjectName].map((i) => i._id).filter((id) => id !== draggedId);
+    const targetBase = sourceProjectName === targetProjectName
+      ? sourceIds
+      : groupedImages[targetProjectName].map((i) => i._id);
+    const targetIds = [...targetBase];
+    targetIds.splice(insertIndex, 0, draggedId as Id<"images">);
+    if (sourceProjectName === targetProjectName) {
+      void setProjectRowOrder({ projectName: sourceProjectName, imageIds: targetIds });
+    } else {
+      void setProjectRowOrder({ projectName: sourceProjectName, imageIds: sourceIds });
+      void setProjectRowOrder({ projectName: targetProjectName, imageIds: targetIds });
+    }
+    toast.success("Order saved");
+  };
 
   return (
     <>
@@ -217,86 +337,99 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
       </Flex>
 
       {viewMode === "project-rows" && groupedImages ? (
-        // Project Rows view - ShotDeck style
-        <Box className="space-y-6">
-          {Object.entries(groupedImages)
-            .sort(([a], [b]) => a === "Ungrouped" ? 1 : b === "Ungrouped" ? -1 : a.localeCompare(b))
-            .map(([projectName, projectImages]) => {
-              const firstImage = projectImages[0];
-              return (
-                <Box key={projectName} className="space-y-2">
-                  {/* Group header - ShotDeck style */}
-                  <Flex align="baseline" gap="2" wrap="wrap">
-                    <Text size="4" weight="bold">{projectName}</Text>
-                    {firstImage?.group && (
-                      <>
-                        <Text size="2" color="gray">-</Text>
-                        <Badge variant="soft" color="blue" size="1">
-                          {firstImage.group}
-                        </Badge>
-                      </>
-                    )}
-                    <Text size="2" color="gray">
-                      ({projectImages.length} {projectImages.length === 1 ? "shot" : "shots"})
-                    </Text>
-                  </Flex>
-                  
-                  {/* Horizontal scrolling row */}
-                  <Box className="overflow-x-auto -mx-4 px-4">
-                    <Flex gap="2" className="min-w-max pb-2">
-                      {projectImages.map((image) => (
-                        <Box
-                          key={image._id}
-                          className="group cursor-pointer transition-all duration-200 flex-shrink-0"
-                          style={{ width: '180px' }}
-                          onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setTriggerPosition({
-                              x: rect.left + rect.width / 2,
-                              y: rect.top + rect.height / 2
-                            });
-                            setSelectedImage(image._id);
-                          }}
-                        >
-                          <Box className="relative overflow-hidden aspect-video bg-gray-900">
-                            <img
-                              src={image.imageUrl}
-                              alt={image.title}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                            
-                            {/* Subtle overlay on hover */}
-                            <Box className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200">
-                              <Flex gap="1" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                <IconButton
-                                  variant="soft"
-                                  color={image.isLiked ? "red" : "gray"}
-                                  size="1"
-                                  aria-label={image.isLiked ? "Unlike this image" : "Like this image"}
-                                  onClick={(e) => { void handleLike(image._id, e); }}
-                                  className="backdrop-blur-md"
-                                  style={{ opacity: 0.85 }}
-                                >
-                                  {image.isLiked ? <HeartFilledIcon /> : <HeartIcon />}
-                                </IconButton>
-                                {renderSaveToBoardDropdown(image, "1")}
-                                {renderGenerateMenu(image._id, "1")}
-                              </Flex>
-                            </Box>
-                          </Box>
-                        </Box>
-                      ))}
+        // Project Rows view - ShotDeck style with drag-and-drop
+        <DndContext sensors={sensors} onDragEnd={handleProjectRowDragEnd}>
+          <Box className="space-y-6">
+            {Object.entries(groupedImages)
+              .sort(([a], [b]) => a === "Ungrouped" ? 1 : b === "Ungrouped" ? -1 : a.localeCompare(b))
+              .map(([projectName, projectImages]) => {
+                const firstImage = projectImages[0];
+                return (
+                  <Box key={projectName} className="space-y-2">
+                    <Flex align="baseline" gap="2" wrap="wrap">
+                      <Text size="4" weight="bold">{projectName}</Text>
+                      {firstImage?.group && (
+                        <>
+                          <Text size="2" color="gray">-</Text>
+                          <Badge variant="soft" color="blue" size="1">
+                            {firstImage.group}
+                          </Badge>
+                        </>
+                      )}
+                      <Text size="2" color="gray">
+                        ({projectImages.length} {projectImages.length === 1 ? "shot" : "shots"})
+                      </Text>
                     </Flex>
+                    <Box className="overflow-x-auto -mx-4 px-4">
+                      <DroppableRow id={`row-${projectName}`}>
+                        <Flex gap="2" className="min-w-max pb-2">
+                          {projectImages.map((image) => (
+                            <DraggableCard key={image._id} id={image._id}>
+                              <Box
+                                className="group cursor-pointer transition-all duration-200"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setTriggerPosition({
+                                    x: rect.left + rect.width / 2,
+                                    y: rect.top + rect.height / 2
+                                  });
+                                  setSelectedImage(image._id);
+                                }}
+                              >
+                                <Box className="relative overflow-hidden aspect-video bg-gray-900">
+                                  <img
+                                    src={image.imageUrl}
+                                    alt={image.title}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
+                                  <Flex gap="1" className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <IconButton
+                                      variant="soft"
+                                      color="gray"
+                                      size="1"
+                                      aria-label="Drag to reorder"
+                                      className="backdrop-blur-md cursor-grab active:cursor-grabbing"
+                                      style={{ opacity: 0.85 }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <DragHandleDots2Icon />
+                                    </IconButton>
+                                  </Flex>
+                                  <Box className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200">
+                                    <Flex gap="1" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                      <IconButton
+                                        variant="soft"
+                                        color={image.isLiked ? "red" : "gray"}
+                                        size="1"
+                                        aria-label={image.isLiked ? "Unlike this image" : "Like this image"}
+                                        onClick={(e) => { e.stopPropagation(); void handleLike(image._id, e); }}
+                                        className="backdrop-blur-md"
+                                        style={{ opacity: 0.85 }}
+                                      >
+                                        {image.isLiked ? <HeartFilledIcon /> : <HeartIcon />}
+                                      </IconButton>
+                                      {renderSaveToBoardDropdown(image, "1")}
+                                      {renderGenerateMenu(image._id, "1")}
+                                    </Flex>
+                                  </Box>
+                                </Box>
+                              </Box>
+                            </DraggableCard>
+                          ))}
+                        </Flex>
+                      </DroppableRow>
+                    </Box>
                   </Box>
-                </Box>
-              );
-            })}
-        </Box>
+                );
+              })}
+          </Box>
+        </DndContext>
       ) : (
-        // Ungrouped view (original)
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
-          {images.map((image) => (
+        // Ungrouped view (original) - half-size tiles: more columns = smaller images
+        <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-2 space-y-2">
+          {(shuffledImages || []).map((image) => (
           <Box
             key={image._id}
             className="break-inside-avoid group cursor-pointer transition-all duration-200"
@@ -382,6 +515,14 @@ export function ImageGrid({ searchTerm, selectedCategory, setActiveTab, incremen
         setActiveTab={setActiveTab}
         incrementBoardVersion={incrementBoardVersion}
       />
+
+      {variationsModalImageId && (
+        <GenerateVariationsModal
+          imageId={variationsModalImageId}
+          open={!!variationsModalImageId}
+          onOpenChange={(open) => { if (!open) setVariationsModalImageId(null); }}
+        />
+      )}
     </>
   );
 }

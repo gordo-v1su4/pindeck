@@ -178,3 +178,41 @@ body {
 .aspect-video {
   aspect-ratio: 16 / 9;
 }
+
+/* Radix UI - Remove rounded corners globally for consistent sharp style */
+[data-radix-popper-content-wrapper] [role="menu"],
+.rt-DropdownMenuContent,
+.rt-SelectContent,
+.rt-PopoverContent {
+  border-radius: 4px !important;
+}
+
+/* Radix buttons - consistent styling */
+.rt-Button,
+.rt-IconButton {
+  border-radius: 4px !important;
+}
+
+/* Radix badges - slight rounding */
+.rt-Badge {
+  border-radius: 3px !important;
+}
+
+/* Dropdown menu items - inherit accent color style like search bar */
+/* Default uses the theme's accent (blue) */
+.rt-DropdownMenuContent .rt-DropdownMenuItem[data-highlighted] {
+  background-color: var(--accent-a3) !important;
+  color: var(--accent-a11) !important;
+}
+
+/* Teal dropdown variant - for Generate menus */
+.rt-DropdownMenuContent.dropdown-teal .rt-DropdownMenuItem[data-highlighted] {
+  background-color: var(--teal-a3) !important;
+  color: var(--teal-a11) !important;
+}
+
+/* Select items - same soft accent style */
+.rt-SelectContent .rt-SelectItem[data-highlighted] {
+  background-color: var(--accent-a3) !important;
+  color: var(--accent-a11) !important;
+}

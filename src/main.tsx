@@ -34,7 +34,7 @@ const convex = new ConvexReactClient(convexUrl as string, {
 createRoot(document.getElementById("root")!).render(
   <ConvexProvider client={convex}>
     <ConvexAuthProvider client={convex}>
-      <Theme appearance="dark" grayColor="slate" radius="large" scaling="100%">
+      <Theme appearance="dark" accentColor="blue" grayColor="slate" radius="small" scaling="100%">
         <App />
       </Theme>
     </ConvexAuthProvider>

@@ -9,6 +9,10 @@ import { Id } from "../../convex/_generated/dataModel";
 
 export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveTab: (tab: string) => void, incrementBoardVersion: () => void }) {
   const boards = useQuery(api.boards.list);
+  const boardPreviewUrls = useQuery(
+    api.boards.getBoardPreviewUrls,
+    boards && boards.length > 0 ? { boardIds: boards.map((b) => b._id), limit: 4 } : "skip"
+  );
   const deleteBoard = useMutation(api.boards.deleteBoard);
   const createStoryboard = useMutation(api.storyboards.createFromBoard);
   const createDeck = useMutation(api.decks.createFromBoard);
@@ -186,12 +190,12 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
     <Box className="space-y-6 w-full">
       <Flex justify="between" align="center" className="flex-col sm:flex-row gap-4">
         <Box>
-          <Text size="7" weight="bold">My Boards</Text>
-          <Text size="3" color="gray" className="mt-1">
+          <Text size="7" weight="bold" className="block">My Boards</Text>
+          <Text size="3" color="gray" className="block mt-2">
             Organize your favorite images into collections
           </Text>
         </Box>
-        <Button size="3" variant="solid" onClick={() => {
+        <Button size="3" variant="soft" color="gray" onClick={() => {
           setCreateModalOpen(true);
         }}>
           <PlusIcon />
@@ -211,9 +215,20 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
         </Box>
       ) : (
         <Grid columns={{ initial: "1", sm: "2", lg: "3" }} gap="5">
-          {boards.map((board) => (
+          {boards.map((board) => {
+            const previewUrls = boardPreviewUrls?.[board._id] ?? [];
+            return (
             <Card key={board._id} className="hover:shadow-xl transition-shadow bg-gray-900/20">
               <Box className="p-5">
+                {previewUrls.length > 0 && (
+                  <Flex gap="1" className="mb-3 overflow-hidden rounded-lg">
+                    {previewUrls.map((url, i) => (
+                      <Box key={i} className="flex-1 min-w-0 aspect-square bg-gray-4">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </Box>
+                    ))}
+                  </Flex>
+                )}
                 <Flex justify="between" align="start" className="mb-4">
                   <Box className="flex-1">
                     <Text size="4" weight="bold" className="mb-2">
@@ -256,7 +271,8 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
                     )}
                   </Flex>
                   <Button
-                    variant="solid"
+                    variant="soft"
+                    color="gray"
                     size="2"
                     onClick={() => setSelectedBoardId(board._id)}
                   >
@@ -284,7 +300,8 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
                 </Flex>
               </Box>
             </Card>
-          ))}
+          );
+          })}
         </Grid>
       )}
 
@@ -295,6 +312,7 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
         }}
         setActiveTab={setActiveTab}
         incrementBoardVersion={incrementBoardVersion}
+        allowUpload={true}
       />
     </Box>
   );
