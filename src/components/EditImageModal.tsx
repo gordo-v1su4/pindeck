@@ -15,11 +15,13 @@ interface EditImageModalProps {
 export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalProps) {
   const image = useQuery(api.images.getById, { id: imageId });
   const categories = useQuery(api.images.getCategories);
+  const groups = useQuery(api.images.getGroups);
   const updateImageMetadata = useMutation(api.images.updateImageMetadata);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [group, setGroup] = useState("");
   const [category, setCategory] = useState("");
   const [source, setSource] = useState("");
   const [sref, setSref] = useState("");
@@ -33,6 +35,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
       setTitle(image.title || "");
       setDescription(image.description || "");
       setTags(image.tags || []);
+      setGroup(image.group || "");
       setCategory(image.category || "");
       setSource(image.source || "");
       setSref(image.sref || "");
@@ -83,6 +86,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
         title: title.trim(),
         description: description.trim() || undefined,
         tags: tags.length > 0 ? tags : undefined,
+        group: group || undefined,
         category: category || undefined,
         source: source.trim() || undefined,
         sref: sref.trim() || undefined,
@@ -150,13 +154,30 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
 
             <Box>
               <Text size="2" weight="medium" className="mb-2 block">
-                Category
+                Type
+              </Text>
+              <Select.Root 
+                value={group || "none"} 
+                onValueChange={(value) => setGroup(value === "none" ? "" : value)}
+              >
+                <Select.Trigger placeholder="Select type" size="2" />
+                <Select.Content>
+                  <Select.Item value="none">None</Select.Item>
+                  {(groups || []).map((g) => (
+                    <Select.Item key={g} value={g}>{g}</Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
+            </Box>
+            <Box>
+              <Text size="2" weight="medium" className="mb-2 block">
+                Genre
               </Text>
               <Select.Root 
                 value={category || "none"} 
                 onValueChange={(value) => setCategory(value === "none" ? "" : value)}
               >
-                <Select.Trigger placeholder="Select category" size="2" />
+                <Select.Trigger placeholder="Select genre" size="2" />
                 <Select.Content>
                   <Select.Item value="none">None</Select.Item>
                   {(categories || []).map((cat) => (

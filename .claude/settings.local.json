@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run build:*)",
+      "Bash(bun tsc:*)",
+      "Bash(timeout 15 bun run:*)",
+      "Bash(ls:*)",
+      "Bash(bun playwright install:*)",
+      "Bash(taskkill:*)",
+      "WebFetch(domain:browsermcp.io)",
+      "WebFetch(domain:github.com)",
+      "Bash(claude mcp add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nRefactor UI: consistent colors, dropdown styling, and board upload\n\n- Set global blue accent color and small radius in Radix theme\n- Add teal dropdown styling for Generate menus, blue for Save menus\n- Fix ImageModal: sref code-style box, colored tags, saved state for bookmark\n- Add image upload capability to CreateBoardModal for Boards tab\n- Simplify CategoryFilter to single row\n- Fix baby blue buttons in BoardsView, improve title spacing\n- Add GenerateVariationsModal component\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)"
+    ]
+  }
+}

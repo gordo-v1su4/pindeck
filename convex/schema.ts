@@ -21,6 +21,7 @@ const applicationTables = {
     uploadedAt: v.optional(v.number()),
     group: v.optional(v.string()), // e.g., "Commercial", "Film", "Moodboard", "Spec Commercial", "Spec Music Video"
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
+    projectOrder: v.optional(v.number()), // order within same projectName (for project-rows drag-and-drop)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
     modificationMode: v.optional(v.string()),

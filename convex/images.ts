@@ -6,6 +6,7 @@ import { internal } from "./_generated/api";
 export const list = query({
   args: {
     category: v.optional(v.string()),
+    group: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   returns: v.array(v.any()),
@@ -13,28 +14,42 @@ export const list = query({
     const userId = await getAuthUserId(ctx);
     
     let images;
-    
-    if (args.category) {
+    const statusFilter = (q: any) =>
+      q.or(
+        q.eq(q.field("status"), "active"),
+        q.eq(q.field("status"), undefined)
+      );
+
+    if (args.group && args.category) {
+      images = await ctx.db
+        .query("images")
+        .withIndex("by_group", (q) => q.eq("group", args.group!))
+        .filter((q) =>
+          q.and(
+            statusFilter(q),
+            q.eq(q.field("category"), args.category!)
+          )
+        )
+        .order("desc")
+        .take(args.limit || 50);
+    } else if (args.group) {
+      images = await ctx.db
+        .query("images")
+        .withIndex("by_group", (q) => q.eq("group", args.group!))
+        .filter(statusFilter)
+        .order("desc")
+        .take(args.limit || 50);
+    } else if (args.category) {
       images = await ctx.db
         .query("images")
         .withIndex("by_category", (q) => q.eq("category", args.category!))
-        .filter((q) =>
-          q.or(
-            q.eq(q.field("status"), "active"),
-            q.eq(q.field("status"), undefined)
-          )
-        )
+        .filter(statusFilter)
         .order("desc")
         .take(args.limit || 50);
     } else {
       images = await ctx.db
         .query("images")
-        .filter((q) =>
-          q.or(
-            q.eq(q.field("status"), "active"),
-            q.eq(q.field("status"), undefined)
-          )
-        )
+        .filter(statusFilter)
         .order("desc")
         .take(args.limit || 50);
     }
@@ -68,36 +83,47 @@ export const search = query({
   args: {
     searchTerm: v.string(),
     category: v.optional(v.string()),
+    group: v.optional(v.string()),
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
+    const statusFilter = (q: any) =>
+      q.or(
+        q.eq(q.field("status"), "active"),
+        q.eq(q.field("status"), undefined)
+      );
     
     let images;
-    
-    if (args.category) {
+    if (args.category && args.group) {
       images = await ctx.db
         .query("images")
-        .withSearchIndex("search_content", (q) => 
+        .withSearchIndex("search_content", (q) =>
+          q.search("title", args.searchTerm).eq("category", args.category!).eq("group", args.group!)
+        )
+        .filter(statusFilter)
+        .take(50);
+    } else if (args.category) {
+      images = await ctx.db
+        .query("images")
+        .withSearchIndex("search_content", (q) =>
           q.search("title", args.searchTerm).eq("category", args.category!)
         )
-        .filter((q) =>
-          q.or(
-            q.eq(q.field("status"), "active"),
-            q.eq(q.field("status"), undefined)
-          )
+        .filter(statusFilter)
+        .take(50);
+    } else if (args.group) {
+      images = await ctx.db
+        .query("images")
+        .withSearchIndex("search_content", (q) =>
+          q.search("title", args.searchTerm).eq("group", args.group!)
         )
+        .filter(statusFilter)
         .take(50);
     } else {
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) => q.search("title", args.searchTerm))
-        .filter((q) =>
-          q.or(
-            q.eq(q.field("status"), "active"),
-            q.eq(q.field("status"), undefined)
-          )
-        )
+        .filter(statusFilter)
         .take(50);
     }
 
@@ -255,6 +281,18 @@ export const incrementViews = mutation({
     });
     return null;
   },
+});
+
+// Broad type (e.g. Type): Commercial, Film, Moodboard, etc.
+export const GROUPS = [
+  "Commercial", "Film", "Moodboard", "Spec Commercial", "Spec Music Video",
+  "Music Video", "TV Series", "Web Series", "Video Game Cinematic",
+] as const;
+
+export const getGroups = query({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async () => [...GROUPS],
 });
 
 export const getCategories = query({
@@ -633,6 +671,28 @@ export const updateImageMetadata = mutation({
     await ctx.db.patch("images", args.imageId, patch);
 
     return { success: true };
+  },
+});
+
+/** Set order of images in a project row (and optionally move images to that project). Syncs from project-rows drag-and-drop. */
+export const setProjectRowOrder = mutation({
+  args: {
+    projectName: v.string(),
+    imageIds: v.array(v.id("images")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await getAuthUserId(ctx);
+    for (let i = 0; i < args.imageIds.length; i++) {
+      const image = await ctx.db.get("images", args.imageIds[i]);
+      if (image) {
+        await ctx.db.patch("images", args.imageIds[i], {
+          projectName: args.projectName,
+          projectOrder: i,
+        });
+      }
+    }
+    return null;
   },
 });
 

@@ -1,65 +1,96 @@
-import { httpAction, internalAction, mutation } from "./_generated/server";
+import { httpAction, internalAction, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { fal } from "@fal-ai/client";
 import OpenAI from "openai";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
-// Shot type definitions for random assignment
+// Shot types: camera position/angle and framing variety (mix of close/medium/wide and angles)
 const SHOT_TYPES = [
-  "extreme wide shot",
-  "wide shot", 
-  "medium-wide shot",
-  "medium shot",
-  "medium close-up",
   "close-up",
   "extreme close-up",
+  "close-up profile",
+  "medium close-up",
+  "macro of the hands",
+  "profile",
+  "from behind",
+  "over-the-shoulder",
+  "medium shot",
+  "wide shot",
+  "extreme wide shot",
   "low angle shot",
   "high angle shot",
+  "bird's eye view",
   "dutch angle",
-  "over-the-shoulder",
   "point of view shot",
 ] as const;
 
-// Modification modes with their SHORT prompt templates
-// These are designed for image-to-image editing models that work best with concise prompts
+// Modification modes: concise prompts for Nano Banana Pro edit API
 const MODE_PROMPTS: Record<string, (detail?: string) => string> = {
-  // Different camera angle of SAME people/subjects
-  "shot-variation": (detail) => 
-    detail 
-      ? `${detail} of the same subjects. Different angle, same people and wardrobe.`
-      : `Different camera angle. Same subjects, wardrobe, and lighting.`,
-  
-  // B-ROLL: Same scene/environment but NO people - exteriors, establishing shots
-  "b-roll": (detail) => 
+  // Same person, different camera angle/framing; "later in the scene" feel
+  "shot-variation": (detail) =>
+    detail
+      ? `Later in the scene. ${detail} of the same subject.`
+      : `Later in the scene. Different angle of the same subject.`,
+
+  // B-ROLL: Same environment, no people (leave as is)
+  "b-roll": (detail) =>
     detail
       ? `${detail}. Same location/environment. No people visible.`
       : `Establishing shot of the environment. No people. Same location and lighting.`,
-  
-  // Dynamic, action-oriented framing
+
+  // Narrative moment: climax, performing shot, plot twist – same person
   "action-shot": (detail) =>
     detail
-      ? `${detail}. Dynamic motion blur, action framing.`
-      : `Dynamic action shot. Motion blur, dramatic angle. Same subjects.`,
-  
-  // Different mood/color grade
-  "style-variation": (detail) => 
-    detail
-      ? `Same scene. ${detail} color grade and mood.`
-      : `Same scene with different color grading and mood.`,
-  
-  // Minor pose/expression changes only
-  "subtle-variation": (detail) => 
-    detail
-      ? `Subtle variation. ${detail}. Same framing.`
-      : `Subtle variation. Minor pose or expression change. Same framing.`,
+      ? `${detail}. Same person.`
+      : `Dramatic action or performing moment. Same person.`,
 
-  // Cinematic coverage - mix of angles for scene coverage
+  // Different scene/outfit/location, same face and likeness
+  "style-variation": (detail) =>
+    detail
+      ? `Same person at ${detail}. Different outfit and location, same face.`
+      : `Same person, different scene. Different outfit, different location, same face and likeness.`,
+
+  // Later in the same scene – same story, different beat
+  "subtle-variation": (detail) =>
+    detail
+      ? `Later in the scene: ${detail}. Same person and setting.`
+      : `Later in the same scene. Same story, different moment – same person, different action or position.`,
+
+  // Detail/object shots in the same world – things that could mean something
   "coverage": (detail) =>
     detail
-      ? `${detail}. Cinematic scene coverage.`
-      : `Cinematic coverage shot. Different framing for scene variety.`,
+      ? `${detail}. Same environment, no people.`
+      : `Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image.`,
 };
+
+/** Returns the exact prompts that will be sent to Nano Banana Pro for the given options. */
+export const getVariationPrompts = query({
+  args: {
+    modificationMode: v.string(),
+    variationCount: v.number(),
+    variationDetail: v.optional(v.string()),
+  },
+  returns: v.array(v.string()),
+  handler: (_ctx, args) => {
+    const count = Math.min(Math.max(args.variationCount ?? 0, 0), 12);
+    if (count === 0) return [];
+    const mode = args.modificationMode || "shot-variation";
+    const userDetail = args.variationDetail?.trim();
+    const promptBuilder = MODE_PROMPTS[mode] || MODE_PROMPTS["shot-variation"];
+    const prompts: string[] = [];
+    if (mode === "shot-variation" && !userDetail) {
+      for (let i = 0; i < count; i++) {
+        const shot = SHOT_TYPES[i % SHOT_TYPES.length];
+        prompts.push(promptBuilder(shot));
+      }
+    } else {
+      const prompt = promptBuilder(userDetail || undefined);
+      for (let i = 0; i < count; i++) prompts.push(prompt);
+    }
+    return prompts;
+  },
+});
 
 export const internalGenerateRelatedImages = internalAction({
   args: {
@@ -70,6 +101,7 @@ export const internalGenerateRelatedImages = internalAction({
     style: v.optional(v.string()),
     title: v.optional(v.string()),
     aspectRatio: v.optional(v.string()),
+    group: v.optional(v.string()),
     // User-configurable options
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
@@ -137,7 +169,19 @@ export const internalGenerateRelatedImages = internalAction({
             detail = shuffledShots[i % shuffledShots.length];
           }
           
-          const prompt = promptBuilder(detail);
+          let prompt = promptBuilder(detail);
+          // Optional context from group (e.g. Music Video, Commercial) for shot-variation and action-shot
+          if (args.group && (mode === "shot-variation" || mode === "action-shot")) {
+            const ctx =
+              args.group === "Music Video"
+                ? "Later in the music video. "
+                : args.group === "Commercial"
+                  ? "Later in the commercial. "
+                  : args.group === "Film" || args.group === "TV Series" || args.group === "Web Series"
+                    ? "Later in the scene. "
+                    : "";
+            if (ctx) prompt = ctx + prompt;
+          }
 
           console.log(`[Gen ${i + 1}/${count}] Mode: ${mode}, Prompt: "${prompt}"`);
 
@@ -234,13 +278,14 @@ export const generateVariations = mutation({
     variationCount: v.number(),
     modificationMode: v.string(),
     variationDetail: v.optional(v.string()),
+    aspectRatio: v.optional(v.string()),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const image = await ctx.db.get("images", args.imageId);
+    const image = await ctx.db.get(args.imageId);
     if (!image || image.uploadedBy !== userId) {
       throw new Error("Not authorized or image not found");
     }
@@ -250,7 +295,7 @@ export const generateVariations = mutation({
     }
 
     // Update image with variation settings
-    await ctx.db.patch("images", args.imageId, {
+    await ctx.db.patch(args.imageId, {
       aiStatus: "processing",
       variationCount: args.variationCount,
       modificationMode: args.modificationMode,
@@ -265,6 +310,8 @@ export const generateVariations = mutation({
       category: image.category,
       style: undefined,
       title: image.title,
+      aspectRatio: args.aspectRatio,
+      group: image.group,
       variationCount: args.variationCount,
       modificationMode: args.modificationMode,
       variationDetail: args.variationDetail,
@@ -322,7 +369,7 @@ export const internalSmartAnalyzeImage = internalAction({
     ];
 
     try {
-      const prompt = `Analyze this image. Return JSON with: "title" (short catchy), "description" (concise), "tags" (5-10 specific descriptive tags), "colors" (5 hex codes), "category" (one of: ${categories.join(", ")}), "visual_style" (e.g., '35mm Film', 'CGI'), "group" ("Commercial"/"Film"/"Moodboard"/"Spec Commercial"/"Spec Music Video"/"Music Video"/"TV" or null), "project_name" (if recognizable, else null), "moodboard_name" (if reference image, else null). Return ONLY valid JSON.`;
+      const prompt = `Analyze this image. Return JSON with: "title" (short catchy), "description" (concise), "tags" (5-10 specific descriptive tags), "colors" (5 hex codes), "category" (one of: ${categories.join(", ")}), "visual_style" (e.g., '35mm Film', 'CGI'), "group" ("Commercial"/"Film"/"Moodboard"/"Spec Commercial"/"Spec Music Video"/"Music Video"/"TV Series"/"Web Series"/"Video Game Cinematic" or null), "project_name" (if recognizable, else null), "moodboard_name" (if reference image, else null). Return ONLY valid JSON.`;
 
       const openai = new OpenAI({
         baseURL: "https://openrouter.ai/api/v1",
@@ -440,6 +487,7 @@ export const internalSmartAnalyzeImage = internalAction({
           category: category || args.category,
           style: visual_style,
           title,
+          group: group ?? undefined,
           variationCount: requestedCount,
           modificationMode: args.modificationMode,
           variationType: args.variationType,
@@ -520,7 +568,7 @@ export const rerunSmartAnalysis = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     
-    const image = await ctx.db.get("images", args.imageId);
+    const image = await ctx.db.get(args.imageId);
     if (!image || image.uploadedBy !== userId) {
       throw new Error("Not authorized or image not found");
     }

@@ -52,6 +52,7 @@ export function ImageUploadForm() {
   const generateUploadUrl = useMutation(api.images.generateUploadUrl);
   const uploadMultiple = useMutation(api.images.uploadMultiple);
   const categories = useQuery(api.images.getCategories);
+  const groups = useQuery(api.images.getGroups);
   const remove = useMutation(api.images.remove); // Make sure 'remove' is defined
 
   // Pending Images Logic
@@ -75,6 +76,7 @@ export function ImageUploadForm() {
   const [variationCount, setVariationCount] = useState(2);
   const [modificationMode, setModificationMode] = useState("shot-variation");
   const [variationDetail, setVariationDetail] = useState("");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
 
   // Loading state check
   if (categories === undefined) {
@@ -394,13 +396,14 @@ export function ImageUploadForm() {
   // Handle generating variations for a specific image
   const handleGenerateVariations = async () => {
     if (!variationTargetImage || variationCount < 1) return;
-    
+
     try {
       await generateVariationsMutation({
         imageId: variationTargetImage,
         variationCount,
         modificationMode,
         variationDetail: variationDetail.trim() || undefined,
+        aspectRatio: aspectRatio || undefined,
       });
       toast.success(`Generating ${variationCount} variations...`);
       setVariationModalOpen(false);
@@ -408,6 +411,7 @@ export function ImageUploadForm() {
       setVariationCount(2);
       setModificationMode("shot-variation");
       setVariationDetail("");
+      setAspectRatio("16:9");
     } catch (error) {
       console.error("Failed to generate variations:", error);
       toast.error("Failed to start variation generation");
@@ -474,6 +478,23 @@ export function ImageUploadForm() {
                       Subtle Variation — Minor pose/expression changes
                     </Select.Item>
                   </Select.Group>
+                </Select.Content>
+              </Select.Root>
+            </Box>
+
+            {/* Aspect Ratio */}
+            <Box>
+              <Text size="2" weight="medium" className="mb-2 block">
+                Aspect Ratio
+              </Text>
+              <Select.Root value={aspectRatio} onValueChange={setAspectRatio}>
+                <Select.Trigger className="w-full" />
+                <Select.Content>
+                  <Select.Item value="16:9">16:9 (horizontal)</Select.Item>
+                  <Select.Item value="9:16">9:16 (vertical)</Select.Item>
+                  <Select.Item value="1:1">1:1 (square)</Select.Item>
+                  <Select.Item value="4:3">4:3</Select.Item>
+                  <Select.Item value="3:4">3:4</Select.Item>
                 </Select.Content>
               </Select.Root>
             </Box>
@@ -661,22 +682,17 @@ export function ImageUploadForm() {
                       </Select.Root>
                     </Flex>
 
-                    {/* Group Selection */}
+                    {/* Type (Group) Selection */}
                     <Select.Root
                       value={file.group ? file.group : "none"}
                       onValueChange={(value) => updateFile(file.id, { group: value === "none" ? undefined : value })}
                     >
-                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
+                      <Select.Trigger placeholder="Type (Commercial, Film, etc.)" />
                       <Select.Content>
                         <Select.Item value="none">None</Select.Item>
-                        <Select.Item value="Commercial">Commercial</Select.Item>
-                        <Select.Item value="Film">Film</Select.Item>
-                        <Select.Item value="Moodboard">Moodboard</Select.Item>
-                        <Select.Item value="Spec Commercial">Spec Commercial</Select.Item>
-                        <Select.Item value="Spec Music Video">Spec Music Video</Select.Item>
-                        <Select.Item value="Music Video">Music Video</Select.Item>
-                        <Select.Item value="TV">TV</Select.Item>
-                        <Select.Item value="Other">Other</Select.Item>
+                        {(groups || []).map((g) => (
+                          <Select.Item key={g} value={g}>{g}</Select.Item>
+                        ))}
                       </Select.Content>
                     </Select.Root>
 

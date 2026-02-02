@@ -1,0 +1,124 @@
+Gallery and Metadata App Edits
+1. Gallery Image Scaling and Click Enlarge
+Current: ImageGrid.tsx uses masonry with columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 and aspect-video; no explicit size. ImageModal shows image at `!w-[70vw] !max-w-[600px]`.
+
+Changes:
+
+Home (All tab) – half size: Reduce effective image size by increasing column count (e.g. columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6) and/or constraining column width so each image is smaller. Alternative: add a single scale or size prop (e.g. imageSize="small") that applies a max-width or scale to each tile so they render at half the current visual size.
+On click – twice current size: In ImageModal, when opened from gallery click, show the image at roughly 2× the current modal image size: e.g. increase modal width to 85vw and `max-w-[900px] (or 2× the “small” tile size). Use `triggerPosition to distinguish “opened from grid click” vs “opened from table/parent link”; only apply the larger size when opened from grid click.
+Files: src/components/ImageGrid.tsx, src/components/ImageModal.tsx.
+
+---
+
+2. Metadata Layout
+Current: ImageModal.tsx metadata: Category badge, Colors as w-10 h-10 boxes, Tags as Badge size="1", labels at size="2".
+
+Changes:
+
+Reduce overall metadata size: Smaller text (e.g. labels size="1"), tighter spacing (space-y-2 instead of space-y-3), smaller padding in the content panel.
+Color indicators – squares, not circles: Colors are already rendered as <Box> with w-10 h-10 (squares). If any other component uses circles (e.g. rounded-full), remove it so all color swatches are squares. Optionally reduce size to e.g. w-6 h-6 to match “smaller overall” metadata.
+Tags – significantly smaller: Use smaller badge/text (e.g. Badge size="1" with smaller text, or inline Text size="1" with comma-separated tags) and tighter gap.
+Files: src/components/ImageModal.tsx. If TableView or EditImageModal show colors as circles, update there too (src/components/TableView.tsx, src/components/EditImageModal.tsx).
+
+---
+
+3. Image Alignment (Clicked Images Center, No Bottom Cut-off)
+Current: ImageModal.tsx uses positionedStyle when triggerPosition is set (position relative to click); when triggerPosition is undefined (e.g. open from table), Radix default may not center. Content uses `max-h-[90vh] and `overflow-y-auto.
+
+Changes:
+
+Center when no trigger position: If !triggerPosition, set modal style to center on screen (e.g. top: 50%, left: 50%, transform: translate(-50%, -50%)) so opened-from-table or programmatic open is centered.
+No bottom cut-off: Ensure modal container uses `max-h-[85vh] or `90vh with overflow-y-auto on the scrollable section only; keep the image section visible and the close button in view. Avoid fixed heights that could clip content on small viewports; use flex layout so image area doesn’t get squashed and the bottom panel scrolls if needed.
+Files: src/components/ImageModal.tsx.
+
+---
+
+4. Upload Flow: S3 + Thumbnails, Store Both URLs in Convex
+Current: Upload uses Convex only: convex/images.ts generateUploadUrl and uploadMultiple read from Convex storage and store imageUrl + storageId. No thumbnails; no S3/NextCloud.
+
+Target: Upload original to external storage (S3 or your self-hosted NextCloud); generate thumbnails (e.g. Sharp); store both original URL and thumbnail URL in Convex.
+
+Options (choose one approach):
+
+A – Convex HTTP + external service: Frontend sends file to your backend (or a Convex HTTP action that streams to an external API). Backend (Node) uploads original to S3/NextCloud, generates thumbnail with Sharp, uploads thumbnail, returns { originalUrl, thumbnailUrl }. Frontend (or HTTP action) then calls a Convex mutation to create the image with those URLs.
+B – Client upload to S3/NextCloud: Frontend gets pre-signed URLs (from a small backend or Convex HTTP that calls S3/NextCloud API), uploads original directly; a separate job or backend generates thumbnail and uploads it, then calls Convex to save both URLs. Convex does not run Sharp; a small Node service or serverless function does.
+Schema and API:
+
+Add to convex/schema.ts images: thumbnailUrl: v.optional(v.string()).
+Ensure all list/get queries return thumbnailUrl and that gallery/boards use thumbnailUrl when present for grid tiles, and imageUrl for full-size view.
+New or updated mutation: e.g. createImageWithUrls({ title, description, imageUrl, thumbnailUrl, tags, category, ... }) or extend existing create/upload flow to accept thumbnailUrl.
+Files: convex/schema.ts, convex/images.ts, src/components/ImageUploadForm.tsx. New or existing backend for S3/NextCloud + Sharp (outside current Convex-only flow).
+
+Note: NextCloud is not S3; use either NextCloud’s WebDAV/API or an S3-compatible layer. Implementing the actual upload and Sharp pipeline depends on where you run Node (e.g. Vercel serverless, your own server, or Convex action with “use node” if you can pull file and write to S3 from there).
+
+---
+
+5. Dropdowns: Type (Broader) + Genre (Detailed Category)
+Current: CategoryFilter.tsx uses a single tier from convex/images.ts getCategories (genre-style: Abstract, Architecture, Art, …). Schema has group (e.g. Commercial, Film, Moodboard) and category (genre).
+
+Changes:
+
+Type (group) – broader: Fixed list: Commercial, Film, Moodboard, Spec Commercial, Spec Music Video, Music Video, TV Series, Web Series, Video Game Cinematic. Add to convex/images.ts a query like getGroups() returning this list (or a constant). Update convex/vision.ts VLM prompt so group uses this exact set (add TV Series, Web Series, Video Game Cinematic).
+Genre (category) – detailed: Keep getCategories for the existing list (Abstract, Architecture, Art, …). Use this as the “Genre” / detailed category.
+UI: In CategoryFilter.tsx (or equivalent), add two tiers: first select Type (group), then Genre (category). List/search APIs already support category; add support for filtering by group in convex/images.ts list and search (and ensure search index includes group if needed).
+Upload/edit forms: ImageUploadForm.tsx and EditImageModal.tsx: add Group (Type) dropdown with the fixed list; keep Category (Genre) dropdown as is.
+Files: convex/images.ts, convex/vision.ts, convex/schema.ts (index by group if not present), src/components/CategoryFilter.tsx, src/components/ImageUploadForm.tsx, src/components/EditImageModal.tsx.
+
+---
+
+6. Generate Menu: Add Variations Above Storyboard, Deck; Review Prompts
+Current: Generate dropdown in ImageGrid.tsx (lines 89–114) and ImageModal.tsx (lines 358–374) has only Storyboard and Deck.
+
+Changes:
+
+Add Variations: In both places, add a “Variations” item above Storyboard and Deck. “Variations” opens the same flow as Upload form’s “Generate Variations” (e.g. open a small modal or navigate to a view where user can set count, mode, detail and call api.vision.generateVariations). Reuse existing api.vision.generateVariations and optionally the same modal pattern as in ImageUploadForm.tsx (or a shared GenerateVariationsModal).
+Review variation prompts: In convex/vision.ts, review MODE_PROMPTS and SHOT_TYPES for variety (e.g. more diverse wording, extra shot types, or randomized phrasing) so generated images feel less samey.
+Files: src/components/ImageGrid.tsx, src/components/ImageModal.tsx, convex/vision.ts. Optional: extract shared GenerateVariationsModal used by Upload and Gallery/Modal.
+
+---
+
+7. Aspect Ratios: Support 9:16 (Vertical) and 16:9
+Current: convex/vision.ts already maps aspect ratios including "9:16" and "16:9" (lines 122–125). Generation uses this map.
+
+Changes:
+
+UI: Where aspect ratio is chosen for generation (e.g. ImageUploadForm.tsx variation/upload settings, or Generate Variations modal), ensure the dropdown/options include both 9:16 and 16:9 (and any others you want). Pass selection through to generateVariations / internal action args.
+Backend: No change needed if aspectRatio is already passed; confirm convex/vision.ts uses it for fal call (e.g. aspect_ratio: aspectRatio).
+Files: src/components/ImageUploadForm.tsx, any new Generate Variations modal used from gallery/modal, convex/vision.ts (verify only).
+
+---
+
+8. Boards: Preview Thumbnails; View / Convert to Storyboard / Convert to Deck
+Current: BoardsView.tsx lists boards as cards with name, description, image count, and buttons: View Board (opens detail), Convert to Storyboard, Convert to Deck. No image preview thumbnails on cards. convex/boards.ts getBoardImages returns full image docs for a single board; list returns boards with imageIds only.
+
+Changes:
+
+Board preview thumbnails: For each board card, show the first 3–4 images as small thumbnails. Options: (1) Add a query e.g. getBoardPreviewImages(boardId, limit: 4) that returns minimal data (e.g. imageUrl or thumbnailUrl) for the first limit of board.imageIds. (2) Or in list, use a follow-up query for first N image URLs per board (can be N+1; keep limit small). Use thumbnailUrl when available from schema. Layout: small row of thumbnails at top or bottom of each board card (Pinterest-style).
+Buttons: Keep “View Board”, “Convert to Storyboard”, “Convert to Deck”. convex/storyboards.ts and convex/decks.ts already implement createFromBoard; they are functional. If you discover broken behavior (e.g. missing template or UI to view storyboard/deck), fix or hide the button until that view exists; otherwise ensure buttons are wired and show clear success/error toasts.
+Files: convex/boards.ts (new or extended query for preview URLs), src/components/BoardsView.tsx. Optionally convex/schema.ts if you add thumbnailUrl and use it here.
+
+---
+
+9. Project Rows View: Drag-and-Drop by Category, Sync with Table and Convex
+Current: ImageGrid.tsx “Project Rows” view groups images by projectName; no reordering or drag-drop. TableView shows flat list with category column; no drag-drop.
+
+Changes:
+
+Drag-and-drop to organize by category: In Project Rows view, allow dragging an image into a “category” bucket or into another project row (interpret as “change this image’s category” or “assign to this project/group”). Most straightforward: “organize by category” = dragging an image onto a category label or drop zone sets that image’s category (and optionally group) in Convex via updateImageMetadata (or a dedicated mutation like updateImageCategory).
+Implementation: Use a drag-and-drop library (e.g. @dnd-kit/core + @dnd-kit/sortable or react-dnd) in ImageGrid’s project-rows section. Define drop targets (e.g. per category or per row). On drop, call mutation to update image.category (and group if you tie rows to Type). Ensure optimistic or immediate refetch so TableView and project-rows view both reflect the new category (same Convex data).
+Sync with table view: TableView reads from api.images.list; updating category in Convex via mutation will automatically update both the grid and the table. No extra sync step if you use one source of truth (Convex).
+Files: src/components/ImageGrid.tsx, convex/images.ts (ensure updateImageMetadata or equivalent supports category/group), package.json (add dnd library if not present).
+
+---
+
+Documentation and Rules
+Update README.md and any WARP.md / .cursor/rules/project-structure.mdc for schema changes (e.g. thumbnailUrl), new upload flow, Type/Genre filters, and board previews.
+Follow .cursor/rules/documentation-update-hook.mdc for all touched areas.
+---
+
+Implementation Order Suggestion
+Low-risk UI: 1 (gallery scale + modal enlarge), 2 (metadata layout), 3 (modal center + no cut-off), 7 (aspect ratio UI).
+Data + filters: 5 (Type/Genre dropdowns and backend), then 9 (drag-drop category) after.
+Generate: 6 (Variations in menu + prompt review).
+Boards: 8 (preview thumbnails + verify convert buttons).
+Upload/storage: 4 (schema + mutation first; then integrate with your S3/NextCloud + Sharp pipeline).

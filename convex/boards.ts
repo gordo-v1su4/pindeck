@@ -82,6 +82,31 @@ export const getById = query({
   },
 });
 
+export const getBoardPreviewUrls = query({
+  args: {
+    boardIds: v.array(v.id("collections")),
+    limit: v.optional(v.number()),
+  },
+  returns: v.record(v.string(), v.array(v.string())),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return {};
+    const limit = args.limit ?? 4;
+    const result: Record<string, string[]> = {};
+    for (const boardId of args.boardIds) {
+      const board = await ctx.db.get("collections", boardId);
+      if (!board || board.userId !== userId) continue;
+      const urls: string[] = [];
+      for (let i = 0; i < Math.min(limit, board.imageIds.length); i++) {
+        const image = await ctx.db.get("images", board.imageIds[i]);
+        if (image?.imageUrl) urls.push(image.imageUrl);
+      }
+      result[boardId] = urls;
+    }
+    return result;
+  },
+});
+
 export const getBoardImages = query({
   args: { boardId: v.id("collections") },
   returns: v.array(v.any()),

@@ -15,6 +15,7 @@ import { ImageIcon, UploadIcon, BookmarkIcon, GridIcon } from "@radix-ui/react-i
 
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState<string | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [activeTab, setActiveTabState] = useState("gallery");
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -116,7 +117,9 @@ export default function App() {
           )}
           {(isAuthenticated || loggedInUser) && activeTab === "gallery" && (
             <Box className="mt-4">
-              <CategoryFilter 
+              <CategoryFilter
+                selectedGroup={undefined}
+                onGroupChange={() => {}}
                 selectedCategory={selectedCategory}
                 onCategoryChange={setSelectedCategory}
               />
@@ -132,6 +135,7 @@ export default function App() {
             {activeTab === "gallery" && (
               <Content 
                 searchTerm={searchTerm}
+                selectedGroup={selectedGroup}
                 selectedCategory={selectedCategory}
                 setActiveTab={setActiveTab}
                 incrementBoardVersion={incrementBoardVersion}
@@ -148,6 +152,7 @@ export default function App() {
         ) : (
           <Content 
             searchTerm={searchTerm}
+            selectedGroup={selectedGroup}
             selectedCategory={selectedCategory}
             setActiveTab={setActiveTab}
             incrementBoardVersion={incrementBoardVersion}
@@ -160,8 +165,9 @@ export default function App() {
   );
 }
 
-function Content({ searchTerm, selectedCategory, setActiveTab, incrementBoardVersion }: { 
+function Content({ searchTerm, selectedGroup, selectedCategory, setActiveTab, incrementBoardVersion }: { 
   searchTerm: string; 
+  selectedGroup: string | undefined;
   selectedCategory: string | undefined;
   setActiveTab: (tab: string) => void;
   incrementBoardVersion: () => void;
@@ -200,6 +206,7 @@ function Content({ searchTerm, selectedCategory, setActiveTab, incrementBoardVer
       <Authenticated>
         <ImageGrid 
           searchTerm={searchTerm}
+          selectedGroup={selectedGroup}
           selectedCategory={selectedCategory}
           setActiveTab={setActiveTab}
           incrementBoardVersion={incrementBoardVersion}
