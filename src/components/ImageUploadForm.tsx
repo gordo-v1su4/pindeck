@@ -69,6 +69,9 @@ export function ImageUploadForm() {
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [activeUploadTab, setActiveUploadTab] = useState<
+    "local" | "discord" | "pinterest" | "automation"
+  >("local");
   
   // Post-upload variation modal state
   const [variationModalOpen, setVariationModalOpen] = useState(false);
@@ -426,16 +429,71 @@ export function ImageUploadForm() {
 
   return (
     <Box className="space-y-8 max-w-4xl mx-auto w-full">
-      {/* Generate Variations Modal - shown AFTER image is uploaded and analyzed */}
-      <Dialog.Root open={variationModalOpen} onOpenChange={(open) => {
-        setVariationModalOpen(open);
-        if (!open) setVariationTargetImage(null);
-      }}>
-        <Dialog.Content style={{ maxWidth: 520 }}>
-          <Dialog.Title>Generate Variations</Dialog.Title>
-          <Dialog.Description size="2" color="gray">
-            Create AI-generated variations of this image. Choose what kind of variations you want.
-          </Dialog.Description>
+      <Flex gap="2" wrap="wrap">
+        <Button
+          variant={activeUploadTab === "local" ? "solid" : "soft"}
+          onClick={() => setActiveUploadTab("local")}
+        >
+          Local Upload
+        </Button>
+        <Button
+          variant={activeUploadTab === "discord" ? "solid" : "soft"}
+          onClick={() => setActiveUploadTab("discord")}
+        >
+          Discord
+        </Button>
+        <Button
+          variant={activeUploadTab === "pinterest" ? "solid" : "soft"}
+          onClick={() => setActiveUploadTab("pinterest")}
+        >
+          Pinterest
+        </Button>
+        <Button
+          variant={activeUploadTab === "automation" ? "solid" : "soft"}
+          onClick={() => setActiveUploadTab("automation")}
+        >
+          Automation
+        </Button>
+      </Flex>
+
+      {activeUploadTab !== "local" ? (
+        <Card className="p-6">
+          <Heading size="5" className="mb-2">
+            {activeUploadTab === "discord" && "Discord Ingest"}
+            {activeUploadTab === "pinterest" && "Pinterest Import"}
+            {activeUploadTab === "automation" && "Automation"}
+          </Heading>
+          {activeUploadTab === "discord" && (
+            <Text size="2" color="gray">
+              Link your Discord account and react with the configured emoji in
+              allowed channels to send images into your main gallery.
+            </Text>
+          )}
+          {activeUploadTab === "pinterest" && (
+            <Text size="2" color="gray">
+              Paste a public Pinterest board URL to import new pins into your
+              gallery. We only import content you explicitly request.
+            </Text>
+          )}
+          {activeUploadTab === "automation" && (
+            <Text size="2" color="gray">
+              Automation is coming soon. We'll add scheduled imports and board
+              triggers here once they’re ready.
+            </Text>
+          )}
+        </Card>
+      ) : (
+        <>
+          {/* Generate Variations Modal - shown AFTER image is uploaded and analyzed */}
+          <Dialog.Root open={variationModalOpen} onOpenChange={(open) => {
+            setVariationModalOpen(open);
+            if (!open) setVariationTargetImage(null);
+          }}>
+            <Dialog.Content style={{ maxWidth: 520 }}>
+              <Dialog.Title>Generate Variations</Dialog.Title>
+              <Dialog.Description size="2" color="gray">
+                Create AI-generated variations of this image. Choose what kind of variations you want.
+              </Dialog.Description>
 
           <Flex direction="column" gap="4" className="mt-4">
             {/* Variation Type */}
@@ -1153,6 +1211,8 @@ export function ImageUploadForm() {
             ))}
           </Grid>
         </Box>
+      )}
+        </>
       )}
     </Box>
   );

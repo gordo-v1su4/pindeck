@@ -25,6 +25,22 @@ const applicationTables = {
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
     modificationMode: v.optional(v.string()),
+    storageProvider: v.optional(
+      v.union(v.literal("convex"), v.literal("nextcloud"))
+    ),
+    storagePath: v.optional(v.string()),
+    externalId: v.optional(v.string()),
+    sourceType: v.optional(
+      v.union(
+        v.literal("upload"),
+        v.literal("discord"),
+        v.literal("pinterest"),
+        v.literal("ai")
+      )
+    ),
+    sourceUrl: v.optional(v.string()),
+    importBatchId: v.optional(v.id("importBatches")),
+    ingestedAt: v.optional(v.number()),
     // AI variation metadata
     variationCount: v.optional(v.number()),
     variationType: v.optional(
@@ -41,6 +57,7 @@ const applicationTables = {
     .index("by_project_name", ["projectName"])
     .index("by_unique_id", ["uniqueId"])
     .index("by_parent", ["parentImageId"])
+    .index("by_external_id", ["externalId"])
     .searchIndex("search_content", {
       searchField: "title",
       filterFields: ["category", "uploadedBy", "group", "projectName"],
@@ -113,6 +130,34 @@ const applicationTables = {
     .index("by_image", ["imageId"])
     .index("by_created_by", ["createdBy"])
     .index("by_type", ["type"]),
+
+  profiles: defineTable({
+    userId: v.id("users"),
+    discordUserId: v.optional(v.string()),
+    discordUsername: v.optional(v.string()),
+    discordAvatar: v.optional(v.string()),
+    nextcloudFolder: v.optional(v.string()),
+    pinterestBoards: v.optional(v.array(v.string())),
+    importSettings: v.optional(v.any()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_discord_user_id", ["discordUserId"]),
+
+  importBatches: defineTable({
+    userId: v.id("users"),
+    sourceType: v.union(
+      v.literal("upload"),
+      v.literal("discord"),
+      v.literal("pinterest"),
+      v.literal("ai")
+    ),
+    sourceUrl: v.optional(v.string()),
+    createdAt: v.number(),
+    createdCount: v.number(),
+    skippedCount: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_source_type", ["sourceType"]),
 };
 
 export default defineSchema({

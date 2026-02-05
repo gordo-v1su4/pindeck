@@ -95,7 +95,8 @@ export const getVariationPrompts = query({
 export const internalGenerateRelatedImages = internalAction({
   args: {
     originalImageId: v.id("images"),
-    storageId: v.id("_storage"),
+    storageId: v.optional(v.id("_storage")),
+    imageUrl: v.optional(v.string()),
     description: v.string(),
     category: v.string(),
     style: v.optional(v.string()),
@@ -122,7 +123,9 @@ export const internalGenerateRelatedImages = internalAction({
 
     fal.config({ credentials: falKey });
 
-    const imageUrl = await ctx.storage.getUrl(args.storageId);
+    const imageUrl =
+      args.imageUrl ||
+      (args.storageId ? await ctx.storage.getUrl(args.storageId) : null);
     if (!imageUrl) {
       console.error("Failed to get image URL from storage");
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
@@ -290,8 +293,8 @@ export const generateVariations = mutation({
       throw new Error("Not authorized or image not found");
     }
 
-    if (!image.storageId) {
-      throw new Error("Image has no storage ID");
+    if (!image.storageId && !image.imageUrl) {
+      throw new Error("Image has no source URL");
     }
 
     // Update image with variation settings
@@ -306,6 +309,7 @@ export const generateVariations = mutation({
     await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
       originalImageId: args.imageId,
       storageId: image.storageId,
+      imageUrl: image.imageUrl,
       description: image.description || "",
       category: image.category,
       style: undefined,
@@ -323,7 +327,8 @@ export const generateVariations = mutation({
 
 export const internalSmartAnalyzeImage = internalAction({
   args: {
-    storageId: v.id("_storage"),
+    storageId: v.optional(v.id("_storage")),
+    imageUrl: v.optional(v.string()),
     imageId: v.id("images"),
     userId: v.id("users"),
     title: v.string(),
@@ -343,7 +348,9 @@ export const internalSmartAnalyzeImage = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const imageUrl = await ctx.storage.getUrl(args.storageId);
+    const imageUrl =
+      args.imageUrl ||
+      (args.storageId ? await ctx.storage.getUrl(args.storageId) : null);
     if (!imageUrl) {
       console.error("Image not found in storage");
       return;
@@ -483,6 +490,7 @@ export const internalSmartAnalyzeImage = internalAction({
         await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
           originalImageId: args.imageId,
           storageId: args.storageId,
+          imageUrl: args.imageUrl,
           description,
           category: category || args.category,
           style: visual_style,
@@ -517,19 +525,19 @@ export const internalSmartAnalyzeImage = internalAction({
 export const smartAnalyzeImage = httpAction(async (ctx, request) => {
   try {
     const { 
-      storageId, imageId, userId, title, description, tags, category, source, sref,
+      storageId, imageUrl, imageId, userId, title, description, tags, category, source, sref,
       variationCount, modificationMode, variationType, variationDetail 
     } = await request.json();
 
-    if (!storageId || !imageId || !userId) {
-      return new Response(JSON.stringify({ error: "storageId, imageId, and userId are required" }), {
+    if (!imageId || !userId || (!storageId && !imageUrl)) {
+      return new Response(JSON.stringify({ error: "imageId, userId, and storageId or imageUrl are required" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
 
     await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-      storageId, imageId, userId, title, description, tags, category, source, sref,
+      storageId, imageUrl, imageId, userId, title, description, tags, category, source, sref,
       variationCount, modificationMode, variationType, variationDetail,
     });
 

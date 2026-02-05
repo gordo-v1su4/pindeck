@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, internalMutation } from "./_generated/server";
+import { httpAction, query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 
@@ -204,6 +204,207 @@ export const create = mutation({
       uploadedAt: Date.now(),
     });
   },
+});
+
+export const createExternal = mutation({
+  args: {
+    title: v.string(),
+    description: v.optional(v.string()),
+    imageUrl: v.string(),
+    tags: v.optional(v.array(v.string())),
+    category: v.optional(v.string()),
+    source: v.optional(v.string()),
+    sref: v.optional(v.string()),
+    storagePath: v.optional(v.string()),
+    externalId: v.optional(v.string()),
+    sourceType: v.optional(
+      v.union(
+        v.literal("upload"),
+        v.literal("discord"),
+        v.literal("pinterest"),
+        v.literal("ai")
+      )
+    ),
+    sourceUrl: v.optional(v.string()),
+    importBatchId: v.optional(v.id("importBatches")),
+  },
+  returns: v.id("images"),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to create images");
+    }
+
+    if (args.externalId) {
+      const existing = await ctx.db
+        .query("images")
+        .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId))
+        .unique();
+      if (existing) return existing._id;
+    }
+
+    const title = args.title || "Untitled";
+    const category = args.category || "General";
+    const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
+
+    const imageId = await ctx.db.insert("images", {
+      title,
+      description: args.description,
+      imageUrl: args.imageUrl,
+      tags,
+      category,
+      source: args.source,
+      sref: args.sref,
+      uploadedBy: userId,
+      likes: 0,
+      views: 0,
+      status: "active",
+      aiStatus: "processing",
+      uploadedAt: Date.now(),
+      storageProvider: "nextcloud",
+      storagePath: args.storagePath,
+      externalId: args.externalId,
+      sourceType: args.sourceType,
+      sourceUrl: args.sourceUrl,
+      importBatchId: args.importBatchId,
+      ingestedAt: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+      imageId,
+      userId,
+      imageUrl: args.imageUrl,
+      title,
+      description: args.description,
+      tags,
+      category,
+      source: args.source,
+      sref: args.sref,
+      variationCount: 0,
+    });
+
+    return imageId;
+  },
+});
+
+export const ingestExternal = internalMutation({
+  args: {
+    userId: v.id("users"),
+    title: v.string(),
+    description: v.optional(v.string()),
+    imageUrl: v.string(),
+    tags: v.optional(v.array(v.string())),
+    category: v.optional(v.string()),
+    source: v.optional(v.string()),
+    sref: v.optional(v.string()),
+    storagePath: v.optional(v.string()),
+    externalId: v.optional(v.string()),
+    sourceType: v.optional(
+      v.union(
+        v.literal("upload"),
+        v.literal("discord"),
+        v.literal("pinterest"),
+        v.literal("ai")
+      )
+    ),
+    sourceUrl: v.optional(v.string()),
+    importBatchId: v.optional(v.id("importBatches")),
+  },
+  returns: v.id("images"),
+  handler: async (ctx, args) => {
+    if (args.externalId) {
+      const existing = await ctx.db
+        .query("images")
+        .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId))
+        .unique();
+      if (existing) return existing._id;
+    }
+
+    const title = args.title || "Untitled";
+    const category = args.category || "General";
+    const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
+
+    const imageId = await ctx.db.insert("images", {
+      title,
+      description: args.description,
+      imageUrl: args.imageUrl,
+      tags,
+      category,
+      source: args.source,
+      sref: args.sref,
+      uploadedBy: args.userId,
+      likes: 0,
+      views: 0,
+      status: "active",
+      aiStatus: "processing",
+      uploadedAt: Date.now(),
+      storageProvider: "nextcloud",
+      storagePath: args.storagePath,
+      externalId: args.externalId,
+      sourceType: args.sourceType,
+      sourceUrl: args.sourceUrl,
+      importBatchId: args.importBatchId,
+      ingestedAt: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+      imageId,
+      userId: args.userId,
+      imageUrl: args.imageUrl,
+      title,
+      description: args.description,
+      tags,
+      category,
+      source: args.source,
+      sref: args.sref,
+      variationCount: 0,
+    });
+
+    return imageId;
+  },
+});
+
+export const ingestExternalHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const apiKey = process.env.INGEST_API_KEY;
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
+
+  if (!apiKey || token !== apiKey) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const body = await request.json();
+
+  if (!body?.userId || !body?.imageUrl || !body?.title) {
+    return new Response("Missing required fields", { status: 400 });
+  }
+
+  const imageId = await ctx.runMutation(internal.images.ingestExternal, {
+    userId: body.userId,
+    title: body.title,
+    description: body.description,
+    imageUrl: body.imageUrl,
+    tags: body.tags,
+    category: body.category,
+    source: body.source,
+    sref: body.sref,
+    storagePath: body.storagePath,
+    externalId: body.externalId,
+    sourceType: body.sourceType,
+    sourceUrl: body.sourceUrl,
+    importBatchId: body.importBatchId,
+  });
+
+  return new Response(JSON.stringify({ imageId }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 });
 
 export const internalCreate = internalMutation({
