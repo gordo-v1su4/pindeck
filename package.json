@@ -5,8 +5,8 @@
   "type": "module",
   "packageManager": "bun@1.3.2",
   "scripts": {
-    "kill-port": "powershell -ExecutionPolicy Bypass -File ./scripts/kill-port.ps1",
-    "dev": "bun run kill-port && concurrently \"bun run dev:frontend\" \"bun run dev:backend\"",
+    "kill-port": "bash ./scripts/kill-port.sh",
+    "dev": "bun run kill-port && bun run dev:frontend",
     "dev:frontend": "vite --open",
     "dev:backend": "convex dev",
     "build": "convex dev --once && vite build",
