@@ -15,6 +15,7 @@ import type * as decks from "../decks.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
+import type * as integrations from "../integrations.js";
 import type * as router from "../router.js";
 import type * as seed from "../seed.js";
 import type * as storyboards from "../storyboards.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   generations: typeof generations;
   http: typeof http;
   images: typeof images;
+  integrations: typeof integrations;
   router: typeof router;
   seed: typeof seed;
   storyboards: typeof storyboards;
