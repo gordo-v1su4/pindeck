@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node src/index.js",
-    "start": "node src/index.js"
+    "dev": "bun src/index.js",
+    "start": "bun src/index.js",
+    "dry-run": "DISCORD_DRY_RUN=1 bun src/index.js"
   },
   "dependencies": {
     "discord.js": "^14.16.3"
