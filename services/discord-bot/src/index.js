@@ -381,6 +381,7 @@ async function fetchExternalImageUrls(sourcePostUrl) {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return [];
 
     const response = await fetch(normalized, {
+      signal: AbortSignal.timeout(5000),
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; PindeckDiscordBot/1.0)",
       },
