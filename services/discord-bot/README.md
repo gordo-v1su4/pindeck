@@ -21,13 +21,12 @@ Set these in `/Users/robertspaniolo/Documents/Github/pindeck/.env.local`:
 - `DISCORD_INGEST_EMOJIS` - Comma-separated emoji triggers for import (unicode or custom, e.g. `📥,<:pindeck:123456789012345678>`)
 - `INGEST_API_KEY` - Must match Convex `INGEST_API_KEY`
 - `PINDECK_INGEST_URL` - Optional; defaults to `<CONVEX_SITE_URL>/ingestExternal`
-- `PINDECK_USER_ID` - Optional fallback Convex user id for all imports
+- `PINDECK_USER_ID` - Convex user id destination for imports (required for ingest endpoint)
 
 If `DISCORD_IMAGES_JSON` is missing, bot uses placeholder sample images.
 
-### Target User Resolution
-- Preferred: link your Discord user id to your Pindeck profile (`profiles.discordUserId`) so imports resolve automatically.
-- Fast fallback: set `PINDECK_USER_ID` to force all imported images into one Pindeck account.
+### Target User
+- Set `PINDECK_USER_ID` so Discord imports are written to the correct Pindeck account.
 
 Example:
 

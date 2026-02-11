@@ -694,7 +694,7 @@ function printStartupChecklist({
   console.log(
     `- Ingest reaction triggers: ${ingestTriggers.length ? ingestTriggers.map((i) => i.raw).join(", ") : "none"}`
   );
-  console.log(`- Ingest fallback userId: ${fallbackUserId || "none (requires discordUserId profile link)"}`);
+  console.log(`- Ingest target userId: ${fallbackUserId || "none (set PINDECK_USER_ID)"}`);
   console.log(`- Ingest external post parsing: ${ingestFetchExternal ? "enabled" : "disabled"}`);
 }
 
@@ -766,6 +766,7 @@ if (dryRun) {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildMessageReactions,
+      GatewayIntentBits.MessageContent,
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
   });

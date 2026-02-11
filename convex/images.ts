@@ -385,20 +385,12 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     return new Response("Missing required fields: imageUrl", { status: 400 });
   }
 
-  let resolvedUserId = body.userId as string | undefined;
-
-  if (!resolvedUserId && body?.discordUserId) {
-    const profile = await ctx.db
-      .query("profiles")
-      .withIndex("by_discord_user_id", (q) => q.eq("discordUserId", String(body.discordUserId)))
-      .unique();
-
-    resolvedUserId = profile?.userId as string | undefined;
-  }
+  const resolvedUserId =
+    typeof body.userId === "string" && body.userId.trim() ? body.userId : undefined;
 
   if (!resolvedUserId) {
     return new Response(
-      "No target user found. Provide userId or link discordUserId to a profile first.",
+      "No target user found. Provide userId.",
       { status: 400 }
     );
   }
