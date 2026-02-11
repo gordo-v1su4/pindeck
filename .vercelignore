@@ -9,7 +9,6 @@ bun.lock
 .env.production.local
 
 # Convex development files
-convex/_generated/
 .convex/
 
 # Build artifacts (Vercel will handle this)
