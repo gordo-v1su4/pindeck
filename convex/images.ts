@@ -381,13 +381,31 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
 
   const body = await request.json();
 
-  if (!body?.userId || !body?.imageUrl || !body?.title) {
-    return new Response("Missing required fields", { status: 400 });
+  if (!body?.imageUrl) {
+    return new Response("Missing required fields: imageUrl", { status: 400 });
+  }
+
+  let resolvedUserId = body.userId as string | undefined;
+
+  if (!resolvedUserId && body?.discordUserId) {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_discord_user_id", (q) => q.eq("discordUserId", String(body.discordUserId)))
+      .unique();
+
+    resolvedUserId = profile?.userId as string | undefined;
+  }
+
+  if (!resolvedUserId) {
+    return new Response(
+      "No target user found. Provide userId or link discordUserId to a profile first.",
+      { status: 400 }
+    );
   }
 
   const imageId = await ctx.runMutation(internal.images.ingestExternal, {
-    userId: body.userId,
-    title: body.title,
+    userId: resolvedUserId as any,
+    title: body.title || "Discord Import",
     description: body.description,
     imageUrl: body.imageUrl,
     tags: body.tags,
@@ -401,7 +419,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     importBatchId: body.importBatchId,
   });
 
-  return new Response(JSON.stringify({ imageId }), {
+  return new Response(JSON.stringify({ imageId, userId: resolvedUserId }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

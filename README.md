@@ -162,6 +162,33 @@ node -e "import { readFileSync } from 'fs'; import { importSPKI, exportJWK } fro
 - `bun run dev:backend` - Start only the Convex backend server
 - `bun run build` - Build the application for production
 - `bun run lint` - Run TypeScript and ESLint checks
+- `bun run discord:bot` - Start the Discord image bot
+- `bun run discord:bot:dry-run` - Register Discord commands only and exit
+
+## 🤖 Discord Image Bot
+
+This repo includes a Discord bot at `services/discord-bot` for posting image presets.
+It can also ingest existing Discord message images into Pindeck via `/images import` or custom emoji reactions.
+RSS-forwarded posts are parsed on ingest (including `sref` number extraction).
+
+Quick start:
+
+1. Set these values in `.env.local`:
+   - `DISCORD_TOKEN`
+   - `DISCORD_CLIENT_ID` (recommended; auto-derived from token if omitted)
+   - `DISCORD_GUILD_ID` (recommended for fast command updates)
+   - `DISCORD_IMAGES_JSON` (JSON array of image presets)
+   - `DISCORD_INGEST_EMOJIS` (comma-separated custom/unicode emoji triggers, e.g. `📥,<:pindeck:123...>`)
+   - `INGEST_API_KEY` and optional `PINDECK_INGEST_URL`
+2. Install bot dependency:
+   - `bun install --cwd services/discord-bot`
+3. Register commands (dry-run):
+   - `cd services/discord-bot && DISCORD_DRY_RUN=1 bun src/index.js`
+4. Run bot:
+   - `bash ./scripts/run-discord-bot.sh`
+
+Detailed setup and permission requirements:
+- `services/discord-bot/README.md`
 
 ## 🌐 Deployment
 

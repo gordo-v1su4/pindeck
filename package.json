@@ -9,6 +9,8 @@
     "dev": "bun run kill-port && bun run dev:frontend",
     "dev:frontend": "vite --open",
     "dev:backend": "convex dev",
+    "discord:bot": "bash ./scripts/run-discord-bot.sh",
+    "discord:bot:dry-run": "cd services/discord-bot && DISCORD_DRY_RUN=1 bun src/index.js",
     "build": "convex dev --once && vite build",
     "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
   },
