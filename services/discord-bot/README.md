@@ -73,16 +73,8 @@ bun install --cwd services/discord-bot
 
 Start bot:
 
-```bash
-bash /Users/robertspaniolo/Documents/Github/pindeck/scripts/run-discord-bot.sh
-```
-
-Register commands only (dry-run):
-
-```bash
-cd /Users/robertspaniolo/Documents/Github/pindeck/services/discord-bot
-DISCORD_DRY_RUN=1 bun src/index.js
-```
+# From the project root, run:
+bun run discord:bot
 
 ## Test Checklist
 1. Run `/images menu` in a channel and select a preset.
