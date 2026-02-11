@@ -161,6 +161,7 @@ node -e "import { readFileSync } from 'fs'; import { importSPKI, exportJWK } fro
 - `bun run dev:frontend` - Start only the Vite frontend server
 - `bun run dev:backend` - Start only the Convex backend server
 - `bun run build` - Build the application for production
+- `bun run deploy:convex` - Deploy Convex functions to production
 - `bun run lint` - Run TypeScript and ESLint checks
 - `bun run discord:bot` - Start the Discord image bot
 - `bun run discord:bot:dry-run` - Register Discord commands only and exit
