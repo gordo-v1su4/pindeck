@@ -12,7 +12,7 @@ Supports two workflows:
 - Linked `x.com/twitter.com/fxtwitter.com` posts are also parsed to collect direct media URLs when available
 
 ## Environment
-Set these in `/Users/robertspaniolo/Documents/Github/pindeck/.env.local`:
+Set these in the project's root `.env.local` file:
 
 - `DISCORD_TOKEN` - Bot token from Discord Developer Portal
 - `DISCORD_CLIENT_ID` - Application ID from Discord Developer Portal (recommended; auto-derived from token if omitted)
