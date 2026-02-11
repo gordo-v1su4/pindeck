@@ -3,6 +3,10 @@
     "playwright": {
       "command": "npx",
       "args": ["-y", "@anthropic-ai/mcp-server-puppeteer"]
+    },
+    "discord": {
+      "command": "bash",
+      "args": ["./scripts/run-discord-mcp.sh"]
     }
   }
 }
