@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { httpAction, query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
+const internalApi = internal as any;
 
 export const list = query({
   args: {
@@ -254,6 +255,7 @@ export const createExternal = mutation({
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
     const isDiscordImport = args.sourceType === "discord";
+    const projectName = isDiscordImport ? title : undefined;
 
     const imageId = await ctx.db.insert("images", {
       title,
@@ -261,6 +263,7 @@ export const createExternal = mutation({
       imageUrl: args.imageUrl,
       tags,
       category,
+      projectName,
       source: args.source,
       sref: args.sref,
       uploadedBy: userId,
@@ -277,6 +280,21 @@ export const createExternal = mutation({
       importBatchId: args.importBatchId,
       ingestedAt: Date.now(),
     });
+
+    if (isDiscordImport) {
+      try {
+        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
+          event: "queued",
+          imageId,
+          title,
+          sref: args.sref,
+          sourceUrl: args.sourceUrl,
+          userId,
+        });
+      } catch (error) {
+        console.warn("Failed to schedule Discord queued notification", error);
+      }
+    }
 
     if (!isDiscordImport) {
       await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
@@ -341,6 +359,7 @@ export const ingestExternal = internalMutation({
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
     const isDiscordImport = args.sourceType === "discord";
+    const projectName = isDiscordImport ? title : undefined;
 
     const imageId = await ctx.db.insert("images", {
       title,
@@ -348,6 +367,7 @@ export const ingestExternal = internalMutation({
       imageUrl: args.imageUrl,
       tags,
       category,
+      projectName,
       source: args.source,
       sref: args.sref,
       uploadedBy: args.userId,
@@ -364,6 +384,21 @@ export const ingestExternal = internalMutation({
       importBatchId: args.importBatchId,
       ingestedAt: Date.now(),
     });
+
+    if (isDiscordImport) {
+      try {
+        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
+          event: "queued",
+          imageId,
+          title,
+          sref: args.sref,
+          sourceUrl: args.sourceUrl,
+          userId: args.userId,
+        });
+      } catch (error) {
+        console.warn("Failed to schedule Discord queued notification", error);
+      }
+    }
 
     if (!isDiscordImport) {
       await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
@@ -748,6 +783,19 @@ export const approveImage = mutation({
         sref: image.sref,
         variationCount: 0,
       });
+
+      try {
+        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
+          event: "approved",
+          imageId: image._id,
+          title: image.title,
+          sref: image.sref,
+          sourceUrl: image.sourceUrl,
+          userId,
+        });
+      } catch (error) {
+        console.warn("Failed to schedule Discord approved notification", error);
+      }
     }
     return null;
   },
@@ -764,6 +812,21 @@ export const rejectImage = mutation({
     if (!image) throw new Error("Image not found");
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
+
+    if (image.sourceType === "discord") {
+      try {
+        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
+          event: "rejected",
+          imageId: image._id,
+          title: image.title,
+          sref: image.sref,
+          sourceUrl: image.sourceUrl,
+          userId,
+        });
+      } catch (error) {
+        console.warn("Failed to schedule Discord rejected notification", error);
+      }
+    }
 
     if (image.storageId) {
       await ctx.storage.delete(image.storageId);
@@ -819,9 +882,13 @@ export const internalUpdateAnalysis = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const existingImage = await ctx.db.get("images", args.imageId);
     const patch: any = {
       description: args.description,
-      colors: args.colors,
+      colors:
+        existingImage?.sourceType === "discord" && existingImage.colors && existingImage.colors.length > 0
+          ? existingImage.colors
+          : args.colors,
     };
     if (args.title) patch.title = args.title;
     if (args.tags) patch.tags = args.tags;
@@ -887,6 +954,7 @@ export const updateImageMetadata = mutation({
     category: v.optional(v.string()),
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
+    colors: v.optional(v.array(v.string())),
     group: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
@@ -912,6 +980,7 @@ export const updateImageMetadata = mutation({
     if (args.category !== undefined) patch.category = args.category;
     if (args.source !== undefined) patch.source = args.source;
     if (args.sref !== undefined) patch.sref = args.sref;
+    if (args.colors !== undefined) patch.colors = args.colors;
     if (args.group !== undefined) patch.group = args.group;
     if (args.projectName !== undefined) patch.projectName = args.projectName;
     if (args.moodboardName !== undefined) patch.moodboardName = args.moodboardName;

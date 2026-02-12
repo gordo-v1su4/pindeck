@@ -258,7 +258,9 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
     ? (() => {
         const acc: Record<string, typeof images> = {};
         for (const image of images) {
-          const key = image.projectName || "Ungrouped";
+          const key =
+            image.projectName ||
+            (image.sourceType === "discord" && image.title ? image.title : "Ungrouped");
           if (!acc[key]) acc[key] = [];
           acc[key].push(image);
         }

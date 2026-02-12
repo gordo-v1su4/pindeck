@@ -104,6 +104,7 @@ export function ImageUploadForm() {
       category?: string;
       source?: string;
       sref?: string;
+      colors?: string[];
       group?: string;
       projectName?: string;
       moodboardName?: string;
@@ -370,6 +371,13 @@ export function ImageUploadForm() {
 
   const handleApprove = async (imageId: Id<"images">) => {
     try {
+      const pendingImage = pendingImages?.find((img) => img._id === imageId);
+      if (pendingImage?.sourceType === "discord" && pendingImage.imageUrl) {
+        const extractedColors = await extractColorsFromImage(pendingImage.imageUrl);
+        if (extractedColors.length > 0) {
+          await updateImageMetadataMutation({ imageId, colors: extractedColors });
+        }
+      }
       await approveImage({ imageId });
       toast.success("Image approved and added to your review queue!");
     } catch (error) {

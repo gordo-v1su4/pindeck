@@ -23,6 +23,7 @@ Set these in the project's root `.env.local` file:
 - `PINDECK_INGEST_URL` - Optional; defaults to `<CONVEX_SITE_URL>/ingestExternal`
 - `PINDECK_USER_ID` - Convex user id destination for imports (required for ingest endpoint)
 - `DISCORD_INGEST_MAX_IMAGES_PER_POST` - Max images imported per trigger (default `1`)
+- `DISCORD_STATUS_WEBHOOK_URL` (Convex env) - Optional channel webhook for queue/approval/rejection status messages
 
 If `DISCORD_IMAGES_JSON` is missing, bot uses placeholder sample images.
 
