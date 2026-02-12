@@ -47,6 +47,7 @@ export const postStatus = internalAction({
 
     const lines = [
       `${emojiByEvent[args.event]} **${labelByEvent[args.event]}**`,
+      `Event: ${args.event}`,
       `Title: ${args.title}`,
       `Image ID: ${args.imageId}`,
       args.parentImageId ? `Parent Image ID: ${args.parentImageId}` : null,

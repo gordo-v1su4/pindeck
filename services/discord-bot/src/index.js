@@ -19,9 +19,18 @@ import {
 
 const PANEL_MARKER_PREFIX = "[PINDECK_IMAGE_PANEL]";
 const MOD_ACTION_PREFIX = "pindeck_mod";
+const VAR_ACTION_PREFIX = "pindeck_var";
 const MAX_MENU_ITEMS = 25;
 const HARD_MAX_IMPORTED_IMAGES_PER_MESSAGE = 10;
 const DEFAULT_QUEUE_REVIEW_LIMIT = 5;
+const VARIATION_MODE_OPTIONS = [
+  { mode: "shot-variation", label: "Shot" },
+  { mode: "action-shot", label: "Action" },
+  { mode: "coverage", label: "Coverage" },
+  { mode: "b-roll", label: "B-Roll" },
+  { mode: "style-variation", label: "Style" },
+  { mode: "subtle-variation", label: "Subtle" },
+];
 
 const BASE_CHANNEL_PERMISSIONS = [
   PermissionFlagsBits.ViewChannel,
@@ -891,6 +900,46 @@ function parseModerationCustomId(customId) {
   return { action, imageId };
 }
 
+function buildVariationCustomId(mode, imageId) {
+  return `${VAR_ACTION_PREFIX}:${mode}:${imageId}`;
+}
+
+function parseVariationCustomId(customId) {
+  if (!customId?.startsWith(`${VAR_ACTION_PREFIX}:`)) return null;
+  const [, mode, imageId] = customId.split(":");
+  if (!mode || !imageId) return null;
+  if (!VARIATION_MODE_OPTIONS.some((item) => item.mode === mode)) return null;
+  return { mode, imageId };
+}
+
+function buildVariationRows(imageId) {
+  const firstRow = new ActionRowBuilder().addComponents(
+    ...VARIATION_MODE_OPTIONS.slice(0, 5).map((item) =>
+      new ButtonBuilder()
+        .setCustomId(buildVariationCustomId(item.mode, imageId))
+        .setLabel(item.label)
+        .setStyle(ButtonStyle.Secondary)
+    )
+  );
+  const secondRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(buildVariationCustomId(VARIATION_MODE_OPTIONS[5].mode, imageId))
+      .setLabel(VARIATION_MODE_OPTIONS[5].label)
+      .setStyle(ButtonStyle.Secondary)
+  );
+  return [firstRow, secondRow];
+}
+
+function extractStatusEventAndImageId(messageContent) {
+  const text = String(messageContent || "");
+  const eventMatch = text.match(/Event:\s*([a-z_]+)/i);
+  const imageIdMatch = text.match(/Image ID:\s*([^\s`]+)/i);
+  return {
+    event: eventMatch?.[1]?.toLowerCase(),
+    imageId: imageIdMatch?.[1],
+  };
+}
+
 function buildModerationRow(imageId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -1040,6 +1089,7 @@ function printStartupChecklist({
   console.log(`- Ingest target userId: ${fallbackUserId || "none (set PINDECK_USER_ID)"}`);
   console.log(`- Ingest external post parsing: ${ingestFetchExternal ? "enabled" : "disabled"}`);
   console.log(`- Ingest max images per trigger: ${ingestMaxImagesPerPost}`);
+  console.log(`- Auto variation buttons on approved status: ${postVariationButtonsOnApproved ? "enabled" : "disabled"}`);
 }
 
 loadLocalEnv();
@@ -1073,6 +1123,7 @@ const discordGenerateDefaultCount = Math.min(
 );
 const discordGenerateDefaultMode =
   process.env.DISCORD_GENERATE_DEFAULT_MODE || "shot-variation";
+const postVariationButtonsOnApproved = process.env.DISCORD_APPROVED_VARIATION_BUTTONS !== "0";
 const usingSamplePresets = !process.env.DISCORD_IMAGES_JSON;
 
 let images;
@@ -1395,7 +1446,8 @@ if (dryRun) {
 
       if (interaction.isButton()) {
         const parsed = parseModerationCustomId(interaction.customId);
-        if (!parsed) return;
+        const parsedVariation = parseVariationCustomId(interaction.customId);
+        if (!parsed && !parsedVariation) return;
 
         if (!moderationEndpoint || !ingestApiKey || !fallbackIngestUserId) {
           await interaction.reply({
@@ -1403,6 +1455,31 @@ if (dryRun) {
               "Discord moderation is not configured. Set PINDECK_USER_ID, INGEST_API_KEY, and a moderation endpoint.",
             ephemeral: true,
           });
+          return;
+        }
+
+        if (parsedVariation) {
+          try {
+            const result = await moderateDiscordImage({
+              moderationEndpoint,
+              ingestApiKey,
+              userId: fallbackIngestUserId,
+              imageId: parsedVariation.imageId,
+              action: "generate",
+              variationCount: discordGenerateDefaultCount,
+              modificationMode: parsedVariation.mode,
+            });
+
+            await interaction.reply({
+              content: `GENERATE OK for \`${parsedVariation.imageId}\` (${parsedVariation.mode}, x${discordGenerateDefaultCount})${result?.message ? ` - ${result.message}` : ""}`,
+              ephemeral: true,
+            });
+          } catch (error) {
+            await interaction.reply({
+              content: `GENERATE failed for \`${parsedVariation.imageId}\` (${parsedVariation.mode}): ${error.message}`,
+              ephemeral: true,
+            });
+          }
           return;
         }
 
@@ -1459,6 +1536,34 @@ if (dryRun) {
       if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
         await interaction.reply({ content: "Something went wrong processing that action.", ephemeral: true });
       }
+    }
+  });
+
+  client.on(Events.MessageCreate, async (message) => {
+    if (!postVariationButtonsOnApproved) return;
+    if (!message.guildId || !message.webhookId) return;
+    if (message.author?.id === client.user.id) return;
+    if (!moderationEndpoint || !ingestApiKey || !fallbackIngestUserId) return;
+
+    try {
+      const { event, imageId } = extractStatusEventAndImageId(message.content || "");
+      if (event !== "approved" || !imageId) return;
+
+      const permissionCheck = checkChannelPermissions(message.channel, [PermissionFlagsBits.SendMessages]);
+      if (!permissionCheck.ok) {
+        console.warn(
+          `Cannot post variation buttons in channel ${message.channelId}:`,
+          permissionCheck.missing.join(", ")
+        );
+        return;
+      }
+
+      await message.channel.send({
+        content: `Variations for \`${imageId}\` (default x${discordGenerateDefaultCount})`,
+        components: buildVariationRows(imageId),
+      });
+    } catch (error) {
+      console.error("Approved-status variation controls error:", error.message);
     }
   });
 

@@ -32,6 +32,7 @@ Set these in the project's root `.env.local` file:
 - `DISCORD_INGEST_MAX_IMAGES_PER_POST` - Max images imported per trigger (default `1`)
 - `DISCORD_GENERATE_DEFAULT_COUNT` - Default variations count when using button-based Generate (default `2`)
 - `DISCORD_GENERATE_DEFAULT_MODE` - Default mode when using button-based Generate (default `shot-variation`)
+- `DISCORD_APPROVED_VARIATION_BUTTONS` - Auto-post variation mode buttons when an `Approved` status message appears (default `1`)
 - `DISCORD_STATUS_WEBHOOK_URL` (Convex env) - Optional channel webhook for queue/approval/rejection/generation status messages
 
 If `DISCORD_IMAGES_JSON` is missing, bot uses placeholder sample images.
@@ -95,7 +96,9 @@ bun run discord:bot
 5. React to an earlier image post with one of `DISCORD_INGEST_EMOJIS` and confirm import to Pindeck.
 6. Run `/images review` and confirm queue cards appear with moderation buttons.
 7. Click `Approve`, `Deny`, and `Generate` buttons on queue cards and confirm actions apply in Pindeck.
-8. Try a channel where bot lacks permission and confirm the bot returns a missing-permission message.
+8. Approve one image and confirm a follow-up variation button message appears for that approved image ID.
+9. Click a variation mode button and confirm generation starts in Pindeck.
+10. Try a channel where bot lacks permission and confirm the bot returns a missing-permission message.
 
 ## RSS + sref Parsing
 - On ingest, the bot parses message content + embeds to extract:
