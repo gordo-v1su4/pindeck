@@ -64,31 +64,104 @@ const MODE_PROMPTS: Record<string, (detail?: string) => string> = {
       : `Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image.`,
 };
 
+function applyGroupContext(mode: string, prompt: string, group?: string) {
+  if (!group || (mode !== "shot-variation" && mode !== "action-shot")) {
+    return prompt;
+  }
+
+  if (group === "Music Video") {
+    return `Later in the music video. ${prompt}`;
+  }
+  if (group === "Commercial") {
+    return `Later in the commercial. ${prompt}`;
+  }
+  if (
+    group === "Film" ||
+    group === "TV Series" ||
+    group === "Web Series"
+  ) {
+    // For shot-variation, the base prompt already starts with "Later in the scene."
+    return mode === "action-shot" ? `Later in the scene. ${prompt}` : prompt;
+  }
+
+  return prompt;
+}
+
+function buildVariationPromptPlan({
+  modificationMode,
+  variationCount,
+  variationDetail,
+  group,
+}: {
+  modificationMode: string;
+  variationCount: number;
+  variationDetail?: string;
+  group?: string;
+}) {
+  const count = Math.min(Math.max(variationCount ?? 0, 0), 12);
+  if (count === 0) return [] as string[];
+
+  const mode = modificationMode || "shot-variation";
+  const userDetail = variationDetail?.trim();
+  const promptBuilder = MODE_PROMPTS[mode] || MODE_PROMPTS["shot-variation"];
+  const prompts: string[] = [];
+
+  if (mode === "shot-variation" && !userDetail) {
+    for (let i = 0; i < count; i++) {
+      const shot = SHOT_TYPES[i % SHOT_TYPES.length];
+      const prompt = promptBuilder(shot);
+      prompts.push(applyGroupContext(mode, prompt, group));
+    }
+    return prompts;
+  }
+
+  const prompt = applyGroupContext(mode, promptBuilder(userDetail || undefined), group);
+  for (let i = 0; i < count; i++) prompts.push(prompt);
+  return prompts;
+}
+
 /** Returns the exact prompts that will be sent to Nano Banana Pro for the given options. */
 export const getVariationPrompts = query({
   args: {
     modificationMode: v.string(),
     variationCount: v.number(),
     variationDetail: v.optional(v.string()),
+    group: v.optional(v.string()),
   },
   returns: v.array(v.string()),
   handler: (_ctx, args) => {
-    const count = Math.min(Math.max(args.variationCount ?? 0, 0), 12);
-    if (count === 0) return [];
-    const mode = args.modificationMode || "shot-variation";
-    const userDetail = args.variationDetail?.trim();
-    const promptBuilder = MODE_PROMPTS[mode] || MODE_PROMPTS["shot-variation"];
-    const prompts: string[] = [];
-    if (mode === "shot-variation" && !userDetail) {
-      for (let i = 0; i < count; i++) {
-        const shot = SHOT_TYPES[i % SHOT_TYPES.length];
-        prompts.push(promptBuilder(shot));
-      }
-    } else {
-      const prompt = promptBuilder(userDetail || undefined);
-      for (let i = 0; i < count; i++) prompts.push(prompt);
-    }
-    return prompts;
+    return buildVariationPromptPlan({
+      modificationMode: args.modificationMode,
+      variationCount: args.variationCount,
+      variationDetail: args.variationDetail,
+      group: args.group,
+    });
+  },
+});
+
+/** Returns exact generation prompts for a specific image using its current group context. */
+export const getVariationPromptsForImage = query({
+  args: {
+    imageId: v.id("images"),
+    modificationMode: v.string(),
+    variationCount: v.number(),
+    variationDetail: v.optional(v.string()),
+  },
+  returns: v.array(v.string()),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image) throw new Error("Image not found");
+    if (image.uploadedBy !== userId) throw new Error("Not authorized");
+
+    return buildVariationPromptPlan({
+      modificationMode: args.modificationMode,
+      variationCount: args.variationCount,
+      variationDetail: args.variationDetail,
+      group: image.group,
+    });
   },
 });
 
@@ -148,10 +221,15 @@ export const internalGenerateRelatedImages = internalAction({
     }
 
     const mode = args.modificationMode || "shot-variation";
-    const userDetail = args.variationDetail?.trim();
-
-    // For shot-variation without user detail, pick random shot types
-    const shuffledShots = [...SHOT_TYPES].sort(() => Math.random() - 0.5);
+    const prompts = buildVariationPromptPlan({
+      modificationMode: mode,
+      variationCount: count,
+      variationDetail: args.variationDetail,
+      group: args.group,
+    });
+    console.log(
+      `[Gen Plan] image=${args.originalImageId} mode=${mode} count=${count} prompts=${JSON.stringify(prompts)}`
+    );
 
     // Map aspect ratio
     const aspectRatioMap: Record<string, "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"> = {
@@ -160,32 +238,9 @@ export const internalGenerateRelatedImages = internalAction({
     const aspectRatio = aspectRatioMap[args.aspectRatio || "16:9"] || "16:9";
 
     // Generate images
-    const generatePromises = Array.from({ length: count }, (_, i) => {
+    const generatePromises = prompts.map((prompt, i) => {
       return (async () => {
         try {
-          // Build prompt based on mode
-          const promptBuilder = MODE_PROMPTS[mode] || MODE_PROMPTS["shot-variation"];
-          
-          // For shot-variation, use random shot type if no user detail
-          let detail = userDetail;
-          if (mode === "shot-variation" && !detail) {
-            detail = shuffledShots[i % shuffledShots.length];
-          }
-          
-          let prompt = promptBuilder(detail);
-          // Optional context from group (e.g. Music Video, Commercial) for shot-variation and action-shot
-          if (args.group && (mode === "shot-variation" || mode === "action-shot")) {
-            const ctx =
-              args.group === "Music Video"
-                ? "Later in the music video. "
-                : args.group === "Commercial"
-                  ? "Later in the commercial. "
-                  : args.group === "Film" || args.group === "TV Series" || args.group === "Web Series"
-                    ? "Later in the scene. "
-                    : "";
-            if (ctx) prompt = ctx + prompt;
-          }
-
           console.log(`[Gen ${i + 1}/${count}] Mode: ${mode}, Prompt: "${prompt}"`);
 
           const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {

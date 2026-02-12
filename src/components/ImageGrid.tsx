@@ -22,6 +22,7 @@ interface ImageGridProps {
   searchTerm: string;
   selectedGroup: string | undefined;
   selectedCategory: string | undefined;
+  selectedSref: string | undefined;
   setActiveTab: (tab: string) => void;
   incrementBoardVersion: () => void;
 }
@@ -61,7 +62,7 @@ function DraggableCard({
 
 type ViewMode = "random" | "project-rows";
 
-export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActiveTab, incrementBoardVersion }: ImageGridProps) {
+export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, selectedSref, setActiveTab, incrementBoardVersion }: ImageGridProps) {
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | undefined>();
   const [viewMode, setViewMode] = useState<ViewMode>("random");
@@ -88,11 +89,17 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  const srefFilteredImages = useMemo(() => {
+    if (!images) return images;
+    if (!selectedSref) return images;
+    return images.filter((image) => image.sref === selectedSref);
+  }, [images, selectedSref]);
+
   // Shuffle images for random view - use a seeded shuffle based on date so it's consistent per session
   const shuffledImages = useMemo(() => {
-    if (!images || viewMode !== "random") return images;
+    if (!srefFilteredImages || viewMode !== "random") return srefFilteredImages;
     // Fisher-Yates shuffle with a seed based on session start
-    const arr = [...images];
+    const arr = [...srefFilteredImages];
     const seed = Math.floor(Date.now() / (1000 * 60 * 60)); // Changes every hour
     let m = arr.length;
     let t, i;
@@ -105,7 +112,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
       arr[i] = t;
     }
     return arr;
-  }, [images, viewMode]);
+  }, [srefFilteredImages, viewMode]);
 
   // Listen for custom events to open image modals (for parent image navigation)
   useEffect(() => {
@@ -235,7 +242,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
     </DropdownMenu.Root>
   );
 
-  if (images === undefined) {
+  if (srefFilteredImages === undefined) {
     return (
       <Flex justify="center" align="center" className="min-h-[50vh]">
         <Spinner size="3" />
@@ -243,21 +250,25 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
     );
   }
 
-  if (images.length === 0) {
+  if (srefFilteredImages.length === 0) {
     return (
       <Box className="text-center py-16">
         <Text size="4" color="gray">
-          {searchTerm ? "No images found for your search." : "No images available."}
+          {searchTerm
+            ? "No images found for your search."
+            : selectedSref
+              ? `No images found for sref ${selectedSref}.`
+              : "No images available."}
         </Text>
       </Box>
     );
   }
 
   // Group images by projectName for project-rows view; sort each row by projectOrder
-  const groupedImages = viewMode === "project-rows" && images.some(img => img.projectName)
+  const groupedImages = viewMode === "project-rows" && srefFilteredImages.some(img => img.projectName)
     ? (() => {
-        const acc: Record<string, typeof images> = {};
-        for (const image of images) {
+        const acc: Record<string, typeof srefFilteredImages> = {};
+        for (const image of srefFilteredImages) {
           const key =
             image.projectName ||
             (image.sourceType === "discord" && image.title ? image.title : "Ungrouped");
@@ -327,7 +338,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
         >
           Random
         </Button>
-        {images.some(img => img.projectName) && (
+        {srefFilteredImages.some(img => img.projectName) && (
           <Button
             variant={viewMode === "project-rows" ? "solid" : "soft"}
             size="1"

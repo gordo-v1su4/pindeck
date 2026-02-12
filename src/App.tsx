@@ -17,6 +17,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [selectedSref, setSelectedSref] = useState<string | undefined>();
   const [activeTab, setActiveTabState] = useState("gallery");
   const { isAuthenticated, isLoading } = useConvexAuth();
   
@@ -122,6 +123,8 @@ export default function App() {
                 onGroupChange={() => {}}
                 selectedCategory={selectedCategory}
                 onCategoryChange={setSelectedCategory}
+                selectedSref={selectedSref}
+                onSrefChange={setSelectedSref}
               />
             </Box>
           )}
@@ -137,6 +140,7 @@ export default function App() {
                 searchTerm={searchTerm}
                 selectedGroup={selectedGroup}
                 selectedCategory={selectedCategory}
+                selectedSref={selectedSref}
                 setActiveTab={setActiveTab}
                 incrementBoardVersion={incrementBoardVersion}
               />
@@ -154,6 +158,7 @@ export default function App() {
             searchTerm={searchTerm}
             selectedGroup={selectedGroup}
             selectedCategory={selectedCategory}
+            selectedSref={selectedSref}
             setActiveTab={setActiveTab}
             incrementBoardVersion={incrementBoardVersion}
           />
@@ -165,10 +170,11 @@ export default function App() {
   );
 }
 
-function Content({ searchTerm, selectedGroup, selectedCategory, setActiveTab, incrementBoardVersion }: { 
+function Content({ searchTerm, selectedGroup, selectedCategory, selectedSref, setActiveTab, incrementBoardVersion }: { 
   searchTerm: string; 
   selectedGroup: string | undefined;
   selectedCategory: string | undefined;
+  selectedSref: string | undefined;
   setActiveTab: (tab: string) => void;
   incrementBoardVersion: () => void;
 }) {
@@ -208,6 +214,7 @@ function Content({ searchTerm, selectedGroup, selectedCategory, setActiveTab, in
           searchTerm={searchTerm}
           selectedGroup={selectedGroup}
           selectedCategory={selectedCategory}
+          selectedSref={selectedSref}
           setActiveTab={setActiveTab}
           incrementBoardVersion={incrementBoardVersion}
         />
