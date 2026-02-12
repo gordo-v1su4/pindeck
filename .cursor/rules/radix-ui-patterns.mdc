@@ -1,13 +1,13 @@
 
 ---
-description: Radix UI component patterns, gotchas, and best practices for the Visuals project
+description: Radix UI component patterns, gotchas, and best practices for the Pindeck project
 globs: src/components/**/*.tsx
 alwaysApply: true
 ---
 
 # Radix UI Patterns & Gotchas
 
-This rule documents common patterns, gotchas, and best practices when working with Radix UI components in the Visuals project.
+This rule documents common patterns, gotchas, and best practices when working with Radix UI components in the Pindeck project.
 
 ## Overview
 

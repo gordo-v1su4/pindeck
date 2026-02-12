@@ -475,7 +475,6 @@ export const internalSmartAnalyzeImage = internalAction({
       let category: string | undefined;
       let visual_style: string | undefined;
       let group: string | undefined;
-      let project_name: string | undefined;
       let moodboard_name: string | undefined;
 
       try {
@@ -518,7 +517,6 @@ export const internalSmartAnalyzeImage = internalAction({
         category = parsed.category;
         visual_style = parsed.visual_style;
         group = parsed.group || undefined;
-        project_name = parsed.project_name || parsed.projectName || undefined;
         moodboard_name = parsed.moodboard_name || parsed.moodboardName || undefined;
       } catch (jsonError) {
         console.warn("JSON parse failed, using raw content", jsonError);
@@ -533,7 +531,7 @@ export const internalSmartAnalyzeImage = internalAction({
         colors,
         category,
         group,
-        projectName: project_name,
+        projectName: title || args.title,
         moodboardName: moodboard_name,
         sref: args.sref,
       });

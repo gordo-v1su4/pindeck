@@ -298,7 +298,7 @@ export const createExternal = mutation({
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
     const isDiscordImport = args.sourceType === "discord";
-    const projectName = isDiscordImport ? title : undefined;
+    const projectName = args.sourceType === "ai" ? undefined : title;
 
     const imageId = await ctx.db.insert("images", {
       title,
@@ -403,7 +403,7 @@ export const ingestExternal = internalMutation({
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
     const isDiscordImport = args.sourceType === "discord";
-    const projectName = isDiscordImport ? title : undefined;
+    const projectName = args.sourceType === "ai" ? undefined : title;
 
     const imageId = await ctx.db.insert("images", {
       title,
@@ -968,7 +968,7 @@ export const uploadMultiple = mutation({
           sref: upload.sref,
           colors: upload.colors,
           group: upload.group,
-          projectName: upload.projectName,
+          projectName: upload.title,
           moodboardName: upload.moodboardName,
           uniqueId: upload.uniqueId,
           uploadedBy: userId,
@@ -985,7 +985,7 @@ export const uploadMultiple = mutation({
             storageId: upload.storageId,
             imageId: imageId,
             group: upload.group,
-            projectName: upload.projectName,
+            projectName: upload.title,
             moodboardName: upload.moodboardName,
             userId: userId,
             title: upload.title,
@@ -1221,12 +1221,18 @@ export const internalUpdateAnalysis = internalMutation({
           ? existingImage.colors
           : args.colors,
     };
+    const shouldSyncProjectName =
+      existingImage?.sourceType === "upload" ||
+      existingImage?.sourceType === "discord" ||
+      existingImage?.sourceType === "pinterest";
+
     if (args.title) patch.title = args.title;
     if (args.tags) patch.tags = args.tags;
     if (args.category) patch.category = args.category;
     if (args.aiStatus) patch.aiStatus = args.aiStatus;
     if (args.group !== undefined) patch.group = args.group;
     if (args.projectName !== undefined) patch.projectName = args.projectName;
+    else if (shouldSyncProjectName && args.title) patch.projectName = args.title;
     if (args.moodboardName !== undefined) patch.moodboardName = args.moodboardName;
     // Preserve sref if provided, otherwise don't overwrite existing value
     if (args.sref !== undefined) patch.sref = args.sref;

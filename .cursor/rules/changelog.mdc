@@ -1,0 +1,37 @@
+---
+description: Session-by-session changelog for significant project updates
+globs: **/*
+alwaysApply: true
+---
+# Pindeck Changelog
+
+Use this file as a concise running log of meaningful changes.
+
+## Entry format
+
+```
+## YYYY-MM-DD
+- Area: short summary
+- Area: short summary
+- Follow-up: pending item or risk
+```
+
+Rules:
+- Keep bullets short and concrete.
+- Log shipped behavior, not intentions.
+- Include follow-ups only when actionable.
+- Prefer one section per day.
+
+## 2026-02-12
+
+- Discord ingest: strengthened media URL filtering/deduping and limited imports per trigger to reduce junk/icon ingestion.
+- Discord queue workflow: imports queue as `pending`; approve/deny required before full pipeline.
+- Discord moderation: added queue review + approve/reject/generate flows via commands/buttons.
+- Discord status feedback: webhook events expanded (queued/approved/rejected/generation started/generated), with image/context metadata.
+- Approved message UX: bot posts variation-mode buttons after approved status messages and routes clicks to generation.
+- Image lineage metadata: generated children preserve `parentImageId`; table parent resolution/parent labeling improved.
+- sref propagation: generated children inherit `sref` from parent/root lineage.
+- Gallery/Table filters: added Sref-only toggles (`Sref Tag` in gallery view controls; `Show Sref Only` in table).
+- Prompt consistency: unified variation prompt planning between preview/runtime and added image-specific prompt preview query.
+- Docs/rules refresh: updated `.cursor/rules` files to reflect current architecture, deployment, and stack behavior.
+

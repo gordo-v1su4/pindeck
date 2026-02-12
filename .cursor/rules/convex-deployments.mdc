@@ -1,79 +1,81 @@
 # Convex Deployment Configuration
 
-This rule documents the Convex deployment setup for the Visuals/Pindeck project.
+Current deployment guidance for this repo.
 
 ## Deployments
 
 | Environment | Deployment Name | URL |
-|-------------|-----------------|-----|
-| **Development** | `incredible-otter-369` | `https://incredible-otter-369.convex.cloud` |
-| **Production** | `tremendous-jaguar-953` | `https://tremendous-jaguar-953.convex.cloud` |
+|---|---|---|
+| Development | `incredible-otter-369` | `https://incredible-otter-369.convex.cloud` |
+| Production | `tremendous-jaguar-953` | `https://tremendous-jaguar-953.convex.site` |
 
-## Working with Production Locally
+Notes:
+- Use `.convex.site` for app/HTTP endpoint traffic.
+- `.convex.cloud` may still appear in dashboard tooling; both can exist.
 
-To develop against **production** data:
+## Production-First Local Workflow
 
-### 1. Update `.env.local`
+If working against production:
 
 ```bash
-# Production Convex deployment
 CONVEX_DEPLOYMENT=prod:tremendous-jaguar-953
 VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud
+VITE_CONVEX_SITE_URL=https://tremendous-jaguar-953.convex.site
 ```
 
-### 2. Run Frontend Only
+Run frontend only:
 
 ```bash
 bun run dev:frontend
 ```
 
-**Important:** Do NOT run `convex dev` when working with production. It will overwrite `.env.local` with the dev deployment.
+Avoid:
+- `convex dev` while targeting production, since it can overwrite local env defaults.
 
-### 3. Deploy Backend Changes
+## Deploy Backend Changes
 
-After editing files in `convex/`, deploy to production:
-
-```bash
-bunx convex deploy --yes
-```
-
-## Working with Development
-
-To switch back to **development**:
-
-### 1. Update `.env.local`
+After editing `convex/*`:
 
 ```bash
-# Development Convex deployment
-CONVEX_DEPLOYMENT=dev:incredible-otter-369
-VITE_CONVEX_URL=https://incredible-otter-369.convex.cloud
+bun run deploy:convex
 ```
 
-### 2. Run Full Dev Server
+(`package.json` maps this to `convex deploy`)
 
-```bash
-bun run dev
-```
+## Vercel Build Notes
 
-This runs both frontend and `convex dev` for hot-reloading backend changes.
+- Frontend build command is `bun run build` (Vite build only).
+- Do not run `convex dev --once` in Vercel build.
+- Convex deploy and Vercel deploy are separate steps.
 
-## Vercel Production Setup
+## Environment Variables Split
 
-Vercel environment variables must be set for production:
+Convex env (backend/runtime):
+- `INGEST_API_KEY`
+- `DISCORD_STATUS_WEBHOOK_URL`
+- `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY`
+- `FAL_KEY`
 
-- `VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud`
+Frontend/Vercel env (build/runtime in browser):
+- `VITE_CONVEX_URL`
+- `VITE_CONVEX_SITE_URL` (if used by frontend tooling)
+
+Discord bot env (separate process):
+- `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`
+- `PINDECK_USER_ID`
+- `INGEST_API_KEY`
+- `CONVEX_SITE_URL` or explicit `PINDECK_INGEST_URL` / moderation URLs
 
 ## Commands Reference
 
-| Command | Description |
-|---------|-------------|
-| `bun run dev` | Start frontend + backend dev server (uses dev deployment) |
-| `bun run dev:frontend` | Start frontend only (uses `.env.local` deployment) |
-| `bunx convex deploy --yes` | Deploy backend to production |
-| `bunx convex env list --prod` | List production environment variables |
+| Command | Purpose |
+|---|---|
+| `bun run dev:frontend` | Frontend local dev |
+| `bun run build` | Frontend production build |
+| `bun run deploy:convex` | Deploy Convex backend |
+| `bun run discord:bot` | Run Discord bot process |
 
 ## Caution
 
-- **Never** run `convex dev` when `.env.local` points to production
-- Always verify which deployment you're connected to before making changes
-- Test changes in development before deploying to production
+- Vercel does not host the Discord bot websocket worker.
+- Discord bot must run as an always-on separate worker service.

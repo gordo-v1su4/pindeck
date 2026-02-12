@@ -1,354 +1,100 @@
 ---
-description: Project directory structure and important files overview for the Visuals image gallery application
+description: Current project structure and feature map for Pindeck (React + Convex + Discord bot)
 globs: **/*
 alwaysApply: true
 ---
-# Visuals Project Structure
+# Pindeck Project Structure
 
-This rule outlines the directory structure and organization of the **Visuals** project - a React/TypeScript image gallery and sharing platform built with Convex backend.
+This file is the quick map of what exists in the repo today.
 
 ## Project Overview
 
-**Visuals** is a curated image gallery and sharing platform that provides:
-- User authentication with Convex Auth
-- Image upload, search, and categorization
-- Pinterest-style boards and collections
-- Advanced table view with filtering and sorting
-- AI-powered image analysis using Gemini 3 Pro (automatic title, description, tags, colors, category detection)
-- AI image generation with random shot type variation (9 cinematic shot types)
-- Automatic color extraction from images
-- Social features (likes, collections, views)
-- Responsive masonry layout with Radix UI + Tailwind CSS
-- Real-time updates via Convex subscriptions
-- TypeScript-first development experience
+Pindeck is an image curation app with:
+- React + TypeScript frontend
+- Convex backend (auth, data, storage, HTTP endpoints)
+- Discord ingest/moderation bot (Bun process)
+- AI analysis + variation generation pipeline
 
-## Root Directory Structure
+Current behavior highlights:
+- Discord imports are queued (`pending`) and manually approved/denied.
+- Discord-origin generated children are also queued and keep lineage (`parentImageId`) and `sref`.
+- Upload flow separates pending/processing/draft/active states.
+- Gallery has a view toggle plus Sref-only toggle.
+- Table view has advanced filters, parent navigation, original-only and Sref-only toggles.
 
-```
+## Root Structure
+
+```text
 pindeck/
-├── 📁 .cursor/           # 🛠️ Development rules & guidelines
-├── 📁 convex/           # 🗄️ Backend & database (Convex)
-├── 📁 src/             # 🎨 Frontend application (React/TypeScript)
-├── 📁 dist/            # 📦 Build output (generated)
-├── 📁 node_modules/    # 📚 Dependencies (not tracked)
-├── 📄 package.json     # 📋 Project configuration
-├── 📄 README.md        # 📖 Project documentation
-└── 📄 *.config.*       # ⚙️ Build & development configs
+├── .cursor/rules/                 # Cursor rules/docs
+├── convex/                        # Convex backend
+├── docs/                          # Session docs/notes
+├── scripts/                       # Run/deploy helper scripts
+├── services/discord-bot/          # Discord bot service
+├── src/                           # Frontend app
+├── package.json
+└── README.md
 ```
 
-## Cursor Rules Directory (`/.cursor/`)
+## Backend (`convex/`)
 
-**Purpose**: Development guidelines, coding standards, and project-specific rules for Cursor IDE.
+Key files:
+- `schema.ts`: tables/indexes (`images`, `profiles`, `importBatches`, boards/decks/storyboards, etc.)
+- `images.ts`: CRUD, ingest HTTP routes, queue/moderation logic, generated-image save, metadata updates
+- `vision.ts`: analysis + variation generation flow and prompt planning
+- `discordNotifications.ts`: webhook status events to Discord channel
+- `http.ts`: public HTTP routes (`/ingestExternal`, `/discordQueue`, `/discordModerate`, `/smartAnalyzeImage`)
+- `boards.ts`, `generations.ts`, `decks.ts`, `storyboards.ts`: output/organization features
 
-```
-.cursor/
-└── rules/
-    ├── cursor-rules.mdc         # 📝 Rules management guide
-    ├── project-structure.mdc    # 🗂️ This file (structure guide)
-    ├── tech-stack.mdc           # 🛠️ Technology stack and dependencies
-    ├── radix-ui-patterns.mdc    # 🎨 Radix UI component patterns and gotchas
-    └── self-improve.mdc         # 🔄 Continuous improvement guidelines
-```
+Important image fields:
+- `status`: `pending` / `draft` / `active`
+- `aiStatus`: `queued` / `processing` / `completed` / `failed`
+- `sourceType`: `upload` / `discord` / `pinterest` / `ai`
+- `sref`, `tags`, `colors`, `group`, `projectName`, `parentImageId`
 
-## Convex Backend Directory (`/convex/`)
+## Frontend (`src/`)
 
-**Purpose**: Server-side logic, database schema, and API endpoints using Convex framework.
+Key files:
+- `App.tsx`: tabs, top-level state, gallery/upload/boards/table routes
+- `components/ImageGrid.tsx`: gallery views, Sref-only toggle, project rows, quick actions
+- `components/ImageUploadForm.tsx`: local upload + Discord queue review/approve/discard
+- `components/TableView.tsx`: sortable/filterable table, parent navigation, original/sref toggles
+- `components/ImageModal.tsx`: image details, sref copy, parent linkage
+- `components/GenerateVariationsModal.tsx`: explicit post-review variation settings
+- `components/CategoryFilter.tsx`: category filter tabs
+- `lib/colorExtraction.ts`: frontend color extraction helper
 
-```
-convex/
-├── 📁 _generated/              # 🤖 Auto-generated files
-│   ├── api.d.ts               # TypeScript API definitions
-│   ├── api.js                 # JavaScript API functions
-│   ├── dataModel.d.ts         # Database model types
-│   ├── server.d.ts            # Server-side types
-│   └── server.js              # Server-side code
-│
-├── auth.config.ts             # 🔐 Authentication configuration
-├── auth.ts                    # 👤 Authentication logic
-├── boards.ts                  # 📌 Pinterest-style boards API
-├── debug.ts                   # 🐛 Debug utilities
-├── http.ts                    # 🌐 HTTP utilities & external APIs
-├── images.ts                  # 🖼️ Image CRUD, search, likes, color extraction API
-├── router.ts                  # 🛣️ API route definitions
-├── schema.ts                  # 📊 Database schema & indexes
-├── seed.ts                    # 🌱 Database seeding script
-├── vision.ts                  # 🤖 AI image analysis & generation (Gemini 3 Pro)
-└── tsconfig.json              # ⚙️ Backend TypeScript config
-```
+## Discord Bot (`services/discord-bot/`)
 
-## Source Directory (`/src/`)
+Key file:
+- `src/index.js`
 
-**Purpose**: Frontend React application with TypeScript, featuring image gallery components and user authentication.
+Capabilities:
+- Slash commands for presets and ingest workflows.
+- Queue review and moderation commands/buttons.
+- Reaction-triggered ingest from channel messages and RSS-forwarded posts.
+- Auto variation-control buttons on approved status messages.
+- Talks to Convex HTTP endpoints with API key auth.
 
-```
-src/
-├── 📁 components/             # 🧩 Reusable React components
-│   ├── BoardsView.tsx        # 📌 Pinterest-style boards management
-│   ├── CategoryFilter.tsx    # 🏷️ Category filtering UI
-│   ├── CreateBoardModal.tsx  # ➕ Board creation modal
-│   ├── ImageGrid.tsx         # 🎯 Main image display (masonry with hover effects)
-│   ├── ImageModal.tsx        # 🔍 Image detail modal (transparent backdrop, tag colors, soft buttons)
-│   ├── ImageUploadForm.tsx   # 📤 Multi-image upload with AI analysis trigger
-│   ├── SearchBar.tsx         # 🔎 Search functionality (soft variant styling)
-│   └── TableView.tsx         # 📊 Advanced data table (ID column, tag colors, blue theme)
-│
-├── 📁 lib/                   # 🛠️ Utilities & helpers
-│   ├── colorExtraction.ts    # 🎨 Browser-based color extraction
-│   └── utils.ts              # 🎨 Tailwind CSS utilities & tag color mapping
-│
-├── App.tsx                   # 🎪 Main application component with tabs
-├── index.css                 # 🎨 Global styles & Tailwind
-├── main.tsx                  # 🚀 Application entry point with Radix Theme
-├── SignInForm.tsx            # 📝 User authentication form
-├── SignOutButton.tsx         # 🚪 Sign-out functionality
-└── vite-env.d.ts             # ⚙️ Vite environment types
-```
+Runtime model:
+- Separate long-running process (not hosted by Vercel frontend).
 
-## Components Directory (`/src/components/`)
+## Scripts
 
-**Purpose**: Modular React components for the image gallery interface.
+Common scripts:
+- `bun run dev:frontend`
+- `bun run dev:backend` (avoid when targeting production data)
+- `bun run build` (frontend build)
+- `bun run deploy:convex`
+- `bun run discord:bot`
 
-```
-src/components/
-├── BoardsView.tsx           # 📌 Pinterest-style boards management
-├── CategoryFilter.tsx       # 🏷️ Filter images by category
-├── CreateBoardModal.tsx     # ➕ Board creation modal
-├── ImageGrid.tsx            # 🎯 Responsive masonry grid layout
-├── ImageModal.tsx           # 🔍 Full-screen image viewer with colors
-├── ImageUploadForm.tsx      # 📤 Multi-image upload with color extraction
-├── SearchBar.tsx            # 🔎 Real-time search interface
-└── TableView.tsx            # 📊 Advanced data table with filtering
-```
+## Current Conventions
 
-## Build Output Directory (`/dist/`)
-
-**Purpose**: Production-ready build artifacts generated by Vite.
-
-```
-dist/
-├── index.html               # 📄 Main HTML template
-└── assets/                  # 📦 Compiled bundles
-    ├── index-*.js          # ⚡ Compiled JavaScript
-    └── index-*.css         # 🎨 Compiled CSS styles
-```
-
-## Key Configuration Files
-
-### Package Management
-- `package.json` - 📦 Main project dependencies, scripts, and metadata
-- `bun.lock` - 🔒 Bun package manager lock file
-- `bunfig.toml` - ⚙️ Bun configuration
-
-### Build & Development
-- `vite.config.ts` - ⚡ Vite build tool configuration
-- `tsconfig.json` - 📘 Root TypeScript configuration
-- `tsconfig.app.json` - 🎨 Frontend TypeScript config
-- `tsconfig.node.json` - 🟢 Node.js TypeScript config
-
-### Code Quality & Styling
-- `eslint.config.js` - 🔍 ESLint linting rules
-- `tailwind.config.js` - 🎨 Tailwind CSS configuration
-- `postcss.config.cjs` - 🎯 PostCSS configuration
-
-### Development Tools
-- `.gitignore` - 🚫 Git ignore rules
-- `index.html` - 🌐 Main HTML template
-
-## Component Organization Patterns
-
-### React Components (`/src/components/`)
-- **Functional components**: Modern React hooks-based
-- **TypeScript interfaces**: Strongly typed props and state
-- **Radix UI components**: Accessible component primitives
-- **Tailwind styling**: Utility-first CSS approach
-- **Modular exports**: Clean import/export patterns
-
-### Convex Backend (`/convex/`)
-- **Query/Mutation pattern**: Convex's reactive data fetching
-- **Type safety**: Full TypeScript integration
-- **Real-time updates**: Live data synchronization
-- **Authentication integration**: User-based data access
-
-## File Naming Conventions
-
-### React Components
-- **PascalCase**: `ImageGrid.tsx`, `CategoryFilter.tsx`
-- **Descriptive names**: Clear component purpose
-- **Consistent suffixes**: `.tsx` for TypeScript React
-
-### Backend Functions
-- **camelCase**: `images.ts`, `auth.ts`, `http.ts`
-- **Purpose-driven**: API functionality clearly indicated
-- **TypeScript**: `.ts` for backend, `.d.ts` for definitions
-
-### Configuration Files
-- **kebab-case**: `tailwind.config.js`, `vite.config.ts`
-- **Tool-specific**: Standard naming conventions
-- **Clear extensions**: `.config.js`, `.config.ts`
-
-## Database Schema Structure
-
-```typescript
-// Main data models in convex/schema.ts
-const images = {
-  title: string,
-  description?: string,
-  imageUrl: string,
-  storageId?: storageId,
-  category: string,
-  tags: string[],
-  source?: string,
-  sref?: string,           // Style reference (manually set by user)
-  colors?: string[],       // Extracted color palette
-  uploadedBy: userId,
-  likes: number,
-  views: number,
-  aiStatus?: string,       // AI processing status: "processing", "completed", "failed"
-  status?: string,         // Image status: "draft", "active", "pending"
-  uploadedAt?: number,     // Upload timestamp
-  parentImageId?: imageId  // Reference to parent image if AI-generated variation
-}
-
-const collections = {
-  name: string,
-  description?: string,
-  userId: userId,
-  isPublic: boolean,
-  imageIds: imageId[]
-}
-
-const likes = {
-  userId: userId,
-  imageId: imageId
-}
-```
-
-## Key Architectural Patterns
-
-### Frontend Architecture
-- **Component Structure**: Modular React components in `src/components/`
-- **State Management**: Local state with React hooks, Convex for server state
-- **UI Framework**: Radix UI components with Radix Themes
-- **Styling**: Tailwind CSS with utility-first approach, consistent blue theme with opacity
-- **Data Tables**: TanStack Table for advanced data management (ID column, tag colors)
-- **Image Display**: Responsive masonry grid with subtle hover effects
-- **Modal Design**: Transparent backdrop, soft buttons, consistent tag colors
-- **Authentication**: Convex Auth with protected routes
-- **Responsive Design**: Full-width layout, no hard max-width constraints
-
-### Backend Architecture
-- **Database**: Convex with defined schema and indexes
-- **API Layer**: Generated API functions with type safety
-- **Authentication**: Integrated auth system with user management
-- **File Storage**: Convex storage for image uploads
-- **Boards System**: Pinterest-style collections management
-- **AI Integration**: Gemini 3 Pro Image Preview for analysis and generation
-  - **Smart Analysis**: Automatic title, description, tags, colors, category, visual style detection
-  - **Image Generation**: Creates 2 cinematic variations with random shot type selection (9 shot types)
-  - **Memory Optimization**: Chunked base64 conversion, 10MB image size limits
-- **Color Extraction**: Automatic color palette generation
-
-### Development Workflow
-- **Build Tool**: Vite for fast development and optimized builds
-- **Package Manager**: Bun for dependency management
-- **Linting**: ESLint with TypeScript support
-- **Type Safety**: Full TypeScript coverage across frontend and backend
-
-### AI Features Architecture
-- **Image Analysis**: Automatic metadata extraction via Gemini 3 Pro
-  - Title, description, tags, colors, category, visual style
-  - Processes on upload, updates image record
-- **Image Generation**: Creates 2 cinematic variations
-  - Random shot type selection (9 types: ELS, LS, MS, MCU, CU, ECU, Low Angle, High Angle, etc.)
-  - Memory-optimized (chunked base64, 10MB limit)
-  - Configurable aspect ratio and 2K resolution
-  - Saves as variations linked to original image
-- **Parent Image Lineage**: Suno-style remix links
-  - AI variations store `parentImageId` reference to source
-  - ImageModal displays "Generated from: [Parent Title]" link
-  - TableView has "Parent" column with clickable navigation
-  - Cross-component navigation via custom events
-- **Original Image Tagging**: Auto-tagging system
-  - User uploads automatically tagged with "original"
-  - AI-generated variations excluded from "original" tag
-  - TableView filter toggle to show only original images
-  - Filter logic: `!parentImageId` OR has "original" tag
-
-## Important Files Reference
-
-```typescript
-// Main entry point
-[src/main.tsx](mdc:src/main.tsx)
-
-// Core application logic
-[src/App.tsx](mdc:src/App.tsx)
-
-// Database schema
-[convex/schema.ts](mdc:convex/schema.ts)
-
-// Authentication setup
-[convex/auth.config.ts](mdc:convex/auth.config.ts)
-
-// Image management API
-[convex/images.ts](mdc:convex/images.ts)
-
-// Boards management API
-[convex/boards.ts](mdc:convex/boards.ts)
-
-// AI vision & image generation
-[convex/vision.ts](mdc:convex/vision.ts)
-```
-
-## File Organization Guidelines
-
-### ✅ Good: Consistent Structure
-```
-src/
-├── components/     # UI components
-├── lib/           # Utilities and helpers
-├── main.tsx       # Entry point
-└── App.tsx        # Main app component
-```
-
-### ❌ Bad: Mixed Organization
-```
-src/
-├── utils.ts       # Should be in lib/
-├── Header.tsx     # Should be in components/
-└── api/           # Should follow backend patterns
-```
-
-## UI Design Patterns & Styling Conventions
-
-> **See also:** [radix-ui-patterns.mdc](mdc:.cursor/rules/radix-ui-patterns.mdc) for detailed Radix UI component patterns and gotchas.
-
-### Color Theme
-- **Primary Color**: Blue (matching top navigation)
-- **Button Opacity**: Never 100% - use 0.7-0.9 for soft buttons, 1.0 only for selected states
-- **Tag Colors**: Use `getTagColor()` utility for consistent tag coloring across table and modal
-- **Sref Badges**: Blue color (not purple)
-
-### Modal Design
-- **Transparent Backdrop**: `bg-black/60 backdrop-blur-md` for bottom panel (matches header)
-- **No Image Borders**: Images display with transparent background
-- **Soft Buttons**: Like/Save buttons use `variant="soft"` with opacity
-- **Tag Consistency**: Tags use same color system as table view
-
-### Responsive Design
-- **Full Width**: No hard `max-w-7xl` constraints - use `w-full` with responsive padding
-- **Responsive Padding**: `px-4 sm:px-6 lg:px-8` for adaptive spacing
-- **Table**: Horizontal scroll on small screens, full width on large screens
-
-### Hover Effects
-- **Subtle Text**: Use `text-gray-11` instead of bright white
-- **Icon Blending**: Icons use `text-gray-10` with backdrop blur
-- **Smooth Transitions**: All hover effects use `transition-opacity duration-200`
-
-## Navigation Tips
-
-- Start with `src/App.tsx` for understanding the application flow
-- Check `convex/schema.ts` for data models and relationships
-- Review `package.json` for available scripts and dependencies
-- Use `src/components/` for understanding UI patterns
-- Check `convex/vision.ts` for AI integration patterns
-- Reference `.cursor/rules/` for development guidelines
+- Keep production Convex usage explicit; avoid accidental `convex dev` when working on prod.
+- For Discord ingest/moderation updates, update both:
+  - Convex HTTP/backend behavior
+  - `services/discord-bot/src/index.js`
+- Keep lineage consistent:
+  - generated images must keep `parentImageId`
+  - Discord lineage keeps `sref` from parent/root
+- Prefer manual approval queue for Discord-ingested content before expensive AI steps.
