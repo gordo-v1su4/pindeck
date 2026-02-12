@@ -8,6 +8,11 @@ Supports two workflows:
 - Ingest existing Discord posts into Pindeck via:
   - `/images import` (optional `message_link`)
   - Custom emoji reaction trigger on any message with images
+- Moderate Discord queue items from Discord via:
+  - `/images review` (posts queue cards with Approve/Deny/Generate buttons)
+  - `/images approve image_id:<id>`
+  - `/images reject image_id:<id>`
+  - `/images generate image_id:<id> [count] [mode] [detail]`
 - RSS-forwarded messages are parsed for title/description/source URL and `sref`
 - Linked `x.com/twitter.com/fxtwitter.com` posts are also parsed to collect direct media URLs when available
 
@@ -21,9 +26,13 @@ Set these in the project's root `.env.local` file:
 - `DISCORD_INGEST_EMOJIS` - Comma-separated emoji triggers for import (unicode or custom, e.g. `📥,<:pindeck:123456789012345678>`)
 - `INGEST_API_KEY` - Must match Convex `INGEST_API_KEY`
 - `PINDECK_INGEST_URL` - Optional; defaults to `<CONVEX_SITE_URL>/ingestExternal`
+- `PINDECK_DISCORD_QUEUE_URL` - Optional; defaults to `<CONVEX_SITE_URL>/discordQueue`
+- `PINDECK_DISCORD_MODERATION_URL` - Optional; defaults to `<CONVEX_SITE_URL>/discordModerate`
 - `PINDECK_USER_ID` - Convex user id destination for imports (required for ingest endpoint)
 - `DISCORD_INGEST_MAX_IMAGES_PER_POST` - Max images imported per trigger (default `1`)
-- `DISCORD_STATUS_WEBHOOK_URL` (Convex env) - Optional channel webhook for queue/approval/rejection status messages
+- `DISCORD_GENERATE_DEFAULT_COUNT` - Default variations count when using button-based Generate (default `2`)
+- `DISCORD_GENERATE_DEFAULT_MODE` - Default mode when using button-based Generate (default `shot-variation`)
+- `DISCORD_STATUS_WEBHOOK_URL` (Convex env) - Optional channel webhook for queue/approval/rejection/generation status messages
 
 If `DISCORD_IMAGES_JSON` is missing, bot uses placeholder sample images.
 
@@ -84,7 +93,9 @@ bun run discord:bot
 3. Run `/images panel`, click a listed emoji reaction, confirm image posts.
 4. Run `/images import` and confirm it imports the latest image post to Pindeck.
 5. React to an earlier image post with one of `DISCORD_INGEST_EMOJIS` and confirm import to Pindeck.
-6. Try a channel where bot lacks permission and confirm the bot returns a missing-permission message.
+6. Run `/images review` and confirm queue cards appear with moderation buttons.
+7. Click `Approve`, `Deny`, and `Generate` buttons on queue cards and confirm actions apply in Pindeck.
+8. Try a channel where bot lacks permission and confirm the bot returns a missing-permission message.
 
 ## RSS + sref Parsing
 - On ingest, the bot parses message content + embeds to extract:
@@ -95,3 +106,4 @@ bun run discord:bot
 - Parsed `sref` is sent to Pindeck `sref` field and also added to tags as `sref:<number>`.
 - By default the bot also fetches linked post HTML to find more image URLs (`DISCORD_INGEST_FETCH_EXTERNAL=1`).
 - Discord imports are queued as `pending` for manual Keep/Discard before AI analysis starts.
+- Generated child images from Discord-origin parents are also queued and announced to the webhook channel with image IDs.

@@ -1,8 +1,51 @@
 import { v } from "convex/values";
-import { httpAction, query, mutation, internalMutation } from "./_generated/server";
+import { httpAction, query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 const internalApi = internal as any;
+
+const MAX_DISCORD_LINEAGE_DEPTH = 12;
+
+function readBearerToken(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  return authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
+}
+
+function parseUserIdFromBody(body: any) {
+  return typeof body?.userId === "string" && body.userId.trim()
+    ? body.userId.trim()
+    : undefined;
+}
+
+async function resolveLineageRoot(ctx: any, image: any) {
+  let current = image;
+  let depth = 0;
+
+  while (current?.parentImageId && depth < MAX_DISCORD_LINEAGE_DEPTH) {
+    const parent = await ctx.db.get(current.parentImageId);
+    if (!parent) break;
+    current = parent;
+    depth += 1;
+  }
+
+  return current || image;
+}
+
+async function isDiscordLineage(ctx: any, image: any) {
+  let current = image;
+  let depth = 0;
+
+  while (current && depth < MAX_DISCORD_LINEAGE_DEPTH) {
+    if (current.sourceType === "discord") return true;
+    if (!current.parentImageId) return false;
+    current = await ctx.db.get(current.parentImageId);
+    depth += 1;
+  }
+
+  return false;
+}
 
 export const list = query({
   args: {
@@ -290,6 +333,7 @@ export const createExternal = mutation({
           sref: args.sref,
           sourceUrl: args.sourceUrl,
           userId,
+          imageUrl: args.imageUrl,
         });
       } catch (error) {
         console.warn("Failed to schedule Discord queued notification", error);
@@ -394,6 +438,7 @@ export const ingestExternal = internalMutation({
           sref: args.sref,
           sourceUrl: args.sourceUrl,
           userId: args.userId,
+          imageUrl: args.imageUrl,
         });
       } catch (error) {
         console.warn("Failed to schedule Discord queued notification", error);
@@ -470,6 +515,282 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+});
+
+export const internalListDiscordQueue = internalQuery({
+  args: {
+    userId: v.id("users"),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const takeLimit = Math.min(Math.max(args.limit ?? 5, 1), 25);
+    const scanLimit = Math.min(Math.max(takeLimit * 6, 40), 200);
+    const pending = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", args.userId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .order("desc")
+      .take(scanLimit);
+
+    const filtered = [];
+    for (const image of pending) {
+      if (!(await isDiscordLineage(ctx, image))) continue;
+      const root = await resolveLineageRoot(ctx, image);
+      filtered.push({
+        ...image,
+        lineageRootImageId: root?._id,
+        lineageRootTitle: root?.title,
+      });
+    }
+    return filtered.slice(0, takeLimit);
+  },
+});
+
+export const internalModerateDiscordImage = internalMutation({
+  args: {
+    userId: v.id("users"),
+    imageId: v.id("images"),
+    action: v.union(v.literal("approve"), v.literal("reject"), v.literal("generate")),
+    variationCount: v.optional(v.number()),
+    modificationMode: v.optional(v.string()),
+    variationDetail: v.optional(v.string()),
+    aspectRatio: v.optional(v.string()),
+  },
+  returns: v.object({
+    ok: v.boolean(),
+    message: v.string(),
+    status: v.optional(v.string()),
+    aiStatus: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const image = await ctx.db.get("images", args.imageId);
+    if (!image) throw new Error("Image not found");
+    if (image.uploadedBy !== args.userId) {
+      throw new Error("Image does not belong to provided userId");
+    }
+
+    if (args.action === "approve") {
+      if (image.status === "active") {
+        return {
+          ok: true,
+          message: "Image already active.",
+          status: image.status,
+          aiStatus: image.aiStatus,
+        };
+      }
+
+      const shouldRunDiscordAnalysis =
+        image.sourceType === "discord" && image.aiStatus === "queued";
+      await ctx.db.patch(args.imageId, {
+        status: "active",
+        aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
+      });
+
+      if (shouldRunDiscordAnalysis) {
+        await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+          imageId: image._id,
+          userId: args.userId,
+          imageUrl: image.imageUrl,
+          title: image.title,
+          description: image.description,
+          tags: image.tags,
+          category: image.category,
+          source: image.source,
+          sref: image.sref,
+          variationCount: 0,
+        });
+      }
+
+      if (await isDiscordLineage(ctx, image)) {
+        const root = await resolveLineageRoot(ctx, image);
+        try {
+          await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
+            event: "approved",
+            imageId: image._id,
+            title: image.title,
+            sref: image.sref || root?.sref,
+            sourceUrl: image.sourceUrl || root?.sourceUrl,
+            userId: args.userId,
+            imageUrl: image.imageUrl,
+            parentImageId: image.parentImageId,
+          });
+        } catch (error) {
+          console.warn("Failed to schedule Discord approved notification", error);
+        }
+      }
+
+      return {
+        ok: true,
+        message: "Image approved.",
+        status: "active",
+        aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
+      };
+    }
+
+    if (args.action === "reject") {
+      if (await isDiscordLineage(ctx, image)) {
+        const root = await resolveLineageRoot(ctx, image);
+        try {
+          await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
+            event: "rejected",
+            imageId: image._id,
+            title: image.title,
+            sref: image.sref || root?.sref,
+            sourceUrl: image.sourceUrl || root?.sourceUrl,
+            userId: args.userId,
+            imageUrl: image.imageUrl,
+            parentImageId: image.parentImageId,
+          });
+        } catch (error) {
+          console.warn("Failed to schedule Discord rejected notification", error);
+        }
+      }
+
+      if (image.storageId) {
+        await ctx.storage.delete(image.storageId);
+      }
+      await ctx.db.delete(args.imageId);
+      return { ok: true, message: "Image rejected and deleted." };
+    }
+
+    if (image.status !== "active") {
+      throw new Error("Image must be approved (active) before generating variations.");
+    }
+    if (image.aiStatus === "processing") {
+      throw new Error("Image is already processing.");
+    }
+
+    const variationCount = Math.min(Math.max(args.variationCount ?? 2, 1), 12);
+    const modificationMode = args.modificationMode || "shot-variation";
+    await ctx.db.patch(args.imageId, {
+      aiStatus: "processing",
+      variationCount,
+      modificationMode,
+      variationDetail: args.variationDetail,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
+      originalImageId: args.imageId,
+      storageId: image.storageId,
+      imageUrl: image.imageUrl,
+      description: image.description || "",
+      category: image.category,
+      style: undefined,
+      title: image.title,
+      aspectRatio: args.aspectRatio,
+      group: image.group,
+      variationCount,
+      modificationMode,
+      variationDetail: args.variationDetail,
+    });
+
+    if (await isDiscordLineage(ctx, image)) {
+      const root = await resolveLineageRoot(ctx, image);
+      try {
+        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
+          event: "generation_started",
+          imageId: image._id,
+          title: image.title,
+          sref: image.sref || root?.sref,
+          sourceUrl: image.sourceUrl || root?.sourceUrl,
+          userId: args.userId,
+          imageUrl: image.imageUrl,
+          parentImageId: image.parentImageId,
+        });
+      } catch (error) {
+        console.warn("Failed to schedule Discord generation-started notification", error);
+      }
+    }
+
+    return {
+      ok: true,
+      message: `Started generation (${variationCount} variation${variationCount !== 1 ? "s" : ""}).`,
+      status: image.status,
+      aiStatus: "processing",
+    };
+  },
+});
+
+export const discordQueueHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const apiKey = process.env.INGEST_API_KEY;
+  const token = readBearerToken(request);
+  if (!apiKey || token !== apiKey) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const resolvedUserId = parseUserIdFromBody(body);
+  if (!resolvedUserId) {
+    return new Response("No target user found. Provide userId.", { status: 400 });
+  }
+
+  const limitRaw = Number.parseInt(String(body?.limit ?? ""), 10);
+  const limit = Number.isNaN(limitRaw) ? 5 : limitRaw;
+  let items = await ctx.runQuery(internalApi.images.internalListDiscordQueue, {
+    userId: resolvedUserId as any,
+    limit,
+  });
+
+  if (typeof body?.imageId === "string" && body.imageId.trim()) {
+    items = items.filter((item: any) => String(item._id) === body.imageId.trim());
+  }
+
+  return new Response(JSON.stringify({ items, userId: resolvedUserId }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+});
+
+export const discordModerateHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const apiKey = process.env.INGEST_API_KEY;
+  const token = readBearerToken(request);
+  if (!apiKey || token !== apiKey) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const resolvedUserId = parseUserIdFromBody(body);
+  if (!resolvedUserId) {
+    return new Response("No target user found. Provide userId.", { status: 400 });
+  }
+
+  const imageId =
+    typeof body?.imageId === "string" && body.imageId.trim() ? body.imageId.trim() : null;
+  if (!imageId) {
+    return new Response("Missing required field: imageId", { status: 400 });
+  }
+
+  const action = body?.action;
+  if (action !== "approve" && action !== "reject" && action !== "generate") {
+    return new Response("Invalid action. Use approve, reject, or generate.", { status: 400 });
+  }
+
+  try {
+    const result = await ctx.runMutation(internalApi.images.internalModerateDiscordImage, {
+      userId: resolvedUserId as any,
+      imageId: imageId as any,
+      action,
+      variationCount: body?.variationCount,
+      modificationMode: body?.modificationMode,
+      variationDetail: body?.variationDetail,
+      aspectRatio: body?.aspectRatio,
+    });
+    return new Response(JSON.stringify({ ...result, imageId, userId: resolvedUserId }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error: any) {
+    return new Response(error?.message || "Moderation failed", { status: 400 });
+  }
 });
 
 export const internalCreate = internalMutation({
@@ -765,12 +1086,14 @@ export const approveImage = mutation({
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
 
+    const shouldRunDiscordAnalysis =
+      image.sourceType === "discord" && image.aiStatus === "queued";
     await ctx.db.patch("images", args.imageId, {
       status: "active",
-      aiStatus: image.sourceType === "discord" ? "processing" : image.aiStatus,
+      aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
     });
 
-    if (image.sourceType === "discord") {
+    if (shouldRunDiscordAnalysis) {
       await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
         imageId: image._id,
         userId,
@@ -783,15 +1106,20 @@ export const approveImage = mutation({
         sref: image.sref,
         variationCount: 0,
       });
+    }
 
+    if (await isDiscordLineage(ctx, image)) {
+      const root = await resolveLineageRoot(ctx, image);
       try {
         await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
           event: "approved",
           imageId: image._id,
           title: image.title,
-          sref: image.sref,
-          sourceUrl: image.sourceUrl,
+          sref: image.sref || root?.sref,
+          sourceUrl: image.sourceUrl || root?.sourceUrl,
           userId,
+          imageUrl: image.imageUrl,
+          parentImageId: image.parentImageId,
         });
       } catch (error) {
         console.warn("Failed to schedule Discord approved notification", error);
@@ -813,15 +1141,18 @@ export const rejectImage = mutation({
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
 
-    if (image.sourceType === "discord") {
+    if (await isDiscordLineage(ctx, image)) {
+      const root = await resolveLineageRoot(ctx, image);
       try {
         await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
           event: "rejected",
           imageId: image._id,
           title: image.title,
-          sref: image.sref,
-          sourceUrl: image.sourceUrl,
+          sref: image.sref || root?.sref,
+          sourceUrl: image.sourceUrl || root?.sourceUrl,
           userId,
+          imageUrl: image.imageUrl,
+          parentImageId: image.parentImageId,
         });
       } catch (error) {
         console.warn("Failed to schedule Discord rejected notification", error);
@@ -1027,9 +1358,12 @@ export const internalSaveGeneratedImages = internalMutation({
   handler: async (ctx, args) => {
     const originalImage = await ctx.db.get("images", args.originalImageId);
     if (!originalImage) return;
+    const root = await resolveLineageRoot(ctx, originalImage);
+    const discordLineage = await isDiscordLineage(ctx, originalImage);
+    const inheritedSourceType = discordLineage ? "discord" : "ai";
 
     for (const img of args.images) {
-      await ctx.db.insert("images", {
+      const childImageId = await ctx.db.insert("images", {
         title: originalImage.title, // Inherit parent's exact title so they group together
         description: originalImage.description || img.description, // Inherit parent's full description
         imageUrl: img.url,
@@ -1041,6 +1375,8 @@ export const internalSaveGeneratedImages = internalMutation({
         likes: 0,
         views: 0,
         source: "AI Generation",
+        sourceType: inheritedSourceType,
+        sourceUrl: originalImage.sourceUrl || root?.sourceUrl,
         // Inherit group, projectName, moodboardName, uniqueId from parent
         group: originalImage.group,
         projectName: originalImage.projectName,
@@ -1053,6 +1389,23 @@ export const internalSaveGeneratedImages = internalMutation({
         status: "pending",
         uploadedAt: Date.now(),
       });
+
+      if (discordLineage) {
+        try {
+          await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
+            event: "generated",
+            imageId: childImageId,
+            parentImageId: originalImage._id,
+            title: originalImage.title,
+            sref: originalImage.sref || root?.sref,
+            sourceUrl: originalImage.sourceUrl || root?.sourceUrl,
+            userId: originalImage.uploadedBy,
+            imageUrl: img.url,
+          });
+        } catch (error) {
+          console.warn("Failed to schedule Discord generated notification", error);
+        }
+      }
     }
 
     // Mark original image processing as completed

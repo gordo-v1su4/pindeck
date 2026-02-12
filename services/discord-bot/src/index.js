@@ -3,6 +3,8 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import {
   ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   Client,
   EmbedBuilder,
   Events,
@@ -16,8 +18,10 @@ import {
 } from "discord.js";
 
 const PANEL_MARKER_PREFIX = "[PINDECK_IMAGE_PANEL]";
+const MOD_ACTION_PREFIX = "pindeck_mod";
 const MAX_MENU_ITEMS = 25;
 const HARD_MAX_IMPORTED_IMAGES_PER_MESSAGE = 10;
+const DEFAULT_QUEUE_REVIEW_LIMIT = 5;
 
 const BASE_CHANNEL_PERMISSIONS = [
   PermissionFlagsBits.ViewChannel,
@@ -242,6 +246,39 @@ function deriveIngestEndpoint() {
   }
 
   return null;
+}
+
+function deriveEndpointFromBase({
+  explicitRaw,
+  suffix,
+  fallbackIngestEndpoint,
+}) {
+  const explicit = normalizeBaseUrl(explicitRaw);
+  if (explicit) {
+    if (explicit.endsWith(`/${suffix}`)) return explicit;
+    return `${explicit}/${suffix}`;
+  }
+  if (fallbackIngestEndpoint) {
+    return fallbackIngestEndpoint.replace(/\/ingestExternal$/, `/${suffix}`);
+  }
+  return null;
+}
+
+function deriveDiscordQueueEndpoint(fallbackIngestEndpoint) {
+  return deriveEndpointFromBase({
+    explicitRaw: process.env.PINDECK_DISCORD_QUEUE_URL || process.env.DISCORD_QUEUE_URL,
+    suffix: "discordQueue",
+    fallbackIngestEndpoint,
+  });
+}
+
+function deriveDiscordModerationEndpoint(fallbackIngestEndpoint) {
+  return deriveEndpointFromBase({
+    explicitRaw:
+      process.env.PINDECK_DISCORD_MODERATION_URL || process.env.DISCORD_MODERATION_URL,
+    suffix: "discordModerate",
+    fallbackIngestEndpoint,
+  });
 }
 
 function parseEmojiTriggers(raw) {
@@ -577,7 +614,7 @@ function buildCommands(images) {
 
   const imagesCommand = new SlashCommandBuilder()
     .setName("images")
-    .setDescription("Post configured image presets")
+    .setDescription("Pindeck image presets and Discord ingest moderation")
     .addSubcommand((sub) =>
       sub
         .setName("menu")
@@ -611,6 +648,86 @@ function buildCommands(images) {
           opt
             .setName("message_link")
             .setDescription("Optional Discord message URL. If omitted, imports latest image post in this channel.")
+            .setRequired(false)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("review")
+        .setDescription("Show Discord queue items with Approve / Deny / Generate buttons")
+        .addStringOption((opt) =>
+          opt
+            .setName("image_id")
+            .setDescription("Optional specific image ID from queue")
+            .setRequired(false)
+        )
+        .addIntegerOption((opt) =>
+          opt
+            .setName("limit")
+            .setDescription("How many queued items to show (1-10)")
+            .setRequired(false)
+            .setMinValue(1)
+            .setMaxValue(10)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("approve")
+        .setDescription("Approve a queued image by image ID")
+        .addStringOption((opt) =>
+          opt
+            .setName("image_id")
+            .setDescription("Pindeck image ID")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("reject")
+        .setDescription("Reject and delete a queued image by image ID")
+        .addStringOption((opt) =>
+          opt
+            .setName("image_id")
+            .setDescription("Pindeck image ID")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("generate")
+        .setDescription("Generate variations for an approved image by image ID")
+        .addStringOption((opt) =>
+          opt
+            .setName("image_id")
+            .setDescription("Pindeck image ID")
+            .setRequired(true)
+        )
+        .addIntegerOption((opt) =>
+          opt
+            .setName("count")
+            .setDescription("Number of variations (1-12)")
+            .setRequired(false)
+            .setMinValue(1)
+            .setMaxValue(12)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName("mode")
+            .setDescription("Variation mode")
+            .setRequired(false)
+            .addChoices(
+              { name: "Shot Variation", value: "shot-variation" },
+              { name: "Action Shot", value: "action-shot" },
+              { name: "Coverage", value: "coverage" },
+              { name: "B-Roll", value: "b-roll" },
+              { name: "Style Variation", value: "style-variation" },
+              { name: "Subtle Variation", value: "subtle-variation" }
+            )
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName("detail")
+            .setDescription("Optional custom direction for generation")
             .setRequired(false)
         )
     );
@@ -756,10 +873,146 @@ async function ingestIntoPindeck({
   return response.json().catch(() => ({}));
 }
 
+function truncateText(value, limit = 350) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
+}
+
+function buildModerationCustomId(action, imageId) {
+  return `${MOD_ACTION_PREFIX}:${action}:${imageId}`;
+}
+
+function parseModerationCustomId(customId) {
+  if (!customId?.startsWith(`${MOD_ACTION_PREFIX}:`)) return null;
+  const [, action, imageId] = customId.split(":");
+  if (!action || !imageId) return null;
+  if (!["approve", "reject", "generate"].includes(action)) return null;
+  return { action, imageId };
+}
+
+function buildModerationRow(imageId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(buildModerationCustomId("approve", imageId))
+      .setLabel("Approve")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(buildModerationCustomId("reject", imageId))
+      .setLabel("Deny")
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(buildModerationCustomId("generate", imageId))
+      .setLabel("Generate")
+      .setStyle(ButtonStyle.Primary)
+  );
+}
+
+function buildDiscordQueueEmbed(item) {
+  const embed = new EmbedBuilder()
+    .setTitle(truncateText(item.title || "Untitled", 250))
+    .setDescription(truncateText(item.description || "", 600) || "No description")
+    .addFields(
+      { name: "Image ID", value: `\`${item._id}\``, inline: false },
+      {
+        name: "Status",
+        value: `${item.status || "unknown"} / ${item.aiStatus || "n/a"}`,
+        inline: true,
+      },
+      { name: "sref", value: item.sref ? `\`${item.sref}\`` : "n/a", inline: true }
+    )
+    .setFooter({ text: item.parentImageId ? `Parent: ${item.parentImageId}` : "Discord Queue" });
+
+  if (item.imageUrl) {
+    embed.setImage(item.imageUrl);
+  }
+  if (item.sourceUrl) {
+    embed.setURL(item.sourceUrl);
+  }
+  return embed;
+}
+
+async function fetchDiscordQueue({
+  queueEndpoint,
+  ingestApiKey,
+  userId,
+  limit,
+  imageId,
+}) {
+  if (!queueEndpoint || !ingestApiKey || !userId) {
+    throw new Error(
+      "Queue endpoint not configured. Set PINDECK_USER_ID, INGEST_API_KEY, and queue endpoint."
+    );
+  }
+
+  const response = await fetch(queueEndpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ingestApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      userId,
+      limit: limit || DEFAULT_QUEUE_REVIEW_LIMIT,
+      imageId: imageId || undefined,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Queue fetch failed (${response.status}): ${text}`);
+  }
+
+  const data = await response.json().catch(() => ({ items: [] }));
+  return Array.isArray(data?.items) ? data.items : [];
+}
+
+async function moderateDiscordImage({
+  moderationEndpoint,
+  ingestApiKey,
+  userId,
+  imageId,
+  action,
+  variationCount,
+  modificationMode,
+  variationDetail,
+}) {
+  if (!moderationEndpoint || !ingestApiKey || !userId) {
+    throw new Error(
+      "Moderation endpoint not configured. Set PINDECK_USER_ID, INGEST_API_KEY, and moderation endpoint."
+    );
+  }
+
+  const response = await fetch(moderationEndpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ingestApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      userId,
+      imageId,
+      action,
+      variationCount,
+      modificationMode,
+      variationDetail,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Moderation failed (${response.status}): ${text}`);
+  }
+
+  return response.json().catch(() => ({}));
+}
+
 function printStartupChecklist({
   guildId,
   images,
   ingestEndpoint,
+  queueEndpoint,
+  moderationEndpoint,
   ingestTriggers,
   fallbackUserId,
   usingSamplePresets,
@@ -777,7 +1030,10 @@ function printStartupChecklist({
   }
   console.log("- Recommended command: /images menu");
   console.log("- Optional fallback: /images panel + emoji reactions");
+  console.log("- Discord queue review command: /images review");
   console.log(`- Ingest endpoint: ${ingestEndpoint || "disabled"}`);
+  console.log(`- Queue endpoint: ${queueEndpoint || "disabled"}`);
+  console.log(`- Moderation endpoint: ${moderationEndpoint || "disabled"}`);
   console.log(
     `- Ingest reaction triggers: ${ingestTriggers.length ? ingestTriggers.map((i) => i.raw).join(", ") : "none"}`
   );
@@ -798,6 +1054,8 @@ const guildId = process.env.DISCORD_GUILD_ID;
 const dryRun = process.env.DISCORD_DRY_RUN === "1";
 const ingestApiKey = process.env.INGEST_API_KEY;
 const ingestEndpoint = deriveIngestEndpoint();
+const queueEndpoint = deriveDiscordQueueEndpoint(ingestEndpoint);
+const moderationEndpoint = deriveDiscordModerationEndpoint(ingestEndpoint);
 const ingestTriggers = parseEmojiTriggers(process.env.DISCORD_INGEST_EMOJIS);
 const fallbackIngestUserId =
   process.env.PINDECK_USER_ID || process.env.DISCORD_DEFAULT_PINDECK_USER_ID || null;
@@ -809,6 +1067,12 @@ const ingestMaxImagesPerPost = Math.min(
   HARD_MAX_IMPORTED_IMAGES_PER_MESSAGE,
   parsePositiveInt(process.env.DISCORD_INGEST_MAX_IMAGES_PER_POST, 1)
 );
+const discordGenerateDefaultCount = Math.min(
+  12,
+  parsePositiveInt(process.env.DISCORD_GENERATE_DEFAULT_COUNT, 2)
+);
+const discordGenerateDefaultMode =
+  process.env.DISCORD_GENERATE_DEFAULT_MODE || "shot-variation";
 const usingSamplePresets = !process.env.DISCORD_IMAGES_JSON;
 
 let images;
@@ -838,6 +1102,8 @@ if (dryRun) {
     guildId,
     images,
     ingestEndpoint,
+    queueEndpoint,
+    moderationEndpoint,
     ingestTriggers,
     fallbackUserId: fallbackIngestUserId,
     usingSamplePresets,
@@ -871,6 +1137,8 @@ if (dryRun) {
         guildId,
         images,
         ingestEndpoint,
+        queueEndpoint,
+        moderationEndpoint,
         ingestTriggers,
         fallbackUserId: fallbackIngestUserId,
         usingSamplePresets,
@@ -890,7 +1158,7 @@ if (dryRun) {
 
         const subcommand = interaction.options.getSubcommand();
         let extraPermissions = [];
-        if (subcommand === "send" || subcommand === "menu") {
+        if (subcommand === "send" || subcommand === "menu" || subcommand === "review") {
           extraPermissions = [...MESSAGE_POST_PERMISSIONS];
         } else if (subcommand === "panel") {
           extraPermissions = [...MESSAGE_POST_PERMISSIONS, PermissionFlagsBits.AddReactions];
@@ -1030,6 +1298,139 @@ if (dryRun) {
           }
         }
 
+        if (subcommand === "review") {
+          if (!queueEndpoint || !ingestApiKey || !fallbackIngestUserId) {
+            await interaction.reply({
+              content:
+                "Discord queue review is not configured. Set PINDECK_USER_ID, INGEST_API_KEY, and a queue endpoint.",
+              ephemeral: true,
+            });
+            return;
+          }
+
+          try {
+            await interaction.deferReply({ ephemeral: true });
+            const imageId = interaction.options.getString("image_id");
+            const limit =
+              interaction.options.getInteger("limit") || DEFAULT_QUEUE_REVIEW_LIMIT;
+            const queueItems = await fetchDiscordQueue({
+              queueEndpoint,
+              ingestApiKey,
+              userId: fallbackIngestUserId,
+              limit,
+              imageId,
+            });
+
+            if (!queueItems.length) {
+              await interaction.editReply(
+                imageId
+                  ? `No pending Discord queue item found for image ID \`${imageId}\`.`
+                  : "No pending Discord queue items found."
+              );
+              return;
+            }
+
+            for (const item of queueItems) {
+              await interaction.channel.send({
+                embeds: [buildDiscordQueueEmbed(item)],
+                components: [buildModerationRow(String(item._id))],
+              });
+            }
+
+            await interaction.editReply(
+              `Posted ${queueItems.length} queue item${queueItems.length !== 1 ? "s" : ""} with moderation buttons.`
+            );
+          } catch (error) {
+            await interaction.editReply(`Queue review failed: ${error.message}`);
+          }
+          return;
+        }
+
+        if (subcommand === "approve" || subcommand === "reject" || subcommand === "generate") {
+          if (!moderationEndpoint || !ingestApiKey || !fallbackIngestUserId) {
+            await interaction.reply({
+              content:
+                "Discord moderation is not configured. Set PINDECK_USER_ID, INGEST_API_KEY, and a moderation endpoint.",
+              ephemeral: true,
+            });
+            return;
+          }
+
+          const imageId = interaction.options.getString("image_id", true);
+          const action = subcommand === "approve" ? "approve" : subcommand === "reject" ? "reject" : "generate";
+          const variationCount =
+            subcommand === "generate"
+              ? interaction.options.getInteger("count") || discordGenerateDefaultCount
+              : undefined;
+          const modificationMode =
+            subcommand === "generate"
+              ? interaction.options.getString("mode") || discordGenerateDefaultMode
+              : undefined;
+          const variationDetail =
+            subcommand === "generate" ? interaction.options.getString("detail") || undefined : undefined;
+
+          try {
+            await interaction.deferReply({ ephemeral: true });
+            const result = await moderateDiscordImage({
+              moderationEndpoint,
+              ingestApiKey,
+              userId: fallbackIngestUserId,
+              imageId,
+              action,
+              variationCount,
+              modificationMode,
+              variationDetail,
+            });
+            await interaction.editReply(
+              `${action.toUpperCase()} OK for \`${imageId}\`${result?.message ? ` - ${result.message}` : ""}`
+            );
+          } catch (error) {
+            await interaction.editReply(`${action.toUpperCase()} failed for \`${imageId}\`: ${error.message}`);
+          }
+          return;
+        }
+
+        return;
+      }
+
+      if (interaction.isButton()) {
+        const parsed = parseModerationCustomId(interaction.customId);
+        if (!parsed) return;
+
+        if (!moderationEndpoint || !ingestApiKey || !fallbackIngestUserId) {
+          await interaction.reply({
+            content:
+              "Discord moderation is not configured. Set PINDECK_USER_ID, INGEST_API_KEY, and a moderation endpoint.",
+            ephemeral: true,
+          });
+          return;
+        }
+
+        try {
+          const variationCount =
+            parsed.action === "generate" ? discordGenerateDefaultCount : undefined;
+          const modificationMode =
+            parsed.action === "generate" ? discordGenerateDefaultMode : undefined;
+          const result = await moderateDiscordImage({
+            moderationEndpoint,
+            ingestApiKey,
+            userId: fallbackIngestUserId,
+            imageId: parsed.imageId,
+            action: parsed.action,
+            variationCount,
+            modificationMode,
+          });
+
+          await interaction.reply({
+            content: `${parsed.action.toUpperCase()} OK for \`${parsed.imageId}\`${result?.message ? ` - ${result.message}` : ""}`,
+            ephemeral: true,
+          });
+        } catch (error) {
+          await interaction.reply({
+            content: `${parsed.action.toUpperCase()} failed for \`${parsed.imageId}\`: ${error.message}`,
+            ephemeral: true,
+          });
+        }
         return;
       }
 
