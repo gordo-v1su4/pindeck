@@ -1384,7 +1384,8 @@ export const internalSaveGeneratedImages = internalMutation({
         uniqueId: originalImage.uniqueId,
         variationCount: originalImage.variationCount,
         modificationMode: originalImage.modificationMode,
-        // sref should only be set manually by user, not auto-populated
+        // Carry sref from root/parent so child variations preserve the same reference lineage
+        sref: originalImage.sref || root?.sref,
         parentImageId: args.originalImageId, // Link back to parent image (lineage tracking)
         status: "pending",
         uploadedAt: Date.now(),

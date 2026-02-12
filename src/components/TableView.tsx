@@ -217,7 +217,12 @@ export function TableView() {
         cell: ({ row }) => {
           const parentId = row.original.parentImageId;
           if (!parentId) {
-            return <Text size="1" color="gray">-</Text>;
+            const hasChildren = (images || []).some((img) => img.parentImageId === row.original._id);
+            return hasChildren ? (
+              <Badge variant="soft" color="green" size="1">Parent</Badge>
+            ) : (
+              <Text size="1" color="gray">-</Text>
+            );
           }
           // Find parent image from the list
           const parentImage = images?.find(img => img._id === parentId);
@@ -348,7 +353,7 @@ export function TableView() {
         enableGlobalFilter: false,
       },
     ],
-    []
+    [images]
   );
 
   // Filter images based on selected tags, colors, and original filter
