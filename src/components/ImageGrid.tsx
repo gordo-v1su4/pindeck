@@ -22,7 +22,6 @@ interface ImageGridProps {
   searchTerm: string;
   selectedGroup: string | undefined;
   selectedCategory: string | undefined;
-  selectedSref: string | undefined;
   setActiveTab: (tab: string) => void;
   incrementBoardVersion: () => void;
 }
@@ -62,10 +61,11 @@ function DraggableCard({
 
 type ViewMode = "random" | "project-rows";
 
-export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, selectedSref, setActiveTab, incrementBoardVersion }: ImageGridProps) {
+export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActiveTab, incrementBoardVersion }: ImageGridProps) {
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<{ x: number; y: number } | undefined>();
   const [viewMode, setViewMode] = useState<ViewMode>("random");
+  const [showOnlySrefTagged, setShowOnlySrefTagged] = useState(false);
   const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
   const [createBoardImageId, setCreateBoardImageId] = useState<Id<"images"> | null>(null);
   const [variationsModalImageId, setVariationsModalImageId] = useState<Id<"images"> | null>(null);
@@ -89,17 +89,19 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, selecte
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  const srefFilteredImages = useMemo(() => {
+  const filteredImages = useMemo(() => {
     if (!images) return images;
-    if (!selectedSref) return images;
-    return images.filter((image) => image.sref === selectedSref);
-  }, [images, selectedSref]);
+    if (!showOnlySrefTagged) return images;
+    return images.filter((image) =>
+      image.tags?.some((tag) => String(tag).toLowerCase().startsWith("sref:"))
+    );
+  }, [images, showOnlySrefTagged]);
 
   // Shuffle images for random view - use a seeded shuffle based on date so it's consistent per session
   const shuffledImages = useMemo(() => {
-    if (!srefFilteredImages || viewMode !== "random") return srefFilteredImages;
+    if (!filteredImages || viewMode !== "random") return filteredImages;
     // Fisher-Yates shuffle with a seed based on session start
-    const arr = [...srefFilteredImages];
+    const arr = [...filteredImages];
     const seed = Math.floor(Date.now() / (1000 * 60 * 60)); // Changes every hour
     let m = arr.length;
     let t, i;
@@ -112,7 +114,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, selecte
       arr[i] = t;
     }
     return arr;
-  }, [srefFilteredImages, viewMode]);
+  }, [filteredImages, viewMode]);
 
   // Listen for custom events to open image modals (for parent image navigation)
   useEffect(() => {
@@ -242,7 +244,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, selecte
     </DropdownMenu.Root>
   );
 
-  if (srefFilteredImages === undefined) {
+  if (filteredImages === undefined) {
     return (
       <Flex justify="center" align="center" className="min-h-[50vh]">
         <Spinner size="3" />
@@ -250,25 +252,21 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, selecte
     );
   }
 
-  if (srefFilteredImages.length === 0) {
+  if (filteredImages.length === 0) {
     return (
       <Box className="text-center py-16">
         <Text size="4" color="gray">
-          {searchTerm
-            ? "No images found for your search."
-            : selectedSref
-              ? `No images found for sref ${selectedSref}.`
-              : "No images available."}
+          {searchTerm ? "No images found for your search." : "No images available."}
         </Text>
       </Box>
     );
   }
 
   // Group images by projectName for project-rows view; sort each row by projectOrder
-  const groupedImages = viewMode === "project-rows" && srefFilteredImages.some(img => img.projectName)
+  const groupedImages = viewMode === "project-rows" && filteredImages.some(img => img.projectName)
     ? (() => {
-        const acc: Record<string, typeof srefFilteredImages> = {};
-        for (const image of srefFilteredImages) {
+        const acc: Record<string, typeof filteredImages> = {};
+        for (const image of filteredImages) {
           const key =
             image.projectName ||
             (image.sourceType === "discord" && image.title ? image.title : "Ungrouped");
@@ -338,7 +336,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, selecte
         >
           Random
         </Button>
-        {srefFilteredImages.some(img => img.projectName) && (
+        {filteredImages.some(img => img.projectName) && (
           <Button
             variant={viewMode === "project-rows" ? "solid" : "soft"}
             size="1"
@@ -347,6 +345,13 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, selecte
             Project Rows
           </Button>
         )}
+        <Button
+          variant={showOnlySrefTagged ? "solid" : "soft"}
+          size="1"
+          onClick={() => setShowOnlySrefTagged((prev) => !prev)}
+        >
+          Sref Tag
+        </Button>
       </Flex>
 
       {viewMode === "project-rows" && groupedImages ? (
