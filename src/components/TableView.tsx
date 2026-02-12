@@ -72,6 +72,7 @@ export function TableView() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [showOnlyOriginals, setShowOnlyOriginals] = useState(false);
+  const [showOnlySref, setShowOnlySref] = useState(false);
 
   // Extract unique tags and colors for filters
   const allTags = useMemo(() => {
@@ -366,6 +367,15 @@ export function TableView() {
         const isOriginal = !image.parentImageId || image.tags.includes("original");
         if (!isOriginal) return false;
       }
+
+      // Sref filter (show only images with sref field or sref:* tag)
+      if (showOnlySref) {
+        const hasSrefField = Boolean(image.sref && String(image.sref).trim().length > 0);
+        const hasSrefTag = image.tags.some((tag) =>
+          String(tag).toLowerCase().startsWith("sref:")
+        );
+        if (!hasSrefField && !hasSrefTag) return false;
+      }
       
       // Tag filter
       if (selectedTags.length > 0) {
@@ -383,7 +393,7 @@ export function TableView() {
       
       return true;
     });
-  }, [images, selectedTags, selectedColors, showOnlyOriginals]);
+  }, [images, selectedTags, selectedColors, showOnlyOriginals, showOnlySref]);
 
   const handleDeleteImage = async (imageId: Id<"images">, imageTitle: string) => {
     if (!confirm(`Are you sure you want to delete "${imageTitle}"? This action cannot be undone.`)) {
@@ -481,6 +491,16 @@ export function TableView() {
                 style={{ opacity: showOnlyOriginals ? 1 : 0.7 }}
               >
                 {showOnlyOriginals ? 'On' : 'Off'}
+              </Button>
+              <Text size="2" weight="medium" className="ml-4">Show Sref Only:</Text>
+              <Button
+                variant={showOnlySref ? "solid" : "soft"}
+                color={showOnlySref ? "blue" : "gray"}
+                size="1"
+                onClick={() => setShowOnlySref(!showOnlySref)}
+                style={{ opacity: showOnlySref ? 1 : 0.7 }}
+              >
+                {showOnlySref ? 'On' : 'Off'}
               </Button>
             </Flex>
           </Box>

@@ -92,9 +92,10 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
   const filteredImages = useMemo(() => {
     if (!images) return images;
     if (!showOnlySrefTagged) return images;
-    return images.filter((image) =>
-      image.tags?.some((tag) => String(tag).toLowerCase().startsWith("sref:"))
-    );
+    return images.filter((image) => {
+      if (image.sref && String(image.sref).trim().length > 0) return true;
+      return image.tags?.some((tag) => String(tag).toLowerCase().startsWith("sref:"));
+    });
   }, [images, showOnlySrefTagged]);
 
   // Shuffle images for random view - use a seeded shuffle based on date so it's consistent per session
