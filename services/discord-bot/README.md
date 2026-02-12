@@ -22,6 +22,7 @@ Set these in the project's root `.env.local` file:
 - `INGEST_API_KEY` - Must match Convex `INGEST_API_KEY`
 - `PINDECK_INGEST_URL` - Optional; defaults to `<CONVEX_SITE_URL>/ingestExternal`
 - `PINDECK_USER_ID` - Convex user id destination for imports (required for ingest endpoint)
+- `DISCORD_INGEST_MAX_IMAGES_PER_POST` - Max images imported per trigger (default `1`)
 
 If `DISCORD_IMAGES_JSON` is missing, bot uses placeholder sample images.
 
@@ -92,3 +93,4 @@ bun run discord:bot
   - `sref` number (patterns like `sref 12345`, `sref:12345`, `#sref12345`)
 - Parsed `sref` is sent to Pindeck `sref` field and also added to tags as `sref:<number>`.
 - By default the bot also fetches linked post HTML to find more image URLs (`DISCORD_INGEST_FETCH_EXTERNAL=1`).
+- Discord imports are queued as `pending` for manual Keep/Discard before AI analysis starts.

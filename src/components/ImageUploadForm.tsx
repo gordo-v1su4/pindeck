@@ -66,6 +66,10 @@ export function ImageUploadForm() {
   const rerunSmartAnalysisMutation = useMutation(api.vision.rerunSmartAnalysis);
   const generateVariationsMutation = useMutation(api.vision.generateVariations);
 
+  const localPendingImages = (pendingImages || []).filter((img) => img.sourceType !== "discord");
+  const discordPendingImages = (pendingImages || []).filter((img) => img.sourceType === "discord");
+  const localDraftImages = (draftImages || []).filter((img) => img.sourceType !== "discord");
+
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -280,10 +284,10 @@ export function ImageUploadForm() {
   };
 
   const handleFinalizeUploads = async () => {
-    if (!draftImages || draftImages.length === 0) return;
+    if (localDraftImages.length === 0) return;
 
     try {
-      const imageIdsToFinalize = draftImages.map(img => img._id);
+      const imageIdsToFinalize = localDraftImages.map(img => img._id);
       await finalizeUploads({ imageIds: imageIdsToFinalize });
       toast.success(`${imageIdsToFinalize.length} image(s) finalized and added to gallery!`);
     } catch (error) {
@@ -457,31 +461,99 @@ export function ImageUploadForm() {
       </Flex>
 
       {activeUploadTab !== "local" ? (
-        <Card className="p-6">
-          <Heading size="5" className="mb-2">
-            {activeUploadTab === "discord" && "Discord Ingest"}
-            {activeUploadTab === "pinterest" && "Pinterest Import"}
-            {activeUploadTab === "automation" && "Automation"}
-          </Heading>
+        <>
+          <Card className="p-6">
+            <Heading size="5" className="mb-2">
+              {activeUploadTab === "discord" && "Discord Ingest"}
+              {activeUploadTab === "pinterest" && "Pinterest Import"}
+              {activeUploadTab === "automation" && "Automation"}
+            </Heading>
+            {activeUploadTab === "discord" && (
+              <Text size="2" color="gray">
+                React with the configured emoji to queue RSS/Discord images. Review queued items below and keep or discard before they hit your main library.
+              </Text>
+            )}
+            {activeUploadTab === "pinterest" && (
+              <Text size="2" color="gray">
+                Paste a public Pinterest board URL to import new pins into your
+                gallery. We only import content you explicitly request.
+              </Text>
+            )}
+            {activeUploadTab === "automation" && (
+              <Text size="2" color="gray">
+                Automation is coming soon. We'll add scheduled imports and board
+                triggers here once they’re ready.
+              </Text>
+            )}
+          </Card>
+
           {activeUploadTab === "discord" && (
-            <Text size="2" color="gray">
-              Link your Discord account and react with the configured emoji in
-              allowed channels to send images into your main gallery.
-            </Text>
+            <Box className="mt-6 animate-in fade-in">
+              <Separator size="4" className="mb-6" />
+              <Flex align="center" gap="2" className="mb-4">
+                <ImageIcon width="20" height="20" className="text-blue-500" />
+                <Box>
+                  <Heading size="4">Discord Queue</Heading>
+                  <Text size="2" color="gray">
+                    {discordPendingImages.length} queued import{discordPendingImages.length !== 1 ? "s" : ""}.
+                  </Text>
+                </Box>
+              </Flex>
+
+              {discordPendingImages.length === 0 ? (
+                <Card className="p-4">
+                  <Text size="2" color="gray">
+                    No queued Discord imports yet. React to an RSS/Discord post with your ingest emoji to queue it here.
+                  </Text>
+                </Card>
+              ) : (
+                <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
+                  {discordPendingImages.map((image) => (
+                    <Card key={image._id} className="overflow-hidden p-0 group relative">
+                      <Box className="relative aspect-video">
+                        <img
+                          src={image.imageUrl}
+                          alt={image.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <Box className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <Button
+                            color="green"
+                            variant="solid"
+                            size="1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleApprove(image._id);
+                            }}
+                            className="flex-1 shadow-lg bg-green-500/90 hover:bg-green-500 cursor-pointer"
+                          >
+                            <CheckIcon /> Keep
+                          </Button>
+                          <Button
+                            color="red"
+                            variant="solid"
+                            size="1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReject(image._id);
+                            }}
+                            className="flex-1 shadow-lg bg-red-500/90 hover:bg-red-500 cursor-pointer"
+                          >
+                            <Cross2Icon /> Discard
+                          </Button>
+                        </Box>
+                      </Box>
+                      <Box className="p-2 bg-gray-50 dark:bg-gray-900/50">
+                        <Text weight="medium" size="1" className="block truncate">{(image as any).title}</Text>
+                        <Text size="1" color="gray" className="line-clamp-1 text-[10px]">{(image as any).description}</Text>
+                      </Box>
+                    </Card>
+                  ))}
+                </Grid>
+              )}
+            </Box>
           )}
-          {activeUploadTab === "pinterest" && (
-            <Text size="2" color="gray">
-              Paste a public Pinterest board URL to import new pins into your
-              gallery. We only import content you explicitly request.
-            </Text>
-          )}
-          {activeUploadTab === "automation" && (
-            <Text size="2" color="gray">
-              Automation is coming soon. We'll add scheduled imports and board
-              triggers here once they’re ready.
-            </Text>
-          )}
-        </Card>
+        </>
       ) : (
         <>
           {/* Generate Variations Modal - shown AFTER image is uploaded and analyzed */}
@@ -907,7 +979,7 @@ export function ImageUploadForm() {
       )}
 
       {/* Pending Generated Images Section */}
-      {pendingImages && pendingImages.length > 0 && (
+      {localPendingImages.length > 0 && (
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
           <Flex align="center" gap="2" className="mb-4">
@@ -921,7 +993,7 @@ export function ImageUploadForm() {
           </Flex>
 
           <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
-            {pendingImages.map((image) => (
+            {localPendingImages.map((image) => (
               <Card key={image._id} className="overflow-hidden p-0 group relative">
                 <Box className="relative aspect-video">
                   <img
@@ -968,7 +1040,7 @@ export function ImageUploadForm() {
       )}
 
       {/* Images for Review Section */}
-      {draftImages && draftImages.length > 0 && (
+      {localDraftImages.length > 0 && (
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
           <Flex align="center" justify="between" className="mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 border border-gray-200 dark:border-gray-800">
@@ -977,7 +1049,7 @@ export function ImageUploadForm() {
                 <Box>
                 <Heading size="4">Review & Finalize</Heading>
                 <Text size="2" color="gray">
-                    {draftImages.length} image{draftImages.length !== 1 ? 's' : ''} ready to publish
+                    {localDraftImages.length} image{localDraftImages.length !== 1 ? 's' : ''} ready to publish
                 </Text>
                 </Box>
              </Flex>
@@ -992,7 +1064,7 @@ export function ImageUploadForm() {
           </Flex>
 
           <Grid columns={{ initial: "1", lg: "2" }} gap="4">
-            {draftImages.map((image) => (
+            {localDraftImages.map((image) => (
               <Card key={image._id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <Flex gap="4">
                   <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">

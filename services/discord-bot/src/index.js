@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import {
   ActionRowBuilder,
   Client,
@@ -16,7 +17,7 @@ import {
 
 const PANEL_MARKER_PREFIX = "[PINDECK_IMAGE_PANEL]";
 const MAX_MENU_ITEMS = 25;
-const MAX_IMPORTED_IMAGES_PER_MESSAGE = 10;
+const HARD_MAX_IMPORTED_IMAGES_PER_MESSAGE = 10;
 
 const BASE_CHANNEL_PERMISSIONS = [
   PermissionFlagsBits.ViewChannel,
@@ -192,6 +193,12 @@ function parseCsv(raw) {
     .filter(Boolean);
 }
 
+function parsePositiveInt(raw, fallback) {
+  const parsed = Number.parseInt(String(raw || ""), 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
 function normalizeBaseUrl(raw) {
   if (!raw) return null;
   try {
@@ -251,8 +258,90 @@ function isReactionIngestTrigger(reaction, triggers) {
   return triggers.some((trigger) => [...trigger.keys].some((key) => keys.has(key)));
 }
 
+function canonicalImageUrlKey(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname;
+    if (host.includes("twimg.com") && pathname.includes("/media/")) {
+      const mediaId = pathname.split("/").pop()?.split(".")[0] || pathname;
+      const format = parsed.searchParams.get("format") || pathname.split(".").pop() || "jpg";
+      return `${host}/media/${mediaId}.${format}`.toLowerCase();
+    }
+    return `${host}${pathname}`.toLowerCase();
+  } catch {
+    return String(rawUrl || "").trim().toLowerCase();
+  }
+}
+
+function isLikelyImportImageUrl(rawUrl) {
+  if (!looksLikeImageUrl(rawUrl)) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+    const full = `${host}${path}`;
+
+    const blockedFragments = [
+      "profile_images",
+      "profile_banners",
+      "emoji",
+      "twemoji",
+      "favicon",
+      "apple-touch-icon",
+      "/icons/",
+      "/icon/",
+      "/avatar",
+      "/sprite",
+      "/logo",
+      "abs.twimg.com",
+      "static.xx.fbcdn.net",
+    ];
+
+    if (blockedFragments.some((frag) => full.includes(frag))) return false;
+    if (host.includes("twimg.com") && !path.includes("/media/")) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function dedupeImageUrls(urls) {
+  const map = new Map();
+  for (const raw of urls) {
+    const cleaned = cleanCapturedUrl(raw).replace(/&amp;/g, "&");
+    if (!isLikelyImportImageUrl(cleaned)) continue;
+    const key = canonicalImageUrlKey(cleaned);
+    if (!map.has(key)) {
+      map.set(key, cleaned);
+    }
+  }
+  return [...map.values()];
+}
+
+function rankImportImageUrls(urls) {
+  const scored = urls.map((url) => {
+    const u = url.toLowerCase();
+    let score = 0;
+    if (u.includes("pbs.twimg.com/media/")) score += 100;
+    if (u.includes("media.discordapp.net/attachments/") || u.includes("cdn.discordapp.com/attachments/")) score += 90;
+    if (u.includes("name=orig")) score += 15;
+    if (u.includes("name=large")) score += 10;
+    if (u.includes("/thumb")) score -= 20;
+    return { url, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((item) => item.url);
+}
+
+function buildImportExternalId({ sourceMessage, imageUrl, pindeckUserId }) {
+  const key = canonicalImageUrlKey(imageUrl);
+  const digest = createHash("sha256").update(key).digest("hex").slice(0, 20);
+  return `discord:url:${pindeckUserId || "unknown"}:${sourceMessage.guildId || "dm"}:${digest}`;
+}
+
 function extractImageLinksFromMessage(message) {
-  const urls = new Set();
+  const urls = [];
 
   for (const attachment of message.attachments?.values?.() || []) {
     const contentType = attachment.contentType || "";
@@ -260,15 +349,14 @@ function extractImageLinksFromMessage(message) {
       contentType.startsWith("image/") ||
       /\.(png|jpe?g|webp|gif|bmp|svg)(\?|$)/i.test(attachment.url || "");
     if (looksLikeImage && attachment.url) {
-      urls.add(attachment.url);
+      urls.push(attachment.url);
     }
   }
 
   for (const embed of message.embeds || []) {
-    if (embed.image?.url) urls.add(embed.image.url);
-    if (embed.thumbnail?.url) urls.add(embed.thumbnail.url);
+    if (embed.image?.url) urls.push(embed.image.url);
     if (embed.url && /\.(png|jpe?g|webp|gif|bmp|svg)(\?|$)/i.test(embed.url)) {
-      urls.add(embed.url);
+      urls.push(embed.url);
     }
   }
 
@@ -276,11 +364,11 @@ function extractImageLinksFromMessage(message) {
   const urlMatches = content.match(/https?:\/\/\S+/g) || [];
   for (const match of urlMatches) {
     if (/\.(png|jpe?g|webp|gif|bmp|svg)(\?|$)/i.test(match)) {
-      urls.add(match);
+      urls.push(match);
     }
   }
 
-  return [...urls];
+  return rankImportImageUrls(dedupeImageUrls(urls));
 }
 
 function extractAllUrls(text) {
@@ -389,26 +477,20 @@ async function fetchExternalImageUrls(sourcePostUrl) {
     if (!response.ok) return [];
 
     const html = await response.text();
-    const candidates = new Set();
+    const candidates = [];
 
     const urlMatches = html.match(/https?:\/\/[^"'\\\s<>)]+/g) || [];
     for (const match of urlMatches) {
-      const cleaned = cleanCapturedUrl(match).replace(/&amp;/g, "&");
-      if (looksLikeImageUrl(cleaned) && !cleaned.includes("profile_images")) {
-        candidates.add(cleaned);
-      }
+      candidates.push(match);
     }
 
     // Catch escaped URLs often found in script tags.
     const escapedMatches = html.match(/https?:\\\/\\\/[^"'\\\s<>)]+/g) || [];
     for (const match of escapedMatches) {
-      const unescaped = cleanCapturedUrl(match.replace(/\\\//g, "/")).replace(/&amp;/g, "&");
-      if (looksLikeImageUrl(unescaped) && !unescaped.includes("profile_images")) {
-        candidates.add(unescaped);
-      }
+      candidates.push(match.replace(/\\\//g, "/"));
     }
 
-    return [...candidates];
+    return rankImportImageUrls(dedupeImageUrls(candidates));
   } catch (error) {
     console.warn("Failed external media parse:", error.message);
     return [];
@@ -418,11 +500,11 @@ async function fetchExternalImageUrls(sourcePostUrl) {
 async function collectImageLinksForImport(message, sourcePostUrl, fetchExternal) {
   const direct = extractImageLinksFromMessage(message);
   if (!fetchExternal || !sourcePostUrl) {
-    return [...new Set(direct)];
+    return rankImportImageUrls(dedupeImageUrls(direct));
   }
 
   const fromSource = await fetchExternalImageUrls(sourcePostUrl);
-  return [...new Set([...direct, ...fromSource])];
+  return rankImportImageUrls(dedupeImageUrls([...direct, ...fromSource]));
 }
 
 function buildMessagePermalink(message) {
@@ -682,6 +764,7 @@ function printStartupChecklist({
   fallbackUserId,
   usingSamplePresets,
   ingestFetchExternal,
+  ingestMaxImagesPerPost,
 }) {
   console.log("Discord bot configuration summary");
   console.log(`- Guild scope: ${guildId || "Global"}`);
@@ -700,6 +783,7 @@ function printStartupChecklist({
   );
   console.log(`- Ingest target userId: ${fallbackUserId || "none (set PINDECK_USER_ID)"}`);
   console.log(`- Ingest external post parsing: ${ingestFetchExternal ? "enabled" : "disabled"}`);
+  console.log(`- Ingest max images per trigger: ${ingestMaxImagesPerPost}`);
 }
 
 loadLocalEnv();
@@ -721,6 +805,10 @@ const ingestDefaultTags = parseCsv(process.env.DISCORD_INGEST_DEFAULT_TAGS || "d
 const ingestDefaultCategory = process.env.DISCORD_INGEST_DEFAULT_CATEGORY || "General";
 const ingestConfirmations = process.env.DISCORD_INGEST_CONFIRMATIONS !== "0";
 const ingestFetchExternal = process.env.DISCORD_INGEST_FETCH_EXTERNAL !== "0";
+const ingestMaxImagesPerPost = Math.min(
+  HARD_MAX_IMPORTED_IMAGES_PER_MESSAGE,
+  parsePositiveInt(process.env.DISCORD_INGEST_MAX_IMAGES_PER_POST, 1)
+);
 const usingSamplePresets = !process.env.DISCORD_IMAGES_JSON;
 
 let images;
@@ -754,6 +842,7 @@ if (dryRun) {
     fallbackUserId: fallbackIngestUserId,
     usingSamplePresets,
     ingestFetchExternal,
+    ingestMaxImagesPerPost,
   });
   registerCommands({ token, clientId, guildId, commands })
     .then(() => {
@@ -786,6 +875,7 @@ if (dryRun) {
         fallbackUserId: fallbackIngestUserId,
         usingSamplePresets,
         ingestFetchExternal,
+        ingestMaxImagesPerPost,
       });
       console.log(`Logged in as ${readyClient.user.tag}`);
     } catch (error) {
@@ -881,7 +971,7 @@ if (dryRun) {
                 postMeta.sourcePostUrl,
                 ingestFetchExternal
               )
-            ).slice(0, MAX_IMPORTED_IMAGES_PER_MESSAGE);
+            ).slice(0, ingestMaxImagesPerPost);
             const tagsForImport = [...new Set([
               ...ingestDefaultTags,
               postMeta.sref ? `sref:${postMeta.sref}` : "",
@@ -899,7 +989,11 @@ if (dryRun) {
             let failures = 0;
             for (let i = 0; i < imageLinks.length; i += 1) {
               const imageUrl = imageLinks[i];
-              const externalId = `discord:slash:${targetMessage.guildId || "dm"}:${targetMessage.channelId}:${targetMessage.id}:${i}:${interaction.user.id}`;
+              const externalId = buildImportExternalId({
+                sourceMessage: targetMessage,
+                imageUrl,
+                pindeckUserId: fallbackIngestUserId,
+              });
               try {
                 await ingestIntoPindeck({
                   ingestEndpoint,
@@ -1004,7 +1098,7 @@ if (dryRun) {
       const postMeta = extractPostMetadataFromMessage(message);
       const imageLinks = (
         await collectImageLinksForImport(message, postMeta.sourcePostUrl, ingestFetchExternal)
-      ).slice(0, MAX_IMPORTED_IMAGES_PER_MESSAGE);
+      ).slice(0, ingestMaxImagesPerPost);
       if (!imageLinks.length) return;
       const tagsForImport = [...new Set([
         ...ingestDefaultTags,
@@ -1014,7 +1108,11 @@ if (dryRun) {
       let imported = 0;
       for (let i = 0; i < imageLinks.length; i += 1) {
         const imageUrl = imageLinks[i];
-        const externalId = `discord:reaction:${message.guildId || "dm"}:${message.channelId}:${message.id}:${i}:${user.id}`;
+        const externalId = buildImportExternalId({
+          sourceMessage: message,
+          imageUrl,
+          pindeckUserId: fallbackIngestUserId,
+        });
         try {
           await ingestIntoPindeck({
             ingestEndpoint,

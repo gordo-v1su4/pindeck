@@ -243,9 +243,17 @@ export const createExternal = mutation({
       if (existing) return existing._id;
     }
 
+    const existingByUrl = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("imageUrl"), args.imageUrl))
+      .take(1);
+    if (existingByUrl[0]) return existingByUrl[0]._id;
+
     const title = args.title || "Untitled";
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
+    const isDiscordImport = args.sourceType === "discord";
 
     const imageId = await ctx.db.insert("images", {
       title,
@@ -258,8 +266,8 @@ export const createExternal = mutation({
       uploadedBy: userId,
       likes: 0,
       views: 0,
-      status: "active",
-      aiStatus: "processing",
+      status: isDiscordImport ? "pending" : "active",
+      aiStatus: isDiscordImport ? "queued" : "processing",
       uploadedAt: Date.now(),
       storageProvider: "nextcloud",
       storagePath: args.storagePath,
@@ -270,18 +278,20 @@ export const createExternal = mutation({
       ingestedAt: Date.now(),
     });
 
-    await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-      imageId,
-      userId,
-      imageUrl: args.imageUrl,
-      title,
-      description: args.description,
-      tags,
-      category,
-      source: args.source,
-      sref: args.sref,
-      variationCount: 0,
-    });
+    if (!isDiscordImport) {
+      await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+        imageId,
+        userId,
+        imageUrl: args.imageUrl,
+        title,
+        description: args.description,
+        tags,
+        category,
+        source: args.source,
+        sref: args.sref,
+        variationCount: 0,
+      });
+    }
 
     return imageId;
   },
@@ -320,9 +330,17 @@ export const ingestExternal = internalMutation({
       if (existing) return existing._id;
     }
 
+    const existingByUrl = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", args.userId))
+      .filter((q) => q.eq(q.field("imageUrl"), args.imageUrl))
+      .take(1);
+    if (existingByUrl[0]) return existingByUrl[0]._id;
+
     const title = args.title || "Untitled";
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
+    const isDiscordImport = args.sourceType === "discord";
 
     const imageId = await ctx.db.insert("images", {
       title,
@@ -335,8 +353,8 @@ export const ingestExternal = internalMutation({
       uploadedBy: args.userId,
       likes: 0,
       views: 0,
-      status: "active",
-      aiStatus: "processing",
+      status: isDiscordImport ? "pending" : "active",
+      aiStatus: isDiscordImport ? "queued" : "processing",
       uploadedAt: Date.now(),
       storageProvider: "nextcloud",
       storagePath: args.storagePath,
@@ -347,18 +365,20 @@ export const ingestExternal = internalMutation({
       ingestedAt: Date.now(),
     });
 
-    await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-      imageId,
-      userId: args.userId,
-      imageUrl: args.imageUrl,
-      title,
-      description: args.description,
-      tags,
-      category,
-      source: args.source,
-      sref: args.sref,
-      variationCount: 0,
-    });
+    if (!isDiscordImport) {
+      await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+        imageId,
+        userId: args.userId,
+        imageUrl: args.imageUrl,
+        title,
+        description: args.description,
+        tags,
+        category,
+        source: args.source,
+        sref: args.sref,
+        variationCount: 0,
+      });
+    }
 
     return imageId;
   },
@@ -710,7 +730,25 @@ export const approveImage = mutation({
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
 
-    await ctx.db.patch("images", args.imageId, { status: "active" });
+    await ctx.db.patch("images", args.imageId, {
+      status: "active",
+      aiStatus: image.sourceType === "discord" ? "processing" : image.aiStatus,
+    });
+
+    if (image.sourceType === "discord") {
+      await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+        imageId: image._id,
+        userId,
+        imageUrl: image.imageUrl,
+        title: image.title,
+        description: image.description,
+        tags: image.tags,
+        category: image.category,
+        source: image.source,
+        sref: image.sref,
+        variationCount: 0,
+      });
+    }
     return null;
   },
 });
