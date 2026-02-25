@@ -9,15 +9,18 @@ import { CategoryFilter } from "./components/CategoryFilter";
 import { ImageUploadForm } from "./components/ImageUploadForm";
 import { BoardsView } from "./components/BoardsView";
 import { TableView } from "./components/TableView";
+import { DeckView } from "./components/DeckView";
 import { Box, Text, Flex, Spinner, Button, Tabs } from "@radix-ui/themes";
 import { useState, useEffect } from "react";
 import { ImageIcon, UploadIcon, BookmarkIcon, GridIcon } from "@radix-ui/react-icons";
+import type { Id } from "../convex/_generated/dataModel";
 
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [activeTab, setActiveTabState] = useState("gallery");
+  const [selectedDeckId, setSelectedDeckId] = useState<Id<"decks"> | null>(null);
   const { isAuthenticated, isLoading } = useConvexAuth();
   
   // Check backend auth state to verify if user is actually logged in
@@ -26,7 +29,25 @@ export default function App() {
   const setActiveTab = (tab: string) => {
     console.log("🔄 Setting active tab to:", tab);
     setActiveTabState(tab);
+    if (tab === "deck" && selectedDeckId) {
+      window.location.hash = `deck:${selectedDeckId}`;
+      return;
+    }
     window.location.hash = tab;
+  };
+
+  const openDeckTab = (deckId: Id<"decks">) => {
+    setSelectedDeckId(deckId);
+    setActiveTabState("deck");
+    window.location.hash = `deck:${deckId}`;
+  };
+
+  const selectDeck = (deckId: Id<"decks"> | null) => {
+    setSelectedDeckId(deckId);
+    if (deckId) {
+      setActiveTabState("deck");
+      window.location.hash = `deck:${deckId}`;
+    }
   };
   
   // Debug authentication state - CRITICAL for diagnosing "can't access pages" issue
@@ -50,20 +71,31 @@ export default function App() {
   }, [isAuthenticated, isLoading, loggedInUser]);
 
   useEffect(() => {
-    // Set initial tab from hash
-    if (window.location.hash) {
-      const hashTab = window.location.hash.substring(1);
-      if (["gallery", "upload", "boards", "table"].includes(hashTab)) {
-        setActiveTabState(hashTab);
+    const parseHash = () => {
+      if (!window.location.hash) return;
+      const rawHash = window.location.hash.substring(1);
+      if (!rawHash) return;
+
+      if (rawHash.startsWith("deck:")) {
+        const deckId = rawHash.slice("deck:".length);
+        if (deckId) {
+          setSelectedDeckId(deckId as Id<"decks">);
+        }
+        setActiveTabState("deck");
+        return;
       }
-    }
+
+      if (["gallery", "upload", "boards", "table", "deck"].includes(rawHash)) {
+        setActiveTabState(rawHash);
+      }
+    };
+
+    // Set initial tab from hash
+    parseHash();
     
     // Listen for hash changes
     const handleHashChange = () => {
-      const hashTab = window.location.hash.substring(1);
-      if (["gallery", "upload", "boards", "table"].includes(hashTab)) {
-        setActiveTabState(hashTab);
-      }
+      parseHash();
     };
     
     window.addEventListener("hashchange", handleHashChange);
@@ -107,6 +139,7 @@ export default function App() {
                   <Tabs.Trigger value="gallery">Gallery</Tabs.Trigger>
                   <Tabs.Trigger value="upload">Upload</Tabs.Trigger>
                   <Tabs.Trigger value="boards">Boards</Tabs.Trigger>
+                  <Tabs.Trigger value="deck">Deck</Tabs.Trigger>
                   <Tabs.Trigger value="table">
                     <GridIcon width="16" height="16" />
                     Table
@@ -145,8 +178,12 @@ export default function App() {
             {activeTab === "boards" && <BoardsView 
                                         key={boardVersion} 
                                         setActiveTab={setActiveTab} 
-                                        incrementBoardVersion={incrementBoardVersion} 
+                                        incrementBoardVersion={incrementBoardVersion}
+                                        onDeckCreated={openDeckTab}
                                       />}
+            {activeTab === "deck" && (
+              <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
+            )}
             {activeTab === "table" && <TableView />}
           </>
         ) : (

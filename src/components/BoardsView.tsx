@@ -7,7 +7,15 @@ import { CreateBoardModal } from "./CreateBoardModal";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 
-export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveTab: (tab: string) => void, incrementBoardVersion: () => void }) {
+export function BoardsView({
+  setActiveTab,
+  incrementBoardVersion,
+  onDeckCreated,
+}: {
+  setActiveTab: (tab: string) => void;
+  incrementBoardVersion: () => void;
+  onDeckCreated?: (deckId: Id<"decks">) => void;
+}) {
   const boards = useQuery(api.boards.list);
   const boardPreviewUrls = useQuery(
     api.boards.getBoardPreviewUrls,
@@ -51,8 +59,13 @@ export function BoardsView({ setActiveTab, incrementBoardVersion }: { setActiveT
 
   const handleConvertToDeck = async (boardId: Id<"collections">) => {
     try {
-      await createDeck({ boardId });
+      const deckId = await createDeck({ boardId });
       toast.success("Deck created from board!");
+      if (onDeckCreated) {
+        onDeckCreated(deckId);
+      } else {
+        setActiveTab("deck");
+      }
     } catch (error) {
       console.error("Failed to convert board to deck:", error);
       toast.error("Failed to convert board");
