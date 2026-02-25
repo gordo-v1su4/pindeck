@@ -1,28 +1,32 @@
 #!/bin/bash
-# Kill any process using port 3000
-PORT=3000
+set -euo pipefail
 
-# Find and kill process on port 3000
-if command -v lsof &> /dev/null; then
-    PID=$(lsof -ti:$PORT)
-    if [ ! -z "$PID" ]; then
-        kill -9 $PID
-        echo "Killed process $PID on port $PORT"
-    else
-        echo "No process found on port $PORT"
-    fi
-elif command -v netstat &> /dev/null; then
-    PID=$(netstat -ano | grep ":$PORT " | awk '{print $5}' | head -1)
-    if [ ! -z "$PID" ]; then
-        kill -9 $PID
-        echo "Killed process $PID on port $PORT"
-    else
-        echo "No process found on port $PORT"
-    fi
+# Kill any process bound to the requested port.
+# Usage:
+#   PORT=4173 bash ./scripts/kill-port.sh
+#   bash ./scripts/kill-port.sh 4173
+PORT="${PORT:-${1:-4173}}"
+
+if command -v lsof >/dev/null 2>&1; then
+  PIDS="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN || true)"
+elif command -v netstat >/dev/null 2>&1; then
+  PIDS="$(netstat -anv 2>/dev/null | awk -v p=".$PORT" '$0 ~ p && $0 ~ /LISTEN/ {print $9}' | tr '\n' ' ' || true)"
 else
-    echo "Neither lsof nor netstat found. Cannot kill process on port $PORT"
+  echo "No supported tool found to inspect port $PORT (need lsof or netstat)."
+  exit 1
 fi
 
+if [ -z "${PIDS// }" ]; then
+  echo "No process found on port $PORT"
+  exit 0
+fi
+
+for PID in $PIDS; do
+  if [ -n "$PID" ]; then
+    kill -9 "$PID" >/dev/null 2>&1 || true
+    echo "Killed process $PID on port $PORT"
+  fi
+done
 
 
 
