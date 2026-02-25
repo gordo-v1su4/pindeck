@@ -17,6 +17,7 @@ import type * as generations from "../generations.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
 import type * as integrations from "../integrations.js";
+import type * as maintenance from "../maintenance.js";
 import type * as router from "../router.js";
 import type * as seed from "../seed.js";
 import type * as storyboards from "../storyboards.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   images: typeof images;
   integrations: typeof integrations;
+  maintenance: typeof maintenance;
   router: typeof router;
   seed: typeof seed;
   storyboards: typeof storyboards;
