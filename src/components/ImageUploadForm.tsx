@@ -254,7 +254,8 @@ export function ImageUploadForm() {
 
   const reRunAnalysis = async (
     imageId: Id<"images">,
-    storageId: Id<"_storage">,
+    storageId: Id<"_storage"> | undefined,
+    imageUrl: string | undefined,
     title: string,
     description?: string,
     tags?: string[],
@@ -269,6 +270,7 @@ export function ImageUploadForm() {
       await rerunSmartAnalysisMutation({
         imageId,
         storageId,
+        imageUrl,
         title,
         description,
         tags: tags || [],
@@ -337,6 +339,7 @@ export function ImageUploadForm() {
 
         return {
           storageId,
+          originalFileName: file.file.name,
           title: generatedTitle || file.file.name,
           description: file.description || undefined,
           tags: file.tags,
@@ -348,14 +351,14 @@ export function ImageUploadForm() {
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
           uniqueId: uniqueId,
-          // No variation settings at upload - user decides AFTER reviewing
-          variationCount: 0,
+          // Default: generate two suggestions for approve/deny queue
+          variationCount: 2,
         };
       });
 
       const uploads = await Promise.all(uploadPromises);
 
-      const newImageIds = await uploadMultiple({ uploads });
+      await uploadMultiple({ uploads });
 
       // Clear local files after successful initial upload and scheduling
       files.forEach(file => URL.revokeObjectURL(file.preview));
@@ -520,7 +523,7 @@ export function ImageUploadForm() {
                     <Card key={image._id} className="overflow-hidden p-0 group relative">
                       <Box className="relative aspect-video">
                         <img
-                          src={image.imageUrl}
+                          src={image.previewUrl || image.imageUrl}
                           alt={image.title}
                           className="w-full h-full object-cover"
                         />
@@ -967,7 +970,7 @@ export function ImageUploadForm() {
               <Card key={image._id} className="overflow-hidden opacity-80 p-2">
                 <Box className="relative aspect-video overflow-hidden bg-gray-100">
                   <img
-                    src={image.imageUrl}
+                    src={image.previewUrl || image.imageUrl}
                     alt={image.title}
                     className="w-full h-full object-cover grayscale"
                   />
@@ -1005,7 +1008,7 @@ export function ImageUploadForm() {
               <Card key={image._id} className="overflow-hidden p-0 group relative">
                 <Box className="relative aspect-video">
                   <img
-                    src={image.imageUrl}
+                    src={image.previewUrl || image.imageUrl}
                     alt={image.title}
                     className="w-full h-full object-cover"
                   />
@@ -1077,7 +1080,7 @@ export function ImageUploadForm() {
                 <Flex gap="4">
                   <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">
                     <img
-                      src={image.imageUrl}
+                      src={image.previewUrl || image.imageUrl}
                       alt={image.title}
                       className="w-full h-full object-cover"
                     />
@@ -1249,7 +1252,10 @@ export function ImageUploadForm() {
                           color="orange"
                           variant="soft"
                           size="1"
-                          onClick={() => reRunAnalysis(image._id, image.storageId!,
+                          onClick={() => reRunAnalysis(
+                             image._id,
+                             image.storageId,
+                             image.imageUrl,
                              image.title,
                              image.description,
                              image.tags,

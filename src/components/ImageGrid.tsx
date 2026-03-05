@@ -398,7 +398,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
                               >
                                 <Box className="relative overflow-hidden aspect-video bg-gray-900">
                                   <img
-                                    src={image.imageUrl}
+                                    src={image.previewUrl || image.imageUrl}
                                     alt={image.title}
                                     className="w-full h-full object-cover"
                                     loading="lazy"
@@ -463,7 +463,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
           >
             <Box className="relative overflow-hidden aspect-video bg-gray-900">
               <img
-                src={image.imageUrl}
+                src={image.previewUrl || image.imageUrl}
                 alt={image.title}
                 className="w-full h-full object-cover"
                 loading="lazy"

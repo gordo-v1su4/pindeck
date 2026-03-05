@@ -19,7 +19,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
   const createBoard = useMutation(api.boards.create);
   const addImageToBoard = useMutation(api.boards.addImage);
   const generateUploadUrl = useMutation(api.images.generateUploadUrl);
-  const createImage = useMutation(api.images.create);
+  const uploadMultiple = useMutation(api.images.uploadMultiple);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -86,40 +86,54 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
       } else if (selectedFiles.length > 0) {
         // Upload selected files and add to board
         setUploadProgress(`Uploading 0/${selectedFiles.length}...`);
-        let uploadedCount = 0;
 
+        const uploadPayload: Array<any> = [];
+        let stagedCount = 0;
         for (const file of selectedFiles) {
           try {
-            // Generate upload URL
             const uploadUrl = await generateUploadUrl();
-
-            // Upload file to Convex storage
             const response = await fetch(uploadUrl, {
               method: "POST",
               headers: { "Content-Type": file.type },
               body: file,
             });
-
             if (!response.ok) throw new Error("Upload failed");
 
             const { storageId } = await response.json();
-
-            // Create image record
-            const newImageId = await createImage({
-              title: file.name.replace(/\.[^/.]+$/, ""),
-              imageUrl: "", // Will be populated by Convex
+            const title = file.name.replace(/\.[^/.]+$/, "");
+            uploadPayload.push({
               storageId,
+              originalFileName: file.name,
+              title,
+              description: undefined,
               tags: [],
-              category: "Uncategorized",
+              category: "General",
+              source: "Board Upload",
+              sref: undefined,
+              colors: undefined,
+              group: undefined,
+              projectName: title,
+              moodboardName: undefined,
+              uniqueId: undefined,
+              variationCount: 0,
             });
-
-            // Add to board
-            await addImageToBoard({ boardId, imageId: newImageId });
-
-            uploadedCount++;
-            setUploadProgress(`Uploading ${uploadedCount}/${selectedFiles.length}...`);
+            stagedCount++;
+            setUploadProgress(`Uploading ${stagedCount}/${selectedFiles.length}...`);
           } catch (uploadError) {
             console.error("Failed to upload file:", file.name, uploadError);
+          }
+        }
+
+        const imageIds =
+          uploadPayload.length > 0 ? await uploadMultiple({ uploads: uploadPayload }) : [];
+
+        let uploadedCount = 0;
+        for (const newImageId of imageIds) {
+          try {
+            await addImageToBoard({ boardId, imageId: newImageId });
+            uploadedCount++;
+          } catch (addError) {
+            console.error("Failed to add uploaded image to board", addError);
           }
         }
 

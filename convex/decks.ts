@@ -12,7 +12,7 @@ export const listByBoard = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Must be logged in to view decks");
+      return [];
     }
 
     return ctx.db
@@ -21,6 +21,68 @@ export const listByBoard = query({
       .filter((q) => q.eq(q.field("userId"), userId))
       .order("desc")
       .collect();
+  },
+});
+
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    return ctx.db
+      .query("decks")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const getById = query({
+  args: { deckId: v.id("decks") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return null;
+    }
+
+    const deck = await ctx.db.get("decks", args.deckId);
+    if (!deck || deck.userId !== userId) {
+      return null;
+    }
+
+    const board = await ctx.db.get("collections", deck.boardId);
+
+    const slidesWithImages = await Promise.all(
+      [...deck.slides]
+        .sort((a, b) => a.order - b.order)
+        .map(async (slide) => {
+          const image = await ctx.db.get("images", slide.imageId);
+          return {
+            ...slide,
+            image: image
+              ? {
+                  _id: image._id,
+                  title: image.title,
+                  imageUrl: image.imageUrl,
+                  description: image.description,
+                  tags: image.tags,
+                  category: image.category,
+                  sref: image.sref,
+                  source: image.source,
+                }
+              : null,
+          };
+        })
+    );
+
+    return {
+      ...deck,
+      boardName: board?.name ?? null,
+      slides: slidesWithImages,
+    };
   },
 });
 

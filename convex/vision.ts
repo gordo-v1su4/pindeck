@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { fal } from "@fal-ai/client";
 import OpenAI from "openai";
 import { getAuthUserId } from "@convex-dev/auth/server";
+const internalApi = internal as any;
 
 // Shot types: camera position/angle and framing variety (mix of close/medium/wide and angles)
 const SHOT_TYPES = [
@@ -290,31 +291,43 @@ export const internalGenerateRelatedImages = internalAction({
 
     for (let i = 0; i < validUrls.length; i++) {
       try {
-        const imageResponse = await fetch(validUrls[i]);
-        if (!imageResponse.ok) continue;
-
-        const imageBlob = await imageResponse.blob();
-        const uploadUrl = await ctx.runMutation(internal.images.internalGenerateUploadUrl);
-
-        const uploadResponse = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": imageBlob.type || "image/png" },
-          body: imageBlob,
+        const persisted = await ctx.runAction(internalApi.mediaStorage.persistGeneratedImageFromUrl, {
+          sourceUrl: validUrls[i],
+          title: parentTitle,
         });
 
-        if (!uploadResponse.ok) continue;
-
-        const { storageId } = await uploadResponse.json();
-        const finalImageUrl = await ctx.storage.getUrl(storageId);
-        if (!finalImageUrl) continue;
+        if (!persisted.ok) {
+          console.warn(`Failed to persist generated image ${i + 1}: ${persisted.error}`);
+          // Fallback: keep generated URL so user flow is not blocked if Nextcloud is unavailable.
+          generatedImages.push({
+            url: validUrls[i],
+            previewUrl: undefined,
+            storagePath: undefined,
+            previewStoragePath: undefined,
+            title: parentTitle,
+            description: args.description,
+          });
+          continue;
+        }
 
         generatedImages.push({
-          url: finalImageUrl,
+          url: persisted.imageUrl,
+          previewUrl: persisted.previewUrl,
+          storagePath: persisted.storagePath,
+          previewStoragePath: persisted.previewStoragePath,
           title: parentTitle,
           description: args.description,
         });
       } catch (err) {
         console.error(`Failed to save generated image ${i}:`, err);
+        generatedImages.push({
+          url: validUrls[i],
+          previewUrl: undefined,
+          storagePath: undefined,
+          previewStoragePath: undefined,
+          title: parentTitle,
+          description: args.description,
+        });
       }
     }
 
@@ -611,7 +624,8 @@ export const smartAnalyzeImage = httpAction(async (ctx, request) => {
 export const rerunSmartAnalysis = mutation({
   args: {
     imageId: v.id("images"),
-    storageId: v.id("_storage"),
+    storageId: v.optional(v.id("_storage")),
+    imageUrl: v.optional(v.string()),
     title: v.string(),
     description: v.optional(v.string()),
     tags: v.array(v.string()),
@@ -634,13 +648,20 @@ export const rerunSmartAnalysis = mutation({
       throw new Error("Not authorized or image not found");
     }
 
+    const sourceStorageId = args.storageId ?? image.storageId;
+    const sourceImageUrl = args.imageUrl ?? image.imageUrl;
+    if (!sourceStorageId && !sourceImageUrl) {
+      throw new Error("Image has no source URL");
+    }
+
     await ctx.runMutation(internal.images.internalSetAiStatus, {
       imageId: args.imageId,
       status: "processing",
     });
 
     await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-      storageId: args.storageId,
+      storageId: sourceStorageId,
+      imageUrl: sourceImageUrl,
       imageId: args.imageId,
       userId,
       title: args.title,
