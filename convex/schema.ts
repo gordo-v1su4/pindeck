@@ -7,6 +7,7 @@ const applicationTables = {
     title: v.string(),
     description: v.optional(v.string()),
     imageUrl: v.string(),
+    previewUrl: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
     tags: v.array(v.string()),
     category: v.string(),
@@ -29,6 +30,7 @@ const applicationTables = {
       v.union(v.literal("convex"), v.literal("nextcloud"))
     ),
     storagePath: v.optional(v.string()),
+    previewStoragePath: v.optional(v.string()),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
       v.union(

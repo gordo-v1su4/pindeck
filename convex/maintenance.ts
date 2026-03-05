@@ -1,9 +1,12 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 const FULL_WIPE_CONFIRMATION = "DELETE_ALL_IMAGES_AND_STORAGE";
 const ORPHAN_WIPE_CONFIRMATION = "DELETE_ORPHANED_STORAGE_FILES";
+const IMAGE_DOMAIN_RESET_CONFIRMATION = "RESET_ALL_IMAGE_DOMAIN_DATA";
+const internalApi = internal as any;
 
 function isStorageId(id: Id<"_storage"> | undefined): id is Id<"_storage"> {
   return id !== undefined;
@@ -294,6 +297,98 @@ export const deleteOrphanedStorageFiles = internalMutation({
       failed: failedIds.length,
       orphanIds: selectedOrphanIds,
       failedIds,
+    };
+  },
+});
+
+export const resetImageDomainData = mutation({
+  args: {
+    confirm: v.string(),
+  },
+  returns: v.object({
+    imagesDeleted: v.number(),
+    convexStorageDeleted: v.number(),
+    convexStorageFailed: v.number(),
+    nextcloudCleanupScheduled: v.number(),
+    collectionsCleared: v.number(),
+    likesDeleted: v.number(),
+    generationsDeleted: v.number(),
+    storyboardsDeleted: v.number(),
+    decksDeleted: v.number(),
+    importBatchesDeleted: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    if (args.confirm !== IMAGE_DOMAIN_RESET_CONFIRMATION) {
+      throw new Error(
+        `Confirmation mismatch. Pass confirm="${IMAGE_DOMAIN_RESET_CONFIRMATION}" to proceed.`
+      );
+    }
+
+    const images = await ctx.db.query("images").collect();
+    const nextcloudPaths = [
+      ...new Set(
+        images
+          .flatMap((img) => [img.storagePath, (img as any).previewStoragePath])
+          .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+      ),
+    ];
+
+    const storageIds = [...new Set(images.map((img) => img.storageId).filter(isStorageId))];
+
+    let convexStorageDeleted = 0;
+    let convexStorageFailed = 0;
+    for (const storageId of storageIds) {
+      try {
+        await ctx.storage.delete(storageId);
+        convexStorageDeleted += 1;
+      } catch {
+        convexStorageFailed += 1;
+      }
+    }
+
+    let imagesDeleted = 0;
+    for (const image of images) {
+      await ctx.db.delete(image._id);
+      imagesDeleted += 1;
+    }
+
+    const collections = await ctx.db.query("collections").collect();
+    for (const collection of collections) {
+      await ctx.db.patch(collection._id, { imageIds: [] });
+    }
+
+    const likes = await ctx.db.query("likes").collect();
+    for (const like of likes) await ctx.db.delete(like._id);
+
+    const generations = await ctx.db.query("generations").collect();
+    for (const generation of generations) await ctx.db.delete(generation._id);
+
+    const storyboards = await ctx.db.query("storyboards").collect();
+    for (const storyboard of storyboards) await ctx.db.delete(storyboard._id);
+
+    const decks = await ctx.db.query("decks").collect();
+    for (const deck of decks) await ctx.db.delete(deck._id);
+
+    const importBatches = await ctx.db.query("importBatches").collect();
+    for (const batch of importBatches) await ctx.db.delete(batch._id);
+
+    if (nextcloudPaths.length > 0) {
+      await ctx.scheduler.runAfter(0, internalApi.mediaStorage.cleanupNextcloudPaths, {
+        paths: nextcloudPaths,
+      });
+    }
+
+    return {
+      imagesDeleted,
+      convexStorageDeleted,
+      convexStorageFailed,
+      nextcloudCleanupScheduled: nextcloudPaths.length,
+      collectionsCleared: collections.length,
+      likesDeleted: likes.length,
+      generationsDeleted: generations.length,
+      storyboardsDeleted: storyboards.length,
+      decksDeleted: decks.length,
+      importBatchesDeleted: importBatches.length,
     };
   },
 });

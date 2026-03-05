@@ -142,7 +142,7 @@ export function BoardsView({
               >
                 <Box className="relative overflow-hidden aspect-video bg-gray-900 rounded-lg">
                   <img
-                    src={image.imageUrl}
+                    src={image.previewUrl || image.imageUrl}
                     alt={image.title}
                     className="w-full h-full object-cover"
                     loading="lazy"

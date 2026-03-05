@@ -188,6 +188,40 @@ export function SignInForm() {
         variant="outline" 
         size="3" 
         style={{ width: '100%' }}
+        onClick={() => {
+          setSubmitting(true);
+          void signIn("google").catch((error) => {
+            console.error("❌ Google sign-in error:", error);
+            toast.error("Google sign-in failed: " + (error as Error).message);
+            setSubmitting(false);
+            setSignInStarted(false);
+          });
+        }}
+        disabled={submitting}
+      >
+        Continue with Google
+      </Button>
+      <Button 
+        variant="outline" 
+        size="3" 
+        style={{ width: '100%' }}
+        onClick={() => {
+          setSubmitting(true);
+          void signIn("github").catch((error) => {
+            console.error("❌ GitHub sign-in error:", error);
+            toast.error("GitHub sign-in failed: " + (error as Error).message);
+            setSubmitting(false);
+            setSignInStarted(false);
+          });
+        }}
+        disabled={submitting}
+      >
+        Continue with GitHub
+      </Button>
+      <Button 
+        variant="outline" 
+        size="3" 
+        style={{ width: '100%' }}
         onClick={async () => {
           console.log("🔐 Starting anonymous sign-in...");
           setSubmitting(true);

@@ -51,6 +51,13 @@ Set in Convex Project Settings:
 - `FAL_KEY`
 - `INGEST_API_KEY` (for Discord ingest)
 - `DISCORD_STATUS_WEBHOOK_URL` (optional Discord status updates)
+- `NEXTCLOUD_WEBDAV_BASE_URL`
+- `NEXTCLOUD_WEBDAV_USER`
+- `NEXTCLOUD_WEBDAV_APP_PASSWORD`
+- `NEXTCLOUD_UPLOAD_PREFIX` (default: `pindeck/media-uploads`)
+- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` (for Google OAuth)
+- `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` (for GitHub OAuth)
+- `SITE_URL` (public app URL for OAuth redirect/callback)
 
 ### Local / Vercel Frontend
 

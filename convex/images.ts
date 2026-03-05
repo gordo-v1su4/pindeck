@@ -6,6 +6,24 @@ const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
 
+function collectNextcloudPaths(image: any): string[] {
+  return [image?.storagePath, image?.previewStoragePath].filter(
+    (path): path is string => typeof path === "string" && path.trim().length > 0
+  );
+}
+
+async function scheduleNextcloudCleanup(ctx: any, image: any) {
+  const paths = collectNextcloudPaths(image);
+  if (paths.length === 0) return;
+  try {
+    await ctx.scheduler.runAfter(0, internalApi.mediaStorage.cleanupNextcloudPaths, {
+      paths,
+    });
+  } catch (error) {
+    console.warn("Failed to schedule Nextcloud cleanup", error);
+  }
+}
+
 function readBearerToken(request: Request) {
   const authHeader = request.headers.get("authorization");
   return authHeader?.startsWith("Bearer ")
@@ -255,11 +273,13 @@ export const createExternal = mutation({
     title: v.string(),
     description: v.optional(v.string()),
     imageUrl: v.string(),
+    previewUrl: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     category: v.optional(v.string()),
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
+    previewStoragePath: v.optional(v.string()),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
       v.union(
@@ -304,6 +324,7 @@ export const createExternal = mutation({
       title,
       description: args.description,
       imageUrl: args.imageUrl,
+      previewUrl: args.previewUrl,
       tags,
       category,
       projectName,
@@ -315,8 +336,9 @@ export const createExternal = mutation({
       status: isDiscordImport ? "pending" : "active",
       aiStatus: isDiscordImport ? "queued" : "processing",
       uploadedAt: Date.now(),
-      storageProvider: "nextcloud",
+      storageProvider: args.storagePath ? "nextcloud" : undefined,
       storagePath: args.storagePath,
+      previewStoragePath: args.previewStoragePath,
       externalId: args.externalId,
       sourceType: args.sourceType,
       sourceUrl: args.sourceUrl,
@@ -365,11 +387,13 @@ export const ingestExternal = internalMutation({
     title: v.string(),
     description: v.optional(v.string()),
     imageUrl: v.string(),
+    previewUrl: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     category: v.optional(v.string()),
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
+    previewStoragePath: v.optional(v.string()),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
       v.union(
@@ -409,6 +433,7 @@ export const ingestExternal = internalMutation({
       title,
       description: args.description,
       imageUrl: args.imageUrl,
+      previewUrl: args.previewUrl,
       tags,
       category,
       projectName,
@@ -420,8 +445,9 @@ export const ingestExternal = internalMutation({
       status: isDiscordImport ? "pending" : "active",
       aiStatus: isDiscordImport ? "queued" : "processing",
       uploadedAt: Date.now(),
-      storageProvider: "nextcloud",
+      storageProvider: args.storagePath ? "nextcloud" : undefined,
       storagePath: args.storagePath,
+      previewStoragePath: args.previewStoragePath,
       externalId: args.externalId,
       sourceType: args.sourceType,
       sourceUrl: args.sourceUrl,
@@ -495,16 +521,36 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     );
   }
 
+  let resolvedImageUrl = String(body.imageUrl);
+  let resolvedPreviewUrl: string | undefined = undefined;
+  let resolvedStoragePath: string | undefined = undefined;
+  let resolvedPreviewStoragePath: string | undefined = undefined;
+
+  try {
+    const persistedImage = await ctx.runAction(internalApi.mediaStorage.persistExternalImageFromUrl, {
+      sourceUrl: body.imageUrl,
+      title: body.title || "Discord Import",
+    });
+    resolvedImageUrl = persistedImage.imageUrl;
+    resolvedPreviewUrl = persistedImage.previewUrl;
+    resolvedStoragePath = persistedImage.storagePath;
+    resolvedPreviewStoragePath = persistedImage.previewStoragePath;
+  } catch (error: any) {
+    console.warn("Nextcloud persist failed; falling back to source URL ingest", error);
+  }
+
   const imageId = await ctx.runMutation(internal.images.ingestExternal, {
     userId: resolvedUserId as any,
     title: body.title || "Discord Import",
     description: body.description,
-    imageUrl: body.imageUrl,
+    imageUrl: resolvedImageUrl,
+    previewUrl: resolvedPreviewUrl,
     tags: body.tags,
     category: body.category,
     source: body.source,
     sref: body.sref,
-    storagePath: body.storagePath,
+    storagePath: resolvedStoragePath,
+    previewStoragePath: resolvedPreviewStoragePath,
     externalId: body.externalId,
     sourceType: body.sourceType,
     sourceUrl: body.sourceUrl,
@@ -650,6 +696,7 @@ export const internalModerateDiscordImage = internalMutation({
       if (image.storageId) {
         await ctx.storage.delete(image.storageId);
       }
+      await scheduleNextcloudCleanup(ctx, image);
       await ctx.db.delete(args.imageId);
       return { ok: true, message: "Image rejected and deleted." };
     }
@@ -926,6 +973,7 @@ export const uploadMultiple = mutation({
   args: {
     uploads: v.array(v.object({
       storageId: v.id("_storage"),
+      originalFileName: v.optional(v.string()),
       title: v.string(),
       description: v.optional(v.string()),
       tags: v.array(v.string()),
@@ -937,7 +985,7 @@ export const uploadMultiple = mutation({
       projectName: v.optional(v.string()),
       moodboardName: v.optional(v.string()),
       uniqueId: v.optional(v.string()),
-      // Variation count: 0 means no auto-generation at upload (user decides later)
+      // Variation count for auto-generation right after smart analysis.
       variationCount: v.optional(v.number()),
     })),
   },
@@ -950,19 +998,21 @@ export const uploadMultiple = mutation({
 
     const results = await Promise.all(
       args.uploads.map(async (upload) => {
-        // Get the image URL from storage
+        // Temporary Convex URL is used only until the file is persisted to Nextcloud.
         const imageUrl = await ctx.storage.getUrl(upload.storageId);
         if (!imageUrl) {
           throw new Error("Failed to get image URL");
         }
 
-        // Create the image record - NO variation settings at upload time
+        const tags = [...new Set([...upload.tags, "original"])];
+
+        // Create the image record in draft state while Nextcloud persistence runs asynchronously.
         const imageId = await ctx.db.insert("images", {
           title: upload.title,
           description: upload.description,
           imageUrl,
           storageId: upload.storageId,
-          tags: [...upload.tags, "original"], // Tag as original user upload
+          tags,
           category: upload.category,
           source: upload.source,
           sref: upload.sref,
@@ -976,29 +1026,32 @@ export const uploadMultiple = mutation({
           views: 0,
           aiStatus: "processing",
           status: "draft",
+          sourceType: "upload",
+          storageProvider: "convex",
           uploadedAt: Date.now(),
         });
 
-        // Schedule the smart analysis action - NO variation generation at upload
+        // Persist original + preview to Nextcloud, then trigger smart analysis using external URLs.
         try {
-          await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+          await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
             storageId: upload.storageId,
             imageId: imageId,
+            userId,
             group: upload.group,
             projectName: upload.title,
             moodboardName: upload.moodboardName,
-            userId: userId,
             title: upload.title,
             description: upload.description,
-            tags: upload.tags,
+            tags,
             category: upload.category,
             source: upload.source,
             sref: upload.sref || undefined,
-            // No variations at upload - user decides after reviewing
-            variationCount: 0,
+            variationCount: upload.variationCount,
+            sourceType: "upload",
           });
         } catch (err) {
-          console.error("Failed to schedule smart analysis:", err);
+          console.error("Failed to schedule Nextcloud finalize action:", err);
+          await ctx.db.patch("images", imageId, { aiStatus: "failed" });
         }
 
         return imageId;
@@ -1162,6 +1215,7 @@ export const rejectImage = mutation({
     if (image.storageId) {
       await ctx.storage.delete(image.storageId);
     }
+    await scheduleNextcloudCleanup(ctx, image);
     await ctx.db.delete("images", args.imageId);
     return null;
   },
@@ -1189,6 +1243,7 @@ export const remove = mutation({
     if (image.storageId) {
       await ctx.storage.delete(image.storageId);
     }
+    await scheduleNextcloudCleanup(ctx, image);
 
     // Delete the image record
     await ctx.db.delete("images", args.id);
@@ -1250,6 +1305,28 @@ export const internalSetAiStatus = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch("images", args.imageId, { aiStatus: args.status });
+    return null;
+  },
+});
+
+export const internalApplyNextcloudUpload = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    imageUrl: v.string(),
+    previewUrl: v.optional(v.string()),
+    storagePath: v.string(),
+    previewStoragePath: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch("images", args.imageId, {
+      imageUrl: args.imageUrl,
+      previewUrl: args.previewUrl,
+      storageProvider: "nextcloud",
+      storagePath: args.storagePath,
+      previewStoragePath: args.previewStoragePath,
+      storageId: undefined,
+    });
     return null;
   },
 });
@@ -1356,6 +1433,9 @@ export const internalSaveGeneratedImages = internalMutation({
     originalImageId: v.id("images"),
     images: v.array(v.object({
       url: v.string(),
+      previewUrl: v.optional(v.string()),
+      storagePath: v.optional(v.string()),
+      previewStoragePath: v.optional(v.string()),
       title: v.string(),
       description: v.string(),
     })),
@@ -1373,6 +1453,10 @@ export const internalSaveGeneratedImages = internalMutation({
         title: originalImage.title, // Inherit parent's exact title so they group together
         description: originalImage.description || img.description, // Inherit parent's full description
         imageUrl: img.url,
+        previewUrl: img.previewUrl,
+        storageProvider: img.storagePath ? "nextcloud" : undefined,
+        storagePath: img.storagePath,
+        previewStoragePath: img.previewStoragePath,
         // Inherit metadata from original (which might have been updated by analysis)
         category: originalImage.category,
         tags: [...originalImage.tags, "generated", "variation"],
