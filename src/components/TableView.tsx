@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -38,6 +38,7 @@ import {
 } from "@radix-ui/react-icons";
 import { ImageModal } from "./ImageModal";
 import { EditImageModal } from "./EditImageModal";
+import { GenerateVariationsModal } from "./GenerateVariationsModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
@@ -66,6 +67,7 @@ export function TableView() {
   const generateOutput = useMutation(api.generations.generate);
   const [selectedImage, setSelectedImage] = useState<Id<"images"> | null>(null);
   const [editingImage, setEditingImage] = useState<Id<"images"> | null>(null);
+  const [variationsModalImageId, setVariationsModalImageId] = useState<Id<"images"> | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -105,6 +107,29 @@ export function TableView() {
     window.addEventListener('open-image-modal', handleOpenImageModal);
     return () => window.removeEventListener('open-image-modal', handleOpenImageModal);
   }, []);
+
+  const handleDeleteImage = useCallback(async (imageId: Id<"images">, imageTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${imageTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await deleteImage({ id: imageId });
+      toast.success(`"${imageTitle}" deleted successfully!`);
+    } catch (error) {
+      console.error('Failed to delete image:', error);
+      toast.error('Failed to delete image.');
+    }
+  }, [deleteImage]);
+
+  const handleGenerate = useCallback(async (imageId: Id<"images">, type: "storyboard" | "deck") => {
+    try {
+      const result = await generateOutput({ imageId, type });
+      toast.success(`${result.templateName} created`);
+    } catch (error) {
+      console.error("Failed to generate output:", error);
+      toast.error("Failed to generate output");
+    }
+  }, [generateOutput]);
 
   const columns = useMemo<ColumnDef<Image>[]>(
     () => [
@@ -155,7 +180,7 @@ export function TableView() {
         accessorKey: "tags",
         header: "Tags",
         cell: ({ row }) => {
-          const tags = row.getValue("tags") as string[];
+          const tags = row.original.tags ?? [];
           return (
             <Flex gap="1" wrap="wrap">
               {tags.slice(0, 3).map((tag) => (
@@ -177,7 +202,7 @@ export function TableView() {
         accessorKey: "sref",
         header: "Sref",
         cell: ({ row }) => {
-          const sref = row.getValue("sref") as string;
+          const sref = row.original.sref;
           return sref ? (
             <Badge variant="soft" color="blue" size="1">
               {sref}
@@ -191,7 +216,7 @@ export function TableView() {
         accessorKey: "colors",
         header: "Colors",
         cell: ({ row }) => {
-          const colors = row.getValue("colors") as string[];
+          const colors = row.original.colors ?? [];
           if (!colors || colors.length === 0) {
             return <Text size="1" color="gray">-</Text>;
           }
@@ -261,7 +286,7 @@ export function TableView() {
         accessorKey: "source",
         header: "Source",
         cell: ({ row }) => {
-          const source = row.getValue("source") as string;
+          const source = row.original.source;
           return source ? (
             <Button variant="soft" color="blue" size="1" asChild style={{ opacity: 0.9 }}>
               <a
@@ -283,7 +308,7 @@ export function TableView() {
         accessorKey: "uploadedAt",
         header: "Date Uploaded",
         cell: ({ row }) => {
-          const timestamp = row.getValue("uploadedAt") as number;
+          const timestamp = row.original.uploadedAt;
           return timestamp ? (
             <Text size="2">
               {new Date(timestamp).toLocaleDateString()}
@@ -320,10 +345,13 @@ export function TableView() {
                 </IconButton>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content className="dropdown-teal">
-                <DropdownMenu.Item onClick={() => handleGenerate(row.original._id, "storyboard")}>
+                <DropdownMenu.Item onClick={() => setVariationsModalImageId(row.original._id)}>
+                  Variations
+                </DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => void handleGenerate(row.original._id, "storyboard")}>
                   Storyboard
                 </DropdownMenu.Item>
-                <DropdownMenu.Item onClick={() => handleGenerate(row.original._id, "deck")}>
+                <DropdownMenu.Item onClick={() => void handleGenerate(row.original._id, "deck")}>
                   Deck
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
@@ -342,7 +370,7 @@ export function TableView() {
               variant="soft"
               color="red"
               size="1"
-              onClick={() => handleDeleteImage(row.original._id, row.original.title)}
+              onClick={() => void handleDeleteImage(row.original._id, row.original.title)}
               title="Delete image"
               style={{ opacity: 0.9 }}
             >
@@ -354,7 +382,7 @@ export function TableView() {
         enableGlobalFilter: false,
       },
     ],
-    [images]
+    [images, handleDeleteImage, handleGenerate]
   );
 
   // Filter images based on selected tags, colors, and original filter
@@ -394,30 +422,6 @@ export function TableView() {
       return true;
     });
   }, [images, selectedTags, selectedColors, showOnlyOriginals, showOnlySref]);
-
-  const handleDeleteImage = async (imageId: Id<"images">, imageTitle: string) => {
-    if (!confirm(`Are you sure you want to delete "${imageTitle}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      await deleteImage({ id: imageId });
-      toast.success(`"${imageTitle}" deleted successfully!`);
-    } catch (error) {
-      console.error('Failed to delete image:', error);
-      toast.error('Failed to delete image.');
-    }
-  };
-
-  const handleGenerate = async (imageId: Id<"images">, type: "storyboard" | "deck") => {
-    try {
-      const result = await generateOutput({ imageId, type });
-      toast.success(`${result.templateName} created`);
-    } catch (error) {
-      console.error("Failed to generate output:", error);
-      toast.error("Failed to generate output");
-    }
-  };
 
   const table = useReactTable({
     data: filteredImages,
@@ -592,7 +596,7 @@ export function TableView() {
               .map((header) => (
                 <Box key={header.id}>
                   <TextField.Root
-                    placeholder={`Filter ${header.column.columnDef.header}...`}
+                    placeholder={`Filter ${typeof header.column.columnDef.header === "string" ? header.column.columnDef.header : header.id}...`}
                     value={(header.column.getFilterValue() as string) ?? ""}
                     onChange={(e) =>
                       header.column.setFilterValue(e.target.value)
@@ -732,6 +736,15 @@ export function TableView() {
           imageId={editingImage}
           open={!!editingImage}
           onOpenChange={(open) => !open && setEditingImage(null)}
+        />
+      )}
+
+      {/* Generate Variations Modal */}
+      {variationsModalImageId && (
+        <GenerateVariationsModal
+          imageId={variationsModalImageId}
+          open={true}
+          onOpenChange={(open) => { if (!open) setVariationsModalImageId(null); }}
         />
       )}
     </Box>

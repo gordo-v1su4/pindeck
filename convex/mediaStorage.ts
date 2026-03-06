@@ -324,9 +324,11 @@ export const persistGeneratedImageFromUrl = internalAction({
         ...uploaded,
       } as const;
     } catch (error: any) {
+      const msg = error?.message || "Failed to persist generated image";
+      const isNextcloudUnconfigured = /Missing Nextcloud env/i.test(msg);
       return {
         ok: false,
-        error: error?.message || "Failed to persist generated image",
+        error: isNextcloudUnconfigured ? "Nextcloud not configured" : msg,
       } as const;
     }
   },
@@ -466,5 +468,45 @@ export const cleanupNextcloudPaths = internalAction({
     }
 
     return { deleted, failed };
+  },
+});
+
+/** Upload a small test file, verify it is readable, then delete it. Use to confirm Nextcloud env and connectivity. Leaves no test files behind. */
+export const testNextcloudPersistence = internalAction({
+  args: {},
+  returns: v.union(
+    v.object({ ok: v.literal(true) }),
+    v.object({ ok: v.literal(false), error: v.string() })
+  ),
+  handler: async (_ctx): Promise<{ ok: true } | { ok: false; error: string }> => {
+    let testPath: string | undefined;
+    try {
+      const config = getNextcloudConfig();
+      testPath = normalizePath(
+        `${config.uploadPrefix}/_test/pindeck-persistence-test-${Date.now()}.txt`
+      );
+      const payload = Buffer.from("Pindeck Nextcloud persistence test", "utf8");
+      const url = await uploadFile(config, testPath, "text/plain", payload);
+
+      const check = await fetch(url, { method: "GET", headers: { Authorization: authHeader(config) } });
+      if (!check.ok) {
+        await deleteFile(config, testPath).catch(() => {});
+        return { ok: false, error: `GET test file failed: ${check.status}` };
+      }
+
+      await deleteFile(config, testPath);
+      return { ok: true } as const;
+    } catch (error: unknown) {
+      if (testPath) {
+        try {
+          const config = getNextcloudConfig();
+          await deleteFile(config, testPath);
+        } catch {
+          // ignore cleanup failure
+        }
+      }
+      const message = error instanceof Error ? error.message : "Nextcloud persistence test failed";
+      return { ok: false, error: message };
+    }
   },
 });

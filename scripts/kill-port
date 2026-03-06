@@ -1,0 +1,10 @@
+# Cross-platform port killer (no extension)
+# Detects OS/shell and runs appropriate script
+
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]] || [[ "$OS" == "Windows_NT" ]]; then
+    # Windows/PowerShell - pass PORT environment variable
+    powershell.exe -ExecutionPolicy Bypass -Command "& './scripts/kill-port.ps1'"
+else
+    # Unix/Linux/Mac
+    bash "./scripts/kill-port.sh"
+fi

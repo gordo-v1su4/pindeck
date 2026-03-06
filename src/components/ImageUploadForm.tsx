@@ -23,7 +23,6 @@ import {
   UploadIcon,
   Cross2Icon,
   ImageIcon,
-  PlusIcon,
   TrashIcon,
   CheckIcon,
   MagicWandIcon,
@@ -78,6 +77,10 @@ export function ImageUploadForm() {
     "local" | "discord" | "pinterest" | "automation"
   >("local");
   
+  // Discord queue image preview (click to enlarge)
+  const [discordPreviewImageId, setDiscordPreviewImageId] = useState<Id<"images"> | null>(null);
+  const discordPreviewImage = discordPendingImages.find((img) => img._id === discordPreviewImageId) ?? null;
+
   // Post-upload variation modal state
   const [variationModalOpen, setVariationModalOpen] = useState(false);
   const [variationTargetImage, setVariationTargetImage] = useState<Id<"images"> | null>(null);
@@ -190,14 +193,14 @@ export function ImageUploadForm() {
 
     console.log("handleDrop called", e.dataTransfer.files?.length);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFiles(e.dataTransfer.files);
+      void handleFiles(e.dataTransfer.files);
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log("handleFileInput called", e.target.files?.length);
     if (e.target.files && e.target.files.length > 0) {
-      handleFiles(e.target.files);
+      void handleFiles(e.target.files);
       // Reset input to allow selecting the same file again
       e.target.value = '';
     }
@@ -522,7 +525,10 @@ export function ImageUploadForm() {
                 <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
                   {discordPendingImages.map((image) => (
                     <Card key={image._id} className="overflow-hidden p-0 group relative">
-                      <Box className="relative aspect-video">
+                      <Box
+                        className="relative aspect-video cursor-pointer"
+                        onClick={() => setDiscordPreviewImageId(image._id)}
+                      >
                         <img
                           src={image.previewUrl || image.imageUrl}
                           alt={image.title}
@@ -535,7 +541,7 @@ export function ImageUploadForm() {
                             size="1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleApprove(image._id);
+                              void handleApprove(image._id);
                             }}
                             className="flex-1 shadow-lg bg-green-500/90 hover:bg-green-500 cursor-pointer"
                           >
@@ -547,7 +553,7 @@ export function ImageUploadForm() {
                             size="1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleReject(image._id);
+                              void handleReject(image._id);
                             }}
                             className="flex-1 shadow-lg bg-red-500/90 hover:bg-red-500 cursor-pointer"
                           >
@@ -563,6 +569,36 @@ export function ImageUploadForm() {
                   ))}
                 </Grid>
               )}
+
+              {/* Discord queue image preview modal (click thumbnail to enlarge) */}
+              <Dialog.Root
+                open={!!discordPreviewImage}
+                onOpenChange={(open) => { if (!open) setDiscordPreviewImageId(null); }}
+              >
+                <Dialog.Content
+                  className="max-w-[90vw] max-h-[90vh] w-max p-0 overflow-hidden"
+                  style={{ maxWidth: "min(900px, 90vw)" }}
+                >
+                  <Dialog.Title className="sr-only">Preview queued image</Dialog.Title>
+                  <Dialog.Description className="sr-only">Enlarged preview of queued Discord import</Dialog.Description>
+                  {discordPreviewImage && (
+                    <Box className="flex flex-col">
+                      <Box className="relative flex items-center justify-center bg-gray-2 p-2">
+                        <img
+                          src={discordPreviewImage.previewUrl || discordPreviewImage.imageUrl}
+                          alt={discordPreviewImage.title}
+                          className="max-h-[75vh] w-auto object-contain"
+                          style={{ maxWidth: "min(860px, 88vw)" }}
+                        />
+                      </Box>
+                      <Box className="p-3 border-t border-gray-6 bg-gray-2">
+                        <Text weight="medium" size="2" className="block">{(discordPreviewImage as any).title}</Text>
+                        <Text size="2" color="gray" className="block mt-1 line-clamp-2">{(discordPreviewImage as any).description}</Text>
+                      </Box>
+                    </Box>
+                  )}
+                </Dialog.Content>
+              </Dialog.Root>
             </Box>
           )}
         </>
@@ -694,7 +730,7 @@ export function ImageUploadForm() {
             </Button>
             <Button
               color="teal"
-              onClick={handleGenerateVariations}
+              onClick={() => void handleGenerateVariations()}
             >
               <MagicWandIcon /> Generate {variationCount} Variation{variationCount !== 1 ? "s" : ""}
             </Button>
@@ -935,7 +971,7 @@ export function ImageUploadForm() {
               Cancel
             </Button>
             <Button
-              onClick={handleSubmit}
+              onClick={() => void handleSubmit()}
               disabled={uploading || files.length === 0}
               size="2"
             >
@@ -956,14 +992,33 @@ export function ImageUploadForm() {
       {processingImages && processingImages.length > 0 && (
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
-          <Flex align="center" gap="2" className="mb-4">
-            <Box className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-            <Box>
-              <Heading size="4">AI Analysis in Progress</Heading>
-              <Text size="2" color="gray">
-                Generating variations...
-              </Text>
-            </Box>
+          <Flex align="center" justify="between" gap="2" className="mb-4">
+            <Flex align="center" gap="2">
+              <Box className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+              <Box>
+                <Heading size="4">AI Analysis in Progress</Heading>
+                <Text size="2" color="gray">
+                  Generating variations...
+                </Text>
+              </Box>
+            </Flex>
+            <Button
+              size="1"
+              variant="soft"
+              color="gray"
+              onClick={() => {
+                if (!processingImages?.length) return;
+                void Promise.all(
+                  processingImages.map((img) =>
+                    setAiStatusMutation({ imageId: img._id, status: "completed" })
+                  )
+                )
+                  .then(() => toast.success("All marked complete. Processing list cleared."))
+                  .catch(() => toast.error("Failed to clear some items."));
+              }}
+            >
+              <CheckIcon /> Mark all complete
+            </Button>
           </Flex>
 
           <Grid columns={{ initial: "2", sm: "3", md: "4" }} gap="4">
@@ -1078,7 +1133,7 @@ export function ImageUploadForm() {
                       size="1"
                       onClick={(e) => { 
                         e.stopPropagation(); 
-                        handleApprove(image._id); 
+                        void handleApprove(image._id); 
                       }}
                       className="flex-1 shadow-lg bg-green-500/90 hover:bg-green-500 cursor-pointer"
                     >
@@ -1090,7 +1145,7 @@ export function ImageUploadForm() {
                       size="1"
                       onClick={(e) => { 
                         e.stopPropagation(); 
-                        handleReject(image._id); 
+                        void handleReject(image._id); 
                       }}
                       className="flex-1 shadow-lg bg-red-500/90 hover:bg-red-500 cursor-pointer"
                     >
@@ -1123,7 +1178,7 @@ export function ImageUploadForm() {
                 </Box>
              </Flex>
              <Button
-              onClick={handleFinalizeUploads}
+              onClick={() => void handleFinalizeUploads()}
               size="2"
               color="green"
               className="shadow-sm"
@@ -1157,7 +1212,7 @@ export function ImageUploadForm() {
                       <Box className="flex-1">
                         <TextField.Root
                           value={image.title}
-                          onChange={(e) => updateImageMetadata(image._id, { title: e.target.value })}
+                          onChange={(e) => void updateImageMetadata(image._id, { title: e.target.value })}
                           placeholder="Title"
                           size="1"
                         >
@@ -1170,7 +1225,7 @@ export function ImageUploadForm() {
                         variant="ghost"
                         color="red"
                         size="1"
-                        onClick={() => handleReject(image._id)}
+                        onClick={() => void handleReject(image._id)}
                       >
                         <TrashIcon />
                       </IconButton>
@@ -1178,7 +1233,7 @@ export function ImageUploadForm() {
 
                     <TextField.Root
                       value={image.description || ""}
-                      onChange={(e) => updateImageMetadata(image._id, { description: e.target.value })}
+                      onChange={(e) => void updateImageMetadata(image._id, { description: e.target.value })}
                       placeholder="Description"
                       size="1"
                     />
@@ -1186,7 +1241,7 @@ export function ImageUploadForm() {
                     <Flex gap="2" align="center">
                       <Select.Root
                         value={image.category}
-                        onValueChange={(value) => updateImageMetadata(image._id, { category: value })}
+                        onValueChange={(value) => void updateImageMetadata(image._id, { category: value })}
                       >
                         <Select.Trigger placeholder="Select category" />
                         <Select.Content>
@@ -1202,7 +1257,7 @@ export function ImageUploadForm() {
                     {/* Group Selection */}
                     <Select.Root
                       value={image.group ? image.group : "none"}
-                      onValueChange={(value) => updateImageMetadata(image._id, { group: value === "none" ? undefined : value })}
+                      onValueChange={(value) => void updateImageMetadata(image._id, { group: value === "none" ? undefined : value })}
                     >
                       <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
                       <Select.Content>
@@ -1221,7 +1276,7 @@ export function ImageUploadForm() {
                     {/* Project Name */}
                     <TextField.Root
                       value={image.projectName || ""}
-                      onChange={(e) => updateImageMetadata(image._id, { projectName: e.target.value || undefined })}
+                      onChange={(e) => void updateImageMetadata(image._id, { projectName: e.target.value || undefined })}
                       placeholder="Project Name (e.g., Kitty Bite Back)"
                       size="1"
                     />
@@ -1229,7 +1284,7 @@ export function ImageUploadForm() {
                     {/* Moodboard Name */}
                     <TextField.Root
                       value={image.moodboardName || ""}
-                      onChange={(e) => updateImageMetadata(image._id, { moodboardName: e.target.value || undefined })}
+                      onChange={(e) => void updateImageMetadata(image._id, { moodboardName: e.target.value || undefined })}
                       placeholder="Moodboard Name (e.g., pink girl smoking)"
                       size="1"
                     />
@@ -1237,7 +1292,7 @@ export function ImageUploadForm() {
                     {/* Unique ID */}
                     <TextField.Root
                       value={image.uniqueId || ""}
-                      onChange={(e) => updateImageMetadata(image._id, { uniqueId: e.target.value || undefined })}
+                      onChange={(e) => void updateImageMetadata(image._id, { uniqueId: e.target.value || undefined })}
                       placeholder="Unique ID (auto-generated if blank)"
                       size="1"
                     />
@@ -1245,14 +1300,14 @@ export function ImageUploadForm() {
                     <Flex gap="2">
                       <TextField.Root
                         value={image.sref || ""}
-                        onChange={(e) => updateImageMetadata(image._id, { sref: e.target.value })}
+                        onChange={(e) => void updateImageMetadata(image._id, { sref: e.target.value })}
                         placeholder="Style Ref (sref)"
                         size="1"
                         className="flex-1"
                       />
                       <TextField.Root
                         value={image.source || ""}
-                        onChange={(e) => updateImageMetadata(image._id, { source: e.target.value })}
+                        onChange={(e) => void updateImageMetadata(image._id, { source: e.target.value })}
                         placeholder="Source URL/Origin"
                         size="1"
                         className="flex-1"
@@ -1276,7 +1331,7 @@ export function ImageUploadForm() {
                           <Badge key={tag} variant="soft" size="1" color={getTagColor(tag)}>
                             {tag}
                             <button
-                              onClick={() => removeTagFromDraft(image._id, tag)}
+                              onClick={() => void removeTagFromDraft(image._id, tag)}
                               className="ml-1 hover:text-red-600"
                             >
                               <Cross2Icon width="10" height="10" />
@@ -1291,7 +1346,7 @@ export function ImageUploadForm() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            addTagToDraft(image._id, e.currentTarget.value);
+                            void addTagToDraft(image._id, e.currentTarget.value);
                             e.currentTarget.value = '';
                           }
                         }}
@@ -1310,7 +1365,7 @@ export function ImageUploadForm() {
                           color="orange"
                           variant="soft"
                           size="1"
-                          onClick={() => reRunAnalysis(
+                          onClick={() => void reRunAnalysis(
                              image._id,
                              image.storageId,
                              image.imageUrl,
