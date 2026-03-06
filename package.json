@@ -5,14 +5,14 @@
   "type": "module",
   "packageManager": "bun@1.3.2",
   "scripts": {
-    "kill-port": "PORT=4173 bash ./scripts/kill-port.sh",
-    "dev": "bun run kill-port && bun run dev:frontend",
+    "kill-port": "bash ./scripts/kill-port.sh",
+    "dev": "PORT=3000 bun run kill-port && concurrently \"bun run dev:frontend\" \"bun run dev:backend\"",
     "dev:frontend": "vite --open",
     "dev:backend": "convex dev",
     "discord:bot": "bash ./scripts/run-discord-bot.sh",
     "discord:bot:dry-run": "cd services/discord-bot && DISCORD_DRY_RUN=1 bun src/index.js",
     "build": "vite build",
-    "serve": "PORT=4173 bash ./scripts/kill-port.sh && vite preview --host 0.0.0.0 --port 4173",
+    "serve": "PORT=4173 bun run kill-port && vite preview --host 0.0.0.0 --port 4173",
     "deploy:convex": "convex deploy",
     "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
   },
