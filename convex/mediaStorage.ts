@@ -177,16 +177,33 @@ function fileNameFromUrl(url: string): string | undefined {
   }
 }
 
+const PREVIEW_MAX_WIDTH = 800;
+const PREVIEW_JPEG_QUALITY = 82;
+
 async function buildPreview(
   buffer: Buffer,
   fallbackContentType: string,
   fallbackExtension: string
 ): Promise<{ data: Buffer; contentType: string; extension: string }> {
-  return {
-    data: buffer,
-    contentType: fallbackContentType || "application/octet-stream",
-    extension: fallbackExtension || "jpg",
-  };
+  try {
+    const sharp = (await import("sharp")).default;
+    const preview = await sharp(buffer)
+      .resize(PREVIEW_MAX_WIDTH, null, { withoutEnlargement: true })
+      .jpeg({ quality: PREVIEW_JPEG_QUALITY })
+      .toBuffer();
+    return {
+      data: preview,
+      contentType: "image/jpeg",
+      extension: "jpg",
+    };
+  } catch (err) {
+    console.warn("Preview resize failed, using original buffer", err);
+    return {
+      data: buffer,
+      contentType: fallbackContentType || "application/octet-stream",
+      extension: fallbackExtension || "jpg",
+    };
+  }
 }
 
 async function persistImageBuffer(args: {

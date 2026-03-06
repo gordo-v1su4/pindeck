@@ -1061,7 +1061,6 @@ export const uploadMultiple = mutation({
           aiStatus: "processing",
           status: "draft",
           sourceType: "upload",
-          storageProvider: "convex",
           uploadedAt: Date.now(),
         });
 
@@ -1076,7 +1075,7 @@ export const uploadMultiple = mutation({
             moodboardName: upload.moodboardName,
             title: upload.title,
             description: upload.description,
-            tags,
+            tags: upload.tags,
             category: upload.category,
             source: upload.source,
             sref: upload.sref || undefined,
@@ -1437,6 +1436,25 @@ export const updateImageMetadata = mutation({
     await ctx.db.patch("images", args.imageId, patch);
 
     return { success: true };
+  },
+});
+
+/** Let the user mark an image's AI status (e.g. "completed" or "failed") to unstick stuck processing. */
+export const setAiStatus = mutation({
+  args: {
+    imageId: v.id("images"),
+    status: v.union(v.literal("completed"), v.literal("failed")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const image = await ctx.db.get("images", args.imageId);
+    if (!image || image.uploadedBy !== userId) {
+      throw new Error("Image not found or not yours");
+    }
+    await ctx.db.patch("images", args.imageId, { aiStatus: args.status });
+    return null;
   },
 });
 

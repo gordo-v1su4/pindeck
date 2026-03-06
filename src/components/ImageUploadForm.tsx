@@ -65,6 +65,7 @@ export function ImageUploadForm() {
   const updateImageMetadataMutation = useMutation(api.images.updateImageMetadata);
   const rerunSmartAnalysisMutation = useMutation(api.vision.rerunSmartAnalysis);
   const generateVariationsMutation = useMutation(api.vision.generateVariations);
+  const setAiStatusMutation = useMutation(api.images.setAiStatus);
 
   const localPendingImages = (pendingImages || []).filter((img) => img.sourceType !== "discord");
   const discordPendingImages = (pendingImages || []).filter((img) => img.sourceType === "discord");
@@ -967,7 +968,7 @@ export function ImageUploadForm() {
 
           <Grid columns={{ initial: "2", sm: "3", md: "4" }} gap="4">
             {processingImages.map((image) => (
-              <Card key={image._id} className="overflow-hidden opacity-80 p-2">
+              <Card key={image._id} className="overflow-hidden opacity-80 p-2 group/card">
                 <Box className="relative aspect-video overflow-hidden bg-gray-100">
                   <img
                     src={image.previewUrl || image.imageUrl}
@@ -979,6 +980,63 @@ export function ImageUploadForm() {
                       Processing...
                     </Badge>
                   </Box>
+                  <Flex
+                    gap="1"
+                    className="absolute bottom-2 left-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                  >
+                    <Button
+                      size="1"
+                      variant="soft"
+                      color="green"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void setAiStatusMutation({ imageId: image._id, status: "completed" })
+                          .then(() => toast.success("Marked complete. Image will leave the processing list."))
+                          .catch(() => toast.error("Failed to update status."));
+                      }}
+                    >
+                      <CheckIcon /> Mark complete
+                    </Button>
+                    <Button
+                      size="1"
+                      variant="soft"
+                      color="gray"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void setAiStatusMutation({ imageId: image._id, status: "failed" })
+                          .then(() => toast.info("Marked failed. You can retry from the failed image."))
+                          .catch(() => toast.error("Failed to update status."));
+                      }}
+                    >
+                      Mark failed
+                    </Button>
+                    <Button
+                      size="1"
+                      variant="soft"
+                      color="blue"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void rerunSmartAnalysisMutation({
+                          imageId: image._id,
+                          storageId: (image as any).storageId,
+                          imageUrl: (image as any).imageUrl,
+                          title: (image as any).title || "Untitled",
+                          description: (image as any).description,
+                          tags: (image as any).tags ?? [],
+                          category: (image as any).category ?? "general",
+                          source: (image as any).source,
+                          sref: (image as any).sref,
+                          group: (image as any).group,
+                          projectName: (image as any).projectName,
+                          moodboardName: (image as any).moodboardName,
+                        })
+                          .then(() => toast.info("Retrying AI analysis…"))
+                          .catch(() => toast.error("Failed to retry."));
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  </Flex>
                 </Box>
                 <Box className="pt-2">
                   <Text weight="bold" size="1" className="block truncate">{(image as any).title || "Untitled"}</Text>
