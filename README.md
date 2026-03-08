@@ -38,6 +38,7 @@ bun run serve
 - Convex production deployment: `tremendous-jaguar-953`
 - Convex client URL: `https://tremendous-jaguar-953.convex.cloud`
 - Convex HTTP/actions URL: `https://tremendous-jaguar-953.convex.site`
+- Discord bot + media gateway deployment source: separate repo `~/Documents/Github/discord-bot`
 
 ## Required Environment Variables
 
@@ -72,16 +73,15 @@ Optional (if needed by tooling/integrations):
 - `bun run build` - Production build (`vite build`)
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
 - `bun run deploy:convex` - Deploy Convex functions
-- `bun run discord:bot` - Run Discord bot process
-- `bun run discord:bot:dry-run` - Register Discord commands and exit
 
 ## Media Upload Pipeline (Convex -> Nextcloud)
 
 - Uploads first land in Convex storage, then `convex/mediaStorage.finalizeUploadedImage` persists to Nextcloud.
 - Nextcloud target path format is:
-  - `pindeck/media-uploads/YYYY/MM/<file>`
-  - `pindeck/media-uploads/YYYY/MM/preview/<file>-preview.<ext>`
-  - `pindeck/media-uploads/YYYY/MM/variants/<file>-w320.webp` (+ `w768`, `w1280`)
+  - `pindeck/media-uploads/YYYY/MM_DD/original/<file>`
+  - `pindeck/media-uploads/YYYY/MM_DD/preview/<file>-preview.<ext>`
+  - `pindeck/media-uploads/YYYY/MM_DD/low/<file>-w320.webp`
+  - `pindeck/media-uploads/YYYY/MM_DD/high/<file>-w768.webp` (+ `w1280`)
 - Directory creation is explicit via WebDAV `MKCOL` before `PUT`.
 
 ### Image record tracking fields
@@ -107,7 +107,12 @@ The mutation targets authenticated user uploads where:
 
 ## Discord Bot (Ingest + Status)
 
-Bot service location: `services/discord-bot`
+The Discord bot and media gateway are hosted/deployed from a separate repo:
+
+- Source of truth: `~/Documents/Github/discord-bot`
+- This `pindeck` repo consumes those services via:
+  - Convex HTTP actions (`/ingestExternal`, `/discordQueue`, `/discordModerate`)
+  - Media gateway endpoint/env wiring (`MEDIA_GATEWAY_URL`, token-based auth)
 
 Typical setup in `.env.local`:
 - `DISCORD_TOKEN`
@@ -120,8 +125,10 @@ Typical setup in `.env.local`:
 
 Run:
 ```bash
-bun install --cwd services/discord-bot
-bun run discord:bot
+# Run from the separate discord-bot repository:
+cd ~/Documents/Github/discord-bot
+bun install
+bun run dev
 ```
 
 ## Deploy
@@ -140,3 +147,4 @@ Use Vercel for frontend deployment. Ensure `VITE_CONVEX_URL` points to productio
 
 - Do not use `convex dev` when targeting production.
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
+- Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.

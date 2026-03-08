@@ -2,6 +2,15 @@
 
 Uploads and imports media into Nextcloud and returns public share links.
 
+## Repository ownership
+
+This folder is reference/legacy in `pindeck`.
+Active hosting and deployment workflow lives in the separate repo:
+
+- `~/Documents/Github/discord-bot`
+
+If docs or implementation diverge, treat the separate repo as source of truth for runtime behavior.
+
 ## Environment
 - `MEDIA_GATEWAY_TOKEN`
 - `NEXTCLOUD_URL`
