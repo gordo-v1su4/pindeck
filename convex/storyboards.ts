@@ -59,6 +59,23 @@ export const createFromBoard = mutation({
       createdAt: Date.now(),
     });
 
+    await ctx.db.insert("generations", {
+      imageId: board.imageIds[0],
+      type: "storyboard",
+      templateId: STORYBOARD_TEMPLATE.id,
+      templateName: "Storyboard Grid 3x2",
+      title: `${board.name} Storyboard`,
+      description: `Generated storyboard from board "${board.name}" (${board.imageIds.length} source images).`,
+      content: JSON.stringify({
+        storyboardId,
+        boardId: board._id,
+        sourceImageIds: board.imageIds,
+        panelCount: panels.length,
+      }),
+      createdBy: userId,
+      createdAt: Date.now(),
+    });
+
     return storyboardId;
   },
 });
