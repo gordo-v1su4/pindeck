@@ -77,6 +77,28 @@ function looksLikeImageUrl(rawUrl: unknown): boolean {
   return /\.(png|jpe?g|webp|gif|bmp|svg|avif)(\?|$)/i.test(value);
 }
 
+function isLikelyRenderableImageUrl(rawUrl: unknown): boolean {
+  const value = String(rawUrl ?? "").trim();
+  if (!value.startsWith("http://") && !value.startsWith("https://")) return false;
+  if (looksLikeImageUrl(value)) return true;
+
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+
+    // FAL and similar CDN/object-storage URLs often omit file extensions.
+    if (host.includes("fal.media")) return true;
+    if (host.includes("cdn.discordapp.com") || host.includes("media.discordapp.net")) return true;
+    if (host.includes("unsplash.com") || host.includes("images.unsplash.com")) return true;
+    if (path.includes("/files/") || path.includes("/attachments/")) return true;
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
 function extractFirstImageUrlFromText(raw: unknown): string | undefined {
   const text = String(raw ?? "");
   if (!text) return undefined;
@@ -108,7 +130,7 @@ function pickRenderableImageUrl(image: any): string | undefined {
   for (const candidate of candidates) {
     if (isPrivateNextcloudWebdavUrl(candidate)) continue;
     if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) continue;
-    if (!looksLikeImageUrl(candidate)) continue;
+    if (!isLikelyRenderableImageUrl(candidate)) continue;
     return candidate;
   }
   return undefined;
