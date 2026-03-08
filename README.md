@@ -70,6 +70,7 @@ Optional (if needed by tooling/integrations):
 
 ## Scripts
 
+- `bun run check:prod-target` - Verify local env is pinned to `tremendous-jaguar-953`
 - `bun run build` - Production build (`vite build`)
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
 - `bun run deploy:convex` - Deploy Convex functions
@@ -148,3 +149,4 @@ Use Vercel for frontend deployment. Ensure `VITE_CONVEX_URL` points to productio
 - Do not use `convex dev` when targeting production.
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
 - Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.
+- `dev`, `build`, `serve`, `lint`, and `deploy:convex` enforce production Convex targets (`tremendous-jaguar-953`) and fail fast otherwise.
