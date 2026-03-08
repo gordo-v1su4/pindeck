@@ -23,8 +23,22 @@ http.route({
   handler: discordQueueHttp,
 });
 
+// Legacy alias used by older discord-bot env configs.
+http.route({
+  path: "/discord/queue",
+  method: "POST",
+  handler: discordQueueHttp,
+});
+
 http.route({
   path: "/discordModerate",
+  method: "POST",
+  handler: discordModerateHttp,
+});
+
+// Legacy alias used by older discord-bot env configs.
+http.route({
+  path: "/discord/moderation",
   method: "POST",
   handler: discordModerateHttp,
 });
