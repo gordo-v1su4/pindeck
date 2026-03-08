@@ -77,6 +77,43 @@ function looksLikeImageUrl(rawUrl: unknown): boolean {
   return /\.(png|jpe?g|webp|gif|bmp|svg|avif)(\?|$)/i.test(value);
 }
 
+function extractFirstImageUrlFromText(raw: unknown): string | undefined {
+  const text = String(raw ?? "");
+  if (!text) return undefined;
+
+  const markdownImageMatch = text.match(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/i);
+  if (markdownImageMatch?.[1] && looksLikeImageUrl(markdownImageMatch[1])) {
+    return markdownImageMatch[1];
+  }
+
+  const urlMatches = text.match(/https?:\/\/[^\s)]+/gi) || [];
+  const found = urlMatches.find((url) => looksLikeImageUrl(url));
+  return found;
+}
+
+function pickRenderableImageUrl(image: any): string | undefined {
+  const candidates = [
+    image?.previewUrl,
+    image?.imageUrl,
+    image?.derivativeUrls?.small,
+    image?.derivativeUrls?.medium,
+    image?.derivativeUrls?.large,
+    image?.sourceUrl,
+    extractFirstImageUrlFromText(image?.description),
+    extractFirstImageUrlFromText(image?.title),
+  ]
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    if (isPrivateNextcloudWebdavUrl(candidate)) continue;
+    if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) continue;
+    if (!looksLikeImageUrl(candidate)) continue;
+    return candidate;
+  }
+  return undefined;
+}
+
 async function resolveLineageRoot(ctx: any, image: any) {
   let current = image;
   let depth = 0;
@@ -682,10 +719,7 @@ export const internalListDiscordQueue = internalQuery({
     for (const image of pending) {
       if (!(await isDiscordLineage(ctx, image))) continue;
       const root = await resolveLineageRoot(ctx, image);
-      const fallbackDisplayUrl =
-        isPrivateNextcloudWebdavUrl(image.imageUrl) && looksLikeImageUrl(image.sourceUrl)
-          ? image.sourceUrl
-          : image.imageUrl;
+      const fallbackDisplayUrl = pickRenderableImageUrl(image) || image.imageUrl;
       filtered.push({
         ...image,
         imageUrl: fallbackDisplayUrl,
@@ -1285,12 +1319,22 @@ export const getPendingImages = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    return await ctx.db
+    const pending = await ctx.db
       .query("images")
       .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
       .filter((q) => q.eq(q.field("status"), "pending"))
       .order("desc")
       .collect();
+
+    return pending.map((image) => {
+      if (image.sourceType !== "discord") return image;
+      const fallbackDisplayUrl = pickRenderableImageUrl(image) || image.imageUrl;
+      return {
+        ...image,
+        imageUrl: fallbackDisplayUrl,
+        previewUrl: image.previewUrl || fallbackDisplayUrl,
+      };
+    });
   },
 });
 
