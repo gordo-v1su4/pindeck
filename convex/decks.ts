@@ -121,23 +121,6 @@ export const createFromBoard = mutation({
       createdAt: Date.now(),
     });
 
-    await ctx.db.insert("generations", {
-      imageId: board.imageIds[0],
-      type: "deck",
-      templateId: DECK_TEMPLATE.id,
-      templateName: "Image Highlight Deck",
-      title: `${board.name} Deck`,
-      description: `Generated deck from board "${board.name}" (${board.imageIds.length} source images).`,
-      content: JSON.stringify({
-        deckId,
-        boardId: board._id,
-        sourceImageIds: board.imageIds,
-        slideCount: slides.length,
-      }),
-      createdBy: userId,
-      createdAt: Date.now(),
-    });
-
     return deckId;
   },
 });
