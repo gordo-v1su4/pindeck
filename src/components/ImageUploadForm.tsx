@@ -69,7 +69,7 @@ export function ImageUploadForm() {
 
   const localPendingImages = (pendingImages || []).filter((img) => img.sourceType !== "discord");
   const discordPendingImages = (pendingImages || []).filter((img) => img.sourceType === "discord");
-  const localDraftImages = (draftImages || []).filter((img) => img.sourceType !== "discord");
+  const localDraftImages = draftImages || [];
 
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);

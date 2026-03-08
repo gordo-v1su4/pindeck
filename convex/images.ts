@@ -800,10 +800,11 @@ export const internalModerateDiscordImage = internalMutation({
         };
       }
 
-      const shouldRunDiscordAnalysis =
-        image.sourceType === "discord" && image.aiStatus === "queued";
+      const isDiscordSource = image.sourceType === "discord";
+      const shouldRunDiscordAnalysis = isDiscordSource && image.aiStatus === "queued";
+      const nextStatus = isDiscordSource ? "draft" : "active";
       await ctx.db.patch(args.imageId, {
-        status: "active",
+        status: nextStatus,
         aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
       });
 
@@ -843,7 +844,7 @@ export const internalModerateDiscordImage = internalMutation({
       return {
         ok: true,
         message: "Image approved.",
-        status: "active",
+        status: nextStatus,
         aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
       };
     }
@@ -875,8 +876,8 @@ export const internalModerateDiscordImage = internalMutation({
       return { ok: true, message: "Image rejected and deleted." };
     }
 
-    if (image.status !== "active") {
-      throw new Error("Image must be approved (active) before generating variations.");
+    if (image.status !== "active" && image.status !== "draft") {
+      throw new Error("Image must be approved before generating variations.");
     }
     if (image.aiStatus === "processing") {
       throw new Error("Image is already processing.");
@@ -1447,10 +1448,11 @@ export const approveImage = mutation({
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
 
-    const shouldRunDiscordAnalysis =
-      image.sourceType === "discord" && image.aiStatus === "queued";
+    const isDiscordSource = image.sourceType === "discord";
+    const shouldRunDiscordAnalysis = isDiscordSource && image.aiStatus === "queued";
+    const nextStatus = isDiscordSource ? "draft" : "active";
     await ctx.db.patch("images", args.imageId, {
-      status: "active",
+      status: nextStatus,
       aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
     });
 
