@@ -70,6 +70,8 @@ export function ImageUploadForm() {
   const localPendingImages = (pendingImages || []).filter((img) => img.sourceType !== "discord");
   const discordPendingImages = (pendingImages || []).filter((img) => img.sourceType === "discord");
   const localDraftImages = draftImages || [];
+  const discordDraftImages = (draftImages || []).filter((img) => img.sourceType === "discord");
+  const discordProcessingImages = (processingImages || []).filter((img) => img.sourceType === "discord");
 
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -575,6 +577,24 @@ export function ImageUploadForm() {
                     </Card>
                   ))}
                 </Grid>
+              )}
+
+              {(discordProcessingImages.length > 0 || discordDraftImages.length > 0) && (
+                <Card className="p-4 mt-4">
+                  <Flex align="center" justify="between" gap="3" wrap="wrap">
+                    <Box>
+                      <Text size="2" weight="medium">
+                        Approved Discord items moved out of queue
+                      </Text>
+                      <Text size="2" color="gray">
+                        {discordProcessingImages.length} processing, {discordDraftImages.length} ready for review/finalize.
+                      </Text>
+                    </Box>
+                    <Button size="1" variant="soft" onClick={() => setActiveUploadTab("local")}>
+                      Open Local Review
+                    </Button>
+                  </Flex>
+                </Card>
               )}
 
               {/* Discord queue image preview modal (click thumbnail to enlarge) */}
