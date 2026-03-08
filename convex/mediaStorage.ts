@@ -260,16 +260,15 @@ async function persistImageBuffer(args: {
     originalExt
   );
   const previewPath = `${directory}/preview/${fileBase}-preview.${preview.extension}`;
-  const derivativePaths = {
-    small: `${directory}/variants/${fileBase}-w320.webp`,
-    medium: `${directory}/variants/${fileBase}-w768.webp`,
-    large: `${directory}/variants/${fileBase}-w1280.webp`,
-  };
   const [smallData, mediumData, largeData] = await Promise.all([
     buildDerivative(args.fileBuffer, 320),
     buildDerivative(args.fileBuffer, 768),
     buildDerivative(args.fileBuffer, 1280),
   ]);
+
+  // If sharp is unavailable, buildDerivative returns the original buffer reference.
+  // Skip derivative uploads in that case to avoid storing corrupted webp-labeled files.
+  const sharpAvailable = smallData !== args.fileBuffer;
 
   const imageUrl = await uploadFile(
     config,
@@ -277,8 +276,25 @@ async function persistImageBuffer(args: {
     args.contentType || "application/octet-stream",
     args.fileBuffer
   );
-  const [previewUrl, smallUrl, mediumUrl, largeUrl] = await Promise.all([
-    uploadFile(config, previewPath, preview.contentType, preview.data),
+  const previewUrl = await uploadFile(config, previewPath, preview.contentType, preview.data);
+
+  if (!sharpAvailable) {
+    return {
+      imageUrl,
+      previewUrl,
+      storagePath: originalPath,
+      previewStoragePath: previewPath,
+      derivativeUrls: { small: imageUrl, medium: imageUrl, large: imageUrl },
+      derivativeStoragePaths: { small: originalPath, medium: originalPath, large: originalPath },
+    };
+  }
+
+  const derivativePaths = {
+    small: `${directory}/variants/${fileBase}-w320.webp`,
+    medium: `${directory}/variants/${fileBase}-w768.webp`,
+    large: `${directory}/variants/${fileBase}-w1280.webp`,
+  };
+  const [smallUrl, mediumUrl, largeUrl] = await Promise.all([
     uploadFile(config, derivativePaths.small, "image/webp", smallData),
     uploadFile(config, derivativePaths.medium, "image/webp", mediumData),
     uploadFile(config, derivativePaths.large, "image/webp", largeData),
@@ -289,11 +305,7 @@ async function persistImageBuffer(args: {
     previewUrl,
     storagePath: originalPath,
     previewStoragePath: previewPath,
-    derivativeUrls: {
-      small: smallUrl,
-      medium: mediumUrl,
-      large: largeUrl,
-    },
+    derivativeUrls: { small: smallUrl, medium: mediumUrl, large: largeUrl },
     derivativeStoragePaths: derivativePaths,
   };
 }

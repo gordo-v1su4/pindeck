@@ -2,11 +2,26 @@ import { v } from "convex/values";
 import { httpAction, query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
 
-function collectNextcloudPaths(image: any): string[] {
+/**
+ * Reject paths that contain traversal sequences or absolute path components.
+ * Throws if the path is unsafe.
+ */
+function assertSafeStoragePath(path: string, field: string): void {
+  const segments = path.split(/[/\\]/);
+  if (segments.some((s) => s === ".." || s === ".")) {
+    throw new Error(`Invalid ${field}: path traversal not allowed`);
+  }
+  if (path.startsWith("/") || path.startsWith("\\")) {
+    throw new Error(`Invalid ${field}: absolute paths not allowed`);
+  }
+}
+
+function collectNextcloudPaths(image: Partial<Doc<"images">>): string[] {
   return [
     image?.storagePath,
     image?.previewStoragePath,
@@ -322,6 +337,14 @@ export const createExternal = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Must be logged in to create images");
+    }
+
+    if (args.storagePath) assertSafeStoragePath(args.storagePath, "storagePath");
+    if (args.previewStoragePath) assertSafeStoragePath(args.previewStoragePath, "previewStoragePath");
+    if (args.derivativeStoragePaths) {
+      assertSafeStoragePath(args.derivativeStoragePaths.small, "derivativeStoragePaths.small");
+      assertSafeStoragePath(args.derivativeStoragePaths.medium, "derivativeStoragePaths.medium");
+      assertSafeStoragePath(args.derivativeStoragePaths.large, "derivativeStoragePaths.large");
     }
 
     if (args.externalId) {
