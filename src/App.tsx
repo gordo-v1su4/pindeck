@@ -6,14 +6,23 @@ import { Toaster } from "sonner";
 import { ImageGrid } from "./components/ImageGrid";
 import { SearchBar } from "./components/SearchBar";
 import { CategoryFilter } from "./components/CategoryFilter";
-import { ImageUploadForm } from "./components/ImageUploadForm";
-import { BoardsView } from "./components/BoardsView";
-import { TableView } from "./components/TableView";
-import { DeckView } from "./components/DeckView";
 import { Box, Text, Flex, Spinner, Button, Tabs } from "@radix-ui/themes";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { ImageIcon, UploadIcon, BookmarkIcon, GridIcon } from "@radix-ui/react-icons";
 import type { Id } from "../convex/_generated/dataModel";
+
+const ImageUploadForm = lazy(() =>
+  import("./components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
+);
+const BoardsView = lazy(() =>
+  import("./components/BoardsView").then((mod) => ({ default: mod.BoardsView }))
+);
+const TableView = lazy(() =>
+  import("./components/TableView").then((mod) => ({ default: mod.TableView }))
+);
+const DeckView = lazy(() =>
+  import("./components/DeckView").then((mod) => ({ default: mod.DeckView }))
+);
 
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -174,17 +183,31 @@ export default function App() {
                 incrementBoardVersion={incrementBoardVersion}
               />
             )}
-            {activeTab === "upload" && <ImageUploadForm />}
-            {activeTab === "boards" && <BoardsView 
-                                        key={boardVersion} 
-                                        setActiveTab={setActiveTab} 
-                                        incrementBoardVersion={incrementBoardVersion}
-                                        onDeckCreated={openDeckTab}
-                                      />}
-            {activeTab === "deck" && (
-              <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
+            {activeTab === "upload" && (
+              <Suspense fallback={<Flex justify="center" align="center" className="min-h-[30vh]"><Spinner size="3" /></Flex>}>
+                <ImageUploadForm />
+              </Suspense>
             )}
-            {activeTab === "table" && <TableView />}
+            {activeTab === "boards" && (
+              <Suspense fallback={<Flex justify="center" align="center" className="min-h-[30vh]"><Spinner size="3" /></Flex>}>
+                <BoardsView
+                  key={boardVersion}
+                  setActiveTab={setActiveTab}
+                  incrementBoardVersion={incrementBoardVersion}
+                  onDeckCreated={openDeckTab}
+                />
+              </Suspense>
+            )}
+            {activeTab === "deck" && (
+              <Suspense fallback={<Flex justify="center" align="center" className="min-h-[30vh]"><Spinner size="3" /></Flex>}>
+                <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
+              </Suspense>
+            )}
+            {activeTab === "table" && (
+              <Suspense fallback={<Flex justify="center" align="center" className="min-h-[30vh]"><Spinner size="3" /></Flex>}>
+                <TableView />
+              </Suspense>
+            )}
           </>
         ) : (
           <Content 

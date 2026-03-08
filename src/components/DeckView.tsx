@@ -1,9 +1,11 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Box, Card, Flex, Text, Button, Badge } from "@radix-ui/themes";
 import type { Id } from "../../convex/_generated/dataModel";
-import { DeckComposer } from "./deck/DeckComposer";
+const DeckComposer = lazy(() =>
+  import("./deck/DeckComposer").then((mod) => ({ default: mod.DeckComposer }))
+);
 
 export function DeckView({
   selectedDeckId,
@@ -91,7 +93,15 @@ export function DeckView({
             <Text color="gray">Loading selected deck...</Text>
           </Card>
         ) : deck ? (
-          <DeckComposer deck={deck} />
+          <Suspense
+            fallback={
+              <Card className="p-8 text-center bg-gray-900/20 border border-gray-700">
+                <Text color="gray">Loading deck editor...</Text>
+              </Card>
+            }
+          >
+            <DeckComposer deck={deck} />
+          </Suspense>
         ) : (
           <Card className="p-8 text-center bg-gray-900/20 border border-gray-700">
             <Text color="gray">Deck not found or inaccessible.</Text>
