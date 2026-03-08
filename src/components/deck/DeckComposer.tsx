@@ -5,10 +5,6 @@ import {
   useRef,
   useState,
 } from "react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Box, Button, Card, Flex, Text } from "@radix-ui/themes";
 import { toast } from "sonner";
 import { DeckSection } from "./DeckSection";
@@ -21,8 +17,6 @@ import type {
 import { cn } from "./utils/cn";
 import { defaultColors, extractColors } from "./utils/colorExtractor";
 import type { Id } from "../../../convex/_generated/dataModel";
-
-gsap.registerPlugin(ScrollTrigger);
 
 type DeckSlide = {
   imageId: Id<"images">;
@@ -674,6 +668,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
 
       const pageWidth = 1920;
       const pageHeight = 1080;
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "px",
@@ -739,6 +737,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     toast.info("Generating PNG...");
 
     try {
+      const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(previewRef.current, {
         scale: 2,
         useCORS: true,
@@ -762,74 +761,83 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const visibleBlocks = blocks.filter((b) => b.visible);
 
   useEffect(() => {
-    if (previewMode !== "html") {
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-      return;
-    }
+    let cleanup: (() => void) | undefined;
+    if (previewMode !== "html") return;
 
     const timeout = setTimeout(() => {
-      const container = htmlPreviewRef.current;
-      if (!container) return;
+      void (async () => {
+        const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
+          import("gsap"),
+          import("gsap/ScrollTrigger"),
+        ]);
+        gsap.registerPlugin(ScrollTrigger);
 
-      const slides = container.querySelectorAll(".slide-block");
-      if (!slides.length) return;
+        const container = htmlPreviewRef.current;
+        if (!container) return;
 
-      slides.forEach((slide) => {
-        gsap.set(slide, { opacity: 1, y: 0, scale: 1, rotateX: 0 });
-      });
+        const slides = container.querySelectorAll(".slide-block");
+        if (!slides.length) return;
 
-      slides.forEach((slide, index) => {
-        const isEven = index % 2 === 0;
-        const isThird = index % 3 === 0;
-
-        let fromVars: gsap.TweenVars;
-        let toVars: gsap.TweenVars;
-
-        if (index === 0) {
-          fromVars = { opacity: 0, scale: 0.85, y: 30 };
-          toVars = { opacity: 1, scale: 1, y: 0, duration: 1.2, ease: "power4.out" };
-        } else if (isThird) {
-          fromVars = { opacity: 0, x: isEven ? -60 : 60 };
-          toVars = { opacity: 1, x: 0, duration: 0.8, ease: "power3.out" };
-        } else {
-          fromVars = { opacity: 0, y: 50 };
-          toVars = { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" };
-        }
-
-        gsap.fromTo(slide, fromVars, {
-          ...toVars,
-          scrollTrigger: {
-            trigger: slide,
-            start: "top 85%",
-            end: "top 20%",
-            toggleActions: "play none none reverse",
-            scrub: index === 0 ? false : 0.3,
-          },
+        slides.forEach((slide) => {
+          gsap.set(slide, { opacity: 1, y: 0, scale: 1, rotateX: 0 });
         });
 
-        const bgImage = slide.querySelector('[style*="background-image"]');
-        if (bgImage) {
-          gsap.fromTo(
-            bgImage,
-            { yPercent: -8 },
-            {
-              yPercent: 8,
-              ease: "none",
-              scrollTrigger: {
-                trigger: slide,
-                start: "top bottom",
-                end: "bottom top",
-                scrub: true,
-              },
-            }
-          );
-        }
-      });
+        slides.forEach((slide, index) => {
+          const isEven = index % 2 === 0;
+          const isThird = index % 3 === 0;
+
+          let fromVars: any;
+          let toVars: any;
+
+          if (index === 0) {
+            fromVars = { opacity: 0, scale: 0.85, y: 30 };
+            toVars = { opacity: 1, scale: 1, y: 0, duration: 1.2, ease: "power4.out" };
+          } else if (isThird) {
+            fromVars = { opacity: 0, x: isEven ? -60 : 60 };
+            toVars = { opacity: 1, x: 0, duration: 0.8, ease: "power3.out" };
+          } else {
+            fromVars = { opacity: 0, y: 50 };
+            toVars = { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" };
+          }
+
+          gsap.fromTo(slide, fromVars, {
+            ...toVars,
+            scrollTrigger: {
+              trigger: slide,
+              start: "top 85%",
+              end: "top 20%",
+              toggleActions: "play none none reverse",
+              scrub: index === 0 ? false : 0.3,
+            },
+          });
+
+          const bgImage = slide.querySelector('[style*="background-image"]');
+          if (bgImage) {
+            gsap.fromTo(
+              bgImage,
+              { yPercent: -8 },
+              {
+                yPercent: 8,
+                ease: "none",
+                scrollTrigger: {
+                  trigger: slide,
+                  start: "top bottom",
+                  end: "bottom top",
+                  scrub: true,
+                },
+              }
+            );
+          }
+        });
+        cleanup = () => {
+          ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+        };
+      })();
     }, 150);
 
     return () => {
       clearTimeout(timeout);
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+      cleanup?.();
     };
   }, [previewMode, blocks, visibleBlocks.length]);
 
