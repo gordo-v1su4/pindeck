@@ -707,8 +707,9 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
   }
 
   // Discord queue cards should stay visible even when Nextcloud WebDAV URLs are not
-  // publicly readable in the browser. Keep display URLs on the source image URL.
-  if (body.sourceType === "discord") {
+  // publicly readable in the browser. Prefer the source URL only when it looks
+  // like a directly renderable image; otherwise keep persisted/fallback URLs.
+  if (body.sourceType === "discord" && isLikelyRenderableImageUrl(sourceImageUrl)) {
     resolvedImageUrl = sourceImageUrl;
     resolvedPreviewUrl = sourceImageUrl;
   }
