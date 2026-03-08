@@ -43,6 +43,20 @@ http.route({
   handler: discordModerateHttp,
 });
 
+// Legacy malformed alias from older bot URL concatenation logic.
+http.route({
+  path: "/discord/moderation/discordModerate",
+  method: "POST",
+  handler: discordModerateHttp,
+});
+
+// Legacy malformed alias from older bot URL concatenation logic.
+http.route({
+  path: "/discord/queue/discordQueue",
+  method: "POST",
+  handler: discordQueueHttp,
+});
+
 auth.addHttpRoutes(http);
 
 export default http;
