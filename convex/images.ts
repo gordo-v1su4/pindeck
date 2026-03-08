@@ -114,6 +114,22 @@ function pickRenderableImageUrl(image: any): string | undefined {
   return undefined;
 }
 
+function mapImageForDisplay<T extends Record<string, any>>(image: T): T {
+  const fallbackDisplayUrl = pickRenderableImageUrl(image);
+  if (!fallbackDisplayUrl) return image;
+
+  const shouldReplaceImageUrl =
+    !image.imageUrl ||
+    isPrivateNextcloudWebdavUrl(image.imageUrl) ||
+    !String(image.imageUrl).startsWith("http");
+
+  return {
+    ...image,
+    imageUrl: shouldReplaceImageUrl ? fallbackDisplayUrl : image.imageUrl,
+    previewUrl: image.previewUrl || fallbackDisplayUrl,
+  } as T;
+}
+
 async function resolveLineageRoot(ctx: any, image: any) {
   let current = image;
   let depth = 0;
@@ -208,10 +224,10 @@ export const list = query({
           isLiked = !!like;
         }
         
-        return {
+        return mapImageForDisplay({
           ...image,
           isLiked,
-        };
+        });
       })
     );
 
@@ -284,10 +300,10 @@ export const search = query({
           isLiked = !!like;
         }
         
-        return {
+        return mapImageForDisplay({
           ...image,
           isLiked,
-        };
+        });
       })
     );
 
@@ -315,10 +331,10 @@ export const getById = query({
       isLiked = !!like;
     }
 
-    return {
+    return mapImageForDisplay({
       ...image,
       isLiked,
-    };
+    });
   },
 });
 
@@ -719,11 +735,8 @@ export const internalListDiscordQueue = internalQuery({
     for (const image of pending) {
       if (!(await isDiscordLineage(ctx, image))) continue;
       const root = await resolveLineageRoot(ctx, image);
-      const fallbackDisplayUrl = pickRenderableImageUrl(image) || image.imageUrl;
       filtered.push({
-        ...image,
-        imageUrl: fallbackDisplayUrl,
-        previewUrl: image.previewUrl || fallbackDisplayUrl,
+        ...mapImageForDisplay(image),
         lineageRootImageId: root?._id,
         lineageRootTitle: root?.title,
       });
@@ -1237,12 +1250,13 @@ export const getDraftImages = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    return await ctx.db
+    const drafts = await ctx.db
       .query("images")
       .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
       .filter((q) => q.eq(q.field("status"), "draft"))
       .order("desc")
       .collect();
+    return drafts.map((img) => mapImageForDisplay(img));
   },
 });
 
@@ -1279,7 +1293,9 @@ export const getProcessingImages = query({
 
     // Hide very old "processing" items from the active queue.
     const staleCutoffMs = Date.now() - 18 * 60 * 60 * 1000;
-    return allProcessing.filter((img) => (img.uploadedAt ?? 0) >= staleCutoffMs);
+    return allProcessing
+      .filter((img) => (img.uploadedAt ?? 0) >= staleCutoffMs)
+      .map((img) => mapImageForDisplay(img));
   },
 });
 
@@ -1326,15 +1342,7 @@ export const getPendingImages = query({
       .order("desc")
       .collect();
 
-    return pending.map((image) => {
-      if (image.sourceType !== "discord") return image;
-      const fallbackDisplayUrl = pickRenderableImageUrl(image) || image.imageUrl;
-      return {
-        ...image,
-        imageUrl: fallbackDisplayUrl,
-        previewUrl: image.previewUrl || fallbackDisplayUrl,
-      };
-    });
+    return pending.map((image) => mapImageForDisplay(image));
   },
 });
 
@@ -1746,6 +1754,7 @@ export const internalSaveGeneratedImages = internalMutation({
     originalImageId: v.id("images"),
     images: v.array(v.object({
       url: v.string(),
+      sourceUrl: v.optional(v.string()),
       previewUrl: v.optional(v.string()),
       storagePath: v.optional(v.string()),
       previewStoragePath: v.optional(v.string()),
@@ -1796,7 +1805,7 @@ export const internalSaveGeneratedImages = internalMutation({
         views: 0,
         source: "AI Generation",
         sourceType: inheritedSourceType,
-        sourceUrl: originalImage.sourceUrl || root?.sourceUrl,
+        sourceUrl: img.sourceUrl || originalImage.sourceUrl || root?.sourceUrl,
         // Inherit group, projectName, moodboardName, uniqueId from parent
         group: originalImage.group,
         projectName: originalImage.projectName,

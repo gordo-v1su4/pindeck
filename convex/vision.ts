@@ -304,6 +304,7 @@ export const internalGenerateRelatedImages = internalAction({
           // Fallback: keep generated URL so user flow is not blocked if Nextcloud is unavailable.
           generatedImages.push({
             url: validUrls[i],
+            sourceUrl: validUrls[i],
             previewUrl: undefined,
             storagePath: undefined,
             previewStoragePath: undefined,
@@ -317,6 +318,7 @@ export const internalGenerateRelatedImages = internalAction({
 
         generatedImages.push({
           url: persisted.imageUrl,
+          sourceUrl: validUrls[i],
           previewUrl: persisted.previewUrl,
           storagePath: persisted.storagePath,
           previewStoragePath: persisted.previewStoragePath,
@@ -329,6 +331,7 @@ export const internalGenerateRelatedImages = internalAction({
         console.error(`Failed to save generated image ${i}:`, err);
         generatedImages.push({
           url: validUrls[i],
+          sourceUrl: validUrls[i],
           previewUrl: undefined,
           storagePath: undefined,
           previewStoragePath: undefined,
