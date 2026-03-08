@@ -225,14 +225,27 @@ async function buildDerivative(buffer: Buffer, width: number): Promise<Buffer> {
     .toBuffer();
 }
 
+let sharpLoader: Promise<((input: Buffer) => any) | null> | null = null;
+let sharpWarnedUnavailable = false;
+
 async function loadSharp(): Promise<((input: Buffer) => any) | null> {
-  try {
-    const mod: any = await import("sharp");
-    return (mod?.default || mod) as (input: Buffer) => any;
-  } catch (error) {
-    console.warn("Sharp unavailable in runtime; using original buffer for preview/derivatives", error);
-    return null;
+  if (!sharpLoader) {
+    sharpLoader = (async () => {
+      try {
+        const mod: any = await import("sharp");
+        return (mod?.default || mod) as (input: Buffer) => any;
+      } catch {
+        if (!sharpWarnedUnavailable) {
+          sharpWarnedUnavailable = true;
+          console.warn(
+            "Sharp unavailable in runtime; using original buffer for preview/derivatives."
+          );
+        }
+        return null;
+      }
+    })();
   }
+  return await sharpLoader;
 }
 
 async function persistImageBuffer(args: {
