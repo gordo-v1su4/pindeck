@@ -297,7 +297,10 @@ export const internalGenerateRelatedImages = internalAction({
         });
 
         if (!persisted.ok) {
-          console.warn(`Failed to persist generated image ${i + 1}: ${persisted.error}`);
+          const isNextcloudUnconfigured = /Missing Nextcloud env|Nextcloud not configured/i.test(persisted.error);
+          if (!isNextcloudUnconfigured) {
+            console.warn(`Failed to persist generated image ${i + 1}: ${persisted.error}`);
+          }
           // Fallback: keep generated URL so user flow is not blocked if Nextcloud is unavailable.
           generatedImages.push({
             url: validUrls[i],

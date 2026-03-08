@@ -91,11 +91,11 @@ export const list = query({
     if (args.group && args.category) {
       images = await ctx.db
         .query("images")
-        .withIndex("by_group", (q) => q.eq("group", args.group!))
+        .withIndex("by_group", (q) => q.eq("group", args.group))
         .filter((q) =>
           q.and(
             statusFilter(q),
-            q.eq(q.field("category"), args.category!)
+            q.eq(q.field("category"), args.category)
           )
         )
         .order("desc")
@@ -103,14 +103,15 @@ export const list = query({
     } else if (args.group) {
       images = await ctx.db
         .query("images")
-        .withIndex("by_group", (q) => q.eq("group", args.group!))
+        .withIndex("by_group", (q) => q.eq("group", args.group))
         .filter(statusFilter)
         .order("desc")
         .take(args.limit || 50);
     } else if (args.category) {
+      const category = args.category;
       images = await ctx.db
         .query("images")
-        .withIndex("by_category", (q) => q.eq("category", args.category!))
+        .withIndex("by_category", (q) => q.eq("category", category))
         .filter(statusFilter)
         .order("desc")
         .take(args.limit || 50);
@@ -164,26 +165,30 @@ export const search = query({
     
     let images;
     if (args.category && args.group) {
+      const category = args.category;
+      const group = args.group;
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) =>
-          q.search("title", args.searchTerm).eq("category", args.category!).eq("group", args.group!)
+          q.search("title", args.searchTerm).eq("category", category).eq("group", group)
         )
         .filter(statusFilter)
         .take(50);
     } else if (args.category) {
+      const category = args.category;
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) =>
-          q.search("title", args.searchTerm).eq("category", args.category!)
+          q.search("title", args.searchTerm).eq("category", category)
         )
         .filter(statusFilter)
         .take(50);
     } else if (args.group) {
+      const group = args.group;
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) =>
-          q.search("title", args.searchTerm).eq("group", args.group!)
+          q.search("title", args.searchTerm).eq("group", group)
         )
         .filter(statusFilter)
         .take(50);
@@ -580,7 +585,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
   }
 
   const imageId = await ctx.runMutation(internal.images.ingestExternal, {
-    userId: resolvedUserId as any,
+    userId: resolvedUserId,
     title: body.title || "Discord Import",
     description: body.description,
     imageUrl: resolvedImageUrl,
@@ -819,7 +824,7 @@ export const discordQueueHttp = httpAction(async (ctx, request) => {
   const limitRaw = Number.parseInt(String(body?.limit ?? ""), 10);
   const limit = Number.isNaN(limitRaw) ? 5 : limitRaw;
   let items = await ctx.runQuery(internalApi.images.internalListDiscordQueue, {
-    userId: resolvedUserId as any,
+    userId: resolvedUserId,
     limit,
   });
 
@@ -863,8 +868,8 @@ export const discordModerateHttp = httpAction(async (ctx, request) => {
 
   try {
     const result = await ctx.runMutation(internalApi.images.internalModerateDiscordImage, {
-      userId: resolvedUserId as any,
-      imageId: imageId as any,
+      userId: resolvedUserId,
+      imageId,
       action,
       variationCount: body?.variationCount,
       modificationMode: body?.modificationMode,
@@ -1038,21 +1043,49 @@ export const uploadMultiple = mutation({
 
     const results = await Promise.all(
       args.uploads.map(async (upload) => {
-        // Temporary Convex URL is used only until the file is persisted to Nextcloud.
-        const imageUrl = await ctx.storage.getUrl(upload.storageId);
-        if (!imageUrl) {
-          throw new Error("Failed to get image URL");
+        // First get the Convex storage URL temporarily
+        const tempUrl = await ctx.storage.getUrl(upload.storageId);
+        if (!tempUrl) {
+          throw new Error("Failed to get temporary image URL");
         }
 
-        const tags = [...new Set([...upload.tags, "original"])];
+        // Download the file from Convex storage
+        const response = await fetch(tempUrl);
+        if (!response.ok) {
+          throw new Error("Failed to download image from Convex storage");
+        }
+        const buffer = await response.arrayBuffer();
 
-        // Create the image record in draft state while Nextcloud persistence runs asynchronously.
+        // Upload to NextCloud via media gateway
+        const mediaGatewayUrl = process.env.MEDIA_GATEWAY_URL || "http://localhost:4545";
+        const formData = new FormData();
+        formData.append("file", new Blob([buffer]), upload.title || "image.png");
+        formData.append("userId", userId);
+
+        const uploadResponse = await fetch(`${mediaGatewayUrl}/upload`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.MEDIA_GATEWAY_TOKEN}`,
+          },
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          throw new Error(`Failed to upload to NextCloud: ${uploadResponse.status} ${errorText}`);
+        }
+
+        const uploadResult = await uploadResponse.json();
+        const nextcloudUrl = uploadResult.publicUrl;
+
+        // Create the image record with NextCloud URL
         const imageId = await ctx.db.insert("images", {
           title: upload.title,
           description: upload.description,
-          imageUrl,
-          storageId: upload.storageId,
-          tags,
+          imageUrl: nextcloudUrl,
+          storageId: upload.storageId, // Keep for cleanup later
+          storagePath: uploadResult.path,
+          tags: [...upload.tags, "original"], // Tag as original user upload
           category: upload.category,
           source: upload.source,
           sref: upload.sref,
@@ -1083,7 +1116,7 @@ export const uploadMultiple = mutation({
             moodboardName: upload.moodboardName,
             title: upload.title,
             description: upload.description,
-            tags,
+            tags: upload.tags,
             category: upload.category,
             source: upload.source,
             sref: upload.sref || undefined,
@@ -1527,6 +1560,25 @@ export const updateImageMetadata = mutation({
     await ctx.db.patch("images", args.imageId, patch);
 
     return { success: true };
+  },
+});
+
+/** Let the user mark an image's AI status (e.g. "completed" or "failed") to unstick stuck processing. */
+export const setAiStatus = mutation({
+  args: {
+    imageId: v.id("images"),
+    status: v.union(v.literal("completed"), v.literal("failed")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const image = await ctx.db.get("images", args.imageId);
+    if (!image || image.uploadedBy !== userId) {
+      throw new Error("Image not found or not yours");
+    }
+    await ctx.db.patch("images", args.imageId, { aiStatus: args.status });
+    return null;
   },
 });
 

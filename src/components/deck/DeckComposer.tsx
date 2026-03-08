@@ -11,7 +11,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Box, Button, Card, Flex, Text } from "@radix-ui/themes";
 import { toast } from "sonner";
-import { renderBlock, renderDivider } from "./BlockComponents";
+import { DeckSection } from "./DeckSection";
 import type {
   BlockData,
   ColorPalette,
@@ -376,6 +376,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const [styleVariant, setStyleVariant] = useState<StyleVariant>("cinematic");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("html");
   const [imageOverlay, setImageOverlay] = useState<number>(55);
+  const [sectionTheme, setSectionTheme] = useState<"cinematic" | "minimal">("cinematic");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -392,6 +393,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     setColors(stylePresets.cinematic);
     setImageOverlay(55);
     setPreviewMode("html");
+    setSectionTheme("cinematic");
   }, [sourceImages, deck.title, sourceImageTitles]);
 
   useEffect(() => {
@@ -416,6 +418,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       setStyleVariant(saved.styleVariant ?? "cinematic");
       setImageOverlay(typeof saved.imageOverlay === "number" ? saved.imageOverlay : 55);
       setPreviewMode(saved.previewMode === "pdf" ? "pdf" : "html");
+      setSectionTheme(saved.sectionTheme === "minimal" ? "minimal" : "cinematic");
     } catch {
       resetToDeckDefaults();
     }
@@ -434,6 +437,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
             styleVariant,
             imageOverlay,
             previewMode,
+            sectionTheme,
           })
         );
         setHasUnsavedChanges(false);
@@ -1123,6 +1127,36 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 All Layout B
               </button>
             </div>
+
+            <div className="mt-4 pt-3 border-t border-white/10">
+              <label className="text-[10px] text-white/50 uppercase tracking-[0.15em] block mb-2">
+                Section theme (TMP)
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => setSectionTheme("cinematic")}
+                  className={cn(
+                    "px-2 py-1 text-[10px] uppercase tracking-wide border",
+                    sectionTheme === "cinematic"
+                      ? "border-amber-500 text-amber-300"
+                      : "border-white/20 text-white/70 hover:border-white/30"
+                  )}
+                >
+                  Cinematic
+                </button>
+                <button
+                  onClick={() => setSectionTheme("minimal")}
+                  className={cn(
+                    "px-2 py-1 text-[10px] uppercase tracking-wide border",
+                    sectionTheme === "minimal"
+                      ? "border-amber-500 text-amber-300"
+                      : "border-white/20 text-white/70 hover:border-white/30"
+                  )}
+                >
+                  Minimal
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="p-4">
@@ -1193,19 +1227,17 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 </Card>
               ) : (
                 visibleBlocks.map((block, index) => (
-                  <Box key={block.id} className="slide-block">
-                    {renderBlock(
-                      block,
-                      colors,
-                      referenceImages,
-                      isEditing,
-                      handleBlockUpdate,
-                      styleConfigs[styleVariant],
-                      styleVariant,
-                      imageOverlay
-                    )}
-                    {index < visibleBlocks.length - 1 &&
-                      renderDivider(colors, styleConfigs[styleVariant], styleVariant)}
+                  <Box key={block.id} className="slide-block" style={{ background: colors.dark }}>
+                    <DeckSection
+                      block={block}
+                      index={index}
+                      theme={sectionTheme}
+                      colors={colors}
+                      imageUrl={referenceImages[index % referenceImages.length] ?? null}
+                      isEditing={isEditing}
+                      onUpdate={handleBlockUpdate}
+                      dataGsap={true}
+                    />
                   </Box>
                 ))
               )}

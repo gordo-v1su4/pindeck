@@ -7,8 +7,16 @@ set -euo pipefail
 #   bash ./scripts/kill-port.sh 4173
 PORT="${PORT:-${1:-4173}}"
 
+# Windows (Git Bash / MSYS / MINGW): use PowerShell script so port is killed reliably
+if [[ "$OSTYPE" == msys* ]] || [[ "$OSTYPE" == cygwin ]] || [[ "$OS" == Windows_NT ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  powershell.exe -ExecutionPolicy Bypass -File "$SCRIPT_DIR/kill-port.ps1"
+  exit 0
+fi
+
+# Unix: lsof or netstat
 if command -v lsof >/dev/null 2>&1; then
-  PIDS="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN || true)"
+  PIDS="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
 elif command -v netstat >/dev/null 2>&1; then
   PIDS="$(netstat -anv 2>/dev/null | awk -v p=".$PORT" '$0 ~ p && $0 ~ /LISTEN/ {print $9}' | tr '\n' ' ' || true)"
 else
@@ -23,7 +31,7 @@ fi
 
 for PID in $PIDS; do
   if [ -n "$PID" ]; then
-    kill -9 "$PID" >/dev/null 2>&1 || true
+    kill -9 "$PID" 2>/dev/null || true
     echo "Killed process $PID on port $PORT"
   fi
 done

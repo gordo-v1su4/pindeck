@@ -1,5 +1,5 @@
-# Kill any process using port 3000
-$port = 3000
+# Kill any process using port (defaults to 3000)
+$port = if ($env:PORT) { [int]$env:PORT } else { 3000 }
 $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
 
 if ($connections) {

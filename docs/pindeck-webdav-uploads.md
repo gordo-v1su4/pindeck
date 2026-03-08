@@ -73,3 +73,67 @@ pindeck/media-uploads/<yyyy>/<mm>/<file-name>
 - `PROPFIND` optional, for existence checks and listing
 
 If `MKCOL` returns "already exists", treat that as success and continue.
+
+---
+
+## Nextcloud media folder structure (backend)
+
+All persisted images (uploads and AI-generated) go under the upload prefix, organized by **year/month**. Each image has:
+
+- **Full/original** — same resolution and format as uploaded or generated (e.g. PNG, JPG, WebP).
+- **Preview (low-res)** — JPEG, max width 800px, stored in a `preview/` subfolder under the same year/month.
+
+Naming:
+
+- Original: `{uploadPrefix}/{yyyy}/{mm}/{title-slug}-{timestamp36}-{nonce}.{ext}`
+- Preview: `{uploadPrefix}/{yyyy}/{mm}/preview/{title-slug}-{timestamp36}-{nonce}-preview.jpg`
+
+`title-slug` is kebab-case from the image title (or filename); `timestamp36` and `nonce` make the path unique.
+
+### Mermaid diagram
+
+```mermaid
+flowchart TB
+  subgraph root["WebDAV root (e.g. .../files/gordo)"]
+    P["pindeck"]
+  end
+  P --> MU["media-uploads"]
+  MU --> Y["yyyy (e.g. 2026)"]
+  Y --> M["mm (e.g. 03)"]
+  M --> ORIG["original files<br/><slug>-<ts>-<nonce>.jpg"]
+  M --> PREVDIR["preview/"]
+  PREVDIR --> PREV["<slug>-<ts>-<nonce>-preview.jpg"]
+```
+
+### ASCII layout
+
+```text
+pindeck/
+└── media-uploads/                    # NEXTCLOUD_UPLOAD_PREFIX
+    └── 2026/
+        └── 03/
+            ├── my-title-m3abc12-xyz.jpg      # full/original (uploaded or generated)
+            ├── another-one-m3def34-abc.png
+            └── preview/
+                ├── my-title-m3abc12-xyz-preview.jpg   # low-res JPEG, max width 800
+                └── another-one-m3def34-abc-preview.jpg
+```
+
+### Summary
+
+| Item        | Location pattern                                                                 | Format / resolution      |
+|------------|-----------------------------------------------------------------------------------|--------------------------|
+| Original   | `{prefix}/{yyyy}/{mm}/{slug}-{ts}-{nonce}.{ext}`                                  | As uploaded/generated    |
+| Preview    | `{prefix}/{yyyy}/{mm}/preview/{slug}-{ts}-{nonce}-preview.jpg`                    | JPEG, max width 800 px   |
+
+Convex stores `storagePath` and `previewStoragePath` on each image document for cleanup on delete.
+
+### Testing persistence (no test files left behind)
+
+To verify Nextcloud env and connectivity, run the self-cleaning test from the project root:
+
+```bash
+npx convex run mediaStorage:testNextcloudPersistence "{}"
+```
+
+It uploads a small file under `_test/`, verifies it with a GET, then deletes it. Expect `{ "ok": true }` on success.
