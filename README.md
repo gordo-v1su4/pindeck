@@ -75,6 +75,36 @@ Optional (if needed by tooling/integrations):
 - `bun run discord:bot` - Run Discord bot process
 - `bun run discord:bot:dry-run` - Register Discord commands and exit
 
+## Media Upload Pipeline (Convex -> Nextcloud)
+
+- Uploads first land in Convex storage, then `convex/mediaStorage.finalizeUploadedImage` persists to Nextcloud.
+- Nextcloud target path format is:
+  - `pindeck/media-uploads/YYYY/MM/<file>`
+  - `pindeck/media-uploads/YYYY/MM/preview/<file>-preview.<ext>`
+  - `pindeck/media-uploads/YYYY/MM/variants/<file>-w320.webp` (+ `w768`, `w1280`)
+- Directory creation is explicit via WebDAV `MKCOL` before `PUT`.
+
+### Image record tracking fields
+
+Each image now carries persistence status for observability:
+- `nextcloudPersistStatus`: `pending` | `succeeded` | `failed`
+- `nextcloudPersistError`: error message when persist failed
+- `derivativeUrls`: `{ small, medium, large }` (when available)
+- `derivativeStoragePaths`: `{ small, medium, large }` (when available)
+
+### Backfill Convex-only uploads
+
+Use the mutation below to reschedule persistence for uploads still in Convex storage:
+
+```bash
+bunx convex run images:backfillNextcloudFailedUploads '{"limit":50}'
+```
+
+The mutation targets authenticated user uploads where:
+- `sourceType = "upload"`
+- `storageProvider = "convex"`
+- `storageId` is still present
+
 ## Discord Bot (Ingest + Status)
 
 Bot service location: `services/discord-bot`

@@ -307,6 +307,8 @@ export const internalGenerateRelatedImages = internalAction({
             previewUrl: undefined,
             storagePath: undefined,
             previewStoragePath: undefined,
+            derivativeUrls: undefined,
+            derivativeStoragePaths: undefined,
             title: parentTitle,
             description: args.description,
           });
@@ -318,6 +320,8 @@ export const internalGenerateRelatedImages = internalAction({
           previewUrl: persisted.previewUrl,
           storagePath: persisted.storagePath,
           previewStoragePath: persisted.previewStoragePath,
+          derivativeUrls: persisted.derivativeUrls,
+          derivativeStoragePaths: persisted.derivativeStoragePaths,
           title: parentTitle,
           description: args.description,
         });
@@ -328,6 +332,8 @@ export const internalGenerateRelatedImages = internalAction({
           previewUrl: undefined,
           storagePath: undefined,
           previewStoragePath: undefined,
+          derivativeUrls: undefined,
+          derivativeStoragePaths: undefined,
           title: parentTitle,
           description: args.description,
         });

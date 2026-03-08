@@ -2,12 +2,33 @@ import { v } from "convex/values";
 import { httpAction, query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
 
-function collectNextcloudPaths(image: any): string[] {
-  return [image?.storagePath, image?.previewStoragePath].filter(
+/**
+ * Reject paths that contain traversal sequences or absolute path components.
+ * Throws if the path is unsafe.
+ */
+function assertSafeStoragePath(path: string, field: string): void {
+  const segments = path.split(/[/\\]/);
+  if (segments.some((s) => s === ".." || s === ".")) {
+    throw new Error(`Invalid ${field}: path traversal not allowed`);
+  }
+  if (path.startsWith("/") || path.startsWith("\\")) {
+    throw new Error(`Invalid ${field}: absolute paths not allowed`);
+  }
+}
+
+function collectNextcloudPaths(image: Partial<Doc<"images">>): string[] {
+  return [
+    image?.storagePath,
+    image?.previewStoragePath,
+    image?.derivativeStoragePaths?.small,
+    image?.derivativeStoragePaths?.medium,
+    image?.derivativeStoragePaths?.large,
+  ].filter(
     (path): path is string => typeof path === "string" && path.trim().length > 0
   );
 }
@@ -285,6 +306,20 @@ export const createExternal = mutation({
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
+    derivativeUrls: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
+    derivativeStoragePaths: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
       v.union(
@@ -302,6 +337,14 @@ export const createExternal = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Must be logged in to create images");
+    }
+
+    if (args.storagePath) assertSafeStoragePath(args.storagePath, "storagePath");
+    if (args.previewStoragePath) assertSafeStoragePath(args.previewStoragePath, "previewStoragePath");
+    if (args.derivativeStoragePaths) {
+      assertSafeStoragePath(args.derivativeStoragePaths.small, "derivativeStoragePaths.small");
+      assertSafeStoragePath(args.derivativeStoragePaths.medium, "derivativeStoragePaths.medium");
+      assertSafeStoragePath(args.derivativeStoragePaths.large, "derivativeStoragePaths.large");
     }
 
     if (args.externalId) {
@@ -344,6 +387,9 @@ export const createExternal = mutation({
       storageProvider: args.storagePath ? "nextcloud" : undefined,
       storagePath: args.storagePath,
       previewStoragePath: args.previewStoragePath,
+      derivativeUrls: args.derivativeUrls,
+      derivativeStoragePaths: args.derivativeStoragePaths,
+      nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
       sourceType: args.sourceType,
       sourceUrl: args.sourceUrl,
@@ -399,6 +445,20 @@ export const ingestExternal = internalMutation({
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
+    derivativeUrls: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
+    derivativeStoragePaths: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
       v.union(
@@ -453,6 +513,9 @@ export const ingestExternal = internalMutation({
       storageProvider: args.storagePath ? "nextcloud" : undefined,
       storagePath: args.storagePath,
       previewStoragePath: args.previewStoragePath,
+      derivativeUrls: args.derivativeUrls,
+      derivativeStoragePaths: args.derivativeStoragePaths,
+      nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
       sourceType: args.sourceType,
       sourceUrl: args.sourceUrl,
@@ -1044,7 +1107,6 @@ export const uploadMultiple = mutation({
           description: upload.description,
           imageUrl: nextcloudUrl,
           storageId: upload.storageId, // Keep for cleanup later
-          storageProvider: "nextcloud",
           storagePath: uploadResult.path,
           tags: [...upload.tags, "original"], // Tag as original user upload
           category: upload.category,
@@ -1061,6 +1123,8 @@ export const uploadMultiple = mutation({
           aiStatus: "processing",
           status: "draft",
           sourceType: "upload",
+          storageProvider: "convex",
+          nextcloudPersistStatus: "pending",
           uploadedAt: Date.now(),
         });
 
@@ -1349,6 +1413,20 @@ export const internalApplyNextcloudUpload = internalMutation({
     previewUrl: v.optional(v.string()),
     storagePath: v.string(),
     previewStoragePath: v.optional(v.string()),
+    derivativeUrls: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
+    derivativeStoragePaths: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -1358,9 +1436,78 @@ export const internalApplyNextcloudUpload = internalMutation({
       storageProvider: "nextcloud",
       storagePath: args.storagePath,
       previewStoragePath: args.previewStoragePath,
+      derivativeUrls: args.derivativeUrls,
+      derivativeStoragePaths: args.derivativeStoragePaths,
+      nextcloudPersistStatus: "succeeded",
+      nextcloudPersistError: undefined,
       storageId: undefined,
     });
     return null;
+  },
+});
+
+export const internalMarkNextcloudPersistFailed = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    error: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch("images", args.imageId, {
+      nextcloudPersistStatus: "failed",
+      nextcloudPersistError: args.error,
+      storageProvider: "convex",
+    });
+    return null;
+  },
+});
+
+export const backfillNextcloudFailedUploads = mutation({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({
+    scheduled: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const limit = Math.max(1, Math.min(args.limit ?? 50, 200));
+    const images = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("sourceType"), "upload"),
+          q.eq(q.field("storageProvider"), "convex"),
+          q.neq(q.field("storageId"), undefined)
+        )
+      )
+      .take(limit);
+
+    let scheduled = 0;
+    for (const image of images) {
+      await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
+        storageId: image.storageId!,
+        imageId: image._id,
+        userId,
+        group: image.group,
+        projectName: image.projectName,
+        moodboardName: image.moodboardName,
+        title: image.title,
+        description: image.description,
+        tags: image.tags,
+        category: image.category,
+        source: image.source,
+        sref: image.sref,
+        variationCount: image.variationCount,
+        sourceType: image.sourceType,
+      });
+      scheduled += 1;
+    }
+
+    return { scheduled };
   },
 });
 
@@ -1488,6 +1635,20 @@ export const internalSaveGeneratedImages = internalMutation({
       previewUrl: v.optional(v.string()),
       storagePath: v.optional(v.string()),
       previewStoragePath: v.optional(v.string()),
+      derivativeUrls: v.optional(
+        v.object({
+          small: v.string(),
+          medium: v.string(),
+          large: v.string(),
+        })
+      ),
+      derivativeStoragePaths: v.optional(
+        v.object({
+          small: v.string(),
+          medium: v.string(),
+          large: v.string(),
+        })
+      ),
       title: v.string(),
       description: v.string(),
     })),
@@ -1509,6 +1670,9 @@ export const internalSaveGeneratedImages = internalMutation({
         storageProvider: img.storagePath ? "nextcloud" : undefined,
         storagePath: img.storagePath,
         previewStoragePath: img.previewStoragePath,
+        derivativeUrls: img.derivativeUrls,
+        derivativeStoragePaths: img.derivativeStoragePaths,
+        nextcloudPersistStatus: img.storagePath ? "succeeded" : "failed",
         // Inherit metadata from original (which might have been updated by analysis)
         category: originalImage.category,
         tags: [...originalImage.tags, "generated", "variation"],

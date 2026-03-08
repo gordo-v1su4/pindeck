@@ -16,6 +16,16 @@ type UploadedImage = {
   previewUrl: string;
   storagePath: string;
   previewStoragePath: string;
+  derivativeUrls: {
+    small: string;
+    medium: string;
+    large: string;
+  };
+  derivativeStoragePaths: {
+    small: string;
+    medium: string;
+    large: string;
+  };
 };
 
 function normalizePath(path: string): string {
@@ -185,24 +195,43 @@ async function buildPreview(
   fallbackContentType: string,
   fallbackExtension: string
 ): Promise<{ data: Buffer; contentType: string; extension: string }> {
-  try {
-    const sharp = (await import("sharp")).default;
-    const preview = await sharp(buffer)
-      .resize(PREVIEW_MAX_WIDTH, null, { withoutEnlargement: true })
-      .jpeg({ quality: PREVIEW_JPEG_QUALITY })
-      .toBuffer();
-    return {
-      data: preview,
-      contentType: "image/jpeg",
-      extension: "jpg",
-    };
-  } catch (err) {
-    console.warn("Preview resize failed, using original buffer", err);
+  const sharp = await loadSharp();
+  if (!sharp) {
     return {
       data: buffer,
       contentType: fallbackContentType || "application/octet-stream",
       extension: fallbackExtension || "jpg",
     };
+  }
+  const previewData = await sharp(buffer)
+    .rotate()
+    .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 78 })
+    .toBuffer();
+  return {
+    data: previewData,
+    contentType: "image/webp",
+    extension: "webp",
+  };
+}
+
+async function buildDerivative(buffer: Buffer, width: number): Promise<Buffer> {
+  const sharp = await loadSharp();
+  if (!sharp) return buffer;
+  return await sharp(buffer)
+    .rotate()
+    .resize({ width, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
+}
+
+async function loadSharp(): Promise<((input: Buffer) => any) | null> {
+  try {
+    const mod: any = await import("sharp");
+    return (mod?.default || mod) as (input: Buffer) => any;
+  } catch (error) {
+    console.warn("Sharp unavailable in runtime; using original buffer for preview/derivatives", error);
+    return null;
   }
 }
 
@@ -231,6 +260,15 @@ async function persistImageBuffer(args: {
     originalExt
   );
   const previewPath = `${directory}/preview/${fileBase}-preview.${preview.extension}`;
+  const [smallData, mediumData, largeData] = await Promise.all([
+    buildDerivative(args.fileBuffer, 320),
+    buildDerivative(args.fileBuffer, 768),
+    buildDerivative(args.fileBuffer, 1280),
+  ]);
+
+  // If sharp is unavailable, buildDerivative returns the original buffer reference.
+  // Skip derivative uploads in that case to avoid storing corrupted webp-labeled files.
+  const sharpAvailable = smallData !== args.fileBuffer;
 
   const imageUrl = await uploadFile(
     config,
@@ -240,11 +278,35 @@ async function persistImageBuffer(args: {
   );
   const previewUrl = await uploadFile(config, previewPath, preview.contentType, preview.data);
 
+  if (!sharpAvailable) {
+    return {
+      imageUrl,
+      previewUrl,
+      storagePath: originalPath,
+      previewStoragePath: previewPath,
+      derivativeUrls: { small: imageUrl, medium: imageUrl, large: imageUrl },
+      derivativeStoragePaths: { small: originalPath, medium: originalPath, large: originalPath },
+    };
+  }
+
+  const derivativePaths = {
+    small: `${directory}/variants/${fileBase}-w320.webp`,
+    medium: `${directory}/variants/${fileBase}-w768.webp`,
+    large: `${directory}/variants/${fileBase}-w1280.webp`,
+  };
+  const [smallUrl, mediumUrl, largeUrl] = await Promise.all([
+    uploadFile(config, derivativePaths.small, "image/webp", smallData),
+    uploadFile(config, derivativePaths.medium, "image/webp", mediumData),
+    uploadFile(config, derivativePaths.large, "image/webp", largeData),
+  ]);
+
   return {
     imageUrl,
     previewUrl,
     storagePath: originalPath,
     previewStoragePath: previewPath,
+    derivativeUrls: { small: smallUrl, medium: mediumUrl, large: largeUrl },
+    derivativeStoragePaths: derivativePaths,
   };
 }
 
@@ -280,6 +342,16 @@ export const persistExternalImageFromUrl = internalAction({
     previewUrl: v.string(),
     storagePath: v.string(),
     previewStoragePath: v.string(),
+    derivativeUrls: v.object({
+      small: v.string(),
+      medium: v.string(),
+      large: v.string(),
+    }),
+    derivativeStoragePaths: v.object({
+      small: v.string(),
+      medium: v.string(),
+      large: v.string(),
+    }),
   }),
   handler: async (_ctx, args) => {
     const source = await fetchImageAsBuffer(args.sourceUrl);
@@ -304,6 +376,16 @@ export const persistGeneratedImageFromUrl = internalAction({
       previewUrl: v.string(),
       storagePath: v.string(),
       previewStoragePath: v.string(),
+      derivativeUrls: v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      }),
+      derivativeStoragePaths: v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      }),
     }),
     v.object({
       ok: v.literal(false),
@@ -383,6 +465,8 @@ export const finalizeUploadedImage = internalAction({
         previewUrl: uploaded.previewUrl,
         storagePath: uploaded.storagePath,
         previewStoragePath: uploaded.previewStoragePath,
+        derivativeUrls: uploaded.derivativeUrls,
+        derivativeStoragePaths: uploaded.derivativeStoragePaths,
       });
 
       try {
@@ -410,6 +494,10 @@ export const finalizeUploadedImage = internalAction({
       return { ok: true, imageUrl: uploaded.imageUrl } as const;
     } catch (error: any) {
       console.error("Failed to finalize upload in Nextcloud", error);
+      await ctx.runMutation((internal as any).images.internalMarkNextcloudPersistFailed, {
+        imageId: args.imageId,
+        error: error?.message || "Failed to finalize upload",
+      });
       // Fallback path: continue using Convex storage source so upload flow remains functional.
       try {
         await ctx.scheduler.runAfter(0, (internal as any).vision.internalSmartAnalyzeImage, {

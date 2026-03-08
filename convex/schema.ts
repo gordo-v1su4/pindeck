@@ -31,6 +31,24 @@ const applicationTables = {
     ),
     storagePath: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
+    derivativeUrls: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
+    derivativeStoragePaths: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
+    nextcloudPersistStatus: v.optional(
+      v.union(v.literal("pending"), v.literal("succeeded"), v.literal("failed"))
+    ),
+    nextcloudPersistError: v.optional(v.string()),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
       v.union(
