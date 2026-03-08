@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -65,6 +65,7 @@ export function ImageUploadForm() {
   const rerunSmartAnalysisMutation = useMutation(api.vision.rerunSmartAnalysis);
   const generateVariationsMutation = useMutation(api.vision.generateVariations);
   const setAiStatusMutation = useMutation(api.images.setAiStatus);
+  const clearMyStaleProcessingImagesMutation = useMutation(api.images.clearMyStaleProcessingImages);
 
   const localPendingImages = (pendingImages || []).filter((img) => img.sourceType !== "discord");
   const discordPendingImages = (pendingImages || []).filter((img) => img.sourceType === "discord");
@@ -88,6 +89,12 @@ export function ImageUploadForm() {
   const [modificationMode, setModificationMode] = useState("shot-variation");
   const [variationDetail, setVariationDetail] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
+
+  useEffect(() => {
+    void clearMyStaleProcessingImagesMutation({ olderThanHours: 18 }).catch((error) => {
+      console.warn("Failed to clear stale processing images", error);
+    });
+  }, [clearMyStaleProcessingImagesMutation]);
 
   // Loading state check
   if (categories === undefined) {

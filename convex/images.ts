@@ -58,6 +58,25 @@ function parseUserIdFromBody(body: any) {
     : undefined;
 }
 
+function normalizeExternalImageUrl(rawUrl: unknown): string {
+  const value = String(rawUrl ?? "").trim();
+  if (!value) return "";
+  if (value.startsWith("<") && value.endsWith(">")) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+function isPrivateNextcloudWebdavUrl(rawUrl: unknown): boolean {
+  const value = String(rawUrl ?? "").toLowerCase();
+  return value.includes("/remote.php/dav/files/");
+}
+
+function looksLikeImageUrl(rawUrl: unknown): boolean {
+  const value = String(rawUrl ?? "").toLowerCase();
+  return /\.(png|jpe?g|webp|gif|bmp|svg|avif)(\?|$)/i.test(value);
+}
+
 async function resolveLineageRoot(ctx: any, image: any) {
   let current = image;
   let depth = 0;
@@ -589,14 +608,19 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     );
   }
 
-  let resolvedImageUrl = String(body.imageUrl);
+  const sourceImageUrl = normalizeExternalImageUrl(body.imageUrl);
+  if (!sourceImageUrl) {
+    return new Response("Missing required fields: imageUrl", { status: 400 });
+  }
+
+  let resolvedImageUrl = sourceImageUrl;
   let resolvedPreviewUrl: string | undefined = undefined;
   let resolvedStoragePath: string | undefined = undefined;
   let resolvedPreviewStoragePath: string | undefined = undefined;
 
   try {
     const persistedImage = await ctx.runAction(internalApi.mediaStorage.persistExternalImageFromUrl, {
-      sourceUrl: body.imageUrl,
+      sourceUrl: sourceImageUrl,
       title: body.title || "Discord Import",
     });
     resolvedImageUrl = persistedImage.imageUrl;
@@ -605,6 +629,13 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     resolvedPreviewStoragePath = persistedImage.previewStoragePath;
   } catch (error: any) {
     console.warn("Nextcloud persist failed; falling back to source URL ingest", error);
+  }
+
+  // Discord queue cards should stay visible even when Nextcloud WebDAV URLs are not
+  // publicly readable in the browser. Keep display URLs on the source image URL.
+  if (body.sourceType === "discord") {
+    resolvedImageUrl = sourceImageUrl;
+    resolvedPreviewUrl = sourceImageUrl;
   }
 
   const imageId = await ctx.runMutation(internal.images.ingestExternal, {
@@ -651,8 +682,14 @@ export const internalListDiscordQueue = internalQuery({
     for (const image of pending) {
       if (!(await isDiscordLineage(ctx, image))) continue;
       const root = await resolveLineageRoot(ctx, image);
+      const fallbackDisplayUrl =
+        isPrivateNextcloudWebdavUrl(image.imageUrl) && looksLikeImageUrl(image.sourceUrl)
+          ? image.sourceUrl
+          : image.imageUrl;
       filtered.push({
         ...image,
+        imageUrl: fallbackDisplayUrl,
+        previewUrl: image.previewUrl || fallbackDisplayUrl,
         lineageRootImageId: root?._id,
         lineageRootTitle: root?.title,
       });
@@ -1199,12 +1236,45 @@ export const getProcessingImages = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    return await ctx.db
+    const allProcessing = await ctx.db
       .query("images")
       .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
       .filter((q) => q.eq(q.field("aiStatus"), "processing"))
       .order("desc")
       .collect();
+
+    // Hide very old "processing" items from the active queue.
+    const staleCutoffMs = Date.now() - 18 * 60 * 60 * 1000;
+    return allProcessing.filter((img) => (img.uploadedAt ?? 0) >= staleCutoffMs);
+  },
+});
+
+export const clearMyStaleProcessingImages = mutation({
+  args: {
+    olderThanHours: v.optional(v.number()),
+  },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const olderThanMs = Math.max(1, args.olderThanHours ?? 18) * 60 * 60 * 1000;
+    const cutoff = Date.now() - olderThanMs;
+
+    const candidates = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("aiStatus"), "processing"))
+      .collect();
+
+    let updated = 0;
+    for (const image of candidates) {
+      if ((image.uploadedAt ?? 0) > cutoff) continue;
+      await ctx.db.patch(image._id, { aiStatus: "failed" });
+      updated += 1;
+    }
+
+    return updated;
   },
 });
 

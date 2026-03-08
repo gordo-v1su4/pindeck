@@ -245,14 +245,16 @@ async function persistImageBuffer(args: {
   const now = new Date();
   const year = String(now.getUTCFullYear());
   const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
+  const monthDay = `${month}_${day}`;
 
   const originalExt = extensionFromInput(args.originalFileName, args.contentType);
   const baseName = toKebabCase(args.title || args.originalFileName || "image");
   const nonce = Math.random().toString(36).slice(2, 8);
   const fileBase = `${baseName}-${Date.now().toString(36)}-${nonce}`;
 
-  const directory = normalizePath(`${config.uploadPrefix}/${year}/${month}`);
-  const originalPath = `${directory}/${fileBase}.${originalExt}`;
+  const directory = normalizePath(`${config.uploadPrefix}/${year}/${monthDay}`);
+  const originalPath = `${directory}/original/${fileBase}.${originalExt}`;
 
   const preview = await buildPreview(
     args.fileBuffer,
@@ -290,9 +292,9 @@ async function persistImageBuffer(args: {
   }
 
   const derivativePaths = {
-    small: `${directory}/variants/${fileBase}-w320.webp`,
-    medium: `${directory}/variants/${fileBase}-w768.webp`,
-    large: `${directory}/variants/${fileBase}-w1280.webp`,
+    small: `${directory}/low/${fileBase}-w320.webp`,
+    medium: `${directory}/high/${fileBase}-w768.webp`,
+    large: `${directory}/high/${fileBase}-w1280.webp`,
   };
   const [smallUrl, mediumUrl, largeUrl] = await Promise.all([
     uploadFile(config, derivativePaths.small, "image/webp", smallData),

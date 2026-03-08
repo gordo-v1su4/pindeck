@@ -301,6 +301,74 @@ export const deleteOrphanedStorageFiles = internalMutation({
   },
 });
 
+export const listStuckProcessingImages = internalQuery({
+  args: {
+    olderThanHours: v.optional(v.number()),
+    titleContains: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(
+    v.object({
+      imageId: v.id("images"),
+      title: v.string(),
+      aiStatus: v.optional(v.string()),
+      status: v.optional(v.string()),
+      uploadedAt: v.optional(v.number()),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const olderThanMs = Math.max(1, args.olderThanHours ?? 12) * 60 * 60 * 1000;
+    const cutoff = Date.now() - olderThanMs;
+    const titleNeedle = (args.titleContains || "").trim().toLowerCase();
+    const limit = Math.min(Math.max(args.limit ?? 25, 1), 200);
+
+    const images = await ctx.db.query("images").collect();
+    const filtered = images
+      .filter((img) => img.aiStatus === "processing")
+      .filter((img) => (img.uploadedAt ?? 0) <= cutoff)
+      .filter((img) =>
+        !titleNeedle ? true : String(img.title || "").toLowerCase().includes(titleNeedle)
+      )
+      .sort((a, b) => (b.uploadedAt ?? 0) - (a.uploadedAt ?? 0))
+      .slice(0, limit)
+      .map((img) => ({
+        imageId: img._id,
+        title: img.title,
+        aiStatus: img.aiStatus,
+        status: img.status,
+        uploadedAt: img.uploadedAt,
+      }));
+
+    return filtered;
+  },
+});
+
+export const clearStuckProcessingImages = internalMutation({
+  args: {
+    imageIds: v.array(v.id("images")),
+    status: v.optional(v.union(v.literal("completed"), v.literal("failed"))),
+  },
+  returns: v.object({
+    updated: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const targetStatus = args.status ?? "failed";
+    let updated = 0;
+
+    for (const imageId of args.imageIds) {
+      const image = await ctx.db.get(imageId);
+      if (!image) continue;
+      if (image.aiStatus !== "processing") continue;
+      await ctx.db.patch(imageId, {
+        aiStatus: targetStatus,
+      });
+      updated += 1;
+    }
+
+    return { updated };
+  },
+});
+
 export const resetImageDomainData = mutation({
   args: {
     confirm: v.string(),
