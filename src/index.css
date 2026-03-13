@@ -102,6 +102,10 @@ body {
   background: var(--color-light);
 }
 
+#root {
+  min-height: 100vh;
+}
+
 /* Deck builder typography hooks (imported integration from pitch-deck-builder) */
 .font-display {
   font-family: "Bebas Neue", "Oswald", var(--font-sans);
@@ -238,6 +242,172 @@ body {
 .auth-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.auth-landing {
+  width: 100%;
+}
+
+.site-brand-lockup {
+  display: inline-flex;
+  align-items: center;
+}
+
+.site-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: rgba(18, 18, 24, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.08em;
+}
+
+.site-brand-word {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 1.75rem;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.07em;
+  line-height: 1;
+}
+
+.site-brand-word-light {
+  color: #ffffff;
+}
+
+.site-brand-word-accent {
+  color: #1f8fe5;
+}
+
+.auth-shell {
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto;
+}
+
+.auth-hero-title {
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+}
+
+.auth-hero-copy {
+  max-width: 28rem;
+  margin-inline: auto;
+  line-height: 1.45;
+  text-wrap: balance;
+}
+
+.auth-form-column {
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+.auth-hero-field {
+  min-height: 3.35rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 14, 0.92);
+  box-shadow: none;
+}
+
+.auth-hero-field input {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.auth-hero-field input::placeholder {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.auth-primary-button {
+  width: 100%;
+  min-height: 3.4rem;
+  border-radius: 0.8rem !important;
+  background: #1f8fe5 !important;
+  color: white !important;
+  font-size: 0.98rem !important;
+  font-weight: 700 !important;
+  box-shadow: none;
+}
+
+.auth-switch-link {
+  color: #52a8ff !important;
+  font-weight: 600 !important;
+}
+
+.auth-divider-line {
+  opacity: 0.35;
+}
+
+.auth-divider-text {
+  text-transform: lowercase;
+}
+
+.auth-password-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.auth-provider-grid {
+  display: none;
+}
+
+.auth-provider-stack {
+  display: grid;
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.auth-provider-button {
+  min-height: 3.45rem;
+  width: 100%;
+  border-radius: 0.7rem !important;
+  border: 1px solid rgba(31, 143, 229, 0.5) !important;
+  background: #0c3564 !important;
+  color: white !important;
+  font-weight: 600 !important;
+  justify-content: center !important;
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .auth-brand-mark {
+    width: 2.8rem;
+    height: 2.8rem;
+    font-size: 1.45rem;
+  }
+
+  .auth-brand-word {
+    font-size: clamp(1.8rem, 10vw, 2.45rem);
+  }
+
+  .auth-primary-button,
+  .auth-provider-button,
+  .auth-hero-field {
+    min-height: 3.25rem;
+  }
 }
 
 .line-clamp-2 {

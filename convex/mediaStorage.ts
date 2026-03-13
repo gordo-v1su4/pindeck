@@ -6,9 +6,22 @@ import { internal } from "./_generated/api";
 
 type NextcloudConfig = {
   baseUrl: string;
+  serverBaseUrl: string;
   user: string;
   appPassword: string;
   uploadPrefix: string;
+};
+
+type NextcloudPublicShareConfig = {
+  token: string;
+  rootPath: string;
+  publicBaseUrl: string;
+};
+
+type MediaGatewayConfig = {
+  url: string;
+  token: string;
+  userId: string;
 };
 
 type UploadedImage = {
@@ -27,6 +40,9 @@ type UploadedImage = {
     large: string;
   };
 };
+
+const DEFAULT_NEXTCLOUD_PUBLIC_SHARE_TOKEN = "afc53c40a68aade";
+const DEFAULT_NEXTCLOUD_UPLOAD_SHARE_TOKEN = "403341357a556f5";
 
 function normalizePath(path: string): string {
   return path
@@ -58,6 +74,14 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+function getNextcloudServerBaseUrl(rawUrl: string): string {
+  const parsed = new URL(rawUrl);
+  const remotePhpIndex = parsed.pathname.indexOf("/remote.php/");
+  const basePath =
+    remotePhpIndex >= 0 ? parsed.pathname.slice(0, remotePhpIndex) : parsed.pathname;
+  return trimTrailingSlash(`${parsed.origin}${basePath}`);
+}
+
 function getNextcloudConfig(): NextcloudConfig {
   const baseUrl = process.env.NEXTCLOUD_WEBDAV_BASE_URL;
   const user = process.env.NEXTCLOUD_WEBDAV_USER;
@@ -72,9 +96,54 @@ function getNextcloudConfig(): NextcloudConfig {
 
   return {
     baseUrl: trimTrailingSlash(baseUrl),
+    serverBaseUrl: getNextcloudServerBaseUrl(baseUrl),
     user,
     appPassword,
     uploadPrefix: normalizePath(uploadPrefix),
+  };
+}
+
+function getNextcloudPublicShareConfig(
+  config: NextcloudConfig
+): NextcloudPublicShareConfig | null {
+  const token =
+    process.env.NEXTCLOUD_PUBLIC_SHARE_TOKEN?.trim() ||
+    DEFAULT_NEXTCLOUD_PUBLIC_SHARE_TOKEN;
+  if (!token) {
+    return null;
+  }
+
+  return {
+    token,
+    rootPath: normalizePath(
+      process.env.NEXTCLOUD_PUBLIC_SHARE_PATH || config.uploadPrefix
+    ),
+    publicBaseUrl: trimTrailingSlash(
+      process.env.NEXTCLOUD_PUBLIC_BASE_URL || config.serverBaseUrl
+    ),
+  };
+}
+
+function getNextcloudUploadShareToken(): string {
+  return (
+    process.env.NEXTCLOUD_UPLOAD_SHARE_TOKEN?.trim() ||
+    DEFAULT_NEXTCLOUD_UPLOAD_SHARE_TOKEN
+  );
+}
+
+function getMediaGatewayConfig(): MediaGatewayConfig | null {
+  const url = process.env.MEDIA_GATEWAY_URL;
+  const token = process.env.MEDIA_GATEWAY_TOKEN;
+  const userId = process.env.NEXTCLOUD_WEBDAV_USER;
+
+  if (!url || !token || !userId) {
+    return null;
+  }
+
+  return {
+    url: trimTrailingSlash(url),
+    token,
+    userId,
   };
 }
 
@@ -86,11 +155,91 @@ function buildUrl(config: NextcloudConfig, relativePath: string): string {
   return `${config.baseUrl}/${encodePath(relativePath)}`;
 }
 
+function buildShareApiUrl(config: NextcloudConfig): string {
+  return `${config.serverBaseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares`;
+}
+
+function getSharedRelativePath(
+  shareConfig: NextcloudPublicShareConfig,
+  relativePath: string
+): string {
+  const normalized = normalizePath(relativePath);
+  const rootPath = normalizePath(shareConfig.rootPath);
+
+  if (!normalized || !rootPath) {
+    throw new Error("Cannot resolve Nextcloud shared path without a valid path");
+  }
+
+  if (normalized !== rootPath && !normalized.startsWith(`${rootPath}/`)) {
+    throw new Error(
+      `Path ${normalized} is outside the shared Nextcloud root ${rootPath}`
+    );
+  }
+
+  return normalized === rootPath ? "" : normalized.slice(rootPath.length + 1);
+}
+
+function buildSharedFolderPublicUrl(
+  shareConfig: NextcloudPublicShareConfig,
+  relativePath: string
+): string {
+  const normalized = normalizePath(relativePath);
+  const segments = getSharedRelativePath(shareConfig, normalized).split("/").filter(Boolean);
+  if (segments.length === 0) {
+    throw new Error(`Cannot build a public file URL for folder path ${normalized}`);
+  }
+  const encodedPath = segments.map((segment) => encodeURIComponent(segment)).join("/");
+  return `${shareConfig.publicBaseUrl}/public.php/dav/files/${encodeURIComponent(
+    shareConfig.token
+  )}/${encodedPath}`;
+}
+
+function buildSharedFolderUploadUrl(
+  shareConfig: NextcloudPublicShareConfig,
+  relativePath: string
+): string {
+  const normalized = normalizePath(relativePath);
+  const segments = getSharedRelativePath(shareConfig, normalized).split("/").filter(Boolean);
+  const encodedPath = segments.map((segment) => encodeURIComponent(segment)).join("/");
+  return `${shareConfig.publicBaseUrl}/public.php/dav/files/${encodeURIComponent(
+    getNextcloudUploadShareToken()
+  )}/${encodedPath}`;
+}
+
 function readBodyTextSafe(response: Response): Promise<string> {
   return response.text().catch(() => "");
 }
 
+function extractXmlTag(text: string, tagName: string): string | undefined {
+  const match = text.match(new RegExp(`<${tagName}>([^<]+)</${tagName}>`, "i"));
+  return match?.[1]?.trim().replace(/&amp;/g, "&");
+}
+
 async function ensureDirectory(config: NextcloudConfig, relativeDir: string): Promise<void> {
+  const publicShare = getNextcloudPublicShareConfig(config);
+  if (publicShare) {
+    const parts = getSharedRelativePath(publicShare, relativeDir).split("/").filter(Boolean);
+    let current = "";
+
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      const response = await fetch(
+        buildSharedFolderUploadUrl(publicShare, `${publicShare.rootPath}/${current}`),
+        {
+          method: "MKCOL",
+        }
+      );
+
+      if ([200, 201, 204, 301, 302, 405].includes(response.status)) {
+        continue;
+      }
+
+      const body = await readBodyTextSafe(response);
+      throw new Error(`MKCOL failed (${response.status}) for ${current}: ${body.slice(0, 300)}`);
+    }
+    return;
+  }
+
   const parts = normalizePath(relativeDir).split("/").filter(Boolean);
   let current = "";
 
@@ -124,6 +273,25 @@ async function uploadFile(
 
   await ensureDirectory(config, parent);
 
+  const publicShare = getNextcloudPublicShareConfig(config);
+  if (publicShare) {
+    const uploadUrl = buildSharedFolderUploadUrl(publicShare, normalized);
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": contentType || "application/octet-stream",
+      },
+      body: data,
+    });
+
+    if (!response.ok) {
+      const body = await readBodyTextSafe(response);
+      throw new Error(`PUT failed (${response.status}) for ${normalized}: ${body.slice(0, 300)}`);
+    }
+
+    return buildSharedFolderPublicUrl(publicShare, normalized);
+  }
+
   const response = await fetch(buildUrl(config, normalized), {
     method: "PUT",
     headers: {
@@ -141,9 +309,135 @@ async function uploadFile(
   return buildUrl(config, normalized);
 }
 
+async function createPublicShareUrl(config: NextcloudConfig, relativePath: string): Promise<string> {
+  const normalized = normalizePath(relativePath);
+  const response = await fetch(buildShareApiUrl(config), {
+    method: "POST",
+    headers: {
+      Authorization: authHeader(config),
+      "OCS-APIRequest": "true",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      path: `/${normalized}`,
+      shareType: "3",
+      permissions: "1",
+    }),
+  });
+
+  const body = await readBodyTextSafe(response);
+  if (!response.ok) {
+    throw new Error(`OCS share failed (${response.status}) for ${normalized}: ${body.slice(0, 300)}`);
+  }
+
+  const shareUrl = extractXmlTag(body, "url");
+  if (!shareUrl) {
+    throw new Error(`OCS share response missing public URL for ${normalized}: ${body.slice(0, 300)}`);
+  }
+
+  return `${shareUrl.replace(/\/+$/, "")}/download`;
+}
+
+async function uploadAndShareFile(
+  config: NextcloudConfig,
+  relativePath: string,
+  contentType: string,
+  data: Buffer
+): Promise<string> {
+  const publicShare = getNextcloudPublicShareConfig(config);
+  if (publicShare) {
+    return await uploadFile(config, relativePath, contentType, data);
+  }
+  await uploadFile(config, relativePath, contentType, data);
+  return await createPublicShareUrl(config, relativePath);
+}
+
+function fileNameFromPath(path: string): string {
+  return normalizePath(path).split("/").pop() || "file";
+}
+
+function folderFromPath(path: string): string {
+  const parts = normalizePath(path).split("/");
+  parts.pop();
+  return parts.join("/");
+}
+
+async function uploadViaMediaGateway(args: {
+  gateway: MediaGatewayConfig;
+  relativePath: string;
+  contentType: string;
+  data: Buffer;
+}): Promise<{ publicUrl: string; path: string }> {
+  const formData = new FormData();
+  formData.append("userId", args.gateway.userId);
+  formData.append("folder", folderFromPath(args.relativePath));
+  formData.append(
+    "file",
+    new Blob([args.data], { type: args.contentType || "application/octet-stream" }),
+    fileNameFromPath(args.relativePath)
+  );
+
+  const response = await fetch(`${args.gateway.url}/upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${args.gateway.token}`,
+    },
+    body: formData,
+  });
+
+  const body = await readBodyTextSafe(response);
+  if (!response.ok) {
+    throw new Error(`Media gateway upload failed (${response.status}) for ${args.relativePath}: ${body.slice(0, 300)}`);
+  }
+
+  const parsed = JSON.parse(body) as { publicUrl?: string; path?: string };
+  if (!parsed.publicUrl || !parsed.path) {
+    throw new Error(`Media gateway response missing fields for ${args.relativePath}: ${body.slice(0, 300)}`);
+  }
+
+  return {
+    publicUrl: parsed.publicUrl,
+    path: normalizePath(parsed.path),
+  };
+}
+
+async function fetchPrivateNextcloudFile(
+  config: NextcloudConfig,
+  relativePath: string
+): Promise<{ data: Buffer; contentType: string }> {
+  const response = await fetch(buildUrl(config, relativePath), {
+    method: "GET",
+    headers: {
+      Authorization: authHeader(config),
+    },
+  });
+
+  if (!response.ok) {
+    const body = await readBodyTextSafe(response);
+    throw new Error(`Private Nextcloud fetch failed (${response.status}) for ${relativePath}: ${body.slice(0, 300)}`);
+  }
+
+  return {
+    data: Buffer.from(await response.arrayBuffer()),
+    contentType: response.headers.get("content-type") || "application/octet-stream",
+  };
+}
+
 async function deleteFile(config: NextcloudConfig, relativePath: string): Promise<void> {
   const normalized = normalizePath(relativePath);
   if (!normalized) return;
+
+  const publicShare = getNextcloudPublicShareConfig(config);
+  if (publicShare) {
+    const response = await fetch(buildSharedFolderUploadUrl(publicShare, normalized), {
+      method: "DELETE",
+    });
+
+    if ([200, 202, 204, 404].includes(response.status)) return;
+
+    const body = await readBodyTextSafe(response);
+    throw new Error(`DELETE failed (${response.status}) for ${normalized}: ${body.slice(0, 300)}`);
+  }
 
   const response = await fetch(buildUrl(config, normalized), {
     method: "DELETE",
@@ -187,8 +481,14 @@ function fileNameFromUrl(url: string): string | undefined {
   }
 }
 
-const PREVIEW_MAX_WIDTH = 800;
-const PREVIEW_JPEG_QUALITY = 82;
+const PREVIEW_WIDTH = 640;
+const PREVIEW_HEIGHT = 360;
+
+const DERIVATIVE_DIMENSIONS = {
+  small: { width: 320, height: 180 },
+  medium: { width: 768, height: 432 },
+  large: { width: 1280, height: 720 },
+} as const;
 
 async function buildPreview(
   buffer: Buffer,
@@ -205,7 +505,14 @@ async function buildPreview(
   }
   const previewData = await sharp(buffer)
     .rotate()
-    .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
+    .trim({ threshold: 10 })
+    .resize({
+      width: PREVIEW_WIDTH,
+      height: PREVIEW_HEIGHT,
+      fit: "cover",
+      position: "attention",
+      withoutEnlargement: false,
+    })
     .webp({ quality: 78 })
     .toBuffer();
   return {
@@ -215,12 +522,23 @@ async function buildPreview(
   };
 }
 
-async function buildDerivative(buffer: Buffer, width: number): Promise<Buffer> {
+async function buildDerivative(
+  buffer: Buffer,
+  width: number,
+  height: number
+): Promise<Buffer> {
   const sharp = await loadSharp();
   if (!sharp) return buffer;
   return await sharp(buffer)
     .rotate()
-    .resize({ width, fit: "inside", withoutEnlargement: true })
+    .trim({ threshold: 10 })
+    .resize({
+      width,
+      height,
+      fit: "cover",
+      position: "attention",
+      withoutEnlargement: false,
+    })
     .webp({ quality: 82 })
     .toBuffer();
 }
@@ -255,6 +573,7 @@ async function persistImageBuffer(args: {
   title?: string;
 }): Promise<UploadedImage> {
   const config = getNextcloudConfig();
+  const mediaGateway = getMediaGatewayConfig();
   const now = new Date();
   const year = String(now.getUTCFullYear());
   const month = String(now.getUTCMonth() + 1).padStart(2, "0");
@@ -276,31 +595,74 @@ async function persistImageBuffer(args: {
   );
   const previewPath = `${directory}/preview/${fileBase}-preview.${preview.extension}`;
   const [smallData, mediumData, largeData] = await Promise.all([
-    buildDerivative(args.fileBuffer, 320),
-    buildDerivative(args.fileBuffer, 768),
-    buildDerivative(args.fileBuffer, 1280),
+    buildDerivative(
+      args.fileBuffer,
+      DERIVATIVE_DIMENSIONS.small.width,
+      DERIVATIVE_DIMENSIONS.small.height
+    ),
+    buildDerivative(
+      args.fileBuffer,
+      DERIVATIVE_DIMENSIONS.medium.width,
+      DERIVATIVE_DIMENSIONS.medium.height
+    ),
+    buildDerivative(
+      args.fileBuffer,
+      DERIVATIVE_DIMENSIONS.large.width,
+      DERIVATIVE_DIMENSIONS.large.height
+    ),
   ]);
 
   // If sharp is unavailable, buildDerivative returns the original buffer reference.
   // Skip derivative uploads in that case to avoid storing corrupted webp-labeled files.
   const sharpAvailable = smallData !== args.fileBuffer;
 
-  const imageUrl = await uploadFile(
-    config,
+  const uploadPublicFile = async (
+    relativePath: string,
+    contentType: string,
+    data: Buffer
+  ): Promise<{ publicUrl: string; storagePath: string }> => {
+    if (mediaGateway) {
+      const uploaded = await uploadViaMediaGateway({
+        gateway: mediaGateway,
+        relativePath,
+        contentType,
+        data,
+      });
+      return {
+        publicUrl: uploaded.publicUrl,
+        storagePath: uploaded.path,
+      };
+    }
+
+    return {
+      publicUrl: await uploadAndShareFile(config, relativePath, contentType, data),
+      storagePath: relativePath,
+    };
+  };
+
+  const originalUpload = await uploadPublicFile(
     originalPath,
     args.contentType || "application/octet-stream",
     args.fileBuffer
   );
-  const previewUrl = await uploadFile(config, previewPath, preview.contentType, preview.data);
+  const previewUpload = await uploadPublicFile(previewPath, preview.contentType, preview.data);
+  const imageUrl = originalUpload.publicUrl;
+  const previewUrl = previewUpload.publicUrl;
+  const resolvedOriginalPath = originalUpload.storagePath;
+  const resolvedPreviewPath = previewUpload.storagePath;
 
   if (!sharpAvailable) {
     return {
       imageUrl,
       previewUrl,
-      storagePath: originalPath,
-      previewStoragePath: previewPath,
+      storagePath: resolvedOriginalPath,
+      previewStoragePath: resolvedPreviewPath,
       derivativeUrls: { small: imageUrl, medium: imageUrl, large: imageUrl },
-      derivativeStoragePaths: { small: originalPath, medium: originalPath, large: originalPath },
+      derivativeStoragePaths: {
+        small: resolvedOriginalPath,
+        medium: resolvedOriginalPath,
+        large: resolvedOriginalPath,
+      },
     };
   }
 
@@ -309,19 +671,27 @@ async function persistImageBuffer(args: {
     medium: `${directory}/high/${fileBase}-w768.webp`,
     large: `${directory}/high/${fileBase}-w1280.webp`,
   };
-  const [smallUrl, mediumUrl, largeUrl] = await Promise.all([
-    uploadFile(config, derivativePaths.small, "image/webp", smallData),
-    uploadFile(config, derivativePaths.medium, "image/webp", mediumData),
-    uploadFile(config, derivativePaths.large, "image/webp", largeData),
+  const [smallUpload, mediumUpload, largeUpload] = await Promise.all([
+    uploadPublicFile(derivativePaths.small, "image/webp", smallData),
+    uploadPublicFile(derivativePaths.medium, "image/webp", mediumData),
+    uploadPublicFile(derivativePaths.large, "image/webp", largeData),
   ]);
 
   return {
     imageUrl,
     previewUrl,
-    storagePath: originalPath,
-    previewStoragePath: previewPath,
-    derivativeUrls: { small: smallUrl, medium: mediumUrl, large: largeUrl },
-    derivativeStoragePaths: derivativePaths,
+    storagePath: resolvedOriginalPath,
+    previewStoragePath: resolvedPreviewPath,
+    derivativeUrls: {
+      small: smallUpload.publicUrl,
+      medium: mediumUpload.publicUrl,
+      large: largeUpload.publicUrl,
+    },
+    derivativeStoragePaths: {
+      small: smallUpload.storagePath,
+      medium: mediumUpload.storagePath,
+      large: largeUpload.storagePath,
+    },
   };
 }
 
@@ -513,30 +883,10 @@ export const finalizeUploadedImage = internalAction({
         imageId: args.imageId,
         error: error?.message || "Failed to finalize upload",
       });
-      // Fallback path: continue using Convex storage source so upload flow remains functional.
-      try {
-        await ctx.scheduler.runAfter(0, (internal as any).vision.internalSmartAnalyzeImage, {
-          imageId: args.imageId,
-          userId: args.userId,
-          storageId: args.storageId,
-          title: args.title,
-          description: args.description,
-          tags: args.tags,
-          category: args.category,
-          source: args.source,
-          sref: args.sref,
-          group: args.group,
-          projectName: args.projectName,
-          moodboardName: args.moodboardName,
-          variationCount: Math.max(0, Math.min(args.variationCount ?? 2, 12)),
-        });
-      } catch (fallbackError) {
-        console.error("Fallback smart analysis scheduling failed", fallbackError);
-        await ctx.runMutation((internal as any).images.internalSetAiStatus, {
-          imageId: args.imageId,
-          status: "failed",
-        });
-      }
+      await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "failed",
+      });
       return {
         ok: false,
         error: error?.message || "Failed to finalize upload",
@@ -574,6 +924,107 @@ export const cleanupNextcloudPaths = internalAction({
   },
 });
 
+export const publishStoredImagePaths = internalAction({
+  args: {
+    storagePath: v.string(),
+    previewStoragePath: v.optional(v.string()),
+    derivativeStoragePaths: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
+  },
+  returns: v.object({
+    imageUrl: v.string(),
+    previewUrl: v.optional(v.string()),
+    derivativeUrls: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
+  }),
+  handler: async (_ctx, args) => {
+    const config = getNextcloudConfig();
+    const mediaGateway = getMediaGatewayConfig();
+    const publicShare = getNextcloudPublicShareConfig(config);
+
+    const publishPath = async (relativePath: string): Promise<string> => {
+      if (publicShare) {
+        return buildSharedFolderPublicUrl(publicShare, relativePath);
+      }
+
+      try {
+        return await createPublicShareUrl(config, relativePath);
+      } catch (error) {
+        if (!mediaGateway) throw error;
+        const privateFile = await fetchPrivateNextcloudFile(config, relativePath);
+        const uploaded = await uploadViaMediaGateway({
+          gateway: mediaGateway,
+          relativePath,
+          contentType: privateFile.contentType,
+          data: privateFile.data,
+        });
+        return uploaded.publicUrl;
+      }
+    };
+
+    const imageUrl = await publishPath(args.storagePath);
+    const previewUrl = args.previewStoragePath
+      ? await publishPath(args.previewStoragePath)
+      : undefined;
+    const derivativeUrls = args.derivativeStoragePaths
+      ? {
+          small: await publishPath(args.derivativeStoragePaths.small),
+          medium: await publishPath(args.derivativeStoragePaths.medium),
+          large: await publishPath(args.derivativeStoragePaths.large),
+        }
+      : undefined;
+
+    return {
+      imageUrl,
+      previewUrl,
+      derivativeUrls,
+    };
+  },
+});
+
+export const reprocessStoredImagePaths = internalAction({
+  args: {
+    storagePath: v.string(),
+    title: v.optional(v.string()),
+  },
+  returns: v.object({
+    imageUrl: v.string(),
+    previewUrl: v.string(),
+    storagePath: v.string(),
+    previewStoragePath: v.string(),
+    derivativeUrls: v.object({
+      small: v.string(),
+      medium: v.string(),
+      large: v.string(),
+    }),
+    derivativeStoragePaths: v.object({
+      small: v.string(),
+      medium: v.string(),
+      large: v.string(),
+    }),
+  }),
+  handler: async (_ctx, args) => {
+    const config = getNextcloudConfig();
+    const source = await fetchPrivateNextcloudFile(config, args.storagePath);
+    return await persistImageBuffer({
+      fileBuffer: source.data,
+      contentType: source.contentType,
+      originalFileName: fileNameFromPath(args.storagePath),
+      title: args.title,
+    });
+  },
+});
+
 /** Upload a small test file, verify it is readable, then delete it. Use to confirm Nextcloud env and connectivity. Leaves no test files behind. */
 export const testNextcloudPersistence = internalAction({
   args: {},
@@ -585,6 +1036,7 @@ export const testNextcloudPersistence = internalAction({
     let testPath: string | undefined;
     try {
       const config = getNextcloudConfig();
+      const publicShare = getNextcloudPublicShareConfig(config);
       testPath = normalizePath(
         `${config.uploadPrefix}/_test/pindeck-persistence-test-${Date.now()}.txt`
       );
@@ -595,6 +1047,15 @@ export const testNextcloudPersistence = internalAction({
       if (!check.ok) {
         await deleteFile(config, testPath).catch(() => {});
         return { ok: false, error: `GET test file failed: ${check.status}` };
+      }
+
+      const publicUrl = publicShare
+        ? buildSharedFolderPublicUrl(publicShare, testPath)
+        : await createPublicShareUrl(config, testPath);
+      const publicCheck = await fetch(publicUrl, { method: "GET" });
+      if (!publicCheck.ok) {
+        await deleteFile(config, testPath).catch(() => {});
+        return { ok: false, error: `Public GET test file failed: ${publicCheck.status}` };
       }
 
       await deleteFile(config, testPath);

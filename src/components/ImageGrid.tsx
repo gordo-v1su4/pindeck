@@ -17,6 +17,7 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
+import { getThumbnailUrl } from "../lib/imageUrls";
 
 interface ImageGridProps {
   searchTerm: string;
@@ -398,7 +399,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
                               >
                                 <Box className="relative overflow-hidden aspect-video bg-gray-900">
                                   <img
-                                    src={image.previewUrl || image.imageUrl}
+                                    src={getThumbnailUrl(image, "small")}
                                     alt={image.title}
                                     className="w-full h-full object-cover"
                                     loading="lazy"
@@ -463,7 +464,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
           >
             <Box className="relative overflow-hidden aspect-video bg-gray-900">
               <img
-                src={image.previewUrl || image.imageUrl}
+                src={getThumbnailUrl(image, "small")}
                 alt={image.title}
                 className="w-full h-full object-cover"
                 loading="lazy"

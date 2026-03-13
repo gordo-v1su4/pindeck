@@ -6,6 +6,7 @@ import type { Doc } from "./_generated/dataModel";
 const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
+const CANONICAL_NEXTCLOUD_PUBLIC_TOKEN = "afc53c40a68aade";
 
 /**
  * Reject paths that contain traversal sequences or absolute path components.
@@ -67,89 +68,49 @@ function normalizeExternalImageUrl(rawUrl: unknown): string {
   return value;
 }
 
-function isPrivateNextcloudWebdavUrl(rawUrl: unknown): boolean {
-  const value = String(rawUrl ?? "").toLowerCase();
-  return value.includes("/remote.php/dav/files/");
-}
-
-function looksLikeImageUrl(rawUrl: unknown): boolean {
-  const value = String(rawUrl ?? "").toLowerCase();
-  return /\.(png|jpe?g|webp|gif|bmp|svg|avif)(\?|$)/i.test(value);
-}
-
-function isLikelyRenderableImageUrl(rawUrl: unknown): boolean {
-  const value = String(rawUrl ?? "").trim();
-  if (!value.startsWith("http://") && !value.startsWith("https://")) return false;
-  if (looksLikeImageUrl(value)) return true;
-
+function parseUrlHost(rawUrl: unknown): string | undefined {
   try {
-    const parsed = new URL(value);
-    const host = parsed.hostname.toLowerCase();
-    const path = parsed.pathname.toLowerCase();
+    return new URL(String(rawUrl ?? "")).host.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
 
-    // FAL and similar CDN/object-storage URLs often omit file extensions.
-    if (host.includes("fal.media")) return true;
-    if (host.includes("cdn.discordapp.com") || host.includes("media.discordapp.net")) return true;
-    if (host.includes("unsplash.com") || host.includes("images.unsplash.com")) return true;
-    if (path.includes("/files/") || path.includes("/attachments/")) return true;
+function isCloudHostedUrl(rawUrl: unknown): boolean {
+  return parseUrlHost(rawUrl) === "cloud.v1su4.dev";
+}
+
+function isCanonicalCloudUrl(rawUrl: unknown): boolean {
+  try {
+    const parsed = new URL(String(rawUrl ?? ""));
+    return (
+      parsed.host.toLowerCase() === "cloud.v1su4.dev" &&
+      parsed.pathname.startsWith(
+        `/public.php/dav/files/${CANONICAL_NEXTCLOUD_PUBLIC_TOKEN}/`
+      )
+    );
   } catch {
     return false;
   }
-
-  return false;
 }
 
-function extractFirstImageUrlFromText(raw: unknown): string | undefined {
-  const text = String(raw ?? "");
-  if (!text) return undefined;
-
-  const markdownImageMatch = text.match(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/i);
-  if (markdownImageMatch?.[1] && looksLikeImageUrl(markdownImageMatch[1])) {
-    return markdownImageMatch[1];
-  }
-
-  const urlMatches = text.match(/https?:\/\/[^\s)]+/gi) || [];
-  const found = urlMatches.find((url) => looksLikeImageUrl(url));
-  return found;
+function looksLikeHttpUrl(rawUrl: unknown): rawUrl is string {
+  const value = String(rawUrl ?? "").trim();
+  return value.startsWith("http://") || value.startsWith("https://");
 }
 
-function pickRenderableImageUrl(image: any): string | undefined {
-  const candidates = [
-    image?.previewUrl,
-    image?.imageUrl,
-    image?.derivativeUrls?.small,
-    image?.derivativeUrls?.medium,
-    image?.derivativeUrls?.large,
-    image?.sourceUrl,
-    extractFirstImageUrlFromText(image?.description),
-    extractFirstImageUrlFromText(image?.title),
-  ]
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter(Boolean) as string[];
-
+function pickBackfillSourceUrl(image: any): string | undefined {
+  const candidates = [image?.imageUrl, image?.previewUrl, image?.sourceUrl];
   for (const candidate of candidates) {
-    if (isPrivateNextcloudWebdavUrl(candidate)) continue;
-    if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) continue;
-    if (!isLikelyRenderableImageUrl(candidate)) continue;
+    if (!looksLikeHttpUrl(candidate)) continue;
+    if (isCloudHostedUrl(candidate)) continue;
     return candidate;
   }
   return undefined;
 }
 
 function mapImageForDisplay<T extends Record<string, any>>(image: T): T {
-  const fallbackDisplayUrl = pickRenderableImageUrl(image);
-  if (!fallbackDisplayUrl) return image;
-
-  const shouldReplaceImageUrl =
-    !image.imageUrl ||
-    isPrivateNextcloudWebdavUrl(image.imageUrl) ||
-    !String(image.imageUrl).startsWith("http");
-
-  return {
-    ...image,
-    imageUrl: shouldReplaceImageUrl ? fallbackDisplayUrl : image.imageUrl,
-    previewUrl: image.previewUrl || fallbackDisplayUrl,
-  } as T;
+  return image;
 }
 
 async function resolveLineageRoot(ctx: any, image: any) {
@@ -688,47 +649,42 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     return new Response("Missing required fields: imageUrl", { status: 400 });
   }
 
-  let resolvedImageUrl = sourceImageUrl;
-  let resolvedPreviewUrl: string | undefined = undefined;
-  let resolvedStoragePath: string | undefined = undefined;
-  let resolvedPreviewStoragePath: string | undefined = undefined;
-
+  let persistedImage;
   try {
-    const persistedImage = await ctx.runAction(internalApi.mediaStorage.persistExternalImageFromUrl, {
+    persistedImage = await ctx.runAction(internalApi.mediaStorage.persistExternalImageFromUrl, {
       sourceUrl: sourceImageUrl,
       title: body.title || "Discord Import",
     });
-    resolvedImageUrl = persistedImage.imageUrl;
-    resolvedPreviewUrl = persistedImage.previewUrl;
-    resolvedStoragePath = persistedImage.storagePath;
-    resolvedPreviewStoragePath = persistedImage.previewStoragePath;
   } catch (error: any) {
-    console.warn("Nextcloud persist failed; falling back to source URL ingest", error);
-  }
-
-  // Discord queue cards should stay visible even when Nextcloud WebDAV URLs are not
-  // publicly readable in the browser. Prefer the source URL only when it looks
-  // like a directly renderable image; otherwise keep persisted/fallback URLs.
-  if (body.sourceType === "discord" && isLikelyRenderableImageUrl(sourceImageUrl)) {
-    resolvedImageUrl = sourceImageUrl;
-    resolvedPreviewUrl = sourceImageUrl;
+    console.error("Nextcloud persist failed during external ingest", error);
+    return new Response(
+      JSON.stringify({
+        error: error?.message || "Failed to persist image to Nextcloud",
+      }),
+      {
+        status: 502,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   const imageId = await ctx.runMutation(internal.images.ingestExternal, {
     userId: resolvedUserId,
     title: body.title || "Discord Import",
     description: body.description,
-    imageUrl: resolvedImageUrl,
-    previewUrl: resolvedPreviewUrl,
+    imageUrl: persistedImage.imageUrl,
+    previewUrl: persistedImage.previewUrl,
     tags: body.tags,
     category: body.category,
     source: body.source,
     sref: body.sref,
-    storagePath: resolvedStoragePath,
-    previewStoragePath: resolvedPreviewStoragePath,
+    storagePath: persistedImage.storagePath,
+    previewStoragePath: persistedImage.previewStoragePath,
+    derivativeUrls: persistedImage.derivativeUrls,
+    derivativeStoragePaths: persistedImage.derivativeStoragePaths,
     externalId: body.externalId,
     sourceType: body.sourceType,
-    sourceUrl: body.sourceUrl,
+    sourceUrl: body.sourceUrl || sourceImageUrl,
     importBatchId: body.importBatchId,
   });
 
@@ -736,6 +692,175 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+});
+
+export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const apiKey = process.env.INGEST_API_KEY;
+  const token = readBearerToken(request);
+  if (!apiKey || token !== apiKey) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const limit = Math.max(1, Math.min(Number(body?.limit ?? 200), 1000));
+  const dryRun = Boolean(body?.dryRun);
+  const refreshVariants = Boolean(body?.refreshVariants);
+  const images = await ctx.runQuery((internal as any).images.internalListBackfillCandidates, {
+    limit,
+  });
+
+  let migrated = 0;
+  let failed = 0;
+  let skipped = 0;
+  const results: Array<Record<string, string | boolean | undefined>> = [];
+
+  for (const image of images) {
+    const hasStoredVariants =
+      Boolean(image.previewStoragePath) &&
+      Boolean(image.derivativeStoragePaths?.small) &&
+      Boolean(image.derivativeStoragePaths?.medium) &&
+      Boolean(image.derivativeStoragePaths?.large);
+
+    const variantsNeedRefresh =
+      Boolean(image.storagePath) &&
+      (!hasStoredVariants ||
+        image.imageUrl === image.derivativeUrls?.small ||
+        image.imageUrl === image.derivativeUrls?.medium ||
+        image.imageUrl === image.derivativeUrls?.large);
+
+    const alreadyCloud = image.storagePath
+      ? isCanonicalCloudUrl(image.imageUrl) &&
+        (!image.previewUrl || isCanonicalCloudUrl(image.previewUrl))
+      : isCloudHostedUrl(image.imageUrl) &&
+        (!image.previewUrl || isCloudHostedUrl(image.previewUrl));
+
+    if (alreadyCloud && !(refreshVariants && variantsNeedRefresh)) {
+      skipped += 1;
+      if (results.length < 50) {
+        results.push({
+          imageId: image._id,
+          title: image.title,
+          status: "already-cloud",
+        });
+      }
+      continue;
+    }
+
+    const mode = image.storagePath
+      ? refreshVariants && variantsNeedRefresh
+        ? "rebuild-variants"
+        : "publish-existing"
+      : pickBackfillSourceUrl(image)
+        ? "re-upload-source"
+        : "unrecoverable";
+
+    if (dryRun) {
+      if (mode === "unrecoverable") failed += 1;
+      else migrated += 1;
+      if (results.length < 50) {
+        results.push({
+          imageId: image._id,
+          title: image.title,
+          status: mode,
+          imageUrl: image.imageUrl,
+          sourceType: image.sourceType,
+        });
+      }
+      continue;
+    }
+
+    try {
+      if (image.storagePath) {
+        const published =
+          refreshVariants && variantsNeedRefresh
+            ? await ctx.runAction((internal as any).mediaStorage.reprocessStoredImagePaths, {
+                storagePath: image.storagePath,
+                title: image.title,
+              })
+            : await ctx.runAction((internal as any).mediaStorage.publishStoredImagePaths, {
+                storagePath: image.storagePath,
+                previewStoragePath: image.previewStoragePath,
+                derivativeStoragePaths: image.derivativeStoragePaths,
+              });
+        await ctx.runMutation((internal as any).images.internalApplyNextcloudUpload, {
+          imageId: image._id,
+          imageUrl: published.imageUrl,
+          previewUrl: published.previewUrl,
+          storagePath: published.storagePath ?? image.storagePath,
+          previewStoragePath: published.previewStoragePath ?? image.previewStoragePath,
+          derivativeUrls: published.derivativeUrls,
+          derivativeStoragePaths:
+            published.derivativeStoragePaths ?? image.derivativeStoragePaths,
+        });
+      } else {
+        const sourceUrl = pickBackfillSourceUrl(image);
+        if (!sourceUrl) {
+          throw new Error("No recoverable source URL");
+        }
+        const persisted = await ctx.runAction((internal as any).mediaStorage.persistExternalImageFromUrl, {
+          sourceUrl,
+          title: image.title,
+        });
+        await ctx.runMutation((internal as any).images.internalApplyNextcloudUpload, {
+          imageId: image._id,
+          imageUrl: persisted.imageUrl,
+          previewUrl: persisted.previewUrl,
+          storagePath: persisted.storagePath,
+          previewStoragePath: persisted.previewStoragePath,
+          derivativeUrls: persisted.derivativeUrls,
+          derivativeStoragePaths: persisted.derivativeStoragePaths,
+        });
+      }
+
+      migrated += 1;
+      if (results.length < 50) {
+        results.push({
+          imageId: image._id,
+          title: image.title,
+          status: mode,
+        });
+      }
+    } catch (error: any) {
+      failed += 1;
+      await ctx.runMutation((internal as any).images.internalRecordNextcloudBackfillFailure, {
+        imageId: image._id,
+        error: error?.message || "Backfill failed",
+      });
+      if (results.length < 50) {
+        results.push({
+          imageId: image._id,
+          title: image.title,
+          status: "failed",
+          error: error?.message || "Backfill failed",
+        });
+      }
+    }
+  }
+
+  return new Response(
+    JSON.stringify(
+      {
+        dryRun,
+        refreshVariants,
+        limit,
+        scanned: images.length,
+        migrated,
+        failed,
+        skipped,
+        results,
+      },
+      null,
+      2
+    ),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 });
 
 export const internalListDiscordQueue = internalQuery({
@@ -1673,6 +1798,45 @@ export const internalMarkNextcloudPersistFailed = internalMutation({
       storageProvider: "convex",
     });
     return null;
+  },
+});
+
+export const internalRecordNextcloudBackfillFailure = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    error: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch("images", args.imageId, {
+      nextcloudPersistStatus: "failed",
+      nextcloudPersistError: args.error,
+    });
+    return null;
+  },
+});
+
+export const internalListBackfillCandidates = internalQuery({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const limit = Math.max(1, Math.min(args.limit ?? 200, 1000));
+    const images = await ctx.db.query("images").order("desc").take(limit);
+    return images.map((image) => ({
+      _id: image._id,
+      title: image.title,
+      imageUrl: image.imageUrl,
+      previewUrl: image.previewUrl,
+      derivativeUrls: image.derivativeUrls,
+      sourceUrl: image.sourceUrl,
+      sourceType: image.sourceType,
+      storagePath: image.storagePath,
+      previewStoragePath: image.previewStoragePath,
+      derivativeStoragePaths: image.derivativeStoragePaths,
+      nextcloudPersistStatus: image.nextcloudPersistStatus,
+    }));
   },
 });
 

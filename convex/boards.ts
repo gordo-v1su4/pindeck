@@ -99,7 +99,9 @@ export const getBoardPreviewUrls = query({
       const urls: string[] = [];
       for (let i = 0; i < Math.min(limit, board.imageIds.length); i++) {
         const image = await ctx.db.get("images", board.imageIds[i]);
-        if (image?.imageUrl) urls.push(image.imageUrl);
+        const previewUrl =
+          image?.derivativeUrls?.small || image?.previewUrl || image?.imageUrl;
+        if (previewUrl) urls.push(previewUrl);
       }
       result[boardId] = urls;
     }

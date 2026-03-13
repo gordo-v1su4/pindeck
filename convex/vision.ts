@@ -301,18 +301,6 @@ export const internalGenerateRelatedImages = internalAction({
           if (!isNextcloudUnconfigured) {
             console.warn(`Failed to persist generated image ${i + 1}: ${persisted.error}`);
           }
-          // Fallback: keep generated URL so user flow is not blocked if Nextcloud is unavailable.
-          generatedImages.push({
-            url: validUrls[i],
-            sourceUrl: validUrls[i],
-            previewUrl: undefined,
-            storagePath: undefined,
-            previewStoragePath: undefined,
-            derivativeUrls: undefined,
-            derivativeStoragePaths: undefined,
-            title: parentTitle,
-            description: args.description,
-          });
           continue;
         }
 
@@ -329,26 +317,21 @@ export const internalGenerateRelatedImages = internalAction({
         });
       } catch (err) {
         console.error(`Failed to save generated image ${i}:`, err);
-        generatedImages.push({
-          url: validUrls[i],
-          sourceUrl: validUrls[i],
-          previewUrl: undefined,
-          storagePath: undefined,
-          previewStoragePath: undefined,
-          derivativeUrls: undefined,
-          derivativeStoragePaths: undefined,
-          title: parentTitle,
-          description: args.description,
-        });
       }
     }
 
-    if (generatedImages.length > 0) {
-      await ctx.runMutation(internal.images.internalSaveGeneratedImages, {
-        originalImageId: args.originalImageId,
-        images: generatedImages,
+    if (generatedImages.length === 0) {
+      await ctx.runMutation(internal.images.internalSetAiStatus, {
+        imageId: args.originalImageId,
+        status: "failed",
       });
+      return null;
     }
+
+    await ctx.runMutation(internal.images.internalSaveGeneratedImages, {
+      originalImageId: args.originalImageId,
+      images: generatedImages,
+    });
     
     return null;
   },

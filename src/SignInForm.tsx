@@ -3,7 +3,9 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { TextField, Button, Text, Flex, Box, Separator } from "@radix-ui/themes";
+import { EyeClosedIcon, EyeOpenIcon } from "@radix-ui/react-icons";
+import { TextField, Button, Text, Flex, Box, Separator, IconButton } from "@radix-ui/themes";
+import { Chrome, Github, UserRound } from "lucide-react";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
@@ -11,6 +13,7 @@ export function SignInForm() {
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
   const [signInStarted, setSignInStarted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Monitor auth state changes after sign-in attempt
   useEffect(() => {
@@ -75,9 +78,7 @@ export function SignInForm() {
     setSubmitting(true);
     setSignInStarted(true);
     formData.set("flow", flow);
-    
-    let waitingForAuth = false;
-    
+
     try {
       const result = await signIn("password", formData);
       console.log("✅ Sign-in result:", result);
@@ -86,7 +87,6 @@ export function SignInForm() {
       if (result && typeof result === 'object' && 'signingIn' in result) {
         if (result.signingIn === true) {
           console.log("⏳ Sign-in in progress, waiting for auth state update...");
-          waitingForAuth = true;
           // Don't show success toast yet - wait for auth state to update via useEffect
           // Don't reset form or set submitting to false yet - wait for auth completion
         } else {
@@ -132,114 +132,154 @@ export function SignInForm() {
     // Note: If waitingForAuth is true, useEffect will handle resetting submitting when auth completes
   };
 
+  const handleProviderSignIn = (provider: "google" | "github", label: string) => {
+    setSubmitting(true);
+    void signIn(provider).catch((error) => {
+      console.error(`❌ ${label} sign-in error:`, error);
+      toast.error(`${label} sign-in failed: ` + (error as Error).message);
+      setSubmitting(false);
+      setSignInStarted(false);
+    });
+  };
+
+  const title = "Discover Visual Inspiration";
+  const description = "A curated collection of visual references, design inspiration, and creative shots";
+  const submitLabel =
+    flow === "signIn"
+      ? submitting
+        ? "Signing in..."
+        : "Sign in"
+      : submitting
+        ? "Creating account..."
+        : "Sign up";
+
   return (
-    <Flex direction="column" gap="4" className="w-full">
-      <form onSubmit={handleSubmit}>
-        <Flex direction="column" gap="4">
-          <TextField.Root
-            type="email"
-            name="email"
-            placeholder="Email"
-            autoComplete="email"
-            required
-            size="3"
-          />
-          <TextField.Root
-            type="password"
-            name="password"
-            placeholder="Password"
-            autoComplete="current-password"
-            required
-            size="3"
-          />
-          <Button 
-            type="submit" 
-            disabled={submitting} 
-            size="3" 
-            style={{ width: '100%' }}
-          >
-            {flow === "signIn" ? "Sign in" : "Sign up"}
-          </Button>
-          <Flex justify="center" align="center" gap="1" wrap="wrap">
-            <Text size="2" color="gray">
-              {flow === "signIn"
-                ? "Don't have an account?"
-                : "Already have an account?"}
+    <Box className="auth-shell">
+      <Flex direction="column" gap="6" className="w-full">
+        <Flex direction="column" align="center" gap="5" className="text-center">
+          <Box className="max-w-[40rem] px-2">
+            <Text as="p" size="7" weight="bold" className="auth-hero-title">
+              {title}
             </Text>
-            <Button
-              type="button"
-              variant="ghost"
-              size="1"
-              onClick={() => {
-                setFlow(flow === "signIn" ? "signUp" : "signIn");
-              }}
+            <Text as="p" size="4" color="gray" className="mt-2 auth-hero-copy">
+              {description}
+            </Text>
+          </Box>
+        </Flex>
+
+        <form onSubmit={handleSubmit} className="auth-form-column">
+          <Flex direction="column" gap="4">
+            <TextField.Root
+              id="auth-email"
+              type="email"
+              name="email"
+              placeholder="Email"
+              autoComplete="email"
+              required
+              size="3"
+              className="auth-hero-field"
+            />
+
+            <TextField.Root
+              id="auth-password"
+              type={showPassword ? "text" : "password"}
+              name="password"
+              placeholder="Password"
+              autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+              required
+              size="3"
+              className="auth-hero-field"
             >
-              {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
+              <TextField.Slot side="right">
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword((current) => !current)}
+                >
+                  {showPassword ? <EyeClosedIcon width="18" height="18" /> : <EyeOpenIcon width="18" height="18" />}
+                </button>
+              </TextField.Slot>
+            </TextField.Root>
+
+            <Button type="submit" disabled={submitting} size="4" className="auth-primary-button">
+              {submitLabel}
             </Button>
           </Flex>
+        </form>
+
+        <Flex justify="center" align="center" gap="2" wrap="wrap" className="text-center">
+          <Text size="4" color="gray">
+            {flow === "signIn" ? "Don't have an account?" : "Already have an account?"}
+          </Text>
+          <Button
+            type="button"
+            variant="ghost"
+            size="3"
+            className="auth-switch-link"
+            onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
+          >
+            {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
+          </Button>
         </Flex>
-      </form>
-      <Flex align="center" justify="center" gap="3">
-        <Separator className="flex-1" />
-        <Text size="2" color="gray" className="px-2">or</Text>
-        <Separator className="flex-1" />
+
+        <Flex align="center" justify="center" gap="4">
+          <Separator className="flex-1 auth-divider-line" />
+          <Text size="3" color="gray" className="auth-divider-text">
+            or
+          </Text>
+          <Separator className="flex-1 auth-divider-line" />
+        </Flex>
+
+        <Box className="auth-provider-stack">
+          <IconButton
+            variant="solid"
+            size="4"
+            className="auth-provider-button"
+            aria-label="Continue with Google"
+            title="Continue with Google"
+            onClick={() => handleProviderSignIn("google", "Google")}
+            disabled={submitting}
+          >
+            <Chrome size={18} strokeWidth={2.2} />
+          </IconButton>
+          <IconButton
+            variant="solid"
+            size="4"
+            className="auth-provider-button"
+            aria-label="Continue with GitHub"
+            title="Continue with GitHub"
+            onClick={() => handleProviderSignIn("github", "GitHub")}
+            disabled={submitting}
+          >
+            <Github size={18} strokeWidth={2.2} />
+          </IconButton>
+          <IconButton
+            variant="solid"
+            size="4"
+            className="auth-provider-button"
+            aria-label="Continue anonymously"
+            title="Continue anonymously"
+            onClick={async () => {
+              console.log("🔐 Starting anonymous sign-in...");
+              setSubmitting(true);
+              setSignInStarted(true);
+              try {
+                const result = await signIn("anonymous");
+                console.log("🔐 Anonymous sign-in result:", result);
+              } catch (error) {
+                console.error("❌ Anonymous sign-in error:", error);
+                toast.error("Anonymous sign-in failed: " + (error as Error).message);
+                setSubmitting(false);
+                setSignInStarted(false);
+              }
+            }}
+            disabled={submitting}
+          >
+            <UserRound size={18} strokeWidth={2.2} />
+          </IconButton>
+        </Box>
       </Flex>
-      <Button 
-        variant="outline" 
-        size="3" 
-        style={{ width: '100%' }}
-        onClick={() => {
-          setSubmitting(true);
-          void signIn("google").catch((error) => {
-            console.error("❌ Google sign-in error:", error);
-            toast.error("Google sign-in failed: " + (error as Error).message);
-            setSubmitting(false);
-            setSignInStarted(false);
-          });
-        }}
-        disabled={submitting}
-      >
-        Continue with Google
-      </Button>
-      <Button 
-        variant="outline" 
-        size="3" 
-        style={{ width: '100%' }}
-        onClick={() => {
-          setSubmitting(true);
-          void signIn("github").catch((error) => {
-            console.error("❌ GitHub sign-in error:", error);
-            toast.error("GitHub sign-in failed: " + (error as Error).message);
-            setSubmitting(false);
-            setSignInStarted(false);
-          });
-        }}
-        disabled={submitting}
-      >
-        Continue with GitHub
-      </Button>
-      <Button 
-        variant="outline" 
-        size="3" 
-        style={{ width: '100%' }}
-        onClick={async () => {
-          console.log("🔐 Starting anonymous sign-in...");
-          setSubmitting(true);
-          setSignInStarted(true);
-          try {
-            const result = await signIn("anonymous");
-            console.log("🔐 Anonymous sign-in result:", result);
-          } catch (error) {
-            console.error("❌ Anonymous sign-in error:", error);
-            toast.error("Anonymous sign-in failed: " + (error as Error).message);
-            setSubmitting(false);
-            setSignInStarted(false);
-          }
-        }}
-        disabled={submitting}
-      >
-        Sign in anonymously
-      </Button>
-    </Flex>
+    </Box>
   );
 }

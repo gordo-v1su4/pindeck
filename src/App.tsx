@@ -34,6 +34,7 @@ export default function App() {
   
   // Check backend auth state to verify if user is actually logged in
   const loggedInUser = useQuery(api.auth.loggedInUser);
+  const showAppChrome = Boolean(isAuthenticated || loggedInUser);
 
   const setActiveTab = (tab: string) => {
     console.log("🔄 Setting active tab to:", tab);
@@ -123,7 +124,13 @@ export default function App() {
         <Box className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Flex justify="between" align="center">
             <Flex align="center" gap="6">
-              <Text size="6" weight="bold">Visuals</Text>
+              <Flex align="center" gap="3" className="site-brand-lockup">
+                <Box className="site-brand-mark">P/</Box>
+                <div className="site-brand-word">
+                  <span className="site-brand-word-light">PIN</span>
+                  <span className="site-brand-word-accent">DECK</span>
+                </div>
+              </Flex>
               <Authenticated>
                 <SearchBar onSearch={setSearchTerm} />
               </Authenticated>
@@ -134,8 +141,7 @@ export default function App() {
               </Authenticated>
             </Flex>
           </Flex>
-          {/* Show tabs if authenticated OR if backend says user is logged in (workaround) */}
-          {(isAuthenticated || loggedInUser) && (
+          {showAppChrome && (
             <Box className="mt-4">
               <Tabs.Root 
                 value={activeTab} 
@@ -157,7 +163,7 @@ export default function App() {
               </Tabs.Root>
             </Box>
           )}
-          {(isAuthenticated || loggedInUser) && activeTab === "gallery" && (
+          {showAppChrome && activeTab === "gallery" && (
             <Box className="mt-4">
               <CategoryFilter
                 selectedGroup={undefined}
@@ -172,7 +178,7 @@ export default function App() {
 
       <main className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
         {/* Show authenticated content if frontend says authenticated OR backend says user exists */}
-        {(isAuthenticated || loggedInUser) ? (
+        {showAppChrome ? (
           <>
             {activeTab === "gallery" && (
               <Content 
@@ -250,14 +256,8 @@ function Content({ searchTerm, selectedGroup, selectedCategory, setActiveTab, in
   return (
     <Flex direction="column" gap="8">
       <Unauthenticated>
-        <Flex direction="column" align="center" gap="6" className="text-center py-16">
-          <Text size="8" weight="bold">
-            Discover Visual Inspiration
-          </Text>
-          <Text size="4" color="gray" className="max-w-2xl">
-            A curated collection of visual references, design inspiration, and creative shots
-          </Text>
-          <Box className="max-w-md w-full">
+        <Flex align="center" justify="center" className="auth-landing min-h-[calc(100vh-10rem)] py-10 sm:py-16">
+          <Box className="w-full max-w-[42rem]">
             <SignInForm />
           </Box>
         </Flex>

@@ -93,6 +93,23 @@ Each image now carries persistence status for observability:
 - `derivativeUrls`: `{ small, medium, large }` (when available)
 - `derivativeStoragePaths`: `{ small, medium, large }` (when available)
 
+### Nextcloud public delivery
+
+Pindeck now supports two ways to turn stored Nextcloud files into browser-safe URLs:
+
+1. Preferred: share the upload root folder once in Nextcloud and set:
+   - `NEXTCLOUD_PUBLIC_SHARE_TOKEN`
+   - `NEXTCLOUD_UPLOAD_SHARE_TOKEN` (optional but recommended: separate write-enabled token for backend uploads)
+   - `NEXTCLOUD_PUBLIC_SHARE_PATH` (optional, defaults to `NEXTCLOUD_UPLOAD_PREFIX`)
+   - `NEXTCLOUD_PUBLIC_BASE_URL` (optional, defaults to the Nextcloud server base URL)
+2. Alternate: create per-file public shares through the Nextcloud OCS API.
+
+The shared-folder model is the closest match to "Nextcloud as a bucket":
+- Convex still uploads originals/previews/derivatives through WebDAV.
+- Public image URLs are derived from the shared root folder token using
+  `public.php/dav/files/<token>/...` paths.
+- Gallery, boards, deck, and table all continue to read the same `images.imageUrl` / `previewUrl` fields.
+
 ### Backfill Convex-only uploads
 
 Use the mutation below to reschedule persistence for uploads still in Convex storage:
@@ -121,6 +138,10 @@ Typical setup in `.env.local`:
 - `DISCORD_GUILD_ID`
 - `DISCORD_INGEST_EMOJIS` (example: `:pushpin:` equivalent unicode/custom emoji format)
 - `INGEST_API_KEY`
+- `NEXTCLOUD_PUBLIC_SHARE_TOKEN` (recommended when Nextcloud is used as the public asset host)
+- `NEXTCLOUD_UPLOAD_SHARE_TOKEN` (recommended hidden upload token when using a separate write-enabled share)
+- `NEXTCLOUD_PUBLIC_SHARE_PATH` (optional override for the shared root)
+- `NEXTCLOUD_PUBLIC_BASE_URL` (optional override when Nextcloud is behind a public proxy)
 - `PINDECK_INGEST_URL` (optional if deriving from Convex site URL)
 - `PINDECK_DISCORD_QUEUE_URL` / `PINDECK_DISCORD_MODERATION_URL` (optional overrides)
 
