@@ -66,7 +66,11 @@ export const getById = query({
               ? {
                   _id: image._id,
                   title: image.title,
-                  imageUrl: image.imageUrl,
+                  imageUrl:
+                    image.derivativeUrls?.large ||
+                    image.derivativeUrls?.medium ||
+                    image.previewUrl ||
+                    image.imageUrl,
                   description: image.description,
                   tags: image.tags,
                   category: image.category,

@@ -14,7 +14,7 @@ interface GenerateVariationsModalProps {
 
 export function GenerateVariationsModal({ imageId, open, onOpenChange }: GenerateVariationsModalProps) {
   const generateVariations = useMutation(api.vision.generateVariations);
-  const [variationCount, setVariationCount] = useState(2);
+  const [variationCount, setVariationCount] = useState(1);
   const [modificationMode, setModificationMode] = useState("shot-variation");
   const [variationDetail, setVariationDetail] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
@@ -31,7 +31,7 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
       });
       toast.success(`Generating ${variationCount} variations...`);
       onOpenChange(false);
-      setVariationCount(2);
+      setVariationCount(1);
       setModificationMode("shot-variation");
       setVariationDetail("");
     } catch (error) {

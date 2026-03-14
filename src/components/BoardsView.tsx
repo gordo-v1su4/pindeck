@@ -6,7 +6,7 @@ import { PlusIcon, TrashIcon, Pencil1Icon, EyeOpenIcon, BookmarkIcon, Cross2Icon
 import { CreateBoardModal } from "./CreateBoardModal";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
-import { getThumbnailUrl } from "../lib/imageUrls";
+import { getCardImageUrl } from "../lib/imageUrls";
 
 export function BoardsView({
   setActiveTab,
@@ -143,7 +143,7 @@ export function BoardsView({
               >
                 <Box className="relative overflow-hidden aspect-video bg-gray-900 rounded-lg">
                   <img
-                    src={getThumbnailUrl(image, "small")}
+                    src={getCardImageUrl(image)}
                     alt={image.title}
                     className="w-full h-full object-cover"
                     loading="lazy"

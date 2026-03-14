@@ -60,24 +60,11 @@ export default function App() {
     }
   };
   
-  // Debug authentication state - CRITICAL for diagnosing "can't access pages" issue
   useEffect(() => {
     const authState = { isLoading, isAuthenticated, loggedInUser: loggedInUser !== undefined ? (loggedInUser !== null ? "logged in" : "not logged in") : "loading" };
     console.log("🔐 App Auth State:", JSON.stringify(authState, null, 2));
     console.log("🔐 Convex URL:", import.meta.env.VITE_CONVEX_URL);
     console.log("🔐 Backend User:", loggedInUser);
-    
-    // Check localStorage for auth tokens
-    const convexAuthStorage = localStorage.getItem("convex-auth");
-    console.log("🔐 LocalStorage Auth:", convexAuthStorage ? "exists" : "missing");
-    if (convexAuthStorage) {
-      try {
-        const parsed = JSON.parse(convexAuthStorage);
-        console.log("🔐 Auth Token Keys:", Object.keys(parsed));
-      } catch (e) {
-        console.log("🔐 Auth Storage Parse Error:", e);
-      }
-    }
   }, [isAuthenticated, isLoading, loggedInUser]);
 
   useEffect(() => {

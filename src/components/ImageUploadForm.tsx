@@ -86,8 +86,8 @@ export function ImageUploadForm() {
 
   // Post-upload variation modal state
   const [variationModalOpen, setVariationModalOpen] = useState(false);
-  const [variationTargetImage, setVariationTargetImage] = useState<Id<"images"> | null>(null);
-  const [variationCount, setVariationCount] = useState(2);
+  const [variationTargetImageIds, setVariationTargetImageIds] = useState<Id<"images">[]>([]);
+  const [variationCount, setVariationCount] = useState(1);
   const [modificationMode, setModificationMode] = useState("shot-variation");
   const [variationDetail, setVariationDetail] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
@@ -364,18 +364,23 @@ export function ImageUploadForm() {
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
           uniqueId: uniqueId,
-          // Default: generate two suggestions for approve/deny queue
-          variationCount: 2,
+          // Uploads should not silently auto-generate variations.
+          variationCount: 0,
         };
       });
 
       const uploads = await Promise.all(uploadPromises);
 
-      await uploadMultiple({ uploads });
+      const imageIds = await uploadMultiple({ uploads });
 
       // Clear local files after successful initial upload and scheduling
       files.forEach(file => URL.revokeObjectURL(file.preview));
       setFiles([]);
+
+      if (imageIds.length > 0) {
+        setVariationTargetImageIds(imageIds);
+        setVariationModalOpen(true);
+      }
 
     } catch (error) {
       console.error("Upload failed:", error);
@@ -426,20 +431,26 @@ export function ImageUploadForm() {
 
   // Handle generating variations for a specific image
   const handleGenerateVariations = async () => {
-    if (!variationTargetImage || variationCount < 1) return;
+    if (variationTargetImageIds.length === 0 || variationCount < 1) return;
 
     try {
-      await generateVariationsMutation({
-        imageId: variationTargetImage,
-        variationCount,
-        modificationMode,
-        variationDetail: variationDetail.trim() || undefined,
-        aspectRatio: aspectRatio || undefined,
-      });
-      toast.success(`Generating ${variationCount} variations...`);
+      await Promise.all(
+        variationTargetImageIds.map((imageId) =>
+          generateVariationsMutation({
+            imageId,
+            variationCount,
+            modificationMode,
+            variationDetail: variationDetail.trim() || undefined,
+            aspectRatio: aspectRatio || undefined,
+          })
+        )
+      );
+      toast.success(
+        `Generating ${variationCount} variation${variationCount !== 1 ? "s" : ""} for ${variationTargetImageIds.length} image${variationTargetImageIds.length !== 1 ? "s" : ""}...`
+      );
       setVariationModalOpen(false);
-      setVariationTargetImage(null);
-      setVariationCount(2);
+      setVariationTargetImageIds([]);
+      setVariationCount(1);
       setModificationMode("shot-variation");
       setVariationDetail("");
       setAspectRatio("16:9");
@@ -451,7 +462,7 @@ export function ImageUploadForm() {
 
   // Open the variation modal for a specific image
   const openVariationModal = (imageId: Id<"images">) => {
-    setVariationTargetImage(imageId);
+    setVariationTargetImageIds([imageId]);
     setVariationModalOpen(true);
   };
 
@@ -634,12 +645,12 @@ export function ImageUploadForm() {
           {/* Generate Variations Modal - shown AFTER image is uploaded and analyzed */}
           <Dialog.Root open={variationModalOpen} onOpenChange={(open) => {
             setVariationModalOpen(open);
-            if (!open) setVariationTargetImage(null);
+            if (!open) setVariationTargetImageIds([]);
           }}>
             <Dialog.Content style={{ maxWidth: 520 }}>
               <Dialog.Title>Generate Variations</Dialog.Title>
               <Dialog.Description size="2" color="gray">
-                Create AI-generated variations of this image. Choose what kind of variations you want.
+                Create AI-generated variations for {variationTargetImageIds.length === 1 ? "this image" : `${variationTargetImageIds.length} uploaded images`}. Choose what kind of variations you want before anything gets generated.
               </Dialog.Description>
 
           <Flex direction="column" gap="4" className="mt-4">

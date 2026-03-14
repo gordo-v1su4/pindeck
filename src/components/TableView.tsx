@@ -42,7 +42,7 @@ import { GenerateVariationsModal } from "./GenerateVariationsModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
-import { getThumbnailUrl } from "../lib/imageUrls";
+import { getDenseThumbnailUrl } from "../lib/imageUrls";
 
 interface Image {
   _id: Id<"images">;
@@ -140,7 +140,7 @@ export function TableView() {
         cell: ({ row }) => (
           <Box className="w-16 h-16 bg-gray-100 rounded overflow-hidden">
             <img
-              src={getThumbnailUrl(row.original, "small")}
+              src={getDenseThumbnailUrl(row.original)}
               alt={row.original.title}
               className="w-full h-full object-cover"
             />
@@ -243,28 +243,42 @@ export function TableView() {
         header: "Parent",
         cell: ({ row }) => {
           const parentId = row.original.parentImageId;
+          const hasChildren = (images || []).some((img) => img.parentImageId === row.original._id);
           if (!parentId) {
-            const hasChildren = (images || []).some((img) => img.parentImageId === row.original._id);
-            return hasChildren ? (
-              <Badge variant="soft" color="green" size="1">Parent</Badge>
-            ) : (
-              <Text size="1" color="gray">-</Text>
+            return (
+              <Flex gap="1" align="center" wrap="wrap">
+                <Badge variant="soft" color="green" size="1">
+                  Original
+                </Badge>
+                {hasChildren ? (
+                  <Badge variant="soft" color="blue" size="1">
+                    Parent
+                  </Badge>
+                ) : null}
+              </Flex>
             );
           }
           // Find parent image from the list
           const parentImage = images?.find(img => img._id === parentId);
           return parentImage ? (
-            <Button
-              variant="soft"
-              color="blue"
-              size="1"
-              onClick={() => setSelectedImage(parentId)}
-              style={{ opacity: 0.85 }}
-            >
-              {parentImage.title.substring(0, 20)}{parentImage.title.length > 20 ? '...' : ''}
-            </Button>
+            <Flex gap="1" align="center" wrap="wrap">
+              <Badge variant="soft" color="amber" size="1">
+                Child
+              </Badge>
+              <Button
+                variant="soft"
+                color="blue"
+                size="1"
+                onClick={() => setSelectedImage(parentId)}
+                style={{ opacity: 0.85 }}
+              >
+                {parentImage.title.substring(0, 20)}{parentImage.title.length > 20 ? '...' : ''}
+              </Button>
+            </Flex>
           ) : (
-            <Text size="1" color="gray">-</Text>
+            <Badge variant="soft" color="amber" size="1">
+              Child
+            </Badge>
           );
         },
         enableSorting: false,

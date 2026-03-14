@@ -20,17 +20,6 @@ export function SignInForm() {
     console.log("🔐 Auth state:", { isAuthenticated, isLoading, signInStarted });
     
     if (signInStarted) {
-      const authStorage = localStorage.getItem("convex-auth");
-      console.log("🔐 LocalStorage Auth:", authStorage ? "exists" : "missing");
-      if (authStorage) {
-        try {
-          const parsed = JSON.parse(authStorage);
-          console.log("🔐 Auth Token Keys:", Object.keys(parsed));
-        } catch (e) {
-          console.log("🔐 Auth Storage Parse Error:", e);
-        }
-      }
-      
       // When authentication completes, show success and reset
       if (isAuthenticated) {
         console.log("✅ Authentication completed successfully!");
@@ -50,7 +39,6 @@ export function SignInForm() {
           console.log("🔍 Debug info:", {
             isAuthenticated,
             isLoading,
-            localStorage: localStorage.getItem("convex-auth") ? "exists" : "missing"
           });
           toast.error("Sign-in timed out. Please check your connection and try again.");
           setSignInStarted(false);

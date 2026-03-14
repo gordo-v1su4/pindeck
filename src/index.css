@@ -437,6 +437,18 @@ body {
   max-height: 90vh;
 }
 
+.pindeck-image-modal[data-radix-dialog-content] {
+  position: fixed !important;
+  inset: 50% auto auto 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  animation: none !important;
+  transition: none !important;
+}
+
 /* Ensure aspect-video works correctly */
 .aspect-video {
   aspect-ratio: 16 / 9;

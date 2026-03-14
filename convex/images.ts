@@ -1299,55 +1299,24 @@ export const uploadMultiple = mutation({
 
     const results = await Promise.all(
       args.uploads.map(async (upload) => {
-        // First get the Convex storage URL temporarily
         const tempUrl = await ctx.storage.getUrl(upload.storageId);
         if (!tempUrl) {
           throw new Error("Failed to get temporary image URL");
         }
-
-        // Download the file from Convex storage
-        const response = await fetch(tempUrl);
-        if (!response.ok) {
-          throw new Error("Failed to download image from Convex storage");
-        }
-        const buffer = await response.arrayBuffer();
-
-        // Upload to NextCloud via media gateway
-        const mediaGatewayUrl = process.env.MEDIA_GATEWAY_URL || "http://localhost:4545";
-        const formData = new FormData();
-        formData.append("file", new Blob([buffer]), upload.title || "image.png");
-        formData.append("userId", userId);
-
-        const uploadResponse = await fetch(`${mediaGatewayUrl}/upload`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.MEDIA_GATEWAY_TOKEN}`,
-          },
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text();
-          throw new Error(`Failed to upload to NextCloud: ${uploadResponse.status} ${errorText}`);
-        }
-
-        const uploadResult = await uploadResponse.json();
-        const nextcloudUrl = uploadResult.publicUrl;
-
-        // Create the image record with NextCloud URL
         const imageId = await ctx.db.insert("images", {
           title: upload.title,
           description: upload.description,
-          imageUrl: nextcloudUrl,
-          storageId: upload.storageId, // Keep for cleanup later
-          storagePath: uploadResult.path,
-          tags: [...upload.tags, "original"], // Tag as original user upload
+          // Temporary Convex URL while finalizeUploadedImage persists to Nextcloud.
+          imageUrl: tempUrl,
+          previewUrl: tempUrl,
+          storageId: upload.storageId,
+          tags: upload.tags,
           category: upload.category,
           source: upload.source,
           sref: upload.sref,
           colors: upload.colors,
           group: upload.group,
-          projectName: upload.title,
+          projectName: upload.projectName,
           moodboardName: upload.moodboardName,
           uniqueId: upload.uniqueId,
           uploadedBy: userId,
@@ -1361,14 +1330,13 @@ export const uploadMultiple = mutation({
           uploadedAt: Date.now(),
         });
 
-        // Persist original + preview to Nextcloud, then trigger smart analysis using external URLs.
         try {
           await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
             storageId: upload.storageId,
             imageId: imageId,
             userId,
             group: upload.group,
-            projectName: upload.title,
+            projectName: upload.projectName,
             moodboardName: upload.moodboardName,
             title: upload.title,
             description: upload.description,

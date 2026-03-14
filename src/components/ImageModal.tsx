@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { CreateBoardModal } from "./CreateBoardModal";
 import { GenerateVariationsModal } from "./GenerateVariationsModal";
 import { sortColorsDarkToLight, getTagColor } from "../lib/utils";
+import { getDetailImageUrl } from "../lib/imageUrls";
 
 const copyToClipboard = (text: string, label: string) => {
   navigator.clipboard.writeText(text);
@@ -94,7 +95,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
     <>
       <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
         <Dialog.Content
-          className="p-0 overflow-hidden"
+          className="pindeck-image-modal p-0 overflow-hidden"
           style={{
             position: 'fixed',
             top: '50%',
@@ -129,7 +130,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
           {/* Image - full width, natural aspect */}
           <Box style={{ width: '100%', aspectRatio: '16/9', background: '#000' }}>
             <img
-              src={image.imageUrl}
+              src={getDetailImageUrl(image)}
               alt={displayTitle}
               className="w-full h-full object-contain"
             />

@@ -401,6 +401,74 @@ async function uploadViaMediaGateway(args: {
   };
 }
 
+async function processImageViaMediaGateway(args: {
+  gateway: MediaGatewayConfig;
+  directory: string;
+  fileBase: string;
+  originalExt: string;
+  title?: string;
+  contentType: string;
+  data: Buffer;
+}): Promise<UploadedImage> {
+  const formData = new FormData();
+  formData.append("userId", args.gateway.userId);
+  formData.append("folder", args.directory);
+  formData.append("basename", args.fileBase);
+  formData.append("originalExt", args.originalExt);
+  if (args.title) {
+    formData.append("title", args.title);
+  }
+  formData.append(
+    "file",
+    new Blob([args.data], { type: args.contentType || "application/octet-stream" }),
+    `${args.fileBase}.${args.originalExt}`
+  );
+
+  const response = await fetch(`${args.gateway.url}/process-image`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${args.gateway.token}`,
+    },
+    body: formData,
+  });
+
+  const body = await readBodyTextSafe(response);
+  if (!response.ok) {
+    throw new Error(
+      `Media gateway process-image failed (${response.status}) for ${args.fileBase}: ${body.slice(0, 300)}`
+    );
+  }
+
+  const parsed = JSON.parse(body) as UploadedImage;
+  if (
+    !parsed?.imageUrl ||
+    !parsed?.previewUrl ||
+    !parsed?.storagePath ||
+    !parsed?.previewStoragePath ||
+    !parsed?.derivativeUrls?.small ||
+    !parsed?.derivativeUrls?.medium ||
+    !parsed?.derivativeUrls?.large ||
+    !parsed?.derivativeStoragePaths?.small ||
+    !parsed?.derivativeStoragePaths?.medium ||
+    !parsed?.derivativeStoragePaths?.large
+  ) {
+    throw new Error(`Media gateway process-image returned incomplete payload for ${args.fileBase}`);
+  }
+
+  return {
+    imageUrl: parsed.imageUrl,
+    previewUrl: parsed.previewUrl,
+    storagePath: normalizePath(parsed.storagePath),
+    previewStoragePath: normalizePath(parsed.previewStoragePath),
+    derivativeUrls: parsed.derivativeUrls,
+    derivativeStoragePaths: {
+      small: normalizePath(parsed.derivativeStoragePaths.small),
+      medium: normalizePath(parsed.derivativeStoragePaths.medium),
+      large: normalizePath(parsed.derivativeStoragePaths.large),
+    },
+  };
+}
+
 async function fetchPrivateNextcloudFile(
   config: NextcloudConfig,
   relativePath: string
@@ -486,8 +554,8 @@ const PREVIEW_HEIGHT = 360;
 
 const DERIVATIVE_DIMENSIONS = {
   small: { width: 320, height: 180 },
-  medium: { width: 768, height: 432 },
-  large: { width: 1280, height: 720 },
+  medium: { width: 1280, height: 720 },
+  large: { width: 1920, height: 1080 },
 } as const;
 
 async function buildPreview(
@@ -588,6 +656,18 @@ async function persistImageBuffer(args: {
   const directory = normalizePath(`${config.uploadPrefix}/${year}/${monthDay}`);
   const originalPath = `${directory}/original/${fileBase}.${originalExt}`;
 
+  if (mediaGateway) {
+    return await processImageViaMediaGateway({
+      gateway: mediaGateway,
+      directory,
+      fileBase,
+      originalExt,
+      title: args.title,
+      contentType: args.contentType || "application/octet-stream",
+      data: args.fileBuffer,
+    });
+  }
+
   const preview = await buildPreview(
     args.fileBuffer,
     args.contentType || "application/octet-stream",
@@ -621,19 +701,6 @@ async function persistImageBuffer(args: {
     contentType: string,
     data: Buffer
   ): Promise<{ publicUrl: string; storagePath: string }> => {
-    if (mediaGateway) {
-      const uploaded = await uploadViaMediaGateway({
-        gateway: mediaGateway,
-        relativePath,
-        contentType,
-        data,
-      });
-      return {
-        publicUrl: uploaded.publicUrl,
-        storagePath: uploaded.path,
-      };
-    }
-
     return {
       publicUrl: await uploadAndShareFile(config, relativePath, contentType, data),
       storagePath: relativePath,
@@ -668,8 +735,8 @@ async function persistImageBuffer(args: {
 
   const derivativePaths = {
     small: `${directory}/low/${fileBase}-w320.webp`,
-    medium: `${directory}/high/${fileBase}-w768.webp`,
-    large: `${directory}/high/${fileBase}-w1280.webp`,
+    medium: `${directory}/high/${fileBase}-w1280.webp`,
+    large: `${directory}/high/${fileBase}-w1920.webp`,
   };
   const [smallUpload, mediumUpload, largeUpload] = await Promise.all([
     uploadPublicFile(derivativePaths.small, "image/webp", smallData),

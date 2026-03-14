@@ -153,6 +153,27 @@ bun install
 bun run dev
 ```
 
+### Hostinger / Tailscale SSH
+
+The Discord bot and media gateway are hosted on the Hostinger machine below and should be managed there over Tailscale SSH:
+
+- Hostname: `srv1353991`
+- Tailscale IP: `100.105.199.93`
+- User: `gordo-v1su4`
+
+Connect with:
+
+```bash
+ssh gordo-v1su4@100.105.199.93
+```
+
+Notes:
+- Tailscale SSH is enabled.
+- There is no shared password to use.
+- Login may require browser-based approval/MFA through the Tailscale account.
+- If prompted, use the Tailscale-authenticated SSH flow rather than raw password auth.
+- The Linux account/user mapping on that host should be verified if Tailscale returns `failed to look up local user`.
+
 ## Deploy
 
 ### Convex
