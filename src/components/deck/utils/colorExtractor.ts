@@ -25,6 +25,37 @@ function getLuminance(hex: string): number {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
+function getSaturation(hex: string): number {
+  const rgb = parseInt(hex.replace('#', ''), 16);
+  const r = (rgb >> 16) & 0xff;
+  const g = (rgb >> 8) & 0xff;
+  const b = (rgb >> 0) & 0xff;
+  return Math.max(r, g, b) - Math.min(r, g, b);
+}
+
+function clampChannel(value: number): number {
+  return Math.max(0, Math.min(255, value));
+}
+
+function mix(hexA: string, hexB: string, amount = 0.5): string {
+  const a = parseInt(hexA.replace('#', ''), 16);
+  const b = parseInt(hexB.replace('#', ''), 16);
+  const channels = [16, 8, 0].map((shift) => {
+    const start = (a >> shift) & 0xff;
+    const end = (b >> shift) & 0xff;
+    return clampChannel(Math.round(start + (end - start) * amount));
+  });
+  return rgbToHex(channels[0], channels[1], channels[2]);
+}
+
+function toPalette(partial: Omit<ColorPalette, 'dark' | 'light'>): ColorPalette {
+  return {
+    ...partial,
+    dark: partial.background,
+    light: partial.text,
+  };
+}
+
 export async function extractColors(imageUrl: string): Promise<ColorPalette> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -66,19 +97,32 @@ export async function extractColors(imageUrl: string): Promise<ColorPalette> {
           return vibrant;
         };
 
+        const saturated = [...hexColors].sort(
+          (a, b) => getSaturation(b) - getSaturation(a)
+        );
         const primary = hexColors[0];
         const secondary = hexColors[1] || adjustBrightness(primary, 20);
-        const accent = getMostVibrant(hexColors);
-        const dark = adjustBrightness(sortedByLuminance[0], -30);
-        const light = sortedByLuminance[sortedByLuminance.length - 1];
+        const accent = getMostVibrant(saturated);
+        const tertiary = saturated[1] || mix(primary, accent, 0.5);
+        const background = adjustBrightness(sortedByLuminance[0], -32);
+        const surface = mix(background, sortedByLuminance[1] || primary, 0.22);
+        const text = adjustBrightness(sortedByLuminance[sortedByLuminance.length - 1], 12);
+        const muted = mix(text, tertiary, 0.35);
+        const border = mix(accent, text, 0.35);
 
-        resolve({
-          primary,
-          secondary,
-          accent,
-          dark,
-          light,
-        });
+        resolve(
+          toPalette({
+            primary,
+            secondary,
+            accent,
+            tertiary,
+            background,
+            surface,
+            text,
+            muted,
+            border,
+          })
+        );
       } catch (error) {
         reject(error);
       }
@@ -93,9 +137,15 @@ export async function extractColors(imageUrl: string): Promise<ColorPalette> {
 }
 
 export const defaultColors: ColorPalette = {
-  primary: '#6366f1',
-  secondary: '#8b5cf6',
-  accent: '#f59e0b',
-  dark: '#0a0a0a',
-  light: '#f5f5f5',
+  primary: '#d2dc64',
+  secondary: '#283228',
+  accent: '#fff996',
+  tertiary: '#b4be78',
+  background: '#0a0a0b',
+  surface: '#121214',
+  text: '#f0f5dc',
+  muted: '#cad2aa',
+  border: '#6a7438',
+  dark: '#0a0a0b',
+  light: '#f0f5dc',
 };

@@ -5,13 +5,15 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ChangeEvent, DragEvent } from "react";
 import { Box, Button, Card, Flex, Text } from "@radix-ui/themes";
 import { toast } from "sonner";
 import { DeckSection } from "./DeckSection";
 import type {
   BlockData,
   ColorPalette,
-  StyleConfig,
+  FontStyle,
+  LayoutVariant,
   StyleVariant,
 } from "./types";
 import { cn } from "./utils/cn";
@@ -42,7 +44,96 @@ export type DeckDetail = {
   slides: DeckSlide[];
 };
 
-type PreviewMode = "html" | "pdf";
+type ComposerPanel = "design" | "content" | "structure";
+
+const FONT_OPTIONS: Array<{
+  id: FontStyle;
+  name: string;
+  detail: string;
+  preview: string;
+  previewFamily: string;
+}> = [
+  {
+    id: "agency",
+    name: "Agency",
+    detail: "Schibsted Grotesk + Karla",
+    preview: "AG",
+    previewFamily: '"Schibsted Grotesk", sans-serif',
+  },
+  {
+    id: "technical",
+    name: "Technical",
+    detail: "IBM Plex Sans + Mono",
+    preview: "PX",
+    previewFamily: '"IBM Plex Sans", sans-serif',
+  },
+  {
+    id: "editorial",
+    name: "Editorial",
+    detail: "Playfair + Source Serif",
+    preview: "Ed",
+    previewFamily: '"Playfair Display", serif',
+  },
+  {
+    id: "brutalist",
+    name: "Brutalist",
+    detail: "Archivo Black + Archivo",
+    preview: "BR",
+    previewFamily: '"Archivo Black", sans-serif',
+  },
+  {
+    id: "playful",
+    name: "Playful",
+    detail: "Quicksand + Cabin",
+    preview: "Qk",
+    previewFamily: '"Quicksand", sans-serif',
+  },
+  {
+    id: "modern-clean",
+    name: "Modern",
+    detail: "Inter slim system",
+    preview: "MC",
+    previewFamily: '"Inter", sans-serif',
+  },
+  {
+    id: "newspaper",
+    name: "Newspaper",
+    detail: "Playfair + DM Sans",
+    preview: "NP",
+    previewFamily: '"Playfair Display", serif',
+  },
+  {
+    id: "ibm-plex",
+    name: "IBM Plex",
+    detail: "Plex Sans + Plex Mono",
+    preview: "IP",
+    previewFamily: '"IBM Plex Sans", sans-serif',
+  },
+  {
+    id: "minimal",
+    name: "Minimal",
+    detail: "Geist clean stack",
+    preview: "Mi",
+    previewFamily: '"Geist", sans-serif',
+  },
+];
+
+const LAYOUT_OPTIONS: Array<{
+  id: LayoutVariant;
+  name: string;
+  detail: string;
+}> = [
+  {
+    id: "editorial",
+    name: "Editorial",
+    detail: "Wide frames, cinematic pacing, strong hero moments.",
+  },
+  {
+    id: "collage",
+    name: "Structured Grid",
+    detail: "Dense composition, modular cards, stronger image rhythm.",
+  },
+];
 
 const styleVariants: { id: StyleVariant; name: string }[] = [
   { id: "cinematic", name: "Cinematic" },
@@ -52,123 +143,31 @@ const styleVariants: { id: StyleVariant; name: string }[] = [
   { id: "neon", name: "Neon" },
 ];
 
-const stylePresets: Record<StyleVariant, ColorPalette> = {
-  cinematic: {
-    primary: "#4a6fa5",
-    secondary: "#6b8cae",
-    accent: "#d4a574",
-    dark: "#0d1117",
-    light: "#e8e8e8",
-  },
-  bold: {
-    primary: "#e63946",
-    secondary: "#f4a261",
-    accent: "#2a9d8f",
-    dark: "#1a1a2e",
-    light: "#ffffff",
-  },
-  minimal: {
-    primary: "#6c757d",
-    secondary: "#adb5bd",
-    accent: "#212529",
-    dark: "#f8f9fa",
-    light: "#212529",
-  },
-  noir: {
-    primary: "#2d2d2d",
-    secondary: "#4a4a4a",
-    accent: "#c9a227",
-    dark: "#0a0a0a",
-    light: "#d4d4d4",
-  },
-  neon: {
-    primary: "#00d4ff",
-    secondary: "#ff00ff",
-    accent: "#39ff14",
-    dark: "#0a0014",
-    light: "#ffffff",
-  },
-};
+const COLOR_KEYS: Array<{
+  key: keyof ColorPalette;
+  label: string;
+}> = [
+  { key: "primary", label: "Primary" },
+  { key: "secondary", label: "Secondary" },
+  { key: "accent", label: "Accent" },
+  { key: "tertiary", label: "Tertiary" },
+  { key: "background", label: "Background" },
+  { key: "surface", label: "Surface" },
+  { key: "text", label: "Text" },
+  { key: "muted", label: "Muted" },
+  { key: "border", label: "Border" },
+];
 
-const styleConfigs: Record<StyleVariant, StyleConfig> = {
-  cinematic: {
-    titleSize: "xl",
-    titleWeight: "normal",
-    titleTracking: "wider",
-    bodySize: "md",
-    padding: "spacious",
-    borders: "none",
-    dividerStyle: "gradient",
-    overlayIntensity: "heavy",
-    showSectionNumbers: false,
-    showAccentLines: true,
-    showCornerFrames: false,
-    letterboxBars: true,
-  },
-  bold: {
-    titleSize: "xl",
-    titleWeight: "bold",
-    titleTracking: "tight",
-    bodySize: "lg",
-    padding: "compact",
-    borders: "bold",
-    dividerStyle: "block",
-    overlayIntensity: "light",
-    showSectionNumbers: true,
-    showAccentLines: false,
-    showCornerFrames: false,
-    letterboxBars: false,
-  },
-  minimal: {
-    titleSize: "md",
-    titleWeight: "light",
-    titleTracking: "wide",
-    bodySize: "sm",
-    padding: "spacious",
-    borders: "none",
-    dividerStyle: "fade",
-    overlayIntensity: "light",
-    showSectionNumbers: false,
-    showAccentLines: false,
-    showCornerFrames: false,
-    letterboxBars: false,
-  },
-  noir: {
-    titleSize: "lg",
-    titleWeight: "medium",
-    titleTracking: "wide",
-    bodySize: "md",
-    padding: "normal",
-    borders: "accent",
-    dividerStyle: "line",
-    overlayIntensity: "heavy",
-    showSectionNumbers: false,
-    showAccentLines: true,
-    showCornerFrames: true,
-    letterboxBars: true,
-  },
-  neon: {
-    titleSize: "xl",
-    titleWeight: "bold",
-    titleTracking: "normal",
-    bodySize: "lg",
-    padding: "normal",
-    borders: "accent",
-    dividerStyle: "geometric",
-    overlayIntensity: "medium",
-    showSectionNumbers: true,
-    showAccentLines: true,
-    showCornerFrames: true,
-    letterboxBars: false,
-  },
-};
+const STORAGE_VERSION = 2;
+const GOOGLE_FONTS_URL =
+  "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Karla:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Source+Serif+4:wght@300;400;600;700&family=Archivo:wght@400;600;700&family=Archivo+Black&family=Quicksand:wght@400;500;600;700&family=Cabin:wght@400;500;600;700&family=Inter:wght@300;400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap";
 
 const templateBlocks: BlockData[] = [
   {
     id: "1",
     type: "hero",
     title: "PROJECT TITLE",
-    content: "A CINEMATIC EXPERIENCE",
+    content: "A cinematic visual proposition.",
     layout: "A",
     visible: true,
   },
@@ -177,7 +176,7 @@ const templateBlocks: BlockData[] = [
     type: "logline",
     title: "LOGLINE",
     content:
-      "When an ordinary world collides with extraordinary circumstances, one character must face the impossible choice between what they want and what they need.",
+      "A one-breath summary that turns the image set into a pitch you can feel instantly.",
     layout: "A",
     visible: true,
   },
@@ -186,7 +185,7 @@ const templateBlocks: BlockData[] = [
     type: "story",
     title: "STORY",
     content:
-      "In a world where nothing is as it seems, our protagonist discovers a hidden truth that challenges everything they believed.",
+      "A progression from setup to escalation to release, framed with visual clarity and emotional lift.",
     layout: "A",
     visible: true,
   },
@@ -195,7 +194,7 @@ const templateBlocks: BlockData[] = [
     type: "world",
     title: "WORLD & CONCEPT",
     content:
-      "The rules are simple yet devastating: every choice has consequences that ripple through time.",
+      "Production design, setting logic, and tonal references all anchored in the selected image language.",
     layout: "A",
     visible: true,
   },
@@ -204,7 +203,7 @@ const templateBlocks: BlockData[] = [
     type: "character",
     title: "CHARACTER",
     content:
-      "A central figure carries the weight of a past they cannot escape.",
+      "A lead presence shaped by silhouette, attitude, costume, and emotional tension.",
     layout: "A",
     visible: true,
   },
@@ -213,7 +212,7 @@ const templateBlocks: BlockData[] = [
     type: "tone",
     title: "TONE & STYLE",
     content:
-      "Atmospheric and immersive. Muted palette with bursts of visceral color.",
+      "The deck should broadcast how it feels before anyone reads a paragraph.",
     layout: "A",
     visible: true,
   },
@@ -222,7 +221,7 @@ const templateBlocks: BlockData[] = [
     type: "motif",
     title: "VISUAL MOTIFS",
     content:
-      "Reflections, liminal spaces, and environmental contrast build visual continuity.",
+      "Repeatable shapes, materials, and lighting signatures that give the deck continuity.",
     layout: "A",
     visible: true,
   },
@@ -230,7 +229,7 @@ const templateBlocks: BlockData[] = [
     id: "8",
     type: "theme",
     title: "THEMES",
-    content: "Identity, consequence, and transformation.",
+    content: "Identity, consequence, transformation, obsession.",
     layout: "A",
     visible: true,
   },
@@ -239,7 +238,7 @@ const templateBlocks: BlockData[] = [
     type: "stakes",
     title: "STAKES",
     content:
-      "If the protagonist fails, the personal conflict expands into wider collapse.",
+      "If the central figure fails, the fallout grows from private collapse to a wider public impact.",
     layout: "A",
     visible: true,
   },
@@ -247,11 +246,96 @@ const templateBlocks: BlockData[] = [
     id: "10",
     type: "closing",
     title: "CLOSING",
-    content: "In the end, we become what we choose to remember.",
+    content: "A final image and phrase that leaves the room wanting the next page.",
     layout: "A",
     visible: true,
   },
 ];
+
+function withAliases(palette: Partial<ColorPalette> | undefined): ColorPalette {
+  const merged = {
+    ...defaultColors,
+    ...(palette ?? {}),
+  };
+
+  const background = merged.background ?? merged.dark ?? defaultColors.background;
+  const text = merged.text ?? merged.light ?? defaultColors.text;
+
+  return {
+    ...defaultColors,
+    ...merged,
+    background,
+    surface: merged.surface ?? defaultColors.surface,
+    text,
+    muted: merged.muted ?? defaultColors.muted,
+    border: merged.border ?? defaultColors.border,
+    tertiary: merged.tertiary ?? defaultColors.tertiary,
+    dark: background,
+    light: text,
+  };
+}
+
+function buildPalette(partial: Partial<ColorPalette>): ColorPalette {
+  return withAliases(partial);
+}
+
+const stylePresets: Record<StyleVariant, ColorPalette> = {
+  cinematic: buildPalette({
+    primary: "#d2dc64",
+    secondary: "#334135",
+    accent: "#fff5a6",
+    tertiary: "#8ea871",
+    background: "#08090b",
+    surface: "#13161a",
+    text: "#eef3df",
+    muted: "#bac2aa",
+    border: "#5a6e4c",
+  }),
+  bold: buildPalette({
+    primary: "#ff5c58",
+    secondary: "#1f273d",
+    accent: "#ffd166",
+    tertiary: "#38b2ac",
+    background: "#0a0b11",
+    surface: "#171923",
+    text: "#f8f6f0",
+    muted: "#c1c4cf",
+    border: "#8e93a6",
+  }),
+  minimal: buildPalette({
+    primary: "#c2c7cf",
+    secondary: "#757b84",
+    accent: "#f2f4f5",
+    tertiary: "#9ea7b2",
+    background: "#090a0c",
+    surface: "#12151a",
+    text: "#f5f6f8",
+    muted: "#b5bbc5",
+    border: "#505863",
+  }),
+  noir: buildPalette({
+    primary: "#8c8c8c",
+    secondary: "#343434",
+    accent: "#d5b45c",
+    tertiary: "#7a6852",
+    background: "#050505",
+    surface: "#111111",
+    text: "#f3efe6",
+    muted: "#beb7ab",
+    border: "#5d5346",
+  }),
+  neon: buildPalette({
+    primary: "#00d9ff",
+    secondary: "#5b4bff",
+    accent: "#ff4fd8",
+    tertiary: "#7dff67",
+    background: "#070414",
+    surface: "#130b26",
+    text: "#faf9ff",
+    muted: "#bdb6da",
+    border: "#473c84",
+  }),
+};
 
 function buildDeckBlocks(deckTitle: string, imageTitles: string[]): BlockData[] {
   const [a, b, c, d, e, f, g, h, i, j] = imageTitles;
@@ -260,63 +344,66 @@ function buildDeckBlocks(deckTitle: string, imageTitles: string[]): BlockData[] 
     if (block.type === "hero") {
       return {
         ...block,
-        title: (deckTitle || "DECK").toUpperCase(),
+        title: deckTitle || "PITCH DECK",
+        content: a
+          ? `Built from the visual DNA of "${a}" and expanded into a sharper deck experience.`
+          : "Built from your selected board imagery and tuned for presentation flow.",
       };
     }
 
     if (block.type === "logline" && b) {
       return {
         ...block,
-        content: `A visual narrative built from "${b}" and related imagery.`,
+        content: `A tight pitch statement built around "${b}" and the world suggested by the broader board selection.`,
       };
     }
 
     if (block.type === "story" && c) {
       return {
         ...block,
-        content: `The sequence expands from "${c}" into progression, tension, and release.`,
+        content: `The sequence evolves from "${c}" into momentum, conflict, and a controlled final release.`,
       };
     }
 
     if (block.type === "world" && d) {
       return {
         ...block,
-        content: `The setting language is anchored by "${d}" with strong atmosphere and production cues.`,
+        content: `The world is anchored by "${d}" with clear production cues, material references, and atmosphere.`,
       };
     }
 
     if (block.type === "character" && e) {
       return {
         ...block,
-        content: `Character framing is led by "${e}", with emphasis on silhouette and emotional beat.`,
+        content: `Character framing is led by "${e}" with emphasis on silhouette, posture, and emotional voltage.`,
       };
     }
 
     if (block.type === "tone" && f) {
       return {
         ...block,
-        content: `Tone references are pulled from "${f}" with cinematic contrast and controlled palette.`,
+        content: `Tone and finish pull from "${f}" with a sharper editorial rhythm and stronger image pairing.`,
       };
     }
 
     if (block.type === "motif" && g) {
       return {
         ...block,
-        content: `Recurring motifs originate from "${g}" and repeat across sequence beats.`,
+        content: `Recurring visual motifs emerge from "${g}" and repeat across sections to keep the deck cohesive.`,
       };
     }
 
     if (block.type === "theme" && h) {
       return {
         ...block,
-        content: `Themes suggested by "${h}": identity, consequence, and transformation.`,
+        content: `Themes hinted by "${h}": desire, consequence, reinvention, and control.`,
       };
     }
 
     if (block.type === "stakes" && i) {
       return {
         ...block,
-        content: `Stakes escalate around "${i}" from personal conflict to larger impact.`,
+        content: `Stakes sharpen around "${i}" and widen from personal urgency to wider fallout.`,
       };
     }
 
@@ -324,13 +411,21 @@ function buildDeckBlocks(deckTitle: string, imageTitles: string[]): BlockData[] 
       return {
         ...block,
         content: j
-          ? `Closing image cue: "${j}".`
-          : `Closing image cue: "${a || deckTitle}".`,
+          ? `Final note carried by "${j}".`
+          : `Final note carried by "${a || deckTitle}".`,
       };
     }
 
     return block;
   });
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
 }
 
 export function DeckComposer({ deck }: { deck: DeckDetail }) {
@@ -340,12 +435,15 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   );
 
   const sourceImages = useMemo(
-    () => sourceSlides.map((s) => s.image?.imageUrl).filter((v): v is string => Boolean(v)),
+    () =>
+      sourceSlides
+        .map((slide) => slide.image?.imageUrl)
+        .filter((value): value is string => Boolean(value)),
     [sourceSlides]
   );
 
   const sourceImageTitles = useMemo(
-    () => sourceSlides.map((s) => s.image?.title || ""),
+    () => sourceSlides.map((slide) => slide.image?.title || ""),
     [sourceSlides]
   );
 
@@ -353,6 +451,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     () => `pindeck-deck-state:${deck._id}`,
     [deck._id]
   );
+
+  const previewRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
   const [referenceImages, setReferenceImages] = useState<string[]>(
     sourceImages.slice(0, 10)
@@ -368,16 +470,14 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
   const [dragOverBlock, setDragOverBlock] = useState<string | null>(null);
   const [styleVariant, setStyleVariant] = useState<StyleVariant>("cinematic");
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("html");
-  const [imageOverlay, setImageOverlay] = useState<number>(55);
-  const [sectionTheme, setSectionTheme] = useState<"cinematic" | "minimal">("cinematic");
+  const [fontStyle, setFontStyle] = useState<FontStyle>("agency");
+  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("editorial");
+  const [overlayStrength, setOverlayStrength] = useState(58);
+  const [overlaySeed, setOverlaySeed] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  const previewRef = useRef<HTMLDivElement>(null);
-  const htmlPreviewRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const colorInputRef = useRef<HTMLInputElement>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<ComposerPanel>("design");
 
   const resetToDeckDefaults = useCallback(() => {
     setReferenceImages(sourceImages.slice(0, 10));
@@ -385,10 +485,21 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     setBlocks(buildDeckBlocks(deck.title, sourceImageTitles));
     setStyleVariant("cinematic");
     setColors(stylePresets.cinematic);
-    setImageOverlay(55);
-    setPreviewMode("html");
-    setSectionTheme("cinematic");
+    setFontStyle("agency");
+    setLayoutVariant("editorial");
+    setOverlayStrength(58);
+    setOverlaySeed(0);
+    setActivePanel("design");
   }, [sourceImages, deck.title, sourceImageTitles]);
+
+  useEffect(() => {
+    if (document.getElementById("deck-builder-fonts")) return;
+    const link = document.createElement("link");
+    link.id = "deck-builder-fonts";
+    link.rel = "stylesheet";
+    link.href = GOOGLE_FONTS_URL;
+    document.head.appendChild(link);
+  }, []);
 
   useEffect(() => {
     try {
@@ -407,12 +518,20 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       setActiveImageIndex(
         typeof saved.activeImageIndex === "number" ? saved.activeImageIndex : 0
       );
-      setColors(saved.colors ?? stylePresets.cinematic);
-      setBlocks(saved.blocks ?? buildDeckBlocks(deck.title, sourceImageTitles));
+      setColors(withAliases(saved.colors));
+      setBlocks(
+        Array.isArray(saved.blocks)
+          ? saved.blocks
+          : buildDeckBlocks(deck.title, sourceImageTitles)
+      );
       setStyleVariant(saved.styleVariant ?? "cinematic");
-      setImageOverlay(typeof saved.imageOverlay === "number" ? saved.imageOverlay : 55);
-      setPreviewMode(saved.previewMode === "pdf" ? "pdf" : "html");
-      setSectionTheme(saved.sectionTheme === "minimal" ? "minimal" : "cinematic");
+      setFontStyle(saved.fontStyle ?? "agency");
+      setLayoutVariant(saved.layoutVariant ?? "editorial");
+      setOverlayStrength(
+        typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58
+      );
+      setOverlaySeed(typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0);
+      setActivePanel(saved.activePanel ?? "design");
     } catch {
       resetToDeckDefaults();
     }
@@ -424,21 +543,24 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         localStorage.setItem(
           storageKey,
           JSON.stringify({
+            version: STORAGE_VERSION,
             referenceImages,
             activeImageIndex,
             colors,
             blocks,
             styleVariant,
-            imageOverlay,
-            previewMode,
-            sectionTheme,
+            fontStyle,
+            layoutVariant,
+            overlayStrength,
+            overlaySeed,
+            activePanel,
           })
         );
         setHasUnsavedChanges(false);
       } catch {
         // no-op
       }
-    }, 600);
+    }, 500);
 
     setHasUnsavedChanges(true);
     return () => clearTimeout(timer);
@@ -449,34 +571,15 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     colors,
     blocks,
     styleVariant,
-    imageOverlay,
-    previewMode,
+    fontStyle,
+    layoutVariant,
+    overlayStrength,
+    overlaySeed,
+    activePanel,
   ]);
 
-  useEffect(() => {
-    if (referenceImages.length === 0) {
-      setColors(stylePresets[styleVariant] ?? defaultColors);
-      return;
-    }
-
-    let alive = true;
-    const run = async () => {
-      try {
-        const extracted = await extractColors(referenceImages[0]);
-        if (alive) setColors(extracted);
-      } catch {
-        if (alive) setColors(stylePresets[styleVariant] ?? defaultColors);
-      }
-    };
-
-    void run();
-    return () => {
-      alive = false;
-    };
-  }, [deck._id]);
-
   const handleImageUpload = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
+    async (event: ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
@@ -487,7 +590,6 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       }
 
       const filesToProcess = Array.from(files).slice(0, availableSlots);
-
       const validFiles = filesToProcess.filter((file) => {
         if (!file.type.startsWith("image/")) {
           toast.error(`Skipped ${file.name}: not an image`);
@@ -503,7 +605,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       const readAsDataUrl = (file: File): Promise<string> =>
         new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = (e) => resolve(String(e.target?.result ?? ""));
+          reader.onload = (loadEvent) => resolve(String(loadEvent.target?.result ?? ""));
           reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
           reader.readAsDataURL(file);
         });
@@ -518,9 +620,9 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         if (newImages[0]) {
           try {
             const extracted = await extractColors(newImages[0]);
-            setColors(extracted);
+            setColors(withAliases(extracted));
           } catch {
-            // ignore extraction failure
+            // Ignore extraction failure on upload.
           }
         }
       } catch {
@@ -532,16 +634,19 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     [referenceImages]
   );
 
-  const removeImage = useCallback((index: number) => {
-    setReferenceImages((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (activeImageIndex >= next.length) {
-        setActiveImageIndex(Math.max(0, next.length - 1));
-      }
-      return next;
-    });
-    toast.info("Image removed");
-  }, [activeImageIndex]);
+  const removeImage = useCallback(
+    (index: number) => {
+      setReferenceImages((previous) => {
+        const next = previous.filter((_, imageIndex) => imageIndex !== index);
+        if (activeImageIndex >= next.length) {
+          setActiveImageIndex(Math.max(0, next.length - 1));
+        }
+        return next;
+      });
+      toast.info("Image removed");
+    },
+    [activeImageIndex]
+  );
 
   const extractColorsFromImage = useCallback(
     async (index: number) => {
@@ -549,7 +654,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       if (!imageUrl) return;
       try {
         const extracted = await extractColors(imageUrl);
-        setColors(extracted);
+        setColors(withAliases(extracted));
         toast.success("Colors extracted");
       } catch {
         toast.error("Failed to extract colors");
@@ -560,40 +665,34 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
 
   const handleColorChange = useCallback(
     (key: keyof ColorPalette, value: string) => {
-      setColors((prev) => ({ ...prev, [key]: value }));
+      setColors((previous) =>
+        withAliases({
+          ...previous,
+          [key]: value,
+        })
+      );
     },
     []
   );
 
   const applyStylePreset = useCallback((variant: StyleVariant) => {
     setStyleVariant(variant);
-    if (referenceImages.length === 0) {
-      setColors(stylePresets[variant]);
-    }
-    toast.info(`${variant} style applied`);
-  }, [referenceImages.length]);
-
-  const handleBlockUpdate = useCallback((updated: BlockData) => {
-    setBlocks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    setColors(stylePresets[variant]);
+    toast.success(`${variant} palette applied`);
   }, []);
 
-  const toggleBlockLayout = useCallback((blockId: string) => {
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === blockId ? { ...b, layout: b.layout === "A" ? "B" : "A" } : b
-      )
+  const handleBlockUpdate = useCallback((updated: BlockData) => {
+    setBlocks((previous) =>
+      previous.map((block) => (block.id === updated.id ? updated : block))
     );
   }, []);
 
   const toggleBlockVisibility = useCallback((blockId: string) => {
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === blockId ? { ...b, visible: !b.visible } : b))
+    setBlocks((previous) =>
+      previous.map((block) =>
+        block.id === blockId ? { ...block, visible: !block.visible } : block
+      )
     );
-  }, []);
-
-  const setAllLayouts = useCallback((layout: "A" | "B") => {
-    setBlocks((prev) => prev.map((b) => ({ ...b, layout })));
-    toast.success(`All blocks set to Layout ${layout}`);
   }, []);
 
   const handleDragStart = useCallback((blockId: string) => {
@@ -601,7 +700,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   }, []);
 
   const handleDragOver = useCallback(
-    (event: React.DragEvent, blockId: string) => {
+    (event: DragEvent<HTMLDivElement>, blockId: string) => {
       event.preventDefault();
       if (blockId !== draggedBlock) {
         setDragOverBlock(blockId);
@@ -614,12 +713,12 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     (targetBlockId: string) => {
       if (!draggedBlock || draggedBlock === targetBlockId) return;
 
-      setBlocks((prev) => {
-        const draggedIndex = prev.findIndex((b) => b.id === draggedBlock);
-        const targetIndex = prev.findIndex((b) => b.id === targetBlockId);
-        if (draggedIndex < 0 || targetIndex < 0) return prev;
+      setBlocks((previous) => {
+        const draggedIndex = previous.findIndex((block) => block.id === draggedBlock);
+        const targetIndex = previous.findIndex((block) => block.id === targetBlockId);
+        if (draggedIndex < 0 || targetIndex < 0) return previous;
 
-        const reordered = [...prev];
+        const reordered = [...previous];
         const [removed] = reordered.splice(draggedIndex, 1);
         reordered.splice(targetIndex, 0, removed);
         return reordered;
@@ -654,9 +753,9 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       const contentSlides: HTMLElement[] = [];
 
       allSlides.forEach((slide) => {
-        const item = slide as HTMLElement;
-        if (item.offsetHeight > 100) {
-          contentSlides.push(item);
+        const node = slide as HTMLElement;
+        if (node.offsetHeight > 100) {
+          contentSlides.push(node);
         }
       });
 
@@ -666,44 +765,28 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         return;
       }
 
-      const pageWidth = 1920;
-      const pageHeight = 1080;
       const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
       ]);
+
+      const pageWidth = 1920;
+      const pageHeight = 1080;
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "px",
         format: [pageWidth, pageHeight],
       });
 
-      for (let i = 0; i < contentSlides.length; i += 1) {
-        const slide = contentSlides[i];
-
-        const originalOpacity = slide.style.opacity;
-        const originalTransform = slide.style.transform;
-        const originalFilter = slide.style.filter;
-
-        slide.style.opacity = "1";
-        slide.style.transform = "none";
-        slide.style.filter = "none";
-
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
+      for (let index = 0; index < contentSlides.length; index += 1) {
+        const slide = contentSlides[index];
         const canvas = await html2canvas(slide, {
           scale: 2,
           useCORS: true,
           allowTaint: true,
-          backgroundColor: colors.dark,
+          backgroundColor: colors.background,
           logging: false,
-          width: slide.offsetWidth,
-          height: slide.offsetHeight,
         });
-
-        slide.style.opacity = originalOpacity;
-        slide.style.transform = originalTransform;
-        slide.style.filter = originalFilter;
 
         const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
         const finalWidth = canvas.width * ratio;
@@ -711,14 +794,13 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         const x = (pageWidth - finalWidth) / 2;
         const y = (pageHeight - finalHeight) / 2;
 
-        if (i > 0) {
+        if (index > 0) {
           pdf.addPage([pageWidth, pageHeight], "landscape");
         }
 
-        pdf.setFillColor(colors.dark);
+        pdf.setFillColor(colors.background);
         pdf.rect(0, 0, pageWidth, pageHeight, "F");
-        const imgData = canvas.toDataURL("image/png", 1.0);
-        pdf.addImage(imgData, "PNG", x, y, finalWidth, finalHeight);
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, finalWidth, finalHeight);
       }
 
       pdf.save(`${deck.title || "pitch-deck"}.pdf`);
@@ -728,7 +810,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     } finally {
       setIsExporting(false);
     }
-  }, [colors.dark, deck.title]);
+  }, [colors.background, deck.title]);
 
   const exportToImage = useCallback(async () => {
     if (!previewRef.current) return;
@@ -742,7 +824,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: colors.dark,
+        backgroundColor: colors.background,
         logging: false,
       });
 
@@ -756,138 +838,86 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     } finally {
       setIsExporting(false);
     }
-  }, [colors.dark, deck.title]);
+  }, [colors.background, deck.title]);
 
-  const visibleBlocks = blocks.filter((b) => b.visible);
+  const visibleBlocks = useMemo(
+    () => blocks.filter((block) => block.visible),
+    [blocks]
+  );
 
-  useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    if (previewMode !== "html") return;
+  const overlayAssignments = useMemo(
+    () =>
+      visibleBlocks.map((block, index) => {
+        if (!referenceImages.length) return false;
+        if (block.type === "hero" || block.type === "closing") return true;
+        const score = hashString(`${deck._id}:${block.id}:${index}:${overlaySeed}`) % 100;
+        return score < 64;
+      }),
+    [visibleBlocks, referenceImages.length, deck._id, overlaySeed]
+  );
 
-    const timeout = setTimeout(() => {
-      void (async () => {
-        const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
-          import("gsap"),
-          import("gsap/ScrollTrigger"),
-        ]);
-        gsap.registerPlugin(ScrollTrigger);
-
-        const container = htmlPreviewRef.current;
-        if (!container) return;
-
-        const slides = container.querySelectorAll(".slide-block");
-        if (!slides.length) return;
-
-        slides.forEach((slide) => {
-          gsap.set(slide, { opacity: 1, y: 0, scale: 1, rotateX: 0 });
-        });
-
-        slides.forEach((slide, index) => {
-          const isEven = index % 2 === 0;
-          const isThird = index % 3 === 0;
-
-          let fromVars: any;
-          let toVars: any;
-
-          if (index === 0) {
-            fromVars = { opacity: 0, scale: 0.85, y: 30 };
-            toVars = { opacity: 1, scale: 1, y: 0, duration: 1.2, ease: "power4.out" };
-          } else if (isThird) {
-            fromVars = { opacity: 0, x: isEven ? -60 : 60 };
-            toVars = { opacity: 1, x: 0, duration: 0.8, ease: "power3.out" };
-          } else {
-            fromVars = { opacity: 0, y: 50 };
-            toVars = { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" };
-          }
-
-          gsap.fromTo(slide, fromVars, {
-            ...toVars,
-            scrollTrigger: {
-              trigger: slide,
-              start: "top 85%",
-              end: "top 20%",
-              toggleActions: "play none none reverse",
-              scrub: index === 0 ? false : 0.3,
-            },
-          });
-
-          const bgImage = slide.querySelector('[style*="background-image"]');
-          if (bgImage) {
-            gsap.fromTo(
-              bgImage,
-              { yPercent: -8 },
-              {
-                yPercent: 8,
-                ease: "none",
-                scrollTrigger: {
-                  trigger: slide,
-                  start: "top bottom",
-                  end: "bottom top",
-                  scrub: true,
-                },
-              }
-            );
-          }
-        });
-        cleanup = () => {
-          ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-        };
-      })();
-    }, 150);
-
-    return () => {
-      clearTimeout(timeout);
-      cleanup?.();
-    };
-  }, [previewMode, blocks, visibleBlocks.length]);
+  const paletteSummary = useMemo(
+    () => COLOR_KEYS.map(({ key, label }) => ({ key, label, value: colors[key] })),
+    [colors]
+  );
 
   return (
-    <div className="relative min-h-[75vh] bg-[#0a0a0a] text-white rounded-md border border-white/10 overflow-hidden">
+    <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#050505] text-white shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
       <button
-        onClick={() => setSidebarOpen((v) => !v)}
-        className="lg:hidden fixed bottom-5 right-5 z-30 p-3 bg-[#0c0c0c] border border-white/10"
+        onClick={() => setSidebarOpen((value) => !value)}
+        className="fixed bottom-5 right-5 z-30 rounded-full border border-white/15 bg-black/80 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-white/80 lg:hidden"
         title="Toggle deck controls"
       >
-        <svg
-          className="w-4 h-4 text-white/80"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          {sidebarOpen ? (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          )}
-        </svg>
+        {sidebarOpen ? "Close" : "Controls"}
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-0">
-        <div
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)]">
+        <aside
           className={cn(
-            "bg-[#0c0c0c] border-r border-white/10 h-full overflow-y-auto",
-            sidebarOpen ? "block" : "hidden lg:block"
+            "border-r border-white/8 bg-[#090909] lg:block",
+            sidebarOpen ? "block" : "hidden"
           )}
         >
-          <div className="p-4 border-b border-white/10">
-            <div className="flex items-center justify-between gap-2">
+          <div className="border-b border-white/8 px-5 py-5">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-2xl tracking-wide">PITCH DECK</h2>
-                <p className="text-[10px] text-white/40 tracking-[0.2em] uppercase">
-                  {deck.boardName ? `From ${deck.boardName}` : "Builder"}
+                <p className="text-[10px] uppercase tracking-[0.3em] text-white/35">
+                  {deck.boardName ? `From ${deck.boardName}` : "Pitch deck builder"}
                 </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight">{deck.title}</h2>
               </div>
               {hasUnsavedChanges && (
-                <span className="text-[10px] text-amber-400 tracking-wide">Unsaved</span>
+                <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.24em] text-amber-300">
+                  Unsaved
+                </span>
               )}
+            </div>
+            <div className="mt-4 flex gap-2 rounded-full border border-white/8 bg-white/5 p-1">
+              {(["design", "content", "structure"] as ComposerPanel[]).map((panel) => (
+                <button
+                  key={panel}
+                  onClick={() => setActivePanel(panel)}
+                  className={cn(
+                    "flex-1 rounded-full px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] transition-colors",
+                    activePanel === panel
+                      ? "bg-white text-black"
+                      : "text-white/45 hover:text-white"
+                  )}
+                >
+                  {panel}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="p-4 sidebar-section">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-[10px] text-white/50 uppercase tracking-[0.15em]">Images</label>
-              <span className="text-[10px] text-white/30">{referenceImages.length}/10</span>
+          <div className="border-b border-white/8 px-5 py-5">
+            <div className="mb-3 flex items-center justify-between">
+              <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
+                Attach Images
+              </label>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                {referenceImages.length}/10
+              </span>
             </div>
 
             <input
@@ -899,21 +929,21 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
               className="hidden"
             />
 
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-5 gap-1.5">
               {Array.from({ length: 10 }).map((_, index) => {
                 const image = referenceImages[index];
-                const isActive = index === activeImageIndex && image;
+                const isActive = index === activeImageIndex && Boolean(image);
 
                 return (
                   <div
                     key={index}
                     className={cn(
-                      "image-slot aspect-square border relative overflow-hidden cursor-pointer",
+                      "relative aspect-square overflow-hidden rounded-2xl border transition-all",
                       image
                         ? isActive
-                          ? "border-amber-500"
-                          : "border-white/10 hover:border-white/20"
-                        : "image-slot-empty border-dashed border-white/10"
+                          ? "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
+                          : "border-white/10 hover:border-white/25"
+                        : "border-dashed border-white/10 bg-white/[0.03]"
                     )}
                     onClick={() => {
                       if (image) {
@@ -929,50 +959,37 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                         <img
                           src={image}
                           alt={`Reference ${index + 1}`}
-                          className="absolute inset-0 w-full h-full object-cover"
+                          className="absolute inset-0 h-full w-full object-cover"
                         />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors" />
-
-                        {isActive && (
-                          <div className="absolute top-0.5 left-0.5 w-1.5 h-1.5 bg-amber-500" />
-                        )}
-
-                        <div className="absolute bottom-0 right-0 text-[7px] text-white/60 bg-black/60 px-0.5">
+                        <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/60" />
+                        {isActive && <div className="absolute left-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-400" />}
+                        <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.18em] text-white/65">
                           {index + 1}
                         </div>
-
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.stopPropagation();
                               void extractColorsFromImage(index);
                             }}
-                            className="w-5 h-5 bg-white/30 flex items-center justify-center hover:bg-amber-500 transition-colors text-white"
-                            title="Extract colors"
+                            className="rounded-full border border-white/15 bg-white/20 px-3 py-1 text-[9px] uppercase tracking-[0.16em] text-white"
                           >
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                            </svg>
+                            Extract
                           </button>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.stopPropagation();
                               removeImage(index);
                             }}
-                            className="w-5 h-5 bg-white/30 flex items-center justify-center hover:bg-red-500 transition-colors text-white"
-                            title="Remove"
+                            className="rounded-full border border-red-300/20 bg-red-500/70 px-3 py-1 text-[9px] uppercase tracking-[0.16em] text-white"
                           >
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            Remove
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                        </svg>
+                      <div className="absolute inset-0 flex items-center justify-center text-white/20">
+                        <span className="text-lg">+</span>
                       </div>
                     )}
                   </div>
@@ -980,279 +997,406 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
               })}
             </div>
 
-            <Button
-              size="1"
-              variant="soft"
-              color="gray"
-              className="mt-3"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Upload Images
-            </Button>
+            <div className="mt-3 flex gap-2">
+              <Button size="1" variant="soft" color="gray" onClick={() => fileInputRef.current?.click()}>
+                Add images
+              </Button>
+              <Button
+                size="1"
+                variant="soft"
+                color="gray"
+                disabled={!referenceImages[activeImageIndex]}
+                onClick={() => void extractColorsFromImage(activeImageIndex)}
+              >
+                Extract active
+              </Button>
+            </div>
           </div>
 
-          <div className="p-4 sidebar-section">
-            <label className="text-[10px] text-white/50 uppercase tracking-[0.15em] mb-3 block">Colors</label>
-            <input
-              ref={colorInputRef}
-              type="color"
-              className="sr-only"
-              onChange={(event) => {
-                if (editingColor) {
-                  handleColorChange(editingColor, event.target.value);
-                }
-              }}
-              onBlur={() => setEditingColor(null)}
-            />
+          <div className="max-h-[calc(100vh-235px)] overflow-y-auto">
+            {activePanel === "design" && (
+              <div className="space-y-6 px-5 py-5">
+                <section className="space-y-3">
+                  <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
+                    Layout system
+                  </label>
+                  <div className="grid gap-3">
+                    {LAYOUT_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => setLayoutVariant(option.id)}
+                        className={cn(
+                          "rounded-[1.5rem] border px-4 py-4 text-left transition-all",
+                          layoutVariant === option.id
+                            ? "border-white/30 bg-white/[0.07]"
+                            : "border-white/10 bg-white/[0.03] hover:border-white/20"
+                        )}
+                      >
+                        <div className="text-sm font-semibold text-white">{option.name}</div>
+                        <div className="mt-1 text-[11px] leading-relaxed text-white/45">
+                          {option.detail}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
 
-            <div className="flex gap-1.5">
-              {(Object.entries(colors) as [keyof ColorPalette, string][]).map(([key, color]) => (
-                <div key={key} className="flex flex-col items-center flex-1">
-                  <button
-                    className={cn(
-                      "color-swatch w-full aspect-square cursor-pointer relative border",
-                      editingColor === key
-                        ? "border-white"
-                        : "border-transparent hover:border-white/30"
-                    )}
-                    style={{ backgroundColor: color }}
-                    title={`${key}: ${color}`}
-                    onClick={() => {
-                      setEditingColor(key);
-                      if (colorInputRef.current) {
-                        colorInputRef.current.value = color;
-                        colorInputRef.current.click();
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
+                      Typography
+                    </label>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                      {fontStyle}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {FONT_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => setFontStyle(option.id)}
+                        className={cn(
+                          "rounded-[1.35rem] border p-4 text-left transition-all",
+                          fontStyle === option.id
+                            ? "border-white/30 bg-white/[0.08]"
+                            : "border-white/10 bg-white/[0.03] hover:border-white/20"
+                        )}
+                      >
+                        <div
+                          className="text-lg font-semibold text-white"
+                          style={{ fontFamily: option.previewFamily }}
+                        >
+                          {option.preview}
+                        </div>
+                        <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/75">
+                          {option.name}
+                        </div>
+                        <div className="mt-1 text-[10px] leading-relaxed text-white/35">
+                          {option.detail}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
+                      Palette presets
+                    </label>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                      {styleVariant}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {styleVariants.map((variant) => (
+                      <button
+                        key={variant.id}
+                        onClick={() => applyStylePreset(variant.id)}
+                        className={cn(
+                          "rounded-full border px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition-colors",
+                          styleVariant === variant.id
+                            ? "border-amber-300/40 bg-amber-300/10 text-amber-200"
+                            : "border-white/10 text-white/55 hover:border-white/20 hover:text-white"
+                        )}
+                      >
+                        {variant.name}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
+                      Colors
+                    </label>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                      9 tones
+                    </span>
+                  </div>
+                  <input
+                    ref={colorInputRef}
+                    type="color"
+                    className="sr-only"
+                    onChange={(event) => {
+                      if (editingColor) {
+                        handleColorChange(editingColor, event.target.value);
                       }
                     }}
+                    onBlur={() => setEditingColor(null)}
                   />
-                  <span className="text-[8px] text-white/40 mt-1 uppercase tracking-wide">{key.slice(0, 3)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {paletteSummary.map(({ key, label, value }) => (
+                      <button
+                        key={String(key)}
+                        className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-3 text-left transition-colors hover:border-white/20"
+                        onClick={() => {
+                          setEditingColor(key);
+                          if (colorInputRef.current) {
+                            colorInputRef.current.value = value;
+                            colorInputRef.current.click();
+                          }
+                        }}
+                      >
+                        <div
+                          className="h-10 w-full rounded-xl border border-white/10"
+                          style={{ backgroundColor: value }}
+                        />
+                        <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/55">
+                          {label}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
 
-          <div className="p-4 sidebar-section">
-            <label className="text-[10px] text-white/50 uppercase tracking-[0.15em] mb-3 block">Style Preset</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {styleVariants.map((variant) => (
-                <button
-                  key={variant.id}
-                  onClick={() => applyStylePreset(variant.id)}
-                  className={cn(
-                    "px-2 py-1 text-[10px] tracking-wide uppercase border transition-colors",
-                    styleVariant === variant.id
-                      ? "bg-amber-500 text-black border-amber-500"
-                      : "bg-transparent text-white/70 border-white/15 hover:border-white/30"
-                  )}
-                >
-                  {variant.name}
-                </button>
-              ))}
-            </div>
-          </div>
+                <section className="space-y-3 rounded-[1.6rem] border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
+                      Image overlay
+                    </label>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                      {overlayStrength}%
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-white/40">
+                    This black gradient is applied to a randomized subset of image sections, so not every page gets the same treatment.
+                  </p>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={overlayStrength}
+                    onChange={(event) => setOverlayStrength(Number(event.target.value))}
+                    className="w-full accent-amber-400"
+                  />
+                  <Button
+                    size="1"
+                    variant="soft"
+                    color="gray"
+                    onClick={() => setOverlaySeed((value) => value + 1)}
+                  >
+                    Reroll overlay mix
+                  </Button>
+                </section>
+              </div>
+            )}
 
-          <div className="p-4 sidebar-section">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-[10px] text-white/50 uppercase tracking-[0.15em]">Image Overlay</label>
-              <span className="text-[10px] text-white/40">{imageOverlay}%</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={imageOverlay}
-              onChange={(event) => setImageOverlay(Number(event.target.value))}
-              className="w-full accent-amber-500"
-            />
-          </div>
-
-          <div className="p-4 sidebar-section">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-[10px] text-white/50 uppercase tracking-[0.15em]">Blocks</label>
-              <span className="text-[10px] text-white/30">Drag to reorder</span>
-            </div>
-
-            <div className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
-              {blocks.map((block) => (
-                <div
-                  key={block.id}
-                  draggable
-                  onDragStart={() => handleDragStart(block.id)}
-                  onDragOver={(event) => handleDragOver(event, block.id)}
-                  onDrop={() => handleDrop(block.id)}
-                  onDragEnd={handleDragEnd}
-                  className={cn(
-                    "block-card p-2 border bg-black/20 cursor-move",
-                    draggedBlock === block.id && "opacity-50",
-                    dragOverBlock === block.id && "border-amber-400",
-                    dragOverBlock !== block.id && "border-white/10"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-white/70">
+            {activePanel === "content" && (
+              <div className="space-y-4 px-5 py-5">
+                {blocks.map((block) => (
+                  <div
+                    key={block.id}
+                    className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-[0.24em] text-amber-200/80">
                         {block.type}
-                      </p>
-                      <p className="text-[9px] text-white/35">Layout {block.layout}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
+                      </span>
                       <button
                         onClick={() => toggleBlockVisibility(block.id)}
                         className={cn(
-                          "px-2 py-0.5 text-[9px] border",
+                          "rounded-full border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
                           block.visible
-                            ? "text-emerald-300 border-emerald-700/60"
-                            : "text-white/40 border-white/20"
+                            ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                            : "border-white/15 text-white/45"
                         )}
-                        title="Toggle visibility"
                       >
-                        {block.visible ? "ON" : "OFF"}
-                      </button>
-                      <button
-                        onClick={() => toggleBlockLayout(block.id)}
-                        className="px-2 py-0.5 text-[9px] border text-white/70 border-white/20"
-                        title="Toggle layout"
-                      >
-                        {block.layout}
+                        {block.visible ? "Visible" : "Hidden"}
                       </button>
                     </div>
+                    <input
+                      value={block.title}
+                      onChange={(event) =>
+                        handleBlockUpdate({ ...block, title: event.target.value })
+                      }
+                      className="w-full border-b border-white/10 bg-transparent pb-2 text-sm font-semibold uppercase tracking-tight text-white outline-none"
+                    />
+                    <textarea
+                      value={block.content}
+                      onChange={(event) =>
+                        handleBlockUpdate({ ...block, content: event.target.value })
+                      }
+                      rows={4}
+                      className="mt-3 w-full resize-none rounded-[1.15rem] border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-white/65 outline-none"
+                    />
                   </div>
+                ))}
+              </div>
+            )}
+
+            {activePanel === "structure" && (
+              <div className="space-y-4 px-5 py-5">
+                <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-[11px] leading-relaxed text-white/45">
+                  Drag to reorder. Visibility stays per section, while layout and typography now run globally from the Design panel.
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2">
+                  {blocks.map((block) => (
+                    <div
+                      key={block.id}
+                      draggable
+                      onDragStart={() => handleDragStart(block.id)}
+                      onDragOver={(event) => handleDragOver(event, block.id)}
+                      onDrop={() => handleDrop(block.id)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        "rounded-[1.35rem] border bg-white/[0.03] p-4 transition-all",
+                        draggedBlock === block.id && "opacity-50",
+                        dragOverBlock === block.id
+                          ? "border-amber-300/40 bg-amber-300/5"
+                          : "border-white/10"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-white/35">
+                            {block.type}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-white">
+                            {block.title}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => toggleBlockVisibility(block.id)}
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
+                            block.visible
+                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                              : "border-white/15 text-white/45"
+                          )}
+                        >
+                          {block.visible ? "Visible" : "Hidden"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-1.5 mt-3">
-              <button
-                onClick={() => setAllLayouts("A")}
-                className="px-2 py-1 text-[10px] uppercase tracking-wide border border-white/20 text-white/70 hover:border-white/30"
-              >
-                All Layout A
-              </button>
-              <button
-                onClick={() => setAllLayouts("B")}
-                className="px-2 py-1 text-[10px] uppercase tracking-wide border border-white/20 text-white/70 hover:border-white/30"
-              >
-                All Layout B
-              </button>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-white/10">
-              <label className="text-[10px] text-white/50 uppercase tracking-[0.15em] block mb-2">
-                Section theme (TMP)
-              </label>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  onClick={() => setSectionTheme("cinematic")}
-                  className={cn(
-                    "px-2 py-1 text-[10px] uppercase tracking-wide border",
-                    sectionTheme === "cinematic"
-                      ? "border-amber-500 text-amber-300"
-                      : "border-white/20 text-white/70 hover:border-white/30"
-                  )}
+            <div className="border-t border-white/8 px-5 py-5">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  size="1"
+                  variant="soft"
+                  color="gray"
+                  onClick={resetToDefaults}
                 >
-                  Cinematic
-                </button>
-                <button
-                  onClick={() => setSectionTheme("minimal")}
-                  className={cn(
-                    "px-2 py-1 text-[10px] uppercase tracking-wide border",
-                    sectionTheme === "minimal"
-                      ? "border-amber-500 text-amber-300"
-                      : "border-white/20 text-white/70 hover:border-white/30"
-                  )}
+                  Reset
+                </Button>
+                <Button
+                  size="1"
+                  variant={isEditing ? "solid" : "soft"}
+                  color={isEditing ? "blue" : "gray"}
+                  onClick={() => setIsEditing((value) => !value)}
                 >
-                  Minimal
-                </button>
+                  {isEditing ? "Editing on" : "Editing off"}
+                </Button>
               </div>
             </div>
           </div>
+        </aside>
 
-          <div className="p-4">
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                onClick={resetToDefaults}
-                className="px-2 py-1 text-[10px] uppercase tracking-wide border border-white/20 text-white/70 hover:border-white/30"
-              >
-                Reset
-              </button>
-              <button
-                onClick={() => setIsEditing((v) => !v)}
-                className={cn(
-                  "px-2 py-1 text-[10px] uppercase tracking-wide border",
-                  isEditing
-                    ? "border-amber-500 text-amber-300"
-                    : "border-white/20 text-white/70 hover:border-white/30"
-                )}
-              >
-                {isEditing ? "Editing On" : "Editing Off"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <main className="min-w-0 bg-[#060606]">
+          <div className="border-b border-white/8 px-4 py-4 sm:px-6">
+            <Flex justify="between" align="center" wrap="wrap" gap="3">
+              <div>
+                <Text size="5" weight="bold" className="tracking-tight">
+                  {deck.title}
+                </Text>
+                <Text size="1" className="mt-1 block uppercase tracking-[0.2em] text-white/35">
+                  {deck.boardName ? `Source board: ${deck.boardName}` : "Deck presentation"}
+                </Text>
+              </div>
 
-        <div className="bg-[#0a0a0a] min-h-[75vh] overflow-hidden">
-          <div className="p-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Text size="4" weight="bold" className="font-display tracking-wide">
-                {deck.title}
-              </Text>
-              <Text size="1" color="gray" className="block mt-1 uppercase tracking-[0.15em]">
-                {deck.boardName ? `Source Board: ${deck.boardName}` : "Generated Deck"}
-              </Text>
-            </div>
-
-            <Flex gap="2" wrap="wrap">
-              <Button
-                size="1"
-                variant={previewMode === "html" ? "solid" : "soft"}
-                color={previewMode === "html" ? "blue" : "gray"}
-                onClick={() => setPreviewMode("html")}
-              >
-                HTML Preview
-              </Button>
-              <Button
-                size="1"
-                variant={previewMode === "pdf" ? "solid" : "soft"}
-                color={previewMode === "pdf" ? "blue" : "gray"}
-                onClick={() => setPreviewMode("pdf")}
-              >
-                PDF Mode
-              </Button>
-              <Button size="1" variant="soft" color="teal" disabled={isExporting} onClick={() => void exportToPDF()}>
-                {isExporting ? "Exporting..." : "Export PDF"}
-              </Button>
-              <Button size="1" variant="soft" color="teal" disabled={isExporting} onClick={() => void exportToImage()}>
-                Export PNG
-              </Button>
+              <Flex gap="2" wrap="wrap">
+                <Button size="1" variant="soft" color="gray" onClick={() => setIsPreviewOpen(true)}>
+                  Open presentation
+                </Button>
+                <Button size="1" variant="soft" color="gray" disabled={isExporting} onClick={() => void exportToPDF()}>
+                  {isExporting ? "Exporting..." : "Export PDF"}
+                </Button>
+                <Button size="1" variant="soft" color="gray" disabled={isExporting} onClick={() => void exportToImage()}>
+                  Export PNG
+                </Button>
+              </Flex>
             </Flex>
           </div>
 
-          <div ref={previewRef} className="h-[calc(100vh-280px)] overflow-y-auto p-4">
-            <div ref={htmlPreviewRef} className="space-y-0">
+          <div className="px-3 py-3 sm:px-4 sm:py-4">
+            <div
+              ref={previewRef}
+              className="h-[76vh] overflow-y-auto rounded-[1.75rem] border border-white/10 bg-black/70 shadow-[0_20px_80px_rgba(0,0,0,0.45)] lg:h-[calc(100vh-215px)] lg:snap-none snap-y snap-mandatory"
+            >
               {visibleBlocks.length === 0 ? (
-                <Card className="p-10 text-center bg-black/20 border border-white/10">
-                  <Text color="gray">No visible blocks. Enable blocks from the sidebar.</Text>
+                <Card className="m-4 border border-white/10 bg-black/20 p-10 text-center">
+                  <Text color="gray">No visible blocks. Enable sections from the Structure panel.</Text>
                 </Card>
               ) : (
                 visibleBlocks.map((block, index) => (
-                  <Box key={block.id} className="slide-block" style={{ background: colors.dark }}>
+                  <Box key={block.id} className="slide-block">
                     <DeckSection
                       block={block}
                       index={index}
-                      theme={sectionTheme}
+                      theme="cinematic"
                       colors={colors}
-                      imageUrl={referenceImages[index % referenceImages.length] ?? null}
+                      imageUrl={referenceImages[index % Math.max(referenceImages.length, 1)] ?? null}
+                      referenceImages={referenceImages}
+                      imageIndex={index}
+                      fontStyle={fontStyle}
+                      layoutVariant={layoutVariant}
+                      overlayOpacity={overlayAssignments[index] ? overlayStrength : 0}
+                      overlayEnabled={overlayAssignments[index]}
                       isEditing={isEditing}
                       onUpdate={handleBlockUpdate}
-                      dataGsap={true}
+                      dataGsap={false}
                     />
                   </Box>
                 ))
               )}
             </div>
           </div>
-        </div>
+        </main>
       </div>
+
+      {isPreviewOpen && (
+        <div className="fixed inset-0 z-[120] bg-black/95">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 bg-black/70 px-4 py-4 backdrop-blur-sm sm:px-6">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
+                Live presentation
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-white">{deck.title}</h3>
+            </div>
+            <Button size="1" variant="soft" color="gray" onClick={() => setIsPreviewOpen(false)}>
+              Close
+            </Button>
+          </div>
+
+          <div className="h-[calc(100vh-78px)] overflow-y-auto snap-y snap-mandatory">
+            {visibleBlocks.map((block, index) => (
+              <div key={`${block.id}-presentation`} className="slide-block">
+                <DeckSection
+                  block={block}
+                  index={index}
+                  theme="cinematic"
+                  colors={colors}
+                  imageUrl={referenceImages[index % Math.max(referenceImages.length, 1)] ?? null}
+                  referenceImages={referenceImages}
+                  imageIndex={index}
+                  fontStyle={fontStyle}
+                  layoutVariant={layoutVariant}
+                  overlayOpacity={overlayAssignments[index] ? overlayStrength : 0}
+                  overlayEnabled={overlayAssignments[index]}
+                  isEditing={false}
+                  dataGsap={false}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

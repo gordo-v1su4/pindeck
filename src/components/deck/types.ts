@@ -22,6 +22,19 @@ export type BlockType =
 
 export type StyleVariant = 'cinematic' | 'bold' | 'minimal' | 'noir' | 'neon';
 
+export type FontStyle =
+  | 'agency'
+  | 'technical'
+  | 'editorial'
+  | 'brutalist'
+  | 'playful'
+  | 'modern-clean'
+  | 'newspaper'
+  | 'ibm-plex'
+  | 'minimal';
+
+export type LayoutVariant = 'editorial' | 'collage';
+
 // Style-specific visual treatments
 export interface StyleConfig {
   // Typography
@@ -49,6 +62,13 @@ export interface ColorPalette {
   primary: string;
   secondary: string;
   accent: string;
+  tertiary: string;
+  background: string;
+  surface: string;
+  text: string;
+  muted: string;
+  border: string;
+  // Legacy aliases kept for compatibility with older rendering helpers.
   dark: string;
   light: string;
 }
