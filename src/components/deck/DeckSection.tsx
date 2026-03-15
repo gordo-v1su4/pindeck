@@ -15,6 +15,7 @@ type DeckSectionProps = {
   layoutVariant: LayoutVariant;
   overlayOpacity?: number;
   overlayEnabled?: boolean;
+  overlayDirection?: "top" | "bottom" | "left" | "right" | "radial";
   isEditing?: boolean;
   onUpdate?: (updated: BlockData) => void;
   dataGsap?: boolean;
@@ -320,6 +321,7 @@ function ImageFrame({
   className,
   overlayEnabled,
   overlayOpacity,
+  overlayDirection = "bottom",
   overlayClassName,
   imageClassName,
   grayscale = false,
@@ -329,10 +331,22 @@ function ImageFrame({
   className: string;
   overlayEnabled?: boolean;
   overlayOpacity?: number;
+  overlayDirection?: "top" | "bottom" | "left" | "right" | "radial";
   overlayClassName?: string;
   imageClassName?: string;
   grayscale?: boolean;
 }) {
+  const overlayBackground =
+    overlayDirection === "top"
+      ? `linear-gradient(to top, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)}) 0%, rgba(0,0,0,0) 68%)`
+      : overlayDirection === "left"
+        ? `linear-gradient(to left, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)}) 0%, rgba(0,0,0,0) 68%)`
+        : overlayDirection === "right"
+          ? `linear-gradient(to right, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)}) 0%, rgba(0,0,0,0) 68%)`
+          : overlayDirection === "radial"
+            ? `radial-gradient(circle at center, rgba(0,0,0,0) 22%, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)}) 100%)`
+            : `linear-gradient(to bottom, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)}) 0%, rgba(0,0,0,0) 68%)`;
+
   return (
     <div className={className}>
       {src ? (
@@ -347,7 +361,7 @@ function ImageFrame({
       {src && overlayEnabled && (overlayOpacity ?? 0) > 0 ? (
         <div
           className={cn("absolute inset-0", overlayClassName)}
-          style={{ backgroundColor: `rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)})` }}
+          style={{ background: overlayBackground }}
         />
       ) : null}
     </div>
@@ -365,6 +379,7 @@ export function DeckSection({
   layoutVariant,
   overlayOpacity = 0,
   overlayEnabled = false,
+  overlayDirection = "bottom",
   dataGsap = false,
 }: DeckSectionProps) {
   const fonts = getTypographyClasses(fontStyle);
@@ -389,6 +404,7 @@ export function DeckSection({
               imageClassName="object-top opacity-80"
               overlayEnabled={overlayEnabled}
               overlayOpacity={overlayOpacity}
+              overlayDirection={overlayDirection}
               overlayClassName="bg-gradient-to-t from-[#050505] via-transparent to-transparent"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
@@ -484,6 +500,7 @@ export function DeckSection({
                 className="relative h-full w-full"
                 overlayEnabled={overlayEnabled}
                 overlayOpacity={overlayOpacity}
+                overlayDirection={overlayDirection}
               />
               <div className="absolute bottom-[-2vw] left-[-4vw] bg-[#050505] p-[2vw]">
                 <FitText
@@ -520,6 +537,7 @@ export function DeckSection({
                       imageClassName="opacity-70"
                       overlayEnabled={overlayEnabled}
                       overlayOpacity={overlayOpacity}
+                      overlayDirection={overlayDirection}
                     />
                   </div>
                   <FitText
@@ -548,6 +566,7 @@ export function DeckSection({
               grayscale
               overlayEnabled={overlayEnabled}
               overlayOpacity={overlayOpacity}
+              overlayDirection={overlayDirection}
             />
             <div className="flex w-[50%] flex-col gap-[1vw]">
               <FitText
@@ -608,6 +627,7 @@ export function DeckSection({
                   className="relative h-full w-full"
                   overlayEnabled={overlayEnabled}
                   overlayOpacity={overlayOpacity}
+                  overlayDirection={overlayDirection}
                 />
               </div>
               <div className="overflow-hidden bg-[#1a1a1a]">
@@ -617,6 +637,7 @@ export function DeckSection({
                   className="relative h-full w-full"
                   overlayEnabled={overlayEnabled}
                   overlayOpacity={overlayOpacity}
+                  overlayDirection={overlayDirection}
                 />
               </div>
               <div className="row-span-2 overflow-hidden bg-[#222]">
@@ -626,6 +647,7 @@ export function DeckSection({
                   className="relative h-full w-full"
                   overlayEnabled={overlayEnabled}
                   overlayOpacity={overlayOpacity}
+                  overlayDirection={overlayDirection}
                 />
               </div>
               <div className="overflow-hidden bg-[#151515]">
@@ -673,6 +695,7 @@ export function DeckSection({
               imageClassName="opacity-40"
               overlayEnabled={overlayEnabled}
               overlayOpacity={overlayOpacity}
+              overlayDirection={overlayDirection}
             />
             <div className="absolute inset-0 bg-black/60" />
             <div className="relative z-10 flex flex-col items-center gap-[2vw] text-center">
@@ -720,12 +743,18 @@ export function DeckSection({
                 imageClassName="opacity-80"
                 overlayEnabled={overlayEnabled}
                 overlayOpacity={overlayOpacity}
+                overlayDirection={overlayDirection}
               />
             </div>
             <div className="flex w-[90%] justify-center pb-[2vw]">
-              <h1 className={fonts.heroTitle} style={{ color: colors.accent }}>
+              <FitText
+                as="h1"
+                className={fonts.heroTitle}
+                style={{ color: colors.accent }}
+                box={{ maxWidth: "68vw", maxHeight: "14vw" }}
+              >
                 {block.title}
-              </h1>
+              </FitText>
             </div>
           </div>
         );
@@ -746,11 +775,17 @@ export function DeckSection({
                 imageClassName="opacity-40"
                 overlayEnabled={overlayEnabled}
                 overlayOpacity={overlayOpacity}
+                overlayDirection={overlayDirection}
               />
               <div className="relative z-10">
-                <h2 className={cn(fonts.heading, "mb-[2vw]")} style={{ color: colors.text }}>
+                <FitText
+                  as="h2"
+                  className={cn(fonts.heading, "mb-[2vw]")}
+                  style={{ color: colors.text }}
+                  box={{ maxWidth: "26vw", maxHeight: "6vw" }}
+                >
                   <HighlightText text={block.title} color={colors.accent} textColor={accentText} />
-                </h2>
+                </FitText>
                 <div className={cn(fonts.body, "w-[80%] leading-[2]")}>
                   <HighlightText
                     text={block.content}
@@ -761,12 +796,22 @@ export function DeckSection({
               </div>
             </div>
             <div className="flex h-full w-[95%] flex-col justify-end border-[0.2vw] border-white/10 bg-[#0a0a0a] p-[3vw]">
-              <h2 className={cn(fonts.heading, "mb-[2vw] text-right")} style={{ color: colors.text }}>
+              <FitText
+                as="h2"
+                className={cn(fonts.heading, "mb-[2vw] text-right")}
+                style={{ color: colors.text }}
+                box={{ maxWidth: "22vw", maxHeight: "5vw" }}
+              >
                 {blockType === "split" ? "SYNOPSIS" : "PREMISE"}
-              </h2>
-              <p className={cn(fonts.body, "text-right")} style={{ color: colors.muted }}>
+              </FitText>
+              <FitText
+                as="p"
+                className={cn(fonts.body, "text-right")}
+                style={{ color: colors.muted }}
+                box={{ maxWidth: "24vw", maxHeight: "12vw" }}
+              >
                 {block.content}
-              </p>
+              </FitText>
             </div>
           </div>
         );
@@ -781,12 +826,22 @@ export function DeckSection({
             </div>
             <div className="mx-auto grid h-full w-[90%] grid-cols-[1fr_2fr] gap-[2vw]">
               <div className="flex h-full flex-col justify-end">
-                <h2 className={cn(fonts.heading, "mb-[1vw]")} style={{ color: colors.text }}>
+                <FitText
+                  as="h2"
+                  className={cn(fonts.heading, "mb-[1vw]")}
+                  style={{ color: colors.text }}
+                  box={{ maxWidth: "24vw", maxHeight: "6vw" }}
+                >
                   <HighlightText text={block.title} color="rgba(255,255,255,0.9)" textColor="#000" />
-                </h2>
-                <p className={cn(fonts.body, "border border-white/10 bg-black/50 p-[1.5vw]")} style={{ color: colors.text }}>
+                </FitText>
+                <FitText
+                  as="p"
+                  className={cn(fonts.body, "border border-white/10 bg-black/50 p-[1.5vw]")}
+                  style={{ color: colors.text }}
+                  box={{ maxWidth: "100%", maxHeight: "12vw" }}
+                >
                   {block.content}
-                </p>
+                </FitText>
               </div>
               <div className="relative h-full overflow-hidden border-[0.2vw] border-white/10 bg-[#111]">
                 <ImageFrame
@@ -796,12 +851,18 @@ export function DeckSection({
                   imageClassName="opacity-70"
                   overlayEnabled={overlayEnabled}
                   overlayOpacity={overlayOpacity}
+                  overlayDirection={overlayDirection}
                 />
                 {blockType === "featured" ? (
                   <div className="absolute bottom-[2vw] left-[2vw]">
-                    <h2 className={cn(fonts.heroTitle, "drop-shadow-lg")} style={{ color: colors.text }}>
+                    <FitText
+                      as="h2"
+                      className={cn(fonts.heroTitle, "drop-shadow-lg")}
+                      style={{ color: colors.text }}
+                      box={{ maxWidth: "32vw", maxHeight: "10vw" }}
+                    >
                       {block.title}
-                    </h2>
+                    </FitText>
                   </div>
                 ) : null}
               </div>
@@ -825,6 +886,7 @@ export function DeckSection({
                   className="relative h-full w-full"
                   overlayEnabled={overlayEnabled}
                   overlayOpacity={overlayOpacity}
+                  overlayDirection={overlayDirection}
                 />
               </div>
               <div className="relative row-span-2 flex items-center justify-center overflow-hidden border-[0.2vw] border-white/10 bg-[#1a1a1a]">
@@ -835,19 +897,29 @@ export function DeckSection({
                   imageClassName="opacity-50"
                   overlayEnabled={overlayEnabled}
                   overlayOpacity={overlayOpacity}
+                  overlayDirection={overlayDirection}
                 />
-                <h2 className={cn(fonts.heading, "relative z-10 text-center")}>
+                <FitText
+                  as="h2"
+                  className={cn(fonts.heading, "relative z-10 text-center")}
+                  box={{ maxWidth: "20vw", maxHeight: "8vw" }}
+                >
                   <HighlightText text={block.title} color={colors.accent} textColor={accentText} />
-                </h2>
+                </FitText>
               </div>
               <div className="flex items-center border-[0.2vw] border-white/10 bg-[#111] p-[2vw]">
-                <p className={cn(fonts.body, "leading-[1.8]")} style={{ color: colors.text }}>
+                <FitText
+                  as="p"
+                  className={cn(fonts.body, "leading-[1.8]")}
+                  style={{ color: colors.text }}
+                  box={{ maxWidth: "100%", maxHeight: "10vw" }}
+                >
                   <HighlightText
                     text={block.content}
                     color="rgba(0,0,0,0.8)"
                     textColor={colors.text}
                   />
-                </p>
+                </FitText>
               </div>
               <div className="relative col-span-2 border-[0.2vw] border-white/10 bg-[#222]">
                 <ImageFrame
@@ -856,6 +928,7 @@ export function DeckSection({
                   className="relative h-full w-full"
                   overlayEnabled={overlayEnabled}
                   overlayOpacity={overlayOpacity}
+                  overlayDirection={overlayDirection}
                 />
               </div>
             </div>
@@ -872,13 +945,18 @@ export function DeckSection({
               <span className={cn(fonts.label, "mb-[2vw] block")} style={{ color: colors.tertiary }}>
                 {block.title}
               </span>
-              <h2 className={cn(fonts.heading, "leading-tight")} style={{ color: colors.text }}>
+              <FitText
+                as="h2"
+                className={cn(fonts.heading, "leading-tight")}
+                style={{ color: colors.text }}
+                box={{ maxWidth: "64vw", maxHeight: "16vw" }}
+              >
                 <HighlightText
                   text={`"${block.content}"`}
                   color="transparent"
                   textColor={colors.text}
                 />
-              </h2>
+              </FitText>
             </div>
           </div>
         );
@@ -895,18 +973,28 @@ export function DeckSection({
               imageClassName="opacity-60"
               overlayEnabled={overlayEnabled}
               overlayOpacity={overlayOpacity}
+              overlayDirection={overlayDirection}
             />
             <div className="absolute inset-0 bg-black/40" />
             <div
               className="relative z-10 border-[0.2vw] bg-black/80 p-[4vw] text-center"
               style={{ borderColor: colors.tertiary }}
             >
-              <h2 className={cn(fonts.heading, "mb-[1vw]")}>
+              <FitText
+                as="h2"
+                className={cn(fonts.heading, "mb-[1vw]")}
+                box={{ maxWidth: "56vw", maxHeight: "10vw" }}
+              >
                 <HighlightText text={block.content} color={colors.accent} textColor={accentText} />
-              </h2>
-              <p className={fonts.label} style={{ color: colors.tertiary }}>
+              </FitText>
+              <FitText
+                as="p"
+                className={fonts.label}
+                style={{ color: colors.tertiary }}
+                box={{ maxWidth: "32vw", maxHeight: "3vw" }}
+              >
                 {getBlockSubtitle(block, index)}
-              </p>
+              </FitText>
             </div>
           </div>
         );

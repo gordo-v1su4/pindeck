@@ -77,6 +77,9 @@ export function TableView() {
   const [showOnlyOriginals, setShowOnlyOriginals] = useState(false);
   const [showOnlySref, setShowOnlySref] = useState(false);
 
+  const compactPillClass =
+    "h-6 rounded-sm px-2 text-[11px] font-medium tracking-[0.01em]";
+
   // Extract unique tags and colors for filters
   const allTags = useMemo(() => {
     if (!images) return [];
@@ -243,41 +246,30 @@ export function TableView() {
         header: "Parent",
         cell: ({ row }) => {
           const parentId = row.original.parentImageId;
-          const hasChildren = (images || []).some((img) => img.parentImageId === row.original._id);
           if (!parentId) {
             return (
-              <Flex gap="1" align="center" wrap="wrap">
-                <Badge variant="soft" color="green" size="1">
+              <Badge variant="soft" color="gray" size="1" className="rounded-sm px-1.5 text-[10px] tracking-[0.02em]">
                   Original
-                </Badge>
-                {hasChildren ? (
-                  <Badge variant="soft" color="blue" size="1">
-                    Parent
-                  </Badge>
-                ) : null}
-              </Flex>
+              </Badge>
             );
           }
           // Find parent image from the list
           const parentImage = images?.find(img => img._id === parentId);
           return parentImage ? (
-            <Flex gap="1" align="center" wrap="wrap">
-              <Badge variant="soft" color="amber" size="1">
-                Child
-              </Badge>
+            <Flex gap="1" align="center" wrap="wrap" className="min-w-0">
               <Button
                 variant="soft"
-                color="blue"
+                color="gray"
                 size="1"
+                className="h-6 max-w-[10rem] rounded-sm px-2 text-[11px]"
                 onClick={() => setSelectedImage(parentId)}
-                style={{ opacity: 0.85 }}
               >
                 {parentImage.title.substring(0, 20)}{parentImage.title.length > 20 ? '...' : ''}
               </Button>
             </Flex>
           ) : (
-            <Badge variant="soft" color="amber" size="1">
-              Child
+            <Badge variant="soft" color="gray" size="1" className="rounded-sm px-1.5 text-[10px] tracking-[0.02em]">
+              Derived
             </Badge>
           );
         },
@@ -501,23 +493,23 @@ export function TableView() {
           {/* Original Images Filter */}
           <Box className="mb-4">
             <Flex gap="2" align="center">
-              <Text size="2" weight="medium">Show Only Original Images:</Text>
+              <Text size="2" weight="medium" className="text-[13px]">Show Only Original Images:</Text>
               <Button
-                variant={showOnlyOriginals ? "solid" : "soft"}
+                variant="soft"
                 color={showOnlyOriginals ? "blue" : "gray"}
                 size="1"
+                className={compactPillClass}
                 onClick={() => setShowOnlyOriginals(!showOnlyOriginals)}
-                style={{ opacity: showOnlyOriginals ? 1 : 0.7 }}
               >
                 {showOnlyOriginals ? 'On' : 'Off'}
               </Button>
-              <Text size="2" weight="medium" className="ml-4">Show Sref Only:</Text>
+              <Text size="2" weight="medium" className="ml-4 text-[13px]">Show Sref Only:</Text>
               <Button
-                variant={showOnlySref ? "solid" : "soft"}
+                variant="soft"
                 color={showOnlySref ? "blue" : "gray"}
                 size="1"
+                className={compactPillClass}
                 onClick={() => setShowOnlySref(!showOnlySref)}
-                style={{ opacity: showOnlySref ? 1 : 0.7 }}
               >
                 {showOnlySref ? 'On' : 'Off'}
               </Button>
@@ -526,14 +518,15 @@ export function TableView() {
 
           {/* Tag Filters */}
           <Box className="mb-4">
-            <Text size="2" weight="medium" className="mb-2">Filter by Tags:</Text>
+            <Text size="2" weight="medium" className="mb-2 text-[13px]">Filter by Tags:</Text>
             <Flex gap="1" wrap="wrap">
               {allTags.map((tag) => (
                 <Button
                   key={tag}
-                  variant={selectedTags.includes(tag) ? "solid" : "soft"}
+                  variant="soft"
                   color={selectedTags.includes(tag) ? "blue" : "gray"}
                   size="1"
+                  className={compactPillClass}
                   onClick={() => {
                     setSelectedTags(prev => 
                       prev.includes(tag) 
@@ -541,7 +534,6 @@ export function TableView() {
                         : [...prev, tag]
                     );
                   }}
-                  style={{ opacity: selectedTags.includes(tag) ? 1 : 0.7 }}
                 >
                   {tag}
                 </Button>
@@ -549,10 +541,10 @@ export function TableView() {
               {selectedTags.length > 0 && (
                 <Button
                   variant="soft"
-                  color="blue"
+                  color="red"
                   size="1"
+                  className={compactPillClass}
                   onClick={() => setSelectedTags([])}
-                  style={{ opacity: 0.8 }}
                 >
                   Clear
                 </Button>
@@ -562,14 +554,15 @@ export function TableView() {
 
           {/* Color Filters */}
           <Box className="mb-4">
-            <Text size="2" weight="medium" className="mb-2">Filter by Colors:</Text>
+            <Text size="2" weight="medium" className="mb-2 text-[13px]">Filter by Colors:</Text>
             <Flex gap="1" wrap="wrap">
               {allColors.map((color) => (
                 <Button
                   key={color}
-                  variant={selectedColors.includes(color) ? "solid" : "soft"}
-                  color="gray"
+                  variant="soft"
+                  color={selectedColors.includes(color) ? "blue" : "gray"}
                   size="1"
+                  className={compactPillClass}
                   onClick={() => {
                     setSelectedColors(prev => 
                       prev.includes(color) 
@@ -577,14 +570,9 @@ export function TableView() {
                         : [...prev, color]
                     );
                   }}
-                  style={{
-                    backgroundColor: selectedColors.includes(color) ? color : undefined,
-                    color: selectedColors.includes(color) ? 
-                      (color === '#FFFFFF' || color === '#ffffff' ? '#000000' : '#FFFFFF') : undefined
-                  }}
                 >
                   <Box
-                    className="w-3 h-3 rounded border border-gray-6 mr-1"
+                    className="mr-1 h-3 w-3 rounded-[2px] border border-white/10"
                     style={{ backgroundColor: color }}
                   />
                   {color}
@@ -593,10 +581,10 @@ export function TableView() {
               {selectedColors.length > 0 && (
                 <Button
                   variant="soft"
-                  color="blue"
+                  color="red"
                   size="1"
+                  className={compactPillClass}
                   onClick={() => setSelectedColors([])}
-                  style={{ opacity: 0.8 }}
                 >
                   Clear
                 </Button>

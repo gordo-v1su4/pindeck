@@ -46,6 +46,10 @@ export type DeckDetail = {
 
 type ComposerPanel = "layout" | "style";
 
+type ColorPickerInput = HTMLInputElement & {
+  showPicker?: () => void;
+};
+
 const FONT_OPTIONS: Array<{
   id: FontStyle;
   name: string;
@@ -465,6 +469,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const [fontStyle, setFontStyle] = useState<FontStyle>("agency");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("editorial");
   const [overlayStrength, setOverlayStrength] = useState(58);
+  const [overlayVariation, setOverlayVariation] = useState(32);
   const [overlaySeed, setOverlaySeed] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -480,6 +485,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     setFontStyle("agency");
     setLayoutVariant("editorial");
     setOverlayStrength(58);
+    setOverlayVariation(32);
     setOverlaySeed(0);
     setExpandedLayoutBlockId(null);
     setActivePanel("style");
@@ -522,6 +528,9 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       setOverlayStrength(
         typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58
       );
+      setOverlayVariation(
+        typeof saved.overlayVariation === "number" ? saved.overlayVariation : 32
+      );
       setOverlaySeed(typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0);
       setExpandedLayoutBlockId(typeof saved.expandedLayoutBlockId === "string" ? saved.expandedLayoutBlockId : null);
       setActivePanel(
@@ -548,6 +557,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
             fontStyle,
             layoutVariant,
             overlayStrength,
+            overlayVariation,
             overlaySeed,
             expandedLayoutBlockId,
             activePanel,
@@ -570,6 +580,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     fontStyle,
     layoutVariant,
     overlayStrength,
+    overlayVariation,
     overlaySeed,
     expandedLayoutBlockId,
     activePanel,
@@ -772,6 +783,26 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     []
   );
 
+  const openColorEditor = useCallback((key: keyof ColorPalette, value: string) => {
+    setEditingColor(key);
+
+    const input = colorInputRef.current as ColorPickerInput | null;
+    if (!input) return;
+
+    input.value = value;
+
+    try {
+      if (typeof input.showPicker === "function") {
+        input.showPicker();
+        return;
+      }
+    } catch {
+      // Fall back to the standard click-triggered picker below.
+    }
+
+    input.click();
+  }, []);
+
   const handleBlockUpdate = useCallback((updated: BlockData) => {
     setBlocks((previous) =>
       previous.map((block) => (block.id === updated.id ? updated : block))
@@ -919,6 +950,36 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     [visibleBlocks, referenceImages.length, deck._id, overlaySeed]
   );
 
+  const overlayDirections = useMemo(
+    () =>
+      visibleBlocks.map((block, index) => {
+        const blockBias =
+          block.type === "hero" || block.type === "closing"
+            ? "bottom"
+            : block.type === "story" || block.type === "world"
+              ? "left"
+              : block.type === "character"
+                ? "right"
+                : "bottom";
+
+        const options = ["bottom", "top", "left", "right", "radial"] as const;
+        const score = hashString(`${deck._id}:${block.id}:gradient:${index}:${overlaySeed}`) % options.length;
+        const randomDirection = options[score];
+        return overlayVariation <= 10 ? blockBias : randomDirection;
+      }),
+    [visibleBlocks, deck._id, overlaySeed, overlayVariation]
+  );
+
+  const overlayStrengths = useMemo(
+    () =>
+      visibleBlocks.map((block, index) => {
+        const variance = hashString(`${deck._id}:${block.id}:strength:${index}:${overlaySeed}`) % 100;
+        const jitter = ((variance / 100) - 0.5) * overlayVariation;
+        return Math.max(8, Math.min(100, overlayStrength + jitter));
+      }),
+    [visibleBlocks, deck._id, overlaySeed, overlayStrength, overlayVariation]
+  );
+
   const paletteSummary = useMemo(
     () => COLOR_KEYS.map(({ key, label }) => ({ key, label, value: colors[key] })),
     [colors]
@@ -937,7 +998,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       <input
         ref={colorInputRef}
         type="color"
-        className="sr-only"
+        className="pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0"
         onChange={(event) => {
           if (editingColor) {
             handleColorChange(editingColor, event.target.value);
@@ -1131,25 +1192,25 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                       {fontStyle}
                     </span>
                   </div>
-                  <div className="grid gap-3 lg:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                     {FONT_OPTIONS.map((option) => (
                       <button
                         key={option.id}
                         onClick={() => setFontStyle(option.id)}
                         className={cn(
-                          "min-h-[102px] border p-4 text-left transition-all",
+                          "min-h-[84px] border p-3 text-left transition-all",
                           fontStyle === option.id
                             ? "border-white bg-white/10"
                             : "border-white/10 bg-[#111]"
                         )}
                       >
                         <div
-                          className="text-[1.9rem] font-semibold leading-none text-white"
+                          className="text-[1.45rem] font-semibold leading-none text-white"
                           style={{ fontFamily: option.previewFamily }}
                         >
                           {option.name}
                         </div>
-                        <div className="mt-2 text-[9px] leading-relaxed text-white/35">
+                        <div className="mt-1 text-[8px] leading-relaxed text-white/35">
                           {option.detail}
                         </div>
                       </button>
@@ -1187,6 +1248,22 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                         onChange={(event) => setOverlayStrength(Number(event.target.value))}
                         className="deck-rect-range w-full"
                       />
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
+                          Variation
+                        </label>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                          {overlayVariation}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={overlayVariation}
+                        onChange={(event) => setOverlayVariation(Number(event.target.value))}
+                        className="deck-rect-range w-full"
+                      />
                       <Button
                         size="1"
                         variant="soft"
@@ -1197,29 +1274,23 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                       </Button>
                     </section>
 
-                    <div className="grid gap-x-6 gap-y-3 md:grid-cols-2">
+                    <div className="grid grid-cols-3 gap-x-3 gap-y-2">
                       {paletteSummary.map(({ key, label, value }) => (
                         <button
                           key={String(key)}
-                          className="flex w-full items-center justify-between border-b border-white/8 pb-3 text-left transition-colors hover:border-white/16"
-                          onClick={() => {
-                            setEditingColor(key);
-                            if (colorInputRef.current) {
-                              colorInputRef.current.value = value;
-                              colorInputRef.current.click();
-                            }
-                          }}
+                          className="flex w-full items-center justify-between border-b border-white/8 pb-2 text-left transition-colors hover:border-white/16"
+                          onClick={() => openColorEditor(key, value)}
                         >
-                          <span className="flex items-center gap-4">
+                          <span className="flex items-center gap-3">
                             <span
-                              className="h-8 w-8 border border-white/10"
+                              className="h-6 w-6 border border-white/10"
                               style={{ backgroundColor: value }}
                             />
-                            <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-white/62">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/62">
                               {label}
                             </span>
                           </span>
-                          <code className="text-[10px] uppercase text-white/26">{value}</code>
+                          <code className="text-[9px] uppercase text-white/26">{value}</code>
                         </button>
                       ))}
                     </div>
@@ -1373,8 +1444,9 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                   imageIndex={index}
                   fontStyle={fontStyle}
                   layoutVariant={layoutVariant}
-                  overlayOpacity={overlayAssignments[index] ? overlayStrength : 0}
+                  overlayOpacity={overlayAssignments[index] ? overlayStrengths[index] : 0}
                   overlayEnabled={overlayAssignments[index]}
+                  overlayDirection={overlayDirections[index]}
                   isEditing={isEditing}
                   onUpdate={handleBlockUpdate}
                   dataGsap={false}
@@ -1415,8 +1487,9 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                   imageIndex={index}
                   fontStyle={fontStyle}
                   layoutVariant={layoutVariant}
-                  overlayOpacity={overlayAssignments[index] ? overlayStrength : 0}
+                  overlayOpacity={overlayAssignments[index] ? overlayStrengths[index] : 0}
                   overlayEnabled={overlayAssignments[index]}
+                  overlayDirection={overlayDirections[index]}
                   isEditing={false}
                   dataGsap
                 />

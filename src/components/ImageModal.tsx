@@ -97,18 +97,18 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
       <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="w-[min(95vw,520px)] max-w-[520px] max-h-[90vh] gap-0 overflow-y-auto rounded-[10px] border-white/8 bg-[#111111]/92 p-0 text-[15px] text-white shadow-[0_28px_72px_rgba(0,0,0,0.62)] supports-backdrop-filter:backdrop-blur-sm"
+          className="pindeck-image-modal w-[min(95vw,500px)] max-w-[500px] max-h-[88vh] gap-0 overflow-y-auto rounded-[8px] border border-white/8 bg-[#111111]/96 p-0 text-[14px] text-white shadow-[0_24px_64px_rgba(0,0,0,0.58)]"
         >
           <DialogTitle className="sr-only">{displayTitle}</DialogTitle>
           <DialogDescription className="sr-only">Image details</DialogDescription>
 
-          {/* Close button - top right corner over image */}
+          {/* Close button - centered at the top edge */}
           <IconButton
             variant="soft"
             color="gray"
-            size="2"
-            className="absolute top-3 right-3 z-50"
-            style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '50%' }}
+            size="1"
+            className="absolute left-1/2 top-2 z-50 -translate-x-1/2"
+            style={{ background: 'rgba(0,0,0,0.55)', borderRadius: '999px' }}
             aria-label="Close"
             onClick={onClose}
           >
@@ -125,10 +125,10 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
           </Box>
 
           {/* Metadata panel */}
-          <Box className="px-5 py-5">
+          <Box className="px-4 py-4">
             {/* Title row with copy */}
-            <Flex align="center" justify="between" className="mb-3">
-              <Text size="4" weight="bold" style={{ color: '#fff' }}>
+            <Flex align="center" justify="between" className="mb-2.5 gap-3">
+              <Text className="text-[15px] font-semibold leading-tight text-white">
                 {displayTitle}
               </Text>
               <Tooltip content="Copy title">
@@ -144,7 +144,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
             </Flex>
 
             {/* Category & Group badges */}
-            <Flex gap="2" className="mb-4">
+            <Flex gap="1.5" wrap="wrap" className="mb-3.5">
               <Badge color="gray" variant="soft" style={{ textTransform: 'capitalize' }}>
                 {image.category}
               </Badge>
@@ -157,8 +157,8 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
             {/* Description with copy */}
             {image.description && (
-              <Flex align="start" gap="2" className="mb-5">
-                <Text size="2" style={{ color: '#aaa', lineHeight: 1.5, flex: 1 }}>
+              <Flex align="start" gap="2" className="mb-4.5">
+                <Text className="flex-1 text-[12px] leading-[1.5] text-white/68">
                   {image.description}
                 </Text>
                 <Tooltip content="Copy description">
@@ -180,12 +180,12 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                 align="center"
                 gap="2"
                 onClick={() => copyToClipboard(`--sref ${image.sref}`, 'sref code')}
-                className="mb-5 cursor-pointer group"
+                className="group mb-4.5 cursor-pointer"
                 style={{
-                  background: '#1a1a1a',
+                  background: '#1b1b1b',
                   borderRadius: '4px',
-                  border: '1px solid #333',
-                  padding: '6px 10px',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  padding: '7px 10px',
                 }}
               >
                 <Text size="1" style={{ color: '#888', fontFamily: 'monospace' }}>
@@ -200,16 +200,16 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
             {/* Colors - clickable swatches */}
             {sortedColors.length > 0 && (
-              <Box className="mb-5">
-                <Text size="1" style={{ color: '#666' }} className="block mb-2">Colors</Text>
-                <Flex gap="2" wrap="wrap">
+              <Box className="mb-4.5">
+                <Text size="1" style={{ color: '#666' }} className="mb-2 block">Colors</Text>
+                <Flex gap="1.5" wrap="wrap">
                   {sortedColors.slice(0, 8).map((color, i) => (
                     <Tooltip key={i} content={`Copy ${color}`}>
                       <Box
                         onClick={() => copyToClipboard(color, 'Color')}
                         style={{
-                          width: '32px',
-                          height: '32px',
+                          width: '28px',
+                          height: '28px',
                           backgroundColor: color,
                           borderRadius: '4px',
                           cursor: 'pointer',
@@ -226,15 +226,16 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
             {/* Tags - colored badges matching table view */}
             {image.tags.length > 0 && (
-              <Box className="mb-5">
-                <Text size="1" style={{ color: '#666' }} className="block mb-2">Tags</Text>
-                <Flex gap="1" wrap="wrap">
+              <Box className="mb-4.5">
+                <Text size="1" style={{ color: '#666' }} className="mb-2 block">Tags</Text>
+                <Flex gap="1.5" wrap="wrap">
                   {image.tags.slice(0, 12).map((tag, i) => (
                     <Badge
                       key={i}
                       color={getTagColor(tag)}
                       variant="soft"
                       size="1"
+                      className="rounded-[3px] text-[11px]"
                       style={{ cursor: 'pointer' }}
                       onClick={() => copyToClipboard(tag, 'Tag')}
                     >
@@ -251,18 +252,19 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
             )}
 
             {/* Stats row */}
-            <Flex gap="3" align="center" className="mb-5">
+            <Flex gap="3" align="center" className="mb-4.5">
               <Text size="1" style={{ color: '#888' }}>♥ {image.likes}</Text>
-              <Text size="1" style={{ color: '#888' }}>{image.views} views</Text>
+              <Text size="1" style={{ color: '#888' }}>{image.views.toString().padStart(2, '0')} views</Text>
             </Flex>
 
             {/* Action buttons */}
-            <Flex gap="2" align="center">
+            <Flex gap="1.5" align="center" wrap="wrap">
               <Button
                 onClick={() => { void handleLike(); }}
                 variant="soft"
                 color={image.isLiked ? "red" : "gray"}
-                size="2"
+                size="1"
+                className="rounded-sm"
               >
                 {image.isLiked ? <HeartFilledIcon /> : <HeartIcon />}
                 {image.isLiked ? 'Liked' : 'Like'}
@@ -270,7 +272,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
-                  <Button variant="soft" color={isSavedToAnyBoard ? "blue" : "gray"} size="2">
+                  <Button variant="soft" color={isSavedToAnyBoard ? "blue" : "gray"} size="1" className="rounded-sm">
                     <BookmarkIcon /> {isSavedToAnyBoard ? 'Saved' : 'Save'}
                   </Button>
                 </DropdownMenu.Trigger>
@@ -289,7 +291,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
-                  <Button variant="soft" color="teal" size="2">
+                  <Button variant="soft" color="teal" size="1" className="rounded-sm">
                     <MagicWandIcon /> Generate
                   </Button>
                 </DropdownMenu.Trigger>
