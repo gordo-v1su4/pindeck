@@ -453,6 +453,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   );
 
   const previewRef = useRef<HTMLDivElement>(null);
+  const presentationRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
 
@@ -577,6 +578,106 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     overlaySeed,
     activePanel,
   ]);
+
+  useEffect(() => {
+    if (!isPreviewOpen || !presentationRef.current) return;
+
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    void (async () => {
+      const [{ gsap }, { ScrollTrigger }] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+      ]);
+
+      if (cancelled || !presentationRef.current) return;
+
+      gsap.registerPlugin(ScrollTrigger);
+
+      const scroller = presentationRef.current;
+      const sections = Array.from(
+        scroller.querySelectorAll<HTMLElement>('[data-gsap="section"]')
+      );
+
+      const context = gsap.context(() => {
+        sections.forEach((section) => {
+          const copy = Array.from(
+            section.querySelectorAll<HTMLElement>("h1, h2, p, span")
+          );
+          const media = Array.from(section.querySelectorAll<HTMLElement>("img"));
+
+          gsap.fromTo(
+            section,
+            { autoAlpha: 0.58, y: 32 },
+            {
+              autoAlpha: 1,
+              y: 0,
+              ease: "power2.out",
+              scrollTrigger: {
+                trigger: section,
+                scroller,
+                start: "top 88%",
+                end: "top 34%",
+                scrub: 0.45,
+              },
+            }
+          );
+
+          if (copy.length > 0) {
+            gsap.fromTo(
+              copy,
+              { autoAlpha: 0, y: 38 },
+              {
+                autoAlpha: 1,
+                y: 0,
+                duration: 0.85,
+                ease: "power3.out",
+                stagger: 0.05,
+                scrollTrigger: {
+                  trigger: section,
+                  scroller,
+                  start: "top 72%",
+                  toggleActions: "play none none reverse",
+                },
+              }
+            );
+          }
+
+          if (media.length > 0) {
+            gsap.fromTo(
+              media,
+              { scale: 1.08, autoAlpha: 0.82 },
+              {
+                scale: 1,
+                autoAlpha: 1,
+                ease: "none",
+                stagger: 0.04,
+                scrollTrigger: {
+                  trigger: section,
+                  scroller,
+                  start: "top bottom",
+                  end: "bottom top",
+                  scrub: 0.8,
+                },
+              }
+            );
+          }
+        });
+
+        ScrollTrigger.refresh();
+      }, scroller);
+
+      cleanup = () => {
+        context.revert();
+      };
+    })();
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [isPreviewOpen]);
 
   const handleImageUpload = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1350,9 +1451,12 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
             </Button>
           </div>
 
-          <div className="h-[calc(100vh-78px)] overflow-y-auto snap-y snap-mandatory">
+          <div
+            ref={presentationRef}
+            className="h-[calc(100vh-78px)] overflow-y-auto snap-y snap-mandatory"
+          >
             {visibleBlocks.map((block, index) => (
-              <div key={`${block.id}-presentation`} className="slide-block">
+              <div key={`${block.id}-presentation`} className="slide-block snap-start">
                 <DeckSection
                   block={block}
                   index={index}
@@ -1366,7 +1470,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                   overlayOpacity={overlayAssignments[index] ? overlayStrength : 0}
                   overlayEnabled={overlayAssignments[index]}
                   isEditing={false}
-                  dataGsap={false}
+                  dataGsap
                 />
               </div>
             ))}
