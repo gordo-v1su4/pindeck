@@ -235,6 +235,40 @@ body {
   color: hsl(var(--muted-foreground));
 }
 
+.deck-rect-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.deck-rect-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  background: #fbbf24;
+  cursor: pointer;
+}
+
+.deck-rect-range::-moz-range-track {
+  height: 6px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.deck-rect-range::-moz-range-thumb {
+  width: 22px;
+  height: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+  background: #fbbf24;
+  cursor: pointer;
+}
+
 /* only use this to update the style of the auth input fields. use a different class for all other input fields */
 .auth-input-field {
   width: 100%;

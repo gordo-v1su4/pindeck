@@ -44,7 +44,7 @@ export type DeckDetail = {
   slides: DeckSlide[];
 };
 
-type ComposerPanel = "layout" | "style" | "content" | "media";
+type ComposerPanel = "layout" | "style";
 
 const FONT_OPTIONS: Array<{
   id: FontStyle;
@@ -133,14 +133,6 @@ const LAYOUT_OPTIONS: Array<{
     name: "Structured Grid",
     detail: "Dense composition, modular cards, stronger image rhythm.",
   },
-];
-
-const styleVariants: { id: StyleVariant; name: string }[] = [
-  { id: "cinematic", name: "Cinematic" },
-  { id: "bold", name: "Bold" },
-  { id: "minimal", name: "Minimal" },
-  { id: "noir", name: "Noir" },
-  { id: "neon", name: "Neon" },
 ];
 
 const COLOR_KEYS: Array<{
@@ -470,7 +462,6 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const [isExporting, setIsExporting] = useState(false);
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
   const [dragOverBlock, setDragOverBlock] = useState<string | null>(null);
-  const [styleVariant, setStyleVariant] = useState<StyleVariant>("cinematic");
   const [fontStyle, setFontStyle] = useState<FontStyle>("agency");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("editorial");
   const [overlayStrength, setOverlayStrength] = useState(58);
@@ -479,17 +470,18 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [activePanel, setActivePanel] = useState<ComposerPanel>("style");
+  const [expandedLayoutBlockId, setExpandedLayoutBlockId] = useState<string | null>(null);
 
   const resetToDeckDefaults = useCallback(() => {
     setReferenceImages(sourceImages.slice(0, 10));
     setActiveImageIndex(0);
     setBlocks(buildDeckBlocks(deck.title, sourceImageTitles));
-    setStyleVariant("cinematic");
     setColors(stylePresets.cinematic);
     setFontStyle("agency");
     setLayoutVariant("editorial");
     setOverlayStrength(58);
     setOverlaySeed(0);
+    setExpandedLayoutBlockId(null);
     setActivePanel("style");
   }, [sourceImages, deck.title, sourceImageTitles]);
 
@@ -525,14 +517,18 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
           ? saved.blocks
           : buildDeckBlocks(deck.title, sourceImageTitles)
       );
-      setStyleVariant(saved.styleVariant ?? "cinematic");
       setFontStyle(saved.fontStyle ?? "agency");
       setLayoutVariant(saved.layoutVariant ?? "editorial");
       setOverlayStrength(
         typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58
       );
       setOverlaySeed(typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0);
-      setActivePanel(saved.activePanel ?? "style");
+      setExpandedLayoutBlockId(typeof saved.expandedLayoutBlockId === "string" ? saved.expandedLayoutBlockId : null);
+      setActivePanel(
+        saved.activePanel === "layout" || saved.activePanel === "style"
+          ? saved.activePanel
+          : "style"
+      );
     } catch {
       resetToDeckDefaults();
     }
@@ -549,11 +545,11 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
             activeImageIndex,
             colors,
             blocks,
-            styleVariant,
             fontStyle,
             layoutVariant,
             overlayStrength,
             overlaySeed,
+            expandedLayoutBlockId,
             activePanel,
           })
         );
@@ -571,11 +567,11 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     activeImageIndex,
     colors,
     blocks,
-    styleVariant,
     fontStyle,
     layoutVariant,
     overlayStrength,
     overlaySeed,
+    expandedLayoutBlockId,
     activePanel,
   ]);
 
@@ -775,12 +771,6 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     },
     []
   );
-
-  const applyStylePreset = useCallback((variant: StyleVariant) => {
-    setStyleVariant(variant);
-    setColors(stylePresets[variant]);
-    toast.success(`${variant} palette applied`);
-  }, []);
 
   const handleBlockUpdate = useCallback((updated: BlockData) => {
     setBlocks((previous) =>
@@ -1009,12 +999,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         </div>
 
         <div className="px-4 py-4 sm:px-6">
-          <div className="grid grid-cols-2 gap-2 border border-white/8 bg-white/[0.03] p-1 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 border border-white/8 bg-white/[0.03] p-1">
             {([
               { id: "layout", label: "Layout" },
               { id: "style", label: "Style" },
-              { id: "content", label: "Content" },
-              { id: "media", label: "Media" },
             ] as const).map((panel) => (
               <button
                 key={panel.id}
@@ -1038,104 +1026,102 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
             sidebarOpen ? "block" : "hidden"
           )}
         >
-            {activePanel === "media" && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                    Attach Images
-                  </label>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                    {referenceImages.length}/10
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-5 gap-2 lg:grid-cols-10">
-                  {Array.from({ length: 10 }).map((_, index) => {
-                    const image = referenceImages[index];
-                    const isActive = index === activeImageIndex && Boolean(image);
-
-                    return (
-                      <div
-                        key={index}
-                        className={cn(
-                          "relative aspect-square overflow-hidden rounded-[4px] border transition-all",
-                          image
-                            ? isActive
-                              ? "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
-                              : "border-white/10 hover:border-white/25"
-                            : "border-dashed border-white/10 bg-white/[0.03]"
-                        )}
-                        onClick={() => {
-                          if (image) {
-                            setActiveImageIndex(index);
-                          } else {
-                            fileInputRef.current?.click();
-                          }
-                        }}
-                        title={sourceImageTitles[index] || `Slide ${index + 1}`}
-                      >
-                        {image ? (
-                          <div className="group absolute inset-0">
-                            <img
-                              src={image}
-                              alt={`Reference ${index + 1}`}
-                              className="absolute inset-0 h-full w-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/55" />
-                            {isActive && <div className="absolute left-1 top-1 h-2 w-2 rounded-full bg-amber-400" />}
-                            <div className="absolute bottom-1 right-1 bg-black/60 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.18em] text-white/65">
-                              {index + 1}
-                            </div>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                              <button
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void extractColorsFromImage(index);
-                                }}
-                                className="rounded-[4px] border border-white/15 bg-white/20 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
-                              >
-                                Extract
-                              </button>
-                              <button
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  removeImage(index);
-                                }}
-                                className="rounded-[4px] border border-red-300/20 bg-red-500/70 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-white/20">
-                            <span className="text-lg">+</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button size="1" variant="soft" color="gray" onClick={() => fileInputRef.current?.click()}>
-                    Add images
-                  </Button>
-                  <Button
-                    size="1"
-                    variant="soft"
-                    color="gray"
-                    disabled={!referenceImages[activeImageIndex]}
-                    onClick={() => void extractColorsFromImage(activeImageIndex)}
-                  >
-                    Extract active
-                  </Button>
-                </div>
-              </div>
-            )}
-
             {activePanel === "style" && (
               <div className="space-y-6">
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
+                      Attach Images
+                    </label>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                      {referenceImages.length}/10
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-2 lg:grid-cols-10">
+                    {Array.from({ length: 10 }).map((_, index) => {
+                      const image = referenceImages[index];
+                      const isActive = index === activeImageIndex && Boolean(image);
+
+                      return (
+                        <div
+                          key={index}
+                          className={cn(
+                            "relative aspect-square overflow-hidden rounded-[4px] border transition-all",
+                            image
+                              ? isActive
+                                ? "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
+                                : "border-white/10 hover:border-white/25"
+                              : "border-dashed border-white/10 bg-white/[0.03]"
+                          )}
+                          onClick={() => {
+                            if (image) {
+                              setActiveImageIndex(index);
+                            } else {
+                              fileInputRef.current?.click();
+                            }
+                          }}
+                          title={sourceImageTitles[index] || `Slide ${index + 1}`}
+                        >
+                          {image ? (
+                            <div className="group absolute inset-0">
+                              <img
+                                src={image}
+                                alt={`Reference ${index + 1}`}
+                                className="absolute inset-0 h-full w-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/55" />
+                              {isActive ? <div className="absolute left-1 top-1 h-2 w-2 rounded-full bg-amber-400" /> : null}
+                              <div className="absolute bottom-1 right-1 bg-black/60 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.18em] text-white/65">
+                                {index + 1}
+                              </div>
+                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                <button
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void extractColorsFromImage(index);
+                                  }}
+                                  className="rounded-[4px] border border-white/15 bg-white/20 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
+                                >
+                                  Extract
+                                </button>
+                                <button
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    removeImage(index);
+                                  }}
+                                  className="rounded-[4px] border border-red-300/20 bg-red-500/70 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-white/20">
+                              <span className="text-lg">+</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="1" variant="soft" color="gray" onClick={() => fileInputRef.current?.click()}>
+                      Add images
+                    </Button>
+                    <Button
+                      size="1"
+                      variant="soft"
+                      color="gray"
+                      disabled={!referenceImages[activeImageIndex]}
+                      onClick={() => void extractColorsFromImage(activeImageIndex)}
+                    >
+                      Extract active
+                    </Button>
+                  </div>
+                </section>
+
                 <section className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
@@ -1145,25 +1131,25 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                       {fontStyle}
                     </span>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-3 lg:grid-cols-3">
                     {FONT_OPTIONS.map((option) => (
                       <button
                         key={option.id}
                         onClick={() => setFontStyle(option.id)}
                         className={cn(
-                          "border p-4 text-left transition-all",
+                          "min-h-[102px] border p-4 text-left transition-all",
                           fontStyle === option.id
                             ? "border-white bg-white/10"
                             : "border-white/10 bg-[#111]"
                         )}
                       >
                         <div
-                          className="text-[2rem] font-semibold leading-none text-white"
+                          className="text-[1.9rem] font-semibold leading-none text-white"
                           style={{ fontFamily: option.previewFamily }}
                         >
                           {option.name}
                         </div>
-                        <div className="mt-2 text-[10px] leading-relaxed text-white/35">
+                        <div className="mt-2 text-[9px] leading-relaxed text-white/35">
                           {option.detail}
                         </div>
                       </button>
@@ -1171,48 +1157,51 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                   </div>
                 </section>
 
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between">
+                <section className="border border-white/10 bg-[#111] p-5">
+                  <div className="mb-4 flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                      Palette presets
+                      Extracted palette
                     </label>
                     <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      {styleVariant}
+                      {paletteSummary.length} tones
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {styleVariants.map((variant) => (
-                      <button
-                        key={variant.id}
-                        onClick={() => applyStylePreset(variant.id)}
-                        className={cn(
-                          "rounded-[4px] border px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition-colors",
-                          styleVariant === variant.id
-                            ? "border-amber-300/40 bg-amber-300/10 text-amber-200"
-                            : "border-white/10 text-white/55 hover:border-white/20 hover:text-white"
-                        )}
+                  <div className="space-y-4">
+                    <section className="space-y-4 border-b border-white/8 pb-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
+                          Image overlay
+                        </label>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                          {overlayStrength}%
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-white/40">
+                        This black gradient is applied to a randomized subset of image sections, so not every page gets the same treatment.
+                      </p>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={overlayStrength}
+                        onChange={(event) => setOverlayStrength(Number(event.target.value))}
+                        className="deck-rect-range w-full"
+                      />
+                      <Button
+                        size="1"
+                        variant="soft"
+                        color="gray"
+                        onClick={() => setOverlaySeed((value) => value + 1)}
                       >
-                        {variant.name}
-                      </button>
-                    ))}
-                  </div>
-                </section>
+                        Reroll overlay mix
+                      </Button>
+                    </section>
 
-                <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                        Extracted palette
-                      </label>
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                        9 tones
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+                    <div className="grid gap-x-6 gap-y-3 md:grid-cols-2">
                       {paletteSummary.map(({ key, label, value }) => (
                         <button
                           key={String(key)}
-                          className="border border-white/10 bg-[#111] p-3 text-left transition-colors hover:border-white/20"
+                          className="flex w-full items-center justify-between border-b border-white/8 pb-3 text-left transition-colors hover:border-white/16"
                           onClick={() => {
                             setEditingColor(key);
                             if (colorInputRef.current) {
@@ -1221,91 +1210,21 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                             }
                           }}
                         >
-                          <div
-                            className="h-10 w-full rounded-[4px] border border-white/10"
-                            style={{ backgroundColor: value }}
-                          />
-                          <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/55">
-                            {label}
-                          </div>
+                          <span className="flex items-center gap-4">
+                            <span
+                              className="h-8 w-8 border border-white/10"
+                              style={{ backgroundColor: value }}
+                            />
+                            <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-white/62">
+                              {label}
+                            </span>
+                          </span>
+                          <code className="text-[10px] uppercase text-white/26">{value}</code>
                         </button>
                       ))}
                     </div>
                   </div>
-
-                  <section className="space-y-3 border border-white/10 bg-[#111] p-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                        Image overlay
-                      </label>
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                        {overlayStrength}%
-                      </span>
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-white/40">
-                      This black gradient is applied to a randomized subset of image sections, so not every page gets the same treatment.
-                    </p>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={overlayStrength}
-                      onChange={(event) => setOverlayStrength(Number(event.target.value))}
-                      className="w-full accent-amber-400"
-                    />
-                    <Button
-                      size="1"
-                      variant="soft"
-                      color="gray"
-                      onClick={() => setOverlaySeed((value) => value + 1)}
-                    >
-                      Reroll overlay mix
-                    </Button>
-                  </section>
                 </section>
-              </div>
-            )}
-
-            {activePanel === "content" && (
-              <div className="grid gap-3 xl:grid-cols-2">
-                {blocks.map((block) => (
-                  <div
-                    key={block.id}
-                    className="border border-white/10 bg-[#111] p-4"
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[10px] uppercase tracking-[0.24em] text-amber-200/80">
-                        {block.type}
-                      </span>
-                      <button
-                        onClick={() => toggleBlockVisibility(block.id)}
-                        className={cn(
-                          "rounded-[4px] border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
-                          block.visible
-                            ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                            : "border-white/15 text-white/45"
-                        )}
-                      >
-                        {block.visible ? "Visible" : "Hidden"}
-                      </button>
-                    </div>
-                    <input
-                      value={block.title}
-                      onChange={(event) =>
-                        handleBlockUpdate({ ...block, title: event.target.value })
-                      }
-                      className="w-full border-b border-white/10 bg-transparent pb-2 text-sm font-semibold uppercase tracking-tight text-white outline-none"
-                    />
-                    <textarea
-                      value={block.content}
-                      onChange={(event) =>
-                        handleBlockUpdate({ ...block, content: event.target.value })
-                      }
-                      rows={4}
-                      className="mt-3 w-full resize-none border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-white/65 outline-none"
-                    />
-                  </div>
-                ))}
               </div>
             )}
 
@@ -1338,7 +1257,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
 
                 <section className="space-y-4">
                   <div className="border border-white/10 bg-[#111] p-4 text-[11px] leading-relaxed text-white/45">
-                    Drag to reorder. Visibility stays per section, while typography and palette run globally from the Style panel.
+                    Drag to reorder. Open a section card to adjust its title and copy inline, so layout and content stay together.
                   </div>
                   <div className="grid gap-2 xl:grid-cols-2">
                     {blocks.map((block) => (
@@ -1378,6 +1297,35 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                             {block.visible ? "Visible" : "Hidden"}
                           </button>
                         </div>
+                        <button
+                          onClick={() =>
+                            setExpandedLayoutBlockId((current) =>
+                              current === block.id ? null : block.id
+                            )
+                          }
+                          className="mt-3 w-full border border-white/8 bg-black/20 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.2em] text-white/55 transition-colors hover:border-white/16 hover:text-white"
+                        >
+                          {expandedLayoutBlockId === block.id ? "Hide copy editor" : "Edit copy"}
+                        </button>
+                        {expandedLayoutBlockId === block.id ? (
+                          <div className="mt-3 space-y-3 border-t border-white/8 pt-3">
+                            <input
+                              value={block.title}
+                              onChange={(event) =>
+                                handleBlockUpdate({ ...block, title: event.target.value })
+                              }
+                              className="w-full border-b border-white/10 bg-transparent pb-2 text-sm font-semibold uppercase tracking-tight text-white outline-none"
+                            />
+                            <textarea
+                              value={block.content}
+                              onChange={(event) =>
+                                handleBlockUpdate({ ...block, content: event.target.value })
+                              }
+                              rows={4}
+                              className="w-full resize-none border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-white/65 outline-none"
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
