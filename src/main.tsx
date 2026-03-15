@@ -31,6 +31,8 @@ const convex = new ConvexReactClient(convexUrl as string, {
   skipConvexDeploymentUrlCheck: convexUrl.endsWith('.convex.site'),
 });
 
+document.documentElement.classList.add("dark");
+
 createRoot(document.getElementById("root")!).render(
   <ConvexProvider client={convex}>
     <ConvexAuthProvider client={convex}>

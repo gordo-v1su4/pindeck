@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { TextField, IconButton } from "@radix-ui/themes";
-import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import type { FormEvent } from "react";
+import { SearchIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface SearchBarProps {
   onSearch: (term: string) => void;
@@ -9,25 +10,20 @@ interface SearchBarProps {
 export function SearchBar({ onSearch }: SearchBarProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     onSearch(searchTerm);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative">
-      <TextField.Root
+    <form onSubmit={handleSubmit} className="relative w-full max-w-[20rem]">
+      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-[#a9cfff]" />
+      <Input
         value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+        onChange={(event) => setSearchTerm(event.target.value)}
         placeholder="Search visuals..."
-        size="2"
-        variant="soft"
-        className="w-80"
-      >
-        <TextField.Slot>
-          <MagnifyingGlassIcon height="16" width="16" />
-        </TextField.Slot>
-      </TextField.Root>
+        className="h-8 w-full rounded-[4px] border-0 bg-[#133a63] pl-10 text-[#dbe8ff] placeholder:text-[#9db5d7] shadow-none transition-colors focus-visible:bg-[#17416d] focus-visible:ring-0 focus-visible:ring-offset-0"
+      />
     </form>
   );
 }

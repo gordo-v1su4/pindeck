@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { Dialog, Button, TextField, Text, Flex, Box, Select } from "@radix-ui/themes";
+import { Button, TextField, Text, Flex, Box, Select } from "@radix-ui/themes";
 import { MagicWandIcon } from "@radix-ui/react-icons";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 interface GenerateVariationsModalProps {
   imageId: Id<"images">;
@@ -41,12 +42,12 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content style={{ maxWidth: 420 }}>
-        <Dialog.Title>Generate Variations</Dialog.Title>
-        <Dialog.Description size="2" color="gray">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(95vw,28rem)] max-w-[28rem] border-white/10 bg-neutral-950/80 p-6 text-white supports-backdrop-filter:backdrop-blur-xl">
+        <DialogTitle className="text-xl font-semibold text-white">Generate Variations</DialogTitle>
+        <DialogDescription className="text-white/65">
           Create AI-generated variations of this image.
-        </Dialog.Description>
+        </DialogDescription>
 
         <Flex direction="column" gap="3" className="mt-4">
           <Box>
@@ -109,7 +110,7 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
             <MagicWandIcon /> Generate {variationCount}
           </Button>
         </Flex>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }

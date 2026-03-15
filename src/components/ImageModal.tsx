@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HeartIcon, HeartFilledIcon, Cross2Icon, BookmarkIcon, PlusIcon, MagicWandIcon, CopyIcon } from "@radix-ui/react-icons";
-import { Dialog, Button, Text, Flex, Box, IconButton, DropdownMenu, Badge, Tooltip } from "@radix-ui/themes";
+import { Button, Text, Flex, Box, IconButton, DropdownMenu, Badge, Tooltip } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { CreateBoardModal } from "./CreateBoardModal";
 import { GenerateVariationsModal } from "./GenerateVariationsModal";
 import { sortColorsDarkToLight, getTagColor } from "../lib/utils";
 import { getDetailImageUrl } from "../lib/imageUrls";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 const copyToClipboard = (text: string, label: string) => {
   navigator.clipboard.writeText(text);
@@ -93,26 +94,13 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
   return (
     <>
-      <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
-        <Dialog.Content
-          className="pindeck-image-modal p-0 overflow-hidden"
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '520px',
-            maxWidth: '95vw',
-            maxHeight: '90vh',
-            background: '#111',
-            borderRadius: '8px',
-            border: 'none',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
-            overflowY: 'auto',
-          }}
+      <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent
+          showCloseButton={false}
+          className="w-[min(95vw,520px)] max-w-[520px] max-h-[90vh] gap-0 overflow-y-auto rounded-[10px] border-white/8 bg-[#111111]/92 p-0 text-[15px] text-white shadow-[0_28px_72px_rgba(0,0,0,0.62)] supports-backdrop-filter:backdrop-blur-sm"
         >
-          <Dialog.Title className="sr-only">{displayTitle}</Dialog.Title>
-          <Dialog.Description className="sr-only">Image details</Dialog.Description>
+          <DialogTitle className="sr-only">{displayTitle}</DialogTitle>
+          <DialogDescription className="sr-only">Image details</DialogDescription>
 
           {/* Close button - top right corner over image */}
           <IconButton
@@ -137,9 +125,9 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
           </Box>
 
           {/* Metadata panel */}
-          <Box className="p-5">
+          <Box className="px-5 py-5">
             {/* Title row with copy */}
-            <Flex align="center" justify="between" className="mb-2">
+            <Flex align="center" justify="between" className="mb-3">
               <Text size="4" weight="bold" style={{ color: '#fff' }}>
                 {displayTitle}
               </Text>
@@ -156,7 +144,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
             </Flex>
 
             {/* Category & Group badges */}
-            <Flex gap="2" className="mb-3">
+            <Flex gap="2" className="mb-4">
               <Badge color="gray" variant="soft" style={{ textTransform: 'capitalize' }}>
                 {image.category}
               </Badge>
@@ -169,7 +157,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
             {/* Description with copy */}
             {image.description && (
-              <Flex align="start" gap="2" className="mb-4">
+              <Flex align="start" gap="2" className="mb-5">
                 <Text size="2" style={{ color: '#aaa', lineHeight: 1.5, flex: 1 }}>
                   {image.description}
                 </Text>
@@ -192,7 +180,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                 align="center"
                 gap="2"
                 onClick={() => copyToClipboard(`--sref ${image.sref}`, 'sref code')}
-                className="mb-3 cursor-pointer group"
+                className="mb-5 cursor-pointer group"
                 style={{
                   background: '#1a1a1a',
                   borderRadius: '4px',
@@ -212,7 +200,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
             {/* Colors - clickable swatches */}
             {sortedColors.length > 0 && (
-              <Box className="mb-4">
+              <Box className="mb-5">
                 <Text size="1" style={{ color: '#666' }} className="block mb-2">Colors</Text>
                 <Flex gap="2" wrap="wrap">
                   {sortedColors.slice(0, 8).map((color, i) => (
@@ -238,7 +226,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
 
             {/* Tags - colored badges matching table view */}
             {image.tags.length > 0 && (
-              <Box className="mb-4">
+              <Box className="mb-5">
                 <Text size="1" style={{ color: '#666' }} className="block mb-2">Tags</Text>
                 <Flex gap="1" wrap="wrap">
                   {image.tags.slice(0, 12).map((tag, i) => (
@@ -263,13 +251,13 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
             )}
 
             {/* Stats row */}
-            <Flex gap="3" align="center" className="mb-4">
+            <Flex gap="3" align="center" className="mb-5">
               <Text size="1" style={{ color: '#888' }}>♥ {image.likes}</Text>
               <Text size="1" style={{ color: '#888' }}>{image.views} views</Text>
             </Flex>
 
             {/* Action buttons */}
-            <Flex gap="2">
+            <Flex gap="2" align="center">
               <Button
                 onClick={() => { void handleLike(); }}
                 variant="soft"
@@ -319,8 +307,8 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
               </DropdownMenu.Root>
             </Flex>
           </Box>
-        </Dialog.Content>
-      </Dialog.Root>
+        </DialogContent>
+      </Dialog>
 
       <GenerateVariationsModal
         imageId={image._id}

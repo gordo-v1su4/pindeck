@@ -44,7 +44,7 @@ export type DeckDetail = {
   slides: DeckSlide[];
 };
 
-type ComposerPanel = "design" | "content" | "structure";
+type ComposerPanel = "layout" | "style" | "content" | "media";
 
 const FONT_OPTIONS: Array<{
   id: FontStyle;
@@ -477,7 +477,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [activePanel, setActivePanel] = useState<ComposerPanel>("design");
+  const [activePanel, setActivePanel] = useState<ComposerPanel>("style");
 
   const resetToDeckDefaults = useCallback(() => {
     setReferenceImages(sourceImages.slice(0, 10));
@@ -489,7 +489,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     setLayoutVariant("editorial");
     setOverlayStrength(58);
     setOverlaySeed(0);
-    setActivePanel("design");
+    setActivePanel("style");
   }, [sourceImages, deck.title, sourceImageTitles]);
 
   useEffect(() => {
@@ -531,7 +531,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58
       );
       setOverlaySeed(typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0);
-      setActivePanel(saved.activePanel ?? "design");
+      setActivePanel(saved.activePanel ?? "style");
     } catch {
       resetToDeckDefaults();
     }
@@ -812,34 +812,6 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     }
   }, [colors.background, deck.title]);
 
-  const exportToImage = useCallback(async () => {
-    if (!previewRef.current) return;
-
-    setIsExporting(true);
-    toast.info("Generating PNG...");
-
-    try {
-      const { default: html2canvas } = await import("html2canvas");
-      const canvas = await html2canvas(previewRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: colors.background,
-        logging: false,
-      });
-
-      const link = document.createElement("a");
-      link.download = `${deck.title || "pitch-deck"}.png`;
-      link.href = canvas.toDataURL("image/png", 1.0);
-      link.click();
-      toast.success("PNG exported successfully");
-    } catch {
-      toast.error("Failed to export PNG");
-    } finally {
-      setIsExporting(false);
-    }
-  }, [colors.background, deck.title]);
-
   const visibleBlocks = useMemo(
     () => blocks.filter((block) => block.visible),
     [blocks]
@@ -862,216 +834,235 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   );
 
   return (
-    <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#050505] text-white shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
-      <button
-        onClick={() => setSidebarOpen((value) => !value)}
-        className="fixed bottom-5 right-5 z-30 rounded-full border border-white/15 bg-black/80 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-white/80 lg:hidden"
-        title="Toggle deck controls"
-      >
-        {sidebarOpen ? "Close" : "Controls"}
-      </button>
+    <div className="relative overflow-hidden border border-white/10 bg-[#050505] text-white shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleImageUpload}
+        className="hidden"
+      />
+      <input
+        ref={colorInputRef}
+        type="color"
+        className="sr-only"
+        onChange={(event) => {
+          if (editingColor) {
+            handleColorChange(editingColor, event.target.value);
+          }
+        }}
+        onBlur={() => setEditingColor(null)}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)]">
-        <aside
+      <div className="sticky top-0 z-30 border-b border-white/8 bg-[#060606]/96 backdrop-blur-md">
+        <div className="border-b border-white/8 px-4 py-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[2px] bg-white text-black">
+                <span className="text-lg font-black">P/</span>
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate text-[1.7rem] font-semibold tracking-[-0.04em] text-white">
+                  PitchCraft
+                </h2>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-white/35">
+                  Commercial visual engine
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setSidebarOpen((value) => !value)}
+                className="rounded-[4px] border border-white/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 lg:hidden"
+              >
+                {sidebarOpen ? "Hide edit" : "Show edit"}
+              </button>
+              <button
+                onClick={() => setIsEditing((value) => !value)}
+                className={cn(
+                  "rounded-[4px] border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] transition-colors",
+                  isEditing
+                    ? "border-blue-500/60 bg-blue-500/12 text-blue-300"
+                    : "border-white/12 text-white/62 hover:text-white"
+                )}
+              >
+                {isEditing ? "Editing mode" : "Preview mode"}
+              </button>
+              <button
+                onClick={() => setIsPreviewOpen(true)}
+                className="rounded-[4px] border border-white/12 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 transition-colors hover:text-white"
+              >
+                Fullscreen
+              </button>
+              <button
+                onClick={() => void exportToPDF()}
+                disabled={isExporting}
+                className="rounded-[4px] bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-black transition-opacity disabled:opacity-50"
+              >
+                {isExporting ? "Exporting..." : "Export PDF"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 py-4 sm:px-6">
+          <div className="grid grid-cols-2 gap-2 border border-white/8 bg-white/[0.03] p-1 sm:grid-cols-4">
+            {([
+              { id: "layout", label: "Layout" },
+              { id: "style", label: "Style" },
+              { id: "content", label: "Content" },
+              { id: "media", label: "Media" },
+            ] as const).map((panel) => (
+              <button
+                key={panel.id}
+                onClick={() => setActivePanel(panel.id)}
+                className={cn(
+                  "rounded-[4px] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.26em] transition-colors",
+                  activePanel === panel.id
+                    ? "bg-white text-black"
+                    : "text-white/38 hover:text-white"
+                )}
+              >
+                {panel.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div
           className={cn(
-            "border-r border-white/8 bg-[#090909] lg:block",
+            "border-t border-white/8 bg-[#050505] px-4 py-5 sm:px-6 lg:block",
             sidebarOpen ? "block" : "hidden"
           )}
         >
-          <div className="border-b border-white/8 px-5 py-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-white/35">
-                  {deck.boardName ? `From ${deck.boardName}` : "Pitch deck builder"}
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">{deck.title}</h2>
-              </div>
-              {hasUnsavedChanges && (
-                <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.24em] text-amber-300">
-                  Unsaved
-                </span>
-              )}
-            </div>
-            <div className="mt-4 flex gap-2 rounded-full border border-white/8 bg-white/5 p-1">
-              {(["design", "content", "structure"] as ComposerPanel[]).map((panel) => (
-                <button
-                  key={panel}
-                  onClick={() => setActivePanel(panel)}
-                  className={cn(
-                    "flex-1 rounded-full px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] transition-colors",
-                    activePanel === panel
-                      ? "bg-white text-black"
-                      : "text-white/45 hover:text-white"
-                  )}
-                >
-                  {panel}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-b border-white/8 px-5 py-5">
-            <div className="mb-3 flex items-center justify-between">
-              <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
-                Attach Images
-              </label>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                {referenceImages.length}/10
-              </span>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-
-            <div className="grid grid-cols-5 gap-1.5">
-              {Array.from({ length: 10 }).map((_, index) => {
-                const image = referenceImages[index];
-                const isActive = index === activeImageIndex && Boolean(image);
-
-                return (
-                  <div
-                    key={index}
-                    className={cn(
-                      "relative aspect-square overflow-hidden rounded-2xl border transition-all",
-                      image
-                        ? isActive
-                          ? "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
-                          : "border-white/10 hover:border-white/25"
-                        : "border-dashed border-white/10 bg-white/[0.03]"
-                    )}
-                    onClick={() => {
-                      if (image) {
-                        setActiveImageIndex(index);
-                      } else {
-                        fileInputRef.current?.click();
-                      }
-                    }}
-                    title={sourceImageTitles[index] || `Slide ${index + 1}`}
-                  >
-                    {image ? (
-                      <div className="group absolute inset-0">
-                        <img
-                          src={image}
-                          alt={`Reference ${index + 1}`}
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/60" />
-                        {isActive && <div className="absolute left-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-400" />}
-                        <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.18em] text-white/65">
-                          {index + 1}
-                        </div>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void extractColorsFromImage(index);
-                            }}
-                            className="rounded-full border border-white/15 bg-white/20 px-3 py-1 text-[9px] uppercase tracking-[0.16em] text-white"
-                          >
-                            Extract
-                          </button>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              removeImage(index);
-                            }}
-                            className="rounded-full border border-red-300/20 bg-red-500/70 px-3 py-1 text-[9px] uppercase tracking-[0.16em] text-white"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-white/20">
-                        <span className="text-lg">+</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-3 flex gap-2">
-              <Button size="1" variant="soft" color="gray" onClick={() => fileInputRef.current?.click()}>
-                Add images
-              </Button>
-              <Button
-                size="1"
-                variant="soft"
-                color="gray"
-                disabled={!referenceImages[activeImageIndex]}
-                onClick={() => void extractColorsFromImage(activeImageIndex)}
-              >
-                Extract active
-              </Button>
-            </div>
-          </div>
-
-          <div className="max-h-[calc(100vh-235px)] overflow-y-auto">
-            {activePanel === "design" && (
-              <div className="space-y-6 px-5 py-5">
-                <section className="space-y-3">
-                  <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
-                    Layout system
+            {activePanel === "media" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
+                    Attach Images
                   </label>
-                  <div className="grid gap-3">
-                    {LAYOUT_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => setLayoutVariant(option.id)}
-                        className={cn(
-                          "rounded-[1.5rem] border px-4 py-4 text-left transition-all",
-                          layoutVariant === option.id
-                            ? "border-white/30 bg-white/[0.07]"
-                            : "border-white/10 bg-white/[0.03] hover:border-white/20"
-                        )}
-                      >
-                        <div className="text-sm font-semibold text-white">{option.name}</div>
-                        <div className="mt-1 text-[11px] leading-relaxed text-white/45">
-                          {option.detail}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                    {referenceImages.length}/10
+                  </span>
+                </div>
 
+                <div className="grid grid-cols-5 gap-2 lg:grid-cols-10">
+                  {Array.from({ length: 10 }).map((_, index) => {
+                    const image = referenceImages[index];
+                    const isActive = index === activeImageIndex && Boolean(image);
+
+                    return (
+                      <div
+                        key={index}
+                        className={cn(
+                          "relative aspect-square overflow-hidden rounded-[4px] border transition-all",
+                          image
+                            ? isActive
+                              ? "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
+                              : "border-white/10 hover:border-white/25"
+                            : "border-dashed border-white/10 bg-white/[0.03]"
+                        )}
+                        onClick={() => {
+                          if (image) {
+                            setActiveImageIndex(index);
+                          } else {
+                            fileInputRef.current?.click();
+                          }
+                        }}
+                        title={sourceImageTitles[index] || `Slide ${index + 1}`}
+                      >
+                        {image ? (
+                          <div className="group absolute inset-0">
+                            <img
+                              src={image}
+                              alt={`Reference ${index + 1}`}
+                              className="absolute inset-0 h-full w-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/55" />
+                            {isActive && <div className="absolute left-1 top-1 h-2 w-2 rounded-full bg-amber-400" />}
+                            <div className="absolute bottom-1 right-1 bg-black/60 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.18em] text-white/65">
+                              {index + 1}
+                            </div>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void extractColorsFromImage(index);
+                                }}
+                                className="rounded-[4px] border border-white/15 bg-white/20 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
+                              >
+                                Extract
+                              </button>
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  removeImage(index);
+                                }}
+                                className="rounded-[4px] border border-red-300/20 bg-red-500/70 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-white/20">
+                            <span className="text-lg">+</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button size="1" variant="soft" color="gray" onClick={() => fileInputRef.current?.click()}>
+                    Add images
+                  </Button>
+                  <Button
+                    size="1"
+                    variant="soft"
+                    color="gray"
+                    disabled={!referenceImages[activeImageIndex]}
+                    onClick={() => void extractColorsFromImage(activeImageIndex)}
+                  >
+                    Extract active
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {activePanel === "style" && (
+              <div className="space-y-6">
                 <section className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
-                      Typography
+                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
+                      Typography engine
                     </label>
                     <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
                       {fontStyle}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {FONT_OPTIONS.map((option) => (
                       <button
                         key={option.id}
                         onClick={() => setFontStyle(option.id)}
                         className={cn(
-                          "rounded-[1.35rem] border p-4 text-left transition-all",
+                          "border p-4 text-left transition-all",
                           fontStyle === option.id
-                            ? "border-white/30 bg-white/[0.08]"
-                            : "border-white/10 bg-white/[0.03] hover:border-white/20"
+                            ? "border-white bg-white/10"
+                            : "border-white/10 bg-[#111]"
                         )}
                       >
                         <div
-                          className="text-lg font-semibold text-white"
+                          className="text-[2rem] font-semibold leading-none text-white"
                           style={{ fontFamily: option.previewFamily }}
                         >
-                          {option.preview}
-                        </div>
-                        <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/75">
                           {option.name}
                         </div>
-                        <div className="mt-1 text-[10px] leading-relaxed text-white/35">
+                        <div className="mt-2 text-[10px] leading-relaxed text-white/35">
                           {option.detail}
                         </div>
                       </button>
@@ -1081,20 +1072,20 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
 
                 <section className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
                       Palette presets
                     </label>
                     <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
                       {styleVariant}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {styleVariants.map((variant) => (
                       <button
                         key={variant.id}
                         onClick={() => applyStylePreset(variant.id)}
                         className={cn(
-                          "rounded-full border px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition-colors",
+                          "rounded-[4px] border px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition-colors",
                           styleVariant === variant.id
                             ? "border-amber-300/40 bg-amber-300/10 text-amber-200"
                             : "border-white/10 text-white/55 hover:border-white/20 hover:text-white"
@@ -1106,89 +1097,80 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                   </div>
                 </section>
 
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
-                      Colors
-                    </label>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      9 tones
-                    </span>
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
+                        Extracted palette
+                      </label>
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                        9 tones
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+                      {paletteSummary.map(({ key, label, value }) => (
+                        <button
+                          key={String(key)}
+                          className="border border-white/10 bg-[#111] p-3 text-left transition-colors hover:border-white/20"
+                          onClick={() => {
+                            setEditingColor(key);
+                            if (colorInputRef.current) {
+                              colorInputRef.current.value = value;
+                              colorInputRef.current.click();
+                            }
+                          }}
+                        >
+                          <div
+                            className="h-10 w-full rounded-[4px] border border-white/10"
+                            style={{ backgroundColor: value }}
+                          />
+                          <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/55">
+                            {label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <input
-                    ref={colorInputRef}
-                    type="color"
-                    className="sr-only"
-                    onChange={(event) => {
-                      if (editingColor) {
-                        handleColorChange(editingColor, event.target.value);
-                      }
-                    }}
-                    onBlur={() => setEditingColor(null)}
-                  />
-                  <div className="grid grid-cols-3 gap-3">
-                    {paletteSummary.map(({ key, label, value }) => (
-                      <button
-                        key={String(key)}
-                        className="rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-3 text-left transition-colors hover:border-white/20"
-                        onClick={() => {
-                          setEditingColor(key);
-                          if (colorInputRef.current) {
-                            colorInputRef.current.value = value;
-                            colorInputRef.current.click();
-                          }
-                        }}
-                      >
-                        <div
-                          className="h-10 w-full rounded-xl border border-white/10"
-                          style={{ backgroundColor: value }}
-                        />
-                        <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/55">
-                          {label}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
 
-                <section className="space-y-3 rounded-[1.6rem] border border-white/10 bg-white/[0.03] p-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] uppercase tracking-[0.24em] text-white/45">
-                      Image overlay
-                    </label>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      {overlayStrength}%
-                    </span>
-                  </div>
-                  <p className="text-[11px] leading-relaxed text-white/40">
-                    This black gradient is applied to a randomized subset of image sections, so not every page gets the same treatment.
-                  </p>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={overlayStrength}
-                    onChange={(event) => setOverlayStrength(Number(event.target.value))}
-                    className="w-full accent-amber-400"
-                  />
-                  <Button
-                    size="1"
-                    variant="soft"
-                    color="gray"
-                    onClick={() => setOverlaySeed((value) => value + 1)}
-                  >
-                    Reroll overlay mix
-                  </Button>
+                  <section className="space-y-3 border border-white/10 bg-[#111] p-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
+                        Image overlay
+                      </label>
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                        {overlayStrength}%
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-white/40">
+                      This black gradient is applied to a randomized subset of image sections, so not every page gets the same treatment.
+                    </p>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={overlayStrength}
+                      onChange={(event) => setOverlayStrength(Number(event.target.value))}
+                      className="w-full accent-amber-400"
+                    />
+                    <Button
+                      size="1"
+                      variant="soft"
+                      color="gray"
+                      onClick={() => setOverlaySeed((value) => value + 1)}
+                    >
+                      Reroll overlay mix
+                    </Button>
+                  </section>
                 </section>
               </div>
             )}
 
             {activePanel === "content" && (
-              <div className="space-y-4 px-5 py-5">
+              <div className="grid gap-3 xl:grid-cols-2">
                 {blocks.map((block) => (
                   <div
                     key={block.id}
-                    className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4"
+                    className="border border-white/10 bg-[#111] p-4"
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-[10px] uppercase tracking-[0.24em] text-amber-200/80">
@@ -1197,7 +1179,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                       <button
                         onClick={() => toggleBlockVisibility(block.id)}
                         className={cn(
-                          "rounded-full border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
+                          "rounded-[4px] border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
                           block.visible
                             ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
                             : "border-white/15 text-white/45"
@@ -1219,146 +1201,140 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                         handleBlockUpdate({ ...block, content: event.target.value })
                       }
                       rows={4}
-                      className="mt-3 w-full resize-none rounded-[1.15rem] border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-white/65 outline-none"
+                      className="mt-3 w-full resize-none border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-white/65 outline-none"
                     />
                   </div>
                 ))}
               </div>
             )}
 
-            {activePanel === "structure" && (
-              <div className="space-y-4 px-5 py-5">
-                <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-[11px] leading-relaxed text-white/45">
-                  Drag to reorder. Visibility stays per section, while layout and typography now run globally from the Design panel.
-                </div>
-                <div className="space-y-2">
-                  {blocks.map((block) => (
-                    <div
-                      key={block.id}
-                      draggable
-                      onDragStart={() => handleDragStart(block.id)}
-                      onDragOver={(event) => handleDragOver(event, block.id)}
-                      onDrop={() => handleDrop(block.id)}
-                      onDragEnd={handleDragEnd}
-                      className={cn(
-                        "rounded-[1.35rem] border bg-white/[0.03] p-4 transition-all",
-                        draggedBlock === block.id && "opacity-50",
-                        dragOverBlock === block.id
-                          ? "border-amber-300/40 bg-amber-300/5"
-                          : "border-white/10"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] uppercase tracking-[0.24em] text-white/35">
-                            {block.type}
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-white">
-                            {block.title}
-                          </p>
+            {activePanel === "layout" && (
+              <div className="space-y-5">
+                <section className="space-y-3">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
+                    Layout system
+                  </label>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {LAYOUT_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => setLayoutVariant(option.id)}
+                        className={cn(
+                          "border px-4 py-4 text-left transition-all",
+                          layoutVariant === option.id
+                            ? "border-white/30 bg-white/[0.07]"
+                            : "border-white/10 bg-[#111] hover:border-white/20"
+                        )}
+                      >
+                        <div className="text-sm font-semibold text-white">{option.name}</div>
+                        <div className="mt-1 text-[11px] leading-relaxed text-white/45">
+                          {option.detail}
                         </div>
-                        <button
-                          onClick={() => toggleBlockVisibility(block.id)}
-                          className={cn(
-                            "rounded-full border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
-                            block.visible
-                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                              : "border-white/15 text-white/45"
-                          )}
-                        >
-                          {block.visible ? "Visible" : "Hidden"}
-                        </button>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="space-y-4">
+                  <div className="border border-white/10 bg-[#111] p-4 text-[11px] leading-relaxed text-white/45">
+                    Drag to reorder. Visibility stays per section, while typography and palette run globally from the Style panel.
+                  </div>
+                  <div className="grid gap-2 xl:grid-cols-2">
+                    {blocks.map((block) => (
+                      <div
+                        key={block.id}
+                        draggable
+                        onDragStart={() => handleDragStart(block.id)}
+                        onDragOver={(event) => handleDragOver(event, block.id)}
+                        onDrop={() => handleDrop(block.id)}
+                        onDragEnd={handleDragEnd}
+                        className={cn(
+                          "border bg-[#111] p-4 transition-all",
+                          draggedBlock === block.id && "opacity-50",
+                          dragOverBlock === block.id
+                            ? "border-amber-300/40 bg-amber-300/5"
+                            : "border-white/10"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.24em] text-white/35">
+                              {block.type}
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-white">
+                              {block.title}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => toggleBlockVisibility(block.id)}
+                            className={cn(
+                              "rounded-[4px] border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
+                              block.visible
+                                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                                : "border-white/15 text-white/45"
+                            )}
+                          >
+                            {block.visible ? "Visible" : "Hidden"}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </section>
               </div>
             )}
 
-            <div className="border-t border-white/8 px-5 py-5">
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="1"
-                  variant="soft"
-                  color="gray"
-                  onClick={resetToDefaults}
-                >
-                  Reset
-                </Button>
-                <Button
-                  size="1"
-                  variant={isEditing ? "solid" : "soft"}
-                  color={isEditing ? "blue" : "gray"}
-                  onClick={() => setIsEditing((value) => !value)}
-                >
-                  {isEditing ? "Editing on" : "Editing off"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <main className="min-w-0 bg-[#060606]">
-          <div className="border-b border-white/8 px-4 py-4 sm:px-6">
-            <Flex justify="between" align="center" wrap="wrap" gap="3">
-              <div>
-                <Text size="5" weight="bold" className="tracking-tight">
-                  {deck.title}
-                </Text>
-                <Text size="1" className="mt-1 block uppercase tracking-[0.2em] text-white/35">
-                  {deck.boardName ? `Source board: ${deck.boardName}` : "Deck presentation"}
-                </Text>
-              </div>
-
-              <Flex gap="2" wrap="wrap">
-                <Button size="1" variant="soft" color="gray" onClick={() => setIsPreviewOpen(true)}>
-                  Open presentation
-                </Button>
-                <Button size="1" variant="soft" color="gray" disabled={isExporting} onClick={() => void exportToPDF()}>
-                  {isExporting ? "Exporting..." : "Export PDF"}
-                </Button>
-                <Button size="1" variant="soft" color="gray" disabled={isExporting} onClick={() => void exportToImage()}>
-                  Export PNG
-                </Button>
-              </Flex>
-            </Flex>
-          </div>
-
-          <div className="px-3 py-3 sm:px-4 sm:py-4">
-            <div
-              ref={previewRef}
-              className="h-[76vh] overflow-y-auto rounded-[1.75rem] border border-white/10 bg-black/70 shadow-[0_20px_80px_rgba(0,0,0,0.45)] lg:h-[calc(100vh-215px)] lg:snap-none snap-y snap-mandatory"
-            >
-              {visibleBlocks.length === 0 ? (
-                <Card className="m-4 border border-white/10 bg-black/20 p-10 text-center">
-                  <Text color="gray">No visible blocks. Enable sections from the Structure panel.</Text>
-                </Card>
-              ) : (
-                visibleBlocks.map((block, index) => (
-                  <Box key={block.id} className="slide-block">
-                    <DeckSection
-                      block={block}
-                      index={index}
-                      theme="cinematic"
-                      colors={colors}
-                      imageUrl={referenceImages[index % Math.max(referenceImages.length, 1)] ?? null}
-                      referenceImages={referenceImages}
-                      imageIndex={index}
-                      fontStyle={fontStyle}
-                      layoutVariant={layoutVariant}
-                      overlayOpacity={overlayAssignments[index] ? overlayStrength : 0}
-                      overlayEnabled={overlayAssignments[index]}
-                      isEditing={isEditing}
-                      onUpdate={handleBlockUpdate}
-                      dataGsap={false}
-                    />
-                  </Box>
-                ))
+            <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-4">
+              <Button
+                size="1"
+                variant="soft"
+                color="gray"
+                onClick={resetToDefaults}
+              >
+                Reset
+              </Button>
+              {hasUnsavedChanges && (
+                <div className="inline-flex items-center border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[10px] uppercase tracking-[0.24em] text-amber-300">
+                  Unsaved
+                </div>
               )}
             </div>
-          </div>
-        </main>
+        </div>
       </div>
+
+      <main className="bg-[#060606] px-4 py-4 sm:px-6 sm:py-6">
+        <div
+          ref={previewRef}
+          className="mx-auto w-full max-w-[980px] overflow-hidden border border-white/10 bg-black shadow-[0_24px_90px_rgba(0,0,0,0.48)]"
+        >
+          {visibleBlocks.length === 0 ? (
+            <Card className="m-4 border border-white/10 bg-black/20 p-10 text-center">
+              <Text color="gray">No visible blocks. Enable sections from the Layout panel.</Text>
+            </Card>
+          ) : (
+            visibleBlocks.map((block, index) => (
+              <Box key={block.id} className="slide-block">
+                <DeckSection
+                  block={block}
+                  index={index}
+                  theme="cinematic"
+                  colors={colors}
+                  imageUrl={referenceImages[index % Math.max(referenceImages.length, 1)] ?? null}
+                  referenceImages={referenceImages}
+                  imageIndex={index}
+                  fontStyle={fontStyle}
+                  layoutVariant={layoutVariant}
+                  overlayOpacity={overlayAssignments[index] ? overlayStrength : 0}
+                  overlayEnabled={overlayAssignments[index]}
+                  isEditing={isEditing}
+                  onUpdate={handleBlockUpdate}
+                  dataGsap={false}
+                />
+              </Box>
+            ))
+          )}
+        </div>
+      </main>
 
       {isPreviewOpen && (
         <div className="fixed inset-0 z-[120] bg-black/95">

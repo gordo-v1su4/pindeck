@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Dialog, Button, TextField, Text, Box, Flex, Badge } from "@radix-ui/themes";
+import { Button, TextField, Text, Box, Flex, Badge } from "@radix-ui/themes";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 import { UploadIcon, Cross2Icon } from "@radix-ui/react-icons";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 interface CreateBoardModalProps {
   open: boolean;
@@ -162,22 +163,12 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content 
-        className="w-full max-w-lg !rounded-none"
-        style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          border: 'none',
-          boxShadow: 'none',
-          outline: 'none'
-        }}
-      >
-        <Dialog.Title size="4" weight="bold">Create New Board</Dialog.Title>
-        <Dialog.Description size="2" mb="5">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(95vw,36rem)] max-w-[36rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/80 p-6 text-white supports-backdrop-filter:backdrop-blur-xl">
+        <DialogTitle className="text-xl font-semibold text-white">Create New Board</DialogTitle>
+        <DialogDescription className="mb-5 text-white/65">
           Create a new board to organize your favorite images.
-        </Dialog.Description>
+        </DialogDescription>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Box>
@@ -276,17 +267,15 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
           )}
 
           <Flex gap="3" mt="6" justify="end">
-            <Dialog.Close>
-              <Button variant="soft" color="gray">
-                Cancel
-              </Button>
-            </Dialog.Close>
+            <Button type="button" variant="soft" color="gray" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
             <Button type="submit" variant="solid" disabled={submitting || !name.trim()}>
               {submitting ? (uploadProgress || "Creating...") : "Create Board"}
             </Button>
           </Flex>
         </form>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }

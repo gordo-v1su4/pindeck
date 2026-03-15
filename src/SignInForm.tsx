@@ -1,11 +1,30 @@
 "use client";
+
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { ChromeIcon, GithubIcon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
-import { EyeClosedIcon, EyeOpenIcon } from "@radix-ui/react-icons";
-import { TextField, Button, Text, Flex, Box, Separator, IconButton } from "@radix-ui/themes";
-import { Chrome, Github, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
@@ -13,261 +32,241 @@ export function SignInForm() {
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
   const [signInStarted, setSignInStarted] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  // Monitor auth state changes after sign-in attempt
   useEffect(() => {
-    console.log("🔐 Auth state:", { isAuthenticated, isLoading, signInStarted });
-    
-    if (signInStarted) {
-      // When authentication completes, show success and reset
-      if (isAuthenticated) {
-        console.log("✅ Authentication completed successfully!");
-        toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
-        setSignInStarted(false);
-        setSubmitting(false);
-      }
-    }
-  }, [isAuthenticated, isLoading, signInStarted, flow]);
+    if (!signInStarted) return;
+    if (!isAuthenticated) return;
 
-  // Timeout to detect stuck auth (after 10 seconds)
+    toast.success(
+      flow === "signIn" ? "Signed in successfully." : "Account created successfully."
+    );
+    setSignInStarted(false);
+    setSubmitting(false);
+  }, [flow, isAuthenticated, signInStarted]);
+
   useEffect(() => {
-    if (signInStarted && !isAuthenticated) {
-      const timeout = setTimeout(() => {
-        if (signInStarted && !isAuthenticated) {
-          console.error("⏰ Auth timeout - sign-in did not complete within 10 seconds");
-          console.log("🔍 Debug info:", {
-            isAuthenticated,
-            isLoading,
-          });
-          toast.error("Sign-in timed out. Please check your connection and try again.");
-          setSignInStarted(false);
-          setSubmitting(false);
-        }
-      }, 10000);
-      return () => clearTimeout(timeout);
-    }
-  }, [signInStarted, isAuthenticated, isLoading]);
+    if (!signInStarted || isAuthenticated) return;
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    // Get values directly from FormData (works with name attributes)
-    const form = e.currentTarget;
+    const timeout = setTimeout(() => {
+      toast.error("Sign-in timed out. Please check your connection and try again.");
+      setSignInStarted(false);
+      setSubmitting(false);
+    }, 10000);
+
+    return () => clearTimeout(timeout);
+  }, [isAuthenticated, signInStarted]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
     const formData = new FormData(form);
-    const email = formData.get("email") as string || "";
-    const password = formData.get("password") as string || "";
-    
+    const email = (formData.get("email") as string) || "";
+    const password = (formData.get("password") as string) || "";
+
     if (!email || !password) {
-      toast.error("Please enter both email and password");
+      toast.error("Please enter both email and password.");
       return;
     }
-    
+
     setSubmitting(true);
     setSignInStarted(true);
     formData.set("flow", flow);
 
     try {
       const result = await signIn("password", formData);
-      console.log("✅ Sign-in result:", result);
-      
-      // Check if result indicates sign-in is complete or in progress
-      if (result && typeof result === 'object' && 'signingIn' in result) {
-        if (result.signingIn === true) {
-          console.log("⏳ Sign-in in progress, waiting for auth state update...");
-          // Don't show success toast yet - wait for auth state to update via useEffect
-          // Don't reset form or set submitting to false yet - wait for auth completion
-        } else {
-          // Sign-in completed immediately
-          console.log("✅ Sign-in completed immediately");
-          toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
-          form.reset();
-          setSubmitting(false);
-          setSignInStarted(false);
-        }
-      } else {
-        // If result doesn't have signingIn property, assume it completed
-        console.log("✅ Sign-in completed (no signingIn property)");
-        toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
-        form.reset();
-        setSubmitting(false);
-        setSignInStarted(false);
+
+      if (result && typeof result === "object" && "signingIn" in result && result.signingIn) {
+        return;
       }
-    } catch (error: any) {
-      console.error("❌ Sign-in error:", error);
-      let toastTitle = "";
-      const errorMsg = error.message || "";
-      
-      if (errorMsg.includes("Account") && errorMsg.includes("already exists")) {
-        toastTitle = "An account with this email already exists. Please sign in instead.";
+
+      toast.success(
+        flow === "signIn" ? "Signed in successfully." : "Account created successfully."
+      );
+      form.reset();
+      setSubmitting(false);
+      setSignInStarted(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+
+      if (message.includes("already exists")) {
+        toast.error("An account with this email already exists. Please sign in instead.");
         setFlow("signIn");
-      } else if (errorMsg.includes("InvalidSecret") || errorMsg.includes("Invalid password")) {
-        toastTitle = "Invalid password. Please check your password and try again.";
-      } else if (errorMsg.includes("User not found") || errorMsg.includes("not found")) {
-        toastTitle = flow === "signIn" 
-          ? "No account found with this email. Please sign up first."
-          : "Could not create account. Please try again.";
-      } else {
-        toastTitle =
+      } else if (message.includes("InvalidSecret") || message.includes("Invalid password")) {
+        toast.error("Invalid password. Please check your password and try again.");
+      } else if (message.includes("User not found") || message.includes("not found")) {
+        toast.error(
           flow === "signIn"
-            ? `Could not sign in: ${errorMsg || "Unknown error"}. Please check your email and password.`
-            : `Could not sign up: ${errorMsg || "Unknown error"}. Please try again.`;
+            ? "No account found with this email. Please sign up first."
+            : "Could not create account. Please try again."
+        );
+      } else {
+        toast.error(
+          flow === "signIn"
+            ? `Could not sign in: ${message}`
+            : `Could not sign up: ${message}`
+        );
       }
-      toast.error(toastTitle);
+
       setSignInStarted(false);
       setSubmitting(false);
     }
-    // Note: If waitingForAuth is true, useEffect will handle resetting submitting when auth completes
   };
 
   const handleProviderSignIn = (provider: "google" | "github", label: string) => {
     setSubmitting(true);
     void signIn(provider).catch((error) => {
-      console.error(`❌ ${label} sign-in error:`, error);
-      toast.error(`${label} sign-in failed: ` + (error as Error).message);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`${label} sign-in failed: ${message}`);
       setSubmitting(false);
       setSignInStarted(false);
     });
   };
 
-  const title = "Discover Visual Inspiration";
-  const description = "A curated collection of visual references, design inspiration, and creative shots";
+  const handleAnonymousSignIn = async () => {
+    setSubmitting(true);
+    setSignInStarted(true);
+
+    try {
+      await signIn("anonymous");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Guest sign-in failed: ${message}`);
+      setSubmitting(false);
+      setSignInStarted(false);
+    }
+  };
+
+  const title = flow === "signIn" ? "Welcome back" : "Create an account";
+  const description =
+    flow === "signIn"
+      ? "Enter your email and password below to continue into Pindeck."
+      : "Enter your email below to create your account and start building decks.";
   const submitLabel =
     flow === "signIn"
       ? submitting
         ? "Signing in..."
-        : "Sign in"
+        : "Sign In with Email"
       : submitting
         ? "Creating account..."
-        : "Sign up";
+        : "Create account";
 
   return (
-    <Box className="auth-shell">
-      <Flex direction="column" gap="6" className="w-full">
-        <Flex direction="column" align="center" gap="5" className="text-center">
-          <Box className="max-w-[40rem] px-2">
-            <Text as="p" size="7" weight="bold" className="auth-hero-title">
-              {title}
-            </Text>
-            <Text as="p" size="4" color="gray" className="mt-2 auth-hero-copy">
-              {description}
-            </Text>
-          </Box>
-        </Flex>
+    <div className="mx-auto flex w-full max-w-md flex-col gap-8 px-4">
+      <div className="flex flex-col items-center text-center">
+        <div className="flex scale-[1.65] flex-col items-center gap-0.5">
+          <div className="site-brand-lockup">
+            <div className="site-brand-mark">P/</div>
+            <div className="site-brand-word">
+              <span className="site-brand-word-light">PIN</span>
+              <span className="site-brand-word-accent">DECK</span>
+            </div>
+          </div>
+          <p className="text-[8px] uppercase tracking-[0.22em] text-muted-foreground/85">
+            Visual ref system
+          </p>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="auth-form-column">
-          <Flex direction="column" gap="4">
-            <TextField.Root
-              id="auth-email"
-              type="email"
-              name="email"
-              placeholder="Email"
-              autoComplete="email"
-              required
-              size="3"
-              className="auth-hero-field"
-            />
+      <Card className="border-border/70 bg-card/90 shadow-2xl shadow-black/35 backdrop-blur">
+        <CardHeader className="gap-4">
+          <Tabs value={flow} onValueChange={(value) => setFlow(value as "signIn" | "signUp")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signIn">Sign in</TabsTrigger>
+              <TabsTrigger value="signUp">Create account</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="text-center">
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+        </CardHeader>
 
-            <TextField.Root
-              id="auth-password"
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              autoComplete={flow === "signIn" ? "current-password" : "new-password"}
-              required
-              size="3"
-              className="auth-hero-field"
-            >
-              <TextField.Slot side="right">
-                <button
-                  type="button"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="auth-password-toggle"
-                  onClick={() => setShowPassword((current) => !current)}
-                >
-                  {showPassword ? <EyeClosedIcon width="18" height="18" /> : <EyeOpenIcon width="18" height="18" />}
-                </button>
-              </TextField.Slot>
-            </TextField.Root>
+        <CardContent className="flex flex-col gap-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="auth-email" className="sr-only">
+                  Email
+                </FieldLabel>
+                <Input
+                  id="auth-email"
+                  type="email"
+                  name="email"
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="auth-password" className="sr-only">
+                  Password
+                </FieldLabel>
+                <Input
+                  id="auth-password"
+                  type="password"
+                  name="password"
+                  placeholder="Password"
+                  autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+                  required
+                />
+                {flow === "signUp" && (
+                  <FieldDescription>
+                    Use at least 8 characters so your account is ready for future sign-ins.
+                  </FieldDescription>
+                )}
+              </Field>
+            </FieldGroup>
 
-            <Button type="submit" disabled={submitting} size="4" className="auth-primary-button">
+            <Button type="submit" size="lg" className="w-full" disabled={submitting || isLoading}>
+              {submitting ? <Spinner data-icon="inline-start" /> : null}
               {submitLabel}
             </Button>
-          </Flex>
-        </form>
+          </form>
 
-        <Flex justify="center" align="center" gap="2" wrap="wrap" className="text-center">
-          <Text size="4" color="gray">
-            {flow === "signIn" ? "Don't have an account?" : "Already have an account?"}
-          </Text>
-          <Button
-            type="button"
-            variant="ghost"
-            size="3"
-            className="auth-switch-link"
-            onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
-          >
-            {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
-          </Button>
-        </Flex>
+          <FieldSeparator>Or continue with</FieldSeparator>
 
-        <Flex align="center" justify="center" gap="4">
-          <Separator className="flex-1 auth-divider-line" />
-          <Text size="3" color="gray" className="auth-divider-text">
-            or
-          </Text>
-          <Separator className="flex-1 auth-divider-line" />
-        </Flex>
+          <div className="flex flex-col gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full"
+              onClick={() => handleProviderSignIn("github", "GitHub")}
+              disabled={submitting}
+            >
+              <GithubIcon data-icon="inline-start" />
+              GitHub
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full"
+              onClick={() => handleProviderSignIn("google", "Google")}
+              disabled={submitting}
+            >
+              <ChromeIcon data-icon="inline-start" />
+              Google
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => void handleAnonymousSignIn()}
+              disabled={submitting}
+            >
+              <UserRoundIcon data-icon="inline-start" />
+              Continue as guest
+            </Button>
+          </div>
+        </CardContent>
 
-        <Box className="auth-provider-stack">
-          <IconButton
-            variant="solid"
-            size="4"
-            className="auth-provider-button"
-            aria-label="Continue with Google"
-            title="Continue with Google"
-            onClick={() => handleProviderSignIn("google", "Google")}
-            disabled={submitting}
-          >
-            <Chrome size={18} strokeWidth={2.2} />
-          </IconButton>
-          <IconButton
-            variant="solid"
-            size="4"
-            className="auth-provider-button"
-            aria-label="Continue with GitHub"
-            title="Continue with GitHub"
-            onClick={() => handleProviderSignIn("github", "GitHub")}
-            disabled={submitting}
-          >
-            <Github size={18} strokeWidth={2.2} />
-          </IconButton>
-          <IconButton
-            variant="solid"
-            size="4"
-            className="auth-provider-button"
-            aria-label="Continue anonymously"
-            title="Continue anonymously"
-            onClick={async () => {
-              console.log("🔐 Starting anonymous sign-in...");
-              setSubmitting(true);
-              setSignInStarted(true);
-              try {
-                const result = await signIn("anonymous");
-                console.log("🔐 Anonymous sign-in result:", result);
-              } catch (error) {
-                console.error("❌ Anonymous sign-in error:", error);
-                toast.error("Anonymous sign-in failed: " + (error as Error).message);
-                setSubmitting(false);
-                setSignInStarted(false);
-              }
-            }}
-            disabled={submitting}
-          >
-            <UserRound size={18} strokeWidth={2.2} />
-          </IconButton>
-        </Box>
-      </Flex>
-    </Box>
+        <CardFooter className="justify-center px-6 py-5 text-center text-sm leading-relaxed text-muted-foreground">
+          By continuing, you agree to our Terms of Service and Privacy Policy.
+        </CardFooter>
+      </Card>
+    </div>
   );
 }

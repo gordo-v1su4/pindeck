@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Dialog, Button, TextField, Text, Box, Flex, Select, Badge } from "@radix-ui/themes";
+import { Button, TextField, Text, Box, Flex, Select, Badge } from "@radix-ui/themes";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 import { getTagColor } from "../lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 interface EditImageModalProps {
   open: boolean;
@@ -106,24 +107,12 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
   if (!image) return null;
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content 
-        className="w-full max-w-xl !rounded-none"
-        style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          border: 'none',
-          boxShadow: 'none',
-          outline: 'none'
-        }}
-      >
-        <Dialog.Title size="4" weight="bold">Edit Image</Dialog.Title>
-        <Dialog.Description size="2" mb="5">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(95vw,42rem)] max-w-[42rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/80 p-6 text-white supports-backdrop-filter:backdrop-blur-xl">
+        <DialogTitle className="text-xl font-semibold text-white">Edit Image</DialogTitle>
+        <DialogDescription className="mb-5 text-white/65">
           Update image metadata, tags, and other information.
-        </Dialog.Description>
+        </DialogDescription>
 
         <form onSubmit={handleSubmit}>
           <Flex direction="column" gap="4">
@@ -276,19 +265,16 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
             </Box>
 
             <Flex gap="3" mt="4" justify="end">
-              <Dialog.Close>
-                <Button variant="soft" color="gray">
-                  Cancel
-                </Button>
-              </Dialog.Close>
+              <Button type="button" variant="soft" color="gray" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
               <Button type="submit" variant="solid" disabled={submitting || !title.trim()}>
                 {submitting ? "Saving..." : "Save Changes"}
               </Button>
             </Flex>
           </Flex>
         </form>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }
-

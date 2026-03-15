@@ -1,8 +1,18 @@
 import { lazy, Suspense, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Box, Card, Flex, Text, Button, Badge } from "@radix-ui/themes";
 import type { Id } from "../../convex/_generated/dataModel";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+
 const DeckComposer = lazy(() =>
   import("./deck/DeckComposer").then((mod) => ({ default: mod.DeckComposer }))
 );
@@ -22,92 +32,90 @@ export function DeckView({
     }
   }, [selectedDeckId, decks, onSelectDeck]);
 
-  const activeDeckId = selectedDeckId ?? (decks && decks.length > 0 ? decks[0]._id : null);
+  const activeDeckId =
+    selectedDeckId ?? (decks && decks.length > 0 ? decks[0]._id : null);
   const deck = useQuery(api.decks.getById, activeDeckId ? { deckId: activeDeckId } : "skip");
 
   if (decks === undefined) {
     return (
-      <Box className="flex justify-center items-center min-h-[50vh]">
-        <Text color="gray">Loading decks...</Text>
-      </Box>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Spinner className="size-5" />
+      </div>
     );
   }
 
   if (decks.length === 0) {
     return (
-      <Box className="space-y-4 w-full">
-        <Text size="7" weight="bold" className="block">Deck</Text>
-        <Card className="p-8 text-center bg-gray-900/20 border border-gray-700">
-          <Text size="4" color="gray" className="block mb-2">No decks yet</Text>
-          <Text size="2" color="gray" className="block">
+      <div className="w-full">
+        <Card className="border-white/10 bg-[#050505] text-white shadow-[0_30px_120px_rgba(0,0,0,0.34)]">
+          <CardHeader>
+            <CardTitle>Deck</CardTitle>
+            <CardDescription className="text-white/55">No decks yet.</CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-white/55">
             Go to Boards and click "Convert to Deck" after selecting images.
-          </Text>
+          </CardContent>
         </Card>
-      </Box>
+      </div>
     );
   }
 
   return (
-    <Box className="space-y-4 w-full">
-      <Flex justify="between" align="center" className="flex-col sm:flex-row gap-3">
-        <Box>
-          <Text size="7" weight="bold" className="block">Deck</Text>
-          <Text size="2" color="gray" className="block mt-1">
-            Decks generated from board selections.
-          </Text>
-        </Box>
-        <Badge variant="soft" color="blue" size="2">
-          {decks.length} deck{decks.length === 1 ? "" : "s"}
-        </Badge>
-      </Flex>
-
-      <Box className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-4">
-        <Card className="p-3 bg-gray-900/20 border border-gray-700">
-          <Text size="2" weight="medium" className="block mb-2">My Decks</Text>
-          <Flex direction="column" gap="2" className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+    <div className="relative flex w-full flex-col gap-3 text-white">
+      {decks.length > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-white/8 bg-[#080808] px-4 py-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-white/35">Deck library</p>
+            <p className="mt-1 text-xs text-white/42">Switch between generated decks without leaving the editor.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-white/52 hover:bg-white/[0.03]">
+              {decks.length} deck{decks.length === 1 ? "" : "s"}
+            </Badge>
             {decks.map((item) => {
               const active = item._id === activeDeckId;
               return (
                 <Button
                   key={item._id}
-                  variant={active ? "solid" : "soft"}
-                  color={active ? "blue" : "gray"}
-                  size="2"
-                  className="justify-start"
+                  variant="ghost"
+                  className={active
+                    ? "h-auto border border-white/20 bg-white text-[10px] font-semibold uppercase tracking-[0.2em] text-black hover:bg-white"
+                    : "h-auto border border-white/10 bg-[#0c0c0c] text-[10px] font-semibold uppercase tracking-[0.2em] text-white/58 hover:border-white/16 hover:bg-[#101010] hover:text-white"}
                   onClick={() => onSelectDeck(item._id)}
                 >
-                  <Flex direction="column" align="start" gap="1">
-                    <Text size="2" weight="medium" className="leading-tight">{item.title}</Text>
-                    <Text size="1" color="gray">
-                      {new Date(item.createdAt).toLocaleDateString()}
-                    </Text>
-                  </Flex>
+                  {item.title}
                 </Button>
               );
             })}
-          </Flex>
-        </Card>
+          </div>
+        </div>
+      ) : null}
 
-        {deck === undefined ? (
-          <Card className="p-8 text-center bg-gray-900/20 border border-gray-700">
-            <Text color="gray">Loading selected deck...</Text>
-          </Card>
-        ) : deck ? (
-          <Suspense
-            fallback={
-              <Card className="p-8 text-center bg-gray-900/20 border border-gray-700">
-                <Text color="gray">Loading deck editor...</Text>
-              </Card>
-            }
-          >
-            <DeckComposer deck={deck} />
-          </Suspense>
-        ) : (
-          <Card className="p-8 text-center bg-gray-900/20 border border-gray-700">
-            <Text color="gray">Deck not found or inaccessible.</Text>
-          </Card>
-        )}
-      </Box>
-    </Box>
+      {deck === undefined ? (
+        <Card className="border-white/10 bg-[#050505] text-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+          <CardContent className="flex min-h-[18rem] items-center justify-center">
+            <Spinner className="size-5" />
+          </CardContent>
+        </Card>
+      ) : deck ? (
+        <Suspense
+          fallback={
+            <Card className="border-white/10 bg-[#050505] text-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+              <CardContent className="flex min-h-[18rem] items-center justify-center">
+                <Spinner className="size-5" />
+              </CardContent>
+            </Card>
+          }
+        >
+          <DeckComposer deck={deck} />
+        </Suspense>
+      ) : (
+        <Card className="border-white/10 bg-[#050505] text-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+          <CardContent className="min-h-[18rem] py-10 text-center text-sm text-white/55">
+            Deck not found or inaccessible.
+          </CardContent>
+        </Card>
+      )}
+      </div>
   );
 }

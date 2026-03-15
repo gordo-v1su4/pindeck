@@ -1,6 +1,69 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
+}
+
+export const TAG_COLORS = [
+  "gray",
+  "gold",
+  "bronze",
+  "brown",
+  "yellow",
+  "amber",
+  "orange",
+  "tomato",
+  "red",
+  "ruby",
+  "crimson",
+  "pink",
+  "plum",
+  "purple",
+  "violet",
+  "iris",
+  "indigo",
+  "blue",
+  "cyan",
+  "teal",
+  "jade",
+  "green",
+  "grass",
+  "lime",
+  "mint",
+  "sky",
+] as const;
+
+export function getTagColor(tag: string) {
+  let hash = 0;
+  for (let index = 0; index < tag.length; index += 1) {
+    hash = tag.charCodeAt(index) + ((hash << 5) - hash);
+  }
+  const colorIndex = Math.abs(hash) % TAG_COLORS.length;
+  return TAG_COLORS[colorIndex];
+}
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16),
+      ]
+    : null;
+}
+
+function getBrightness(hex: string): number {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  const [red, green, blue] = rgb;
+  return (red * 299 + green * 587 + blue * 114) / 1000 / 255;
+}
+
+export function sortColorsDarkToLight(colors: string[]): string[] {
+  return colors
+    .filter((color) => /^#?[0-9A-Fa-f]{6}$/.test(color))
+    .map((color) => (color.startsWith("#") ? color : `#${color}`))
+    .sort((colorA, colorB) => getBrightness(colorA) - getBrightness(colorB));
 }

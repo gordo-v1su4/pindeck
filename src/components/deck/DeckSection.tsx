@@ -1,168 +1,357 @@
-import React, { useEffect, useMemo, useState } from "react";
-import type {
-  BlockData,
-  BlockType,
-  ColorPalette,
-  FontStyle,
-  LayoutVariant,
-} from "./types";
+import { useEffect, useMemo, useRef } from "react";
+import type { CSSProperties, ElementType, ReactNode } from "react";
+import type { BlockData, ColorPalette, FontStyle, LayoutVariant } from "./types";
+import { cn } from "./utils/cn";
 
-export type DeckSectionTheme = "cinematic" | "minimal";
-
-const BLOCK_LABELS: Record<BlockType, string> = {
-  hero: "TITLE / HERO",
-  logline: "LOGLINE",
-  story: "STORY / SYNOPSIS",
-  world: "WORLD / CONCEPT",
-  character: "CHARACTER FOCUS",
-  tone: "TONE / STYLE",
-  motif: "VISUAL MOTIF",
-  theme: "THEMATIC STATEMENT",
-  stakes: "ESCALATION / STAKES",
-  closing: "CLOSING IMPACT",
-  divider: "DIVIDER",
-};
-
-type TypographyPreset = {
-  heroClass: string;
-  headingClass: string;
-  bodyClass: string;
-  labelClass: string;
-  heroFamily: string;
-  headingFamily: string;
-  bodyFamily: string;
-  labelFamily: string;
-};
-
-const TYPOGRAPHY_PRESETS: Record<FontStyle, TypographyPreset> = {
-  agency: {
-    heroClass: "text-[clamp(4rem,12vw,10rem)] leading-[0.82] uppercase font-bold tracking-[-0.04em]",
-    headingClass: "text-[clamp(2rem,4.6vw,4.8rem)] leading-[0.92] uppercase font-bold tracking-[-0.03em]",
-    bodyClass: "text-[clamp(0.98rem,1.5vw,1.24rem)] leading-[1.6] font-medium",
-    labelClass: "text-[10px] uppercase tracking-[0.34em] font-bold",
-    heroFamily: '"Schibsted Grotesk", sans-serif',
-    headingFamily: '"Schibsted Grotesk", sans-serif',
-    bodyFamily: '"Karla", sans-serif',
-    labelFamily: '"Schibsted Grotesk", sans-serif',
-  },
-  technical: {
-    heroClass: "text-[clamp(4rem,10vw,8.6rem)] leading-[0.84] uppercase font-light tracking-[-0.05em]",
-    headingClass: "text-[clamp(1.9rem,4.2vw,4.1rem)] leading-[0.96] uppercase font-bold tracking-[-0.03em]",
-    bodyClass: "text-[clamp(0.94rem,1.35vw,1.08rem)] leading-[1.72] font-normal",
-    labelClass: "text-[10px] uppercase tracking-[0.42em] font-semibold",
-    heroFamily: '"IBM Plex Sans", sans-serif',
-    headingFamily: '"IBM Plex Sans", sans-serif',
-    bodyFamily: '"IBM Plex Sans", sans-serif',
-    labelFamily: '"IBM Plex Mono", monospace',
-  },
-  editorial: {
-    heroClass: "text-[clamp(4.3rem,11vw,9.4rem)] leading-[0.86] italic font-black tracking-[-0.04em]",
-    headingClass: "text-[clamp(2.1rem,4.7vw,4.7rem)] leading-[0.96] font-bold",
-    bodyClass: "text-[clamp(1rem,1.42vw,1.12rem)] leading-[1.82] font-light",
-    labelClass: "text-[10px] uppercase tracking-[0.32em] font-semibold italic",
-    heroFamily: '"Playfair Display", serif',
-    headingFamily: '"Playfair Display", serif',
-    bodyFamily: '"Source Serif 4", serif',
-    labelFamily: '"Playfair Display", serif',
-  },
-  brutalist: {
-    heroClass: "text-[clamp(4.2rem,11vw,9rem)] leading-[0.78] uppercase tracking-[-0.05em]",
-    headingClass: "text-[clamp(2.1rem,4.7vw,4.8rem)] leading-[0.9] uppercase tracking-[-0.04em]",
-    bodyClass: "text-[clamp(0.98rem,1.5vw,1.18rem)] leading-[1.48] uppercase font-bold tracking-tight",
-    labelClass: "text-[10px] uppercase tracking-[0.36em] font-black",
-    heroFamily: '"Archivo Black", sans-serif',
-    headingFamily: '"Archivo Black", sans-serif',
-    bodyFamily: '"Archivo", sans-serif',
-    labelFamily: '"Archivo Black", sans-serif',
-  },
-  playful: {
-    heroClass: "text-[clamp(4.5rem,13vw,10rem)] leading-[0.72] font-bold tracking-[-0.04em]",
-    headingClass: "text-[clamp(2.4rem,5.2vw,5rem)] leading-[0.9] font-bold tracking-tight",
-    bodyClass: "text-[clamp(1rem,1.48vw,1.16rem)] leading-[1.55] font-medium",
-    labelClass: "text-[10px] uppercase tracking-[0.28em] font-bold",
-    heroFamily: '"Quicksand", sans-serif',
-    headingFamily: '"Quicksand", sans-serif',
-    bodyFamily: '"Cabin", sans-serif',
-    labelFamily: '"Quicksand", sans-serif',
-  },
-  "modern-clean": {
-    heroClass: "text-[clamp(3.9rem,10vw,8rem)] leading-none uppercase font-thin tracking-[-0.06em]",
-    headingClass: "text-[clamp(2rem,4.1vw,3.8rem)] leading-[1.03] font-light tracking-[-0.03em]",
-    bodyClass: "text-[clamp(0.98rem,1.34vw,1.08rem)] leading-[1.88] font-light",
-    labelClass: "text-[10px] uppercase tracking-[0.28em] font-medium",
-    heroFamily: '"Inter", sans-serif',
-    headingFamily: '"Inter", sans-serif',
-    bodyFamily: '"Inter", sans-serif',
-    labelFamily: '"Inter", sans-serif',
-  },
-  newspaper: {
-    heroClass: "text-[clamp(4rem,10.6vw,8.6rem)] leading-[0.88] font-bold tracking-[-0.04em]",
-    headingClass: "text-[clamp(2rem,4.5vw,4.4rem)] leading-[0.98] font-bold",
-    bodyClass: "text-[clamp(0.98rem,1.38vw,1.1rem)] leading-[1.72] font-normal",
-    labelClass: "text-[10px] uppercase tracking-[0.28em] font-bold",
-    heroFamily: '"Playfair Display", serif',
-    headingFamily: '"Playfair Display", serif',
-    bodyFamily: '"DM Sans", sans-serif',
-    labelFamily: '"JetBrains Mono", monospace',
-  },
-  "ibm-plex": {
-    heroClass: "text-[clamp(3.9rem,10vw,8rem)] leading-[0.82] uppercase font-light tracking-[-0.05em]",
-    headingClass: "text-[clamp(2rem,4.2vw,4rem)] leading-[1] uppercase font-bold tracking-[-0.03em]",
-    bodyClass: "text-[clamp(0.96rem,1.34vw,1.08rem)] leading-[1.7] font-normal",
-    labelClass: "text-[10px] uppercase tracking-[0.4em] font-bold",
-    heroFamily: '"IBM Plex Sans", sans-serif',
-    headingFamily: '"IBM Plex Sans", sans-serif',
-    bodyFamily: '"IBM Plex Sans", sans-serif',
-    labelFamily: '"IBM Plex Mono", monospace',
-  },
-  minimal: {
-    heroClass: "text-[clamp(3.8rem,9.5vw,7.8rem)] leading-none uppercase font-medium tracking-[-0.04em]",
-    headingClass: "text-[clamp(1.9rem,4vw,3.8rem)] leading-[1.04] font-medium tracking-[-0.02em]",
-    bodyClass: "text-[clamp(0.98rem,1.34vw,1.08rem)] leading-[1.84] font-normal",
-    labelClass: "text-[10px] uppercase tracking-[0.3em] font-medium",
-    heroFamily: '"Geist", sans-serif',
-    headingFamily: '"Geist", sans-serif',
-    bodyFamily: '"Geist", sans-serif',
-    labelFamily: '"Geist Mono", monospace',
-  },
-};
-
-function classNames(...values: Array<string | false | null | undefined>) {
-  return values.filter(Boolean).join(" ");
-}
-
-function clampOverlay(opacity: number) {
-  return Math.max(0, Math.min(95, opacity));
-}
-
-function accentTitleColor(blockType: BlockType, colors: ColorPalette) {
-  if (blockType === "hero" || blockType === "closing") return colors.text;
-  if (blockType === "stakes" || blockType === "theme") return colors.accent;
-  return colors.text;
-}
-
-function contentTone(blockType: BlockType, colors: ColorPalette) {
-  if (blockType === "hero") return colors.muted;
-  if (blockType === "closing") return colors.text;
-  return colors.muted;
-}
-
-export interface DeckSectionProps {
+type DeckSectionProps = {
   block: BlockData;
   index: number;
-  theme: DeckSectionTheme;
+  theme?: string;
   colors: ColorPalette;
   imageUrl: string | null;
-  referenceImages?: string[];
-  imageIndex?: number;
+  referenceImages: string[];
+  imageIndex: number;
   fontStyle: FontStyle;
   layoutVariant: LayoutVariant;
   overlayOpacity?: number;
   overlayEnabled?: boolean;
   isEditing?: boolean;
-  onUpdate?: (block: BlockData) => void;
-  selected?: boolean;
+  onUpdate?: (updated: BlockData) => void;
   dataGsap?: boolean;
+};
+
+type FitBox = {
+  width?: string;
+  height?: string;
+  maxWidth?: string;
+  maxHeight?: string;
+};
+
+const TYPOGRAPHY_STYLES: Record<
+  FontStyle,
+  {
+    heroTitle: string;
+    heading: string;
+    subheading: string;
+    body: string;
+    label: string;
+  }
+> = {
+  agency: {
+    heroTitle:
+      'font-["Schibsted_Grotesk",sans-serif] text-[21vw] leading-[0.85] uppercase tracking-normal font-bold',
+    heading:
+      'font-["Schibsted_Grotesk",sans-serif] text-[4vw] uppercase leading-[0.9] font-bold tracking-tight',
+    subheading:
+      'font-["Karla",sans-serif] text-[2vw] uppercase tracking-widest font-medium',
+    body: 'font-["Karla",sans-serif] text-[1.1vw] font-medium leading-[1.6]',
+    label:
+      'font-["Schibsted_Grotesk",sans-serif] text-[0.9vw] uppercase tracking-[0.2em] font-bold',
+  },
+  "modern-clean": {
+    heroTitle:
+      'font-["Inter",sans-serif] text-[15vw] leading-none tracking-tighter font-thin uppercase',
+    heading:
+      'font-["Inter",sans-serif] text-[3.5vw] leading-[1.1] font-light tracking-tight',
+    subheading: 'font-["Inter",sans-serif] text-[1.5vw] font-normal tracking-wide',
+    body: 'font-["Inter",sans-serif] text-[1.1vw] font-light leading-[1.8]',
+    label:
+      'font-["Inter",sans-serif] text-[0.8vw] uppercase tracking-[0.1em] font-medium',
+  },
+  editorial: {
+    heroTitle:
+      'font-["Playfair_Display",serif] text-[18vw] leading-[0.9] italic font-black tracking-tighter',
+    heading:
+      'font-["Playfair_Display",serif] text-[4.5vw] leading-[1] font-bold',
+    subheading:
+      'font-["Source_Serif_4",serif] text-[1.2vw] uppercase tracking-[0.3em] font-light',
+    body:
+      'font-["Source_Serif_4",serif] text-[1.05vw] font-light leading-[1.8] text-justify',
+    label: 'font-["Playfair_Display",serif] text-[0.9vw] italic font-bold tracking-wide',
+  },
+  brutalist: {
+    heroTitle:
+      'font-["Archivo_Black",sans-serif] text-[19.5vw] leading-[0.8] uppercase tracking-tighter',
+    heading:
+      'font-["Archivo_Black",sans-serif] text-[5vw] leading-[0.9] uppercase font-normal',
+    subheading:
+      'font-["Archivo",sans-serif] text-[1.8vw] font-bold tracking-tight bg-white text-black px-2',
+    body:
+      'font-["Archivo",sans-serif] text-[1.2vw] font-bold leading-[1.4] tracking-tight uppercase',
+    label:
+      'font-["Archivo_Black",sans-serif] text-[1vw] uppercase font-normal tracking-widest',
+  },
+  playful: {
+    heroTitle:
+      'font-["Quicksand",sans-serif] text-[24vw] leading-[0.6] font-bold tracking-tight',
+    heading: 'font-["Quicksand",sans-serif] text-[7vw] leading-[0.8] font-bold',
+    subheading:
+      'font-["Cabin",sans-serif] text-[1.4vw] uppercase tracking-[0.1em] font-bold border-b-2 border-white/20 pb-1',
+    body: 'font-["Cabin",sans-serif] text-[1.2vw] font-medium leading-[1.5]',
+    label: 'font-["Quicksand",sans-serif] text-[2vw] font-bold opacity-80',
+  },
+  technical: {
+    heroTitle:
+      'font-["IBM_Plex_Sans",sans-serif] text-[18vw] leading-[0.8] font-light tracking-[-0.05em] uppercase',
+    heading:
+      'font-["IBM_Plex_Sans",sans-serif] text-[4vw] leading-[1] font-bold uppercase tracking-tight',
+    subheading:
+      'font-["IBM_Plex_Sans",sans-serif] text-[1.1vw] uppercase tracking-[0.4em] font-medium',
+    body:
+      'font-["IBM_Plex_Sans",sans-serif] text-[1vw] font-normal leading-[1.7] opacity-90',
+    label:
+      'font-["IBM_Plex_Sans",sans-serif] text-[0.8vw] uppercase font-bold tracking-[0.2em] border border-white/20 p-2',
+  },
+  newspaper: {
+    heroTitle:
+      'font-["Playfair_Display",serif] text-[18vw] leading-[0.9] font-bold tracking-tighter',
+    heading:
+      'font-["Playfair_Display",serif] text-[4.5vw] leading-[1] font-bold',
+    subheading: 'font-["DM_Sans",sans-serif] text-[1.4vw] font-medium tracking-wide',
+    body: 'font-["DM_Sans",sans-serif] text-[1.1vw] font-normal leading-[1.7]',
+    label: 'font-["Playfair_Display",serif] text-[0.9vw] font-bold tracking-wide',
+  },
+  "ibm-plex": {
+    heroTitle:
+      'font-["IBM_Plex_Sans",sans-serif] text-[18vw] leading-[0.8] font-light tracking-[-0.05em] uppercase',
+    heading:
+      'font-["IBM_Plex_Sans",sans-serif] text-[4vw] leading-[1] font-bold uppercase tracking-tight',
+    subheading:
+      'font-["IBM_Plex_Sans",sans-serif] text-[1.1vw] uppercase tracking-[0.4em] font-medium',
+    body:
+      'font-["IBM_Plex_Sans",sans-serif] text-[1vw] font-normal leading-[1.7] opacity-90',
+    label:
+      'font-["IBM_Plex_Sans",sans-serif] text-[0.8vw] uppercase font-bold tracking-[0.2em] border border-white/20 p-2',
+  },
+  minimal: {
+    heroTitle:
+      'font-["Geist",sans-serif] text-[16.5vw] leading-none tracking-tighter font-medium uppercase',
+    heading:
+      'font-["Geist",sans-serif] text-[3.5vw] leading-[1.1] font-medium tracking-tight',
+    subheading: 'font-["Geist",sans-serif] text-[1.4vw] font-normal tracking-wide',
+    body: 'font-["Geist",sans-serif] text-[1.05vw] font-normal leading-[1.8]',
+    label:
+      'font-["Geist",sans-serif] text-[0.8vw] uppercase tracking-[0.15em] font-medium',
+  },
+};
+
+function isDarkColor(color: string) {
+  const hex = color.replace("#", "");
+  if (hex.length !== 6) return false;
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 < 140;
+}
+
+function parseFontSizeVw(className: string) {
+  const match = className.match(/(?:!)?text-\[([\d.]+)vw\]/);
+  return match ? Number.parseFloat(match[1]) : 4;
+}
+
+function HighlightText({
+  text,
+  color,
+  textColor,
+}: {
+  text: string;
+  color: string;
+  textColor: string;
+}) {
+  return (
+    <span
+      className="inline-block rounded-sm px-[0.4em] py-[0.1em] box-decoration-clone"
+      style={{ backgroundColor: color, color: textColor }}
+    >
+      {text}
+    </span>
+  );
+}
+
+function FitText({
+  as = "div",
+  className = "",
+  style,
+  children,
+  box,
+}: {
+  as?: ElementType;
+  className?: string;
+  style?: CSSProperties;
+  children: ReactNode;
+  box?: FitBox;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const textRef = useRef<HTMLElement | null>(null);
+  const baseVw = parseFontSizeVw(className);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const text = textRef.current;
+    if (!container || !text || !box) return;
+
+    const fit = () => {
+      const maxW = container.clientWidth;
+      const maxH = container.clientHeight;
+      if (!maxW || !maxH) return;
+
+      let scale = 1;
+      const minScale = 0.35;
+      const step = 0.03;
+
+      text.style.fontSize = `${baseVw}vw`;
+
+      while (scale >= minScale) {
+        text.style.fontSize = `${baseVw * scale}vw`;
+        if (text.scrollHeight <= maxH && text.scrollWidth <= maxW) break;
+        scale -= step;
+      }
+    };
+
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [baseVw, box, children]);
+
+  const Tag = as;
+  if (!box) {
+    return (
+      <Tag className={className} style={style}>
+        {children}
+      </Tag>
+    );
+  }
+
+  const containerStyle: CSSProperties = {
+    overflow: "hidden",
+    width: box.width ?? box.maxWidth ?? "100%",
+    height: box.height ?? box.maxHeight,
+    maxWidth: box.maxWidth,
+    maxHeight: box.maxHeight,
+  };
+
+  return (
+    <div ref={containerRef} className="flex min-w-0 flex-col" style={containerStyle}>
+      <Tag
+        ref={(node: HTMLElement | null) => {
+          textRef.current = node;
+        }}
+        className={className}
+        style={{ ...style, flexShrink: 0 }}
+      >
+        {children}
+      </Tag>
+    </div>
+  );
+}
+
+function getTypographyClasses(fontStyle: FontStyle) {
+  return TYPOGRAPHY_STYLES[fontStyle] ?? TYPOGRAPHY_STYLES.agency;
+}
+
+function normalizeType(block: BlockData) {
+  switch (block.type) {
+    case "hero":
+      return "hero";
+    case "logline":
+      return "text";
+    case "story":
+      return "split";
+    case "world":
+      return "card";
+    case "character":
+      return "featured";
+    case "tone":
+      return "moodboard";
+    case "motif":
+      return "gallery";
+    case "theme":
+      return "statement";
+    case "stakes":
+      return "impact";
+    case "closing":
+      return "final";
+    default:
+      return "text";
+  }
+}
+
+function getBlockSubtitle(block: BlockData, index: number) {
+  switch (block.type) {
+    case "hero":
+      return "Commercial visual engine";
+    case "logline":
+      return "Project logline and central premise overview.";
+    case "story":
+      return "Narrative spine";
+    case "world":
+      return "Expanded visual world";
+    case "character":
+      return "Character study";
+    case "tone":
+      return "Mood calibration";
+    case "motif":
+      return "Repeated visual language";
+    case "theme":
+      return "Core idea";
+    case "stakes":
+      return "What failure costs";
+    case "closing":
+      return "Pitchcraft studios";
+    default:
+      return `Section ${index + 1}`;
+  }
+}
+
+function getRotatingImages(referenceImages: string[], imageIndex: number, fallback: string | null) {
+  if (referenceImages.length === 0) {
+    return fallback ? [fallback] : [];
+  }
+
+  return Array.from({ length: Math.min(4, referenceImages.length) }, (_, offset) => {
+    return referenceImages[(imageIndex + offset) % referenceImages.length];
+  }).filter(Boolean);
+}
+
+function ImageFrame({
+  src,
+  alt,
+  className,
+  overlayEnabled,
+  overlayOpacity,
+  overlayClassName,
+  imageClassName,
+  grayscale = false,
+}: {
+  src?: string | null;
+  alt: string;
+  className: string;
+  overlayEnabled?: boolean;
+  overlayOpacity?: number;
+  overlayClassName?: string;
+  imageClassName?: string;
+  grayscale?: boolean;
+}) {
+  return (
+    <div className={className}>
+      {src ? (
+        <img
+          src={src}
+          alt={alt}
+          className={cn("h-full w-full object-cover", grayscale && "grayscale", imageClassName)}
+        />
+      ) : (
+        <div className="h-full w-full bg-[#111]" />
+      )}
+      {src && overlayEnabled && (overlayOpacity ?? 0) > 0 ? (
+        <div
+          className={cn("absolute inset-0", overlayClassName)}
+          style={{ backgroundColor: `rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)})` }}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 export function DeckSection({
@@ -170,511 +359,576 @@ export function DeckSection({
   index,
   colors,
   imageUrl,
-  referenceImages = [],
-  imageIndex = 0,
+  referenceImages,
+  imageIndex,
   fontStyle,
   layoutVariant,
   overlayOpacity = 0,
-  overlayEnabled = true,
-  isEditing = false,
-  onUpdate,
-  selected = false,
-  dataGsap = true,
+  overlayEnabled = false,
+  dataGsap = false,
 }: DeckSectionProps) {
-  const [localTitle, setLocalTitle] = useState(block.title);
-  const [localContent, setLocalContent] = useState(block.content);
-
-  useEffect(() => {
-    setLocalTitle(block.title);
-    setLocalContent(block.content);
-  }, [block.title, block.content]);
-
-  const preset = TYPOGRAPHY_PRESETS[fontStyle];
-  const label = BLOCK_LABELS[block.type] ?? block.type.toUpperCase();
-  const overlayPercent = clampOverlay(overlayOpacity);
-  const mediaPool = useMemo(() => {
-    if (referenceImages.length > 0) return referenceImages;
-    return imageUrl ? [imageUrl] : [];
-  }, [referenceImages, imageUrl]);
-  const media = useMemo(
-    () =>
-      Array.from({ length: 5 }, (_, offset) =>
-        mediaPool.length ? mediaPool[(imageIndex + offset) % mediaPool.length] : null
-      ),
-    [mediaPool, imageIndex]
+  const fonts = getTypographyClasses(fontStyle);
+  const blockType = normalizeType(block);
+  const supplementalImages = useMemo(
+    () => getRotatingImages(referenceImages, imageIndex, imageUrl),
+    [imageIndex, imageUrl, referenceImages]
   );
-  const titleColor = accentTitleColor(block.type, colors);
-  const bodyColor = contentTone(block.type, colors);
+  const mainImg = supplementalImages[0] ?? imageUrl ?? "";
+  const isDarkAccent = isDarkColor(colors.accent);
+  const accentText = isDarkAccent ? "#fff" : "#050505";
 
-  const updateBlock = () => {
-    if (!onUpdate) return;
-    if (localTitle === block.title && localContent === block.content) return;
-    onUpdate({ ...block, title: localTitle, content: localContent });
-  };
-
-  if (block.type === "divider") {
-    return (
-      <section
-        className="h-12 border-b border-white/10"
-        style={{ backgroundColor: colors.background }}
-      />
-    );
-  }
-
-  const overlayGradient = overlayEnabled
-    ? {
-        background: `linear-gradient(180deg, rgba(0,0,0,${Math.min(
-          0.86,
-          overlayPercent / 100 + 0.24
-        )}) 0%, rgba(0,0,0,${Math.min(0.72, overlayPercent / 140 + 0.16)}) 45%, rgba(0,0,0,${Math.min(
-          0.42,
-          overlayPercent / 240 + 0.06
-        )}) 100%)`,
-      }
-    : undefined;
-
-  const sectionProps = {
-    className: classNames(
-      "relative min-h-[72vh] overflow-hidden border-b border-white/8 lg:min-h-[56.25vw]",
-      "snap-start scroll-mt-4",
-      selected && "ring-1 ring-amber-400/50"
-    ),
-    style: {
-      backgroundColor: colors.background,
-      color: colors.text,
-    },
-    ...(dataGsap ? { "data-anim": "section", "data-block": block.type } : {}),
-  };
-
-  const labelStyle = {
-    color: colors.muted,
-    fontFamily: preset.labelFamily,
-  };
-
-  const editableLabel = (
-    <span className={preset.labelClass} style={labelStyle}>
-      {label}
-    </span>
-  );
-
-  const titleNode = isEditing && onUpdate ? (
-    <input
-      value={localTitle}
-      onChange={(event) => setLocalTitle(event.target.value)}
-      onBlur={updateBlock}
-      className="w-full border-b border-white/15 bg-transparent pb-3 outline-none"
-      style={{
-        color: titleColor,
-        fontFamily: block.type === "hero" || block.type === "closing" ? preset.heroFamily : preset.headingFamily,
-      }}
-    />
-  ) : (
-    <h2
-      className={
-        block.type === "hero" || block.type === "closing" ? preset.heroClass : preset.headingClass
-      }
-      style={{
-        color: titleColor,
-        fontFamily: block.type === "hero" || block.type === "closing" ? preset.heroFamily : preset.headingFamily,
-      }}
-    >
-      {block.title}
-    </h2>
-  );
-
-  const contentNode = isEditing && onUpdate ? (
-    <textarea
-      value={localContent}
-      onChange={(event) => setLocalContent(event.target.value)}
-      onBlur={updateBlock}
-      rows={5}
-      className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 p-4 outline-none"
-      style={{ color: bodyColor, fontFamily: preset.bodyFamily }}
-    />
-  ) : (
-    <p className={preset.bodyClass} style={{ color: bodyColor, fontFamily: preset.bodyFamily }}>
-      {block.content}
-    </p>
-  );
-
-  const sectionBadge = (
-    <div
-      className="inline-flex items-center gap-3 rounded-full border px-4 py-2 text-[10px] uppercase tracking-[0.28em]"
-      style={{
-        color: colors.muted,
-        borderColor: `${colors.border}99`,
-        backgroundColor: `${colors.surface}cc`,
-        backdropFilter: "blur(12px)",
-      }}
-    >
-      <span>{label}</span>
-      <span>{String(index + 1).padStart(2, "0")}</span>
-    </div>
-  );
-
-  const renderEditorial = () => {
-    if (block.type === "hero") {
-      return (
-        <section {...sectionProps}>
-          <div className="absolute inset-0">
-            {media[0] ? (
-              <img src={media[0]} alt="" className="h-full w-full object-cover" data-anim="image" />
-            ) : (
-              <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />
-            )}
-            <div className="absolute inset-0" style={overlayGradient} />
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(255,255,255,0.02) 0%, transparent 35%, rgba(255,255,255,0.08) 100%)",
-              }}
+  const renderLayoutA = () => {
+    switch (blockType) {
+      case "hero":
+        return (
+          <div className="relative flex h-[56.25vw] w-full flex-col justify-end overflow-hidden bg-[#050505]">
+            <ImageFrame
+              src={mainImg}
+              alt={block.title}
+              className="absolute inset-0 h-full w-full"
+              imageClassName="object-top opacity-80"
+              overlayEnabled={overlayEnabled}
+              overlayOpacity={overlayOpacity}
+              overlayClassName="bg-gradient-to-t from-[#050505] via-transparent to-transparent"
             />
-          </div>
-          <div className="relative z-10 flex min-h-[72vh] flex-col justify-between px-5 py-6 sm:px-8 lg:min-h-[56.25vw] lg:px-12 lg:py-10">
-            <div className="flex justify-between gap-4">{sectionBadge}</div>
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] lg:items-end">
-              <div className="max-w-4xl">
-                {titleNode}
-              </div>
-              <div
-                className="max-w-md rounded-[2rem] border p-5"
-                style={{
-                  borderColor: `${colors.border}88`,
-                  backgroundColor: `${colors.surface}b8`,
-                  backdropFilter: "blur(14px)",
-                }}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
+            <div className="relative z-10 flex items-end justify-between px-[6vw] pb-[4vw]">
+              <FitText
+                as="h1"
+                className={cn(fonts.heroTitle, "translate-y-[2vw] drop-shadow-2xl")}
+                style={{ color: colors.text }}
+                box={{ maxWidth: "42vw", maxHeight: "21vw" }}
               >
-                <div className="mb-4">{editableLabel}</div>
-                {contentNode}
-              </div>
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    if (block.type === "logline" || block.type === "story") {
-      return (
-        <section {...sectionProps}>
-          <div className="grid min-h-[72vh] lg:min-h-[56.25vw] lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="relative order-2 flex items-center px-5 py-8 sm:px-8 lg:order-1 lg:px-12">
-              <div className="max-w-xl space-y-6">
-                {editableLabel}
-                {titleNode}
-                <div className="h-px w-24" style={{ backgroundColor: colors.accent }} />
-                {contentNode}
-              </div>
-              <div
-                className="absolute bottom-0 left-0 top-0 w-1"
-                style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.accent})` }}
-              />
-            </div>
-            <div className="relative order-1 min-h-[18rem] lg:order-2 lg:min-h-full">
-              {media[0] ? (
-                <img src={media[0]} alt="" className="h-full w-full object-cover" data-anim="image" />
-              ) : (
-                <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />
-              )}
-              <div className="absolute inset-0" style={overlayGradient} />
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    if (block.type === "world" || block.type === "tone" || block.type === "motif") {
-      return (
-        <section {...sectionProps}>
-          <div className="px-5 py-6 sm:px-8 lg:px-12 lg:py-10">
-            <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-4 max-w-3xl">
-                {editableLabel}
-                {titleNode}
-              </div>
-              <div className="max-w-xl">{contentNode}</div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-12">
-              <div className="md:col-span-7 min-h-[16rem] overflow-hidden rounded-[2rem]">
-                {media[0] ? (
-                  <img src={media[0]} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />
-                )}
-              </div>
-              <div className="grid gap-3 md:col-span-5">
-                {[media[1], media[2], media[3]].map((item, cardIndex) => (
-                  <div
-                    key={`${block.id}-${cardIndex}`}
-                    className="min-h-[10rem] overflow-hidden rounded-[1.5rem] border"
-                    style={{
-                      borderColor: `${colors.border}66`,
-                      backgroundColor: colors.surface,
-                    }}
-                  >
-                    {item ? (
-                      <img src={item} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    if (block.type === "character") {
-      return (
-        <section {...sectionProps}>
-          <div className="grid min-h-[72vh] items-stretch gap-0 lg:min-h-[56.25vw] lg:grid-cols-[0.85fr_1.15fr]">
-            <div className="relative min-h-[22rem] overflow-hidden">
-              {media[0] ? (
-                <img src={media[0]} alt="" className="h-full w-full object-cover grayscale-[0.08]" />
-              ) : (
-                <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />
-              )}
-              <div className="absolute inset-0" style={overlayGradient} />
-            </div>
-            <div className="relative flex items-center px-5 py-8 sm:px-8 lg:px-12">
-              <div className="max-w-3xl space-y-6">
-                {editableLabel}
-                {titleNode}
-                <div className="h-1 w-28 rounded-full" style={{ backgroundColor: colors.accent }} />
-                {contentNode}
-              </div>
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    if (block.type === "theme" || block.type === "stakes") {
-      return (
-        <section {...sectionProps}>
-          <div className="relative flex min-h-[72vh] items-center justify-center px-5 py-8 sm:px-8 lg:min-h-[56.25vw] lg:px-12">
-            <div
-              className="absolute inset-0 opacity-60"
-              style={{
-                background: `radial-gradient(circle at 20% 20%, ${colors.primary}22 0%, transparent 44%), radial-gradient(circle at 80% 70%, ${colors.accent}1f 0%, transparent 40%)`,
-              }}
-            />
-            <div
-              className="relative z-10 max-w-4xl rounded-[2.25rem] border px-6 py-8 text-center sm:px-10 lg:px-14 lg:py-12"
-              style={{
-                borderColor: `${colors.border}88`,
-                backgroundColor: `${colors.surface}d4`,
-                backdropFilter: "blur(12px)",
-              }}
-            >
-              <div className="mb-6 flex justify-center">{editableLabel}</div>
-              <div className="mb-6">{titleNode}</div>
-              {contentNode}
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    return (
-      <section {...sectionProps}>
-        <div className="absolute inset-0">
-          {media[0] ? (
-            <img src={media[0]} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />
-          )}
-          <div className="absolute inset-0" style={overlayGradient} />
-        </div>
-        <div className="relative z-10 flex min-h-[72vh] items-end px-5 py-8 sm:px-8 lg:min-h-[56.25vw] lg:px-12">
-          <div className="max-w-4xl space-y-5">
-            {editableLabel}
-            <div className="max-w-3xl">{contentNode}</div>
-            {titleNode}
-          </div>
-        </div>
-      </section>
-    );
-  };
-
-  const renderCollage = () => {
-    if (block.type === "hero") {
-      return (
-        <section {...sectionProps}>
-          <div className="grid min-h-[72vh] gap-4 px-5 py-6 sm:px-8 lg:min-h-[56.25vw] lg:grid-cols-[1.18fr_0.82fr] lg:px-12 lg:py-10">
-            <div className="overflow-hidden rounded-[2rem] border" style={{ borderColor: `${colors.border}66` }}>
-              {media[0] ? (
-                <img src={media[0]} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />
-              )}
-            </div>
-            <div className="flex flex-col justify-between gap-4">
-              <div className="flex justify-between gap-4">{sectionBadge}</div>
-              <div
-                className="rounded-[2rem] border p-6"
-                style={{
-                  borderColor: `${colors.border}88`,
-                  backgroundColor: `${colors.surface}cc`,
-                }}
-              >
-                {titleNode}
-              </div>
-              <div
-                className="rounded-[2rem] border p-6"
-                style={{
-                  borderColor: `${colors.border}66`,
-                  backgroundColor: `${colors.background}e6`,
-                }}
-              >
-                <div className="mb-4">{editableLabel}</div>
-                {contentNode}
-              </div>
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    if (block.type === "logline" || block.type === "story" || block.type === "character") {
-      return (
-        <section {...sectionProps}>
-          <div className="grid min-h-[72vh] gap-4 px-5 py-6 sm:px-8 lg:min-h-[56.25vw] lg:grid-cols-[0.9fr_1.1fr] lg:px-12 lg:py-10">
-            <div
-              className="rounded-[2rem] border p-6"
-              style={{
-                borderColor: `${colors.border}88`,
-                backgroundColor: `${colors.surface}d6`,
-              }}
-            >
-              <div className="mb-5">{editableLabel}</div>
-              <div className="space-y-6">
-                {titleNode}
-                {contentNode}
-              </div>
-            </div>
-            <div className="grid gap-4">
-              <div className="overflow-hidden rounded-[2rem] border" style={{ borderColor: `${colors.border}66` }}>
-                {media[0] ? (
-                  <img src={media[0]} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {[media[1], media[2]].map((item, cardIndex) => (
-                  <div
-                    key={`${block.id}-secondary-${cardIndex}`}
-                    className="min-h-[10rem] overflow-hidden rounded-[1.5rem] border"
-                    style={{ borderColor: `${colors.border}55`, backgroundColor: colors.surface }}
-                  >
-                    {item ? <img src={item} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full" />}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    if (block.type === "world" || block.type === "tone" || block.type === "motif") {
-      return (
-        <section {...sectionProps}>
-          <div className="grid min-h-[72vh] gap-4 px-5 py-6 sm:px-8 lg:min-h-[56.25vw] lg:grid-cols-3 lg:px-12 lg:py-10">
-            <div className="overflow-hidden rounded-[2rem] border" style={{ borderColor: `${colors.border}66` }}>
-              {media[0] ? <img src={media[0]} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />}
-            </div>
-            <div
-              className="flex flex-col justify-center rounded-[2rem] border p-6"
-              style={{
-                borderColor: `${colors.border}88`,
-                backgroundColor: `${colors.surface}d6`,
-              }}
-            >
-              <div className="mb-4">{editableLabel}</div>
-              <div className="mb-6">{titleNode}</div>
-              {contentNode}
-            </div>
-            <div className="grid gap-4">
-              {[media[1], media[2], media[3]].map((item, cardIndex) => (
-                <div
-                  key={`${block.id}-stack-${cardIndex}`}
-                  className="overflow-hidden rounded-[1.5rem] border"
-                  style={{ borderColor: `${colors.border}55`, backgroundColor: colors.surface }}
+                {block.title}
+              </FitText>
+              <div className="flex max-w-[30vw] flex-col gap-[1vw] text-right">
+                <FitText
+                  as="p"
+                  className={fonts.subheading}
+                  style={{ color: colors.accent }}
+                  box={{ maxWidth: "30vw", maxHeight: "3.5vw" }}
                 >
-                  {item ? <img src={item} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full min-h-[8rem]" />}
+                  {getBlockSubtitle(block, index)}
+                </FitText>
+                <FitText
+                  as="p"
+                  className={fonts.body}
+                  style={{ color: colors.text, opacity: 0.9 }}
+                  box={{ maxWidth: "30vw", maxHeight: "8vw" }}
+                >
+                  {block.content}
+                </FitText>
+              </div>
+            </div>
+          </div>
+        );
+      case "text":
+        return (
+          <div className="flex h-[56.25vw] w-full items-center bg-[#050505] px-[10vw]">
+            <div className="grid w-full grid-cols-[1fr_1.5fr] items-center gap-[8vw]">
+              <div className="flex flex-col">
+                <FitText
+                  as="span"
+                  className={cn(fonts.label, "mb-[2vw] block")}
+                  style={{ color: colors.tertiary }}
+                  box={{ maxWidth: "25vw", maxHeight: "2vw" }}
+                >
+                  {block.title}
+                </FitText>
+                <div className="mb-[2vw] h-px w-[3vw]" style={{ backgroundColor: colors.tertiary }} />
+                <FitText
+                  as="p"
+                  className={fonts.body}
+                  style={{ color: colors.muted }}
+                  box={{ maxWidth: "25vw", maxHeight: "6vw" }}
+                >
+                  {getBlockSubtitle(block, index)}
+                </FitText>
+              </div>
+              <FitText
+                as="h2"
+                className={cn(fonts.heading, "leading-tight")}
+                style={{ color: colors.text }}
+                box={{ maxWidth: "45vw", maxHeight: "18vw" }}
+              >
+                {block.content}
+              </FitText>
+            </div>
+          </div>
+        );
+      case "split":
+        return (
+          <div className="flex h-[56.25vw] w-full items-center justify-between overflow-hidden bg-[#050505]">
+            <div className="relative z-10 flex w-[45%] flex-col gap-[2vw] pl-[8vw] pr-[4vw]">
+              <FitText
+                as="span"
+                className={cn(fonts.label, "block")}
+                style={{ color: colors.tertiary }}
+                box={{ maxWidth: "20vw", maxHeight: "2vw" }}
+              >
+                {block.title}
+              </FitText>
+              <FitText
+                as="p"
+                className={fonts.body}
+                style={{ color: colors.text, opacity: 0.9 }}
+                box={{ maxWidth: "35vw", maxHeight: "12vw" }}
+              >
+                {block.content}
+              </FitText>
+            </div>
+            <div className="relative mr-[4vw] h-[40vw] w-[65%]">
+              <ImageFrame
+                src={mainImg}
+                alt={block.title}
+                className="relative h-full w-full"
+                overlayEnabled={overlayEnabled}
+                overlayOpacity={overlayOpacity}
+              />
+              <div className="absolute bottom-[-2vw] left-[-4vw] bg-[#050505] p-[2vw]">
+                <FitText
+                  as="h2"
+                  className={fonts.heading}
+                  style={{ color: colors.text }}
+                  box={{ maxWidth: "15vw", maxHeight: "4vw" }}
+                >
+                  SYNOPSIS
+                </FitText>
+              </div>
+            </div>
+          </div>
+        );
+      case "card":
+        return (
+          <div className="flex h-[56.25vw] w-full flex-col justify-center bg-[#050505] px-[8vw]">
+            <FitText
+              as="h2"
+              className={cn(fonts.heading, "mb-[4vw] text-center")}
+              style={{ color: colors.text }}
+              box={{ maxWidth: "50vw", maxHeight: "6vw" }}
+            >
+              {block.title}
+            </FitText>
+            <div className="grid grid-cols-3 gap-[2vw]">
+              {[0, 1, 2].map((itemIndex) => (
+                <div key={itemIndex} className="flex flex-col gap-[1.5vw]">
+                  <div className="aspect-[4/3] overflow-hidden bg-[#111]">
+                    <ImageFrame
+                      src={supplementalImages[itemIndex] ?? mainImg}
+                      alt={`${block.title} ${itemIndex + 1}`}
+                      className="relative h-full w-full"
+                      imageClassName="opacity-70"
+                      overlayEnabled={overlayEnabled}
+                      overlayOpacity={overlayOpacity}
+                    />
+                  </div>
+                  <FitText
+                    as="p"
+                    className={fonts.body}
+                    style={{ color: colors.text, opacity: 0.85 }}
+                    box={{ maxWidth: "100%", maxHeight: "5vw" }}
+                  >
+                    {itemIndex === 0
+                      ? block.content
+                      : "An expansive world with distinct visual rules and cinematic tone."}
+                  </FitText>
                 </div>
               ))}
             </div>
           </div>
-        </section>
-      );
-    }
-
-    if (block.type === "theme" || block.type === "stakes") {
-      return (
-        <section {...sectionProps}>
-          <div className="relative flex min-h-[72vh] items-center justify-center px-5 py-6 sm:px-8 lg:min-h-[56.25vw] lg:px-12">
-            <div
-              className="absolute inset-0 opacity-50"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}10 0%, transparent 36%, ${colors.accent}14 100%)`,
-              }}
+        );
+      case "featured":
+        return (
+          <div className="flex h-[56.25vw] w-full items-center gap-[6vw] bg-[#050505] px-[8vw]">
+            <ImageFrame
+              src={mainImg}
+              alt={block.title}
+              className="relative h-[45vw] w-[40%] overflow-hidden bg-[#111]"
+              imageClassName="opacity-90"
+              grayscale
+              overlayEnabled={overlayEnabled}
+              overlayOpacity={overlayOpacity}
             />
-            <div
-              className="relative z-10 max-w-4xl rounded-[2.2rem] border p-8 lg:p-12"
-              style={{
-                borderColor: `${colors.border}88`,
-                backgroundColor: `${colors.background}ef`,
-              }}
-            >
-              <div className="mb-6 flex justify-between gap-4">
-                {editableLabel}
-                <span
-                  className={preset.labelClass}
-                  style={{ ...labelStyle, color: colors.accent }}
-                >
-                  QUOTE
-                </span>
-              </div>
-              <div className="mb-5">{titleNode}</div>
-              {contentNode}
+            <div className="flex w-[50%] flex-col gap-[1vw]">
+              <FitText
+                as="span"
+                className={cn(fonts.label, "block")}
+                style={{ color: colors.tertiary }}
+                box={{ maxWidth: "15vw", maxHeight: "2vw" }}
+              >
+                CHARACTER
+              </FitText>
+              <FitText
+                as="h2"
+                className={fonts.heroTitle}
+                style={{ color: colors.text }}
+                box={{ maxWidth: "30vw", maxHeight: "8vw" }}
+              >
+                {block.title}
+              </FitText>
+              <div className="h-[2px] w-[4vw]" style={{ backgroundColor: colors.accent }} />
+              <FitText
+                as="p"
+                className={fonts.body}
+                style={{ color: colors.text, opacity: 0.9 }}
+                box={{ maxWidth: "30vw", maxHeight: "8vw" }}
+              >
+                {block.content}
+              </FitText>
             </div>
           </div>
-        </section>
-      );
-    }
-
-    return (
-      <section {...sectionProps}>
-        <div className="absolute inset-0">
-          {media[0] ? (
-            <img src={media[0]} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full" style={{ backgroundColor: colors.surface }} />
-          )}
-          <div className="absolute inset-0" style={overlayGradient} />
-        </div>
-        <div className="relative z-10 flex min-h-[72vh] items-center justify-center px-5 py-6 sm:px-8 lg:min-h-[56.25vw] lg:px-12">
-          <div
-            className="max-w-3xl rounded-[2.25rem] border p-8 text-center lg:p-12"
-            style={{
-              borderColor: `${colors.border}88`,
-              backgroundColor: `${colors.background}da`,
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            <div className="mb-5 flex justify-center">{editableLabel}</div>
-            <div className="mb-4">{titleNode}</div>
-            {contentNode}
+        );
+      case "moodboard":
+      case "gallery":
+        return (
+          <div className="flex h-[56.25vw] w-full flex-col justify-center bg-[#050505] px-[8vw]">
+            <div className="mb-[3vw] flex items-end justify-between">
+              <FitText
+                as="h2"
+                className={fonts.heading}
+                style={{ color: colors.text }}
+                box={{ maxWidth: "25vw", maxHeight: "5vw" }}
+              >
+                {block.title}
+              </FitText>
+              <FitText
+                as="p"
+                className={cn(fonts.body, "text-right")}
+                style={{ color: colors.muted }}
+                box={{ maxWidth: "25vw", maxHeight: "6vw" }}
+              >
+                {block.content}
+              </FitText>
+            </div>
+            <div className="grid h-[30vw] grid-cols-4 gap-[1vw]">
+              <div className="col-span-2 row-span-2 overflow-hidden bg-[#111]">
+                <ImageFrame
+                  src={supplementalImages[0] ?? mainImg}
+                  alt={block.title}
+                  className="relative h-full w-full"
+                  overlayEnabled={overlayEnabled}
+                  overlayOpacity={overlayOpacity}
+                />
+              </div>
+              <div className="overflow-hidden bg-[#1a1a1a]">
+                <ImageFrame
+                  src={supplementalImages[1]}
+                  alt={`${block.title} detail`}
+                  className="relative h-full w-full"
+                  overlayEnabled={overlayEnabled}
+                  overlayOpacity={overlayOpacity}
+                />
+              </div>
+              <div className="row-span-2 overflow-hidden bg-[#222]">
+                <ImageFrame
+                  src={supplementalImages[2]}
+                  alt={`${block.title} alternate`}
+                  className="relative h-full w-full"
+                  overlayEnabled={overlayEnabled}
+                  overlayOpacity={overlayOpacity}
+                />
+              </div>
+              <div className="overflow-hidden bg-[#151515]">
+                <ImageFrame
+                  src={supplementalImages[3]}
+                  alt={`${block.title} close`}
+                  className="relative h-full w-full"
+                  overlayEnabled={overlayEnabled}
+                  overlayOpacity={overlayOpacity}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
-    );
+        );
+      case "statement":
+      case "impact":
+        return (
+          <div className="flex h-[56.25vw] w-full flex-col items-center justify-center bg-[#050505] px-[15vw] text-center">
+            <FitText
+              as="span"
+              className={cn(fonts.label, "mb-[3vw] tracking-[0.5em]")}
+              style={{ color: colors.tertiary }}
+              box={{ maxWidth: "30vw", maxHeight: "2vw" }}
+            >
+              {block.title}
+            </FitText>
+            <FitText
+              as="h2"
+              className={cn(fonts.heading, "leading-[1.1]")}
+              style={{ color: colors.text }}
+              box={{ maxWidth: "70vw", maxHeight: "18vw" }}
+            >
+              "{block.content}"
+            </FitText>
+            <div className="mt-[4vw] h-[6vw] w-px" style={{ backgroundColor: colors.tertiary }} />
+          </div>
+        );
+      case "final":
+        return (
+          <div className="relative flex h-[56.25vw] w-full items-center justify-center overflow-hidden bg-[#050505]">
+            <ImageFrame
+              src={mainImg}
+              alt={block.title}
+              className="absolute inset-0 h-full w-full"
+              imageClassName="opacity-40"
+              overlayEnabled={overlayEnabled}
+              overlayOpacity={overlayOpacity}
+            />
+            <div className="absolute inset-0 bg-black/60" />
+            <div className="relative z-10 flex flex-col items-center gap-[2vw] text-center">
+              <FitText
+                as="h2"
+                className={cn(fonts.heroTitle, "drop-shadow-2xl")}
+                style={{ color: colors.text }}
+                box={{ maxWidth: "80vw", maxHeight: "14vw" }}
+              >
+                {block.content}
+              </FitText>
+              <FitText
+                as="p"
+                className={cn(fonts.label, "drop-shadow-lg")}
+                style={{ color: colors.muted }}
+                box={{ maxWidth: "50vw", maxHeight: "3vw" }}
+              >
+                {getBlockSubtitle(block, index)}
+              </FitText>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
-  return layoutVariant === "editorial" ? renderEditorial() : renderCollage();
+  const renderLayoutB = () => {
+    const bgColor = "#181912";
+
+    switch (blockType) {
+      case "hero":
+        return (
+          <div className="relative flex h-[56.25vw] w-full flex-col p-[2vw]" style={{ backgroundColor: bgColor }}>
+            <div className="absolute right-[1vw] top-[4vw] bottom-[4vw] flex w-[3vw] items-center justify-center border-l border-white/20">
+              <span className={cn(fonts.label, "-rotate-90 whitespace-nowrap")} style={{ color: colors.muted }}>
+                PITCHCRAFT STUDIOS
+              </span>
+            </div>
+            <div className="mb-[2vw] flex-1 overflow-hidden border border-white/10 bg-[#111]">
+              <ImageFrame
+                src={mainImg}
+                alt={block.title}
+                className="relative h-full w-[90%]"
+                imageClassName="opacity-80"
+                overlayEnabled={overlayEnabled}
+                overlayOpacity={overlayOpacity}
+              />
+            </div>
+            <div className="flex w-[90%] justify-center pb-[2vw]">
+              <h1 className={fonts.heroTitle} style={{ color: colors.accent }}>
+                {block.title}
+              </h1>
+            </div>
+          </div>
+        );
+      case "text":
+      case "split":
+        return (
+          <div className="relative grid h-[56.25vw] w-full grid-cols-2 gap-[2vw] p-[3vw]" style={{ backgroundColor: bgColor }}>
+            <div className="absolute right-[1vw] top-[4vw] bottom-[4vw] flex w-[3vw] items-center justify-center">
+              <span className={cn(fonts.label, "-rotate-90 whitespace-nowrap")} style={{ color: colors.muted }}>
+                FILM PROPOSAL
+              </span>
+            </div>
+            <div className="relative flex h-full w-[95%] flex-col overflow-hidden border-[0.2vw] border-white/10 bg-[#111] p-[2vw]">
+              <ImageFrame
+                src={mainImg}
+                alt={block.title}
+                className="absolute inset-0 h-full w-full"
+                imageClassName="opacity-40"
+                overlayEnabled={overlayEnabled}
+                overlayOpacity={overlayOpacity}
+              />
+              <div className="relative z-10">
+                <h2 className={cn(fonts.heading, "mb-[2vw]")} style={{ color: colors.text }}>
+                  <HighlightText text={block.title} color={colors.accent} textColor={accentText} />
+                </h2>
+                <div className={cn(fonts.body, "w-[80%] leading-[2]")}>
+                  <HighlightText
+                    text={block.content}
+                    color="rgba(255,255,255,0.9)"
+                    textColor="#000"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex h-full w-[95%] flex-col justify-end border-[0.2vw] border-white/10 bg-[#0a0a0a] p-[3vw]">
+              <h2 className={cn(fonts.heading, "mb-[2vw] text-right")} style={{ color: colors.text }}>
+                {blockType === "split" ? "SYNOPSIS" : "PREMISE"}
+              </h2>
+              <p className={cn(fonts.body, "text-right")} style={{ color: colors.muted }}>
+                {block.content}
+              </p>
+            </div>
+          </div>
+        );
+      case "card":
+      case "featured":
+        return (
+          <div className="relative h-[56.25vw] w-full p-[3vw]" style={{ backgroundColor: bgColor }}>
+            <div className="absolute left-[1vw] top-[4vw] bottom-[4vw] flex w-[3vw] items-center justify-center">
+              <span className={cn(fonts.label, "-rotate-90 whitespace-nowrap")} style={{ color: colors.muted }}>
+                PITCHCRAFT STUDIOS
+              </span>
+            </div>
+            <div className="mx-auto grid h-full w-[90%] grid-cols-[1fr_2fr] gap-[2vw]">
+              <div className="flex h-full flex-col justify-end">
+                <h2 className={cn(fonts.heading, "mb-[1vw]")} style={{ color: colors.text }}>
+                  <HighlightText text={block.title} color="rgba(255,255,255,0.9)" textColor="#000" />
+                </h2>
+                <p className={cn(fonts.body, "border border-white/10 bg-black/50 p-[1.5vw]")} style={{ color: colors.text }}>
+                  {block.content}
+                </p>
+              </div>
+              <div className="relative h-full overflow-hidden border-[0.2vw] border-white/10 bg-[#111]">
+                <ImageFrame
+                  src={mainImg}
+                  alt={block.title}
+                  className="relative h-full w-full"
+                  imageClassName="opacity-70"
+                  overlayEnabled={overlayEnabled}
+                  overlayOpacity={overlayOpacity}
+                />
+                {blockType === "featured" ? (
+                  <div className="absolute bottom-[2vw] left-[2vw]">
+                    <h2 className={cn(fonts.heroTitle, "drop-shadow-lg")} style={{ color: colors.text }}>
+                      {block.title}
+                    </h2>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        );
+      case "moodboard":
+      case "gallery":
+        return (
+          <div className="relative flex h-[56.25vw] w-full flex-col p-[3vw]" style={{ backgroundColor: bgColor }}>
+            <div className="absolute right-[1vw] top-[4vw] bottom-[4vw] flex w-[3vw] items-center justify-center">
+              <span className={cn(fonts.label, "-rotate-90 whitespace-nowrap")} style={{ color: colors.muted }}>
+                VISUAL MOOD
+              </span>
+            </div>
+            <div className="grid h-full w-[95%] grid-cols-3 grid-rows-2 gap-[1.5vw]">
+              <div className="relative border-[0.2vw] border-white/10 bg-[#111]">
+                <ImageFrame
+                  src={supplementalImages[0] ?? mainImg}
+                  alt={block.title}
+                  className="relative h-full w-full"
+                  overlayEnabled={overlayEnabled}
+                  overlayOpacity={overlayOpacity}
+                />
+              </div>
+              <div className="relative row-span-2 flex items-center justify-center overflow-hidden border-[0.2vw] border-white/10 bg-[#1a1a1a]">
+                <ImageFrame
+                  src={supplementalImages[1]}
+                  alt={`${block.title} panel`}
+                  className="absolute inset-0 h-full w-full"
+                  imageClassName="opacity-50"
+                  overlayEnabled={overlayEnabled}
+                  overlayOpacity={overlayOpacity}
+                />
+                <h2 className={cn(fonts.heading, "relative z-10 text-center")}>
+                  <HighlightText text={block.title} color={colors.accent} textColor={accentText} />
+                </h2>
+              </div>
+              <div className="flex items-center border-[0.2vw] border-white/10 bg-[#111] p-[2vw]">
+                <p className={cn(fonts.body, "leading-[1.8]")} style={{ color: colors.text }}>
+                  <HighlightText
+                    text={block.content}
+                    color="rgba(0,0,0,0.8)"
+                    textColor={colors.text}
+                  />
+                </p>
+              </div>
+              <div className="relative col-span-2 border-[0.2vw] border-white/10 bg-[#222]">
+                <ImageFrame
+                  src={supplementalImages[2] ?? mainImg}
+                  alt={`${block.title} wide`}
+                  className="relative h-full w-full"
+                  overlayEnabled={overlayEnabled}
+                  overlayOpacity={overlayOpacity}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      case "statement":
+      case "impact":
+        return (
+          <div className="relative flex h-[56.25vw] w-full items-center justify-center p-[3vw]" style={{ backgroundColor: bgColor }}>
+            <div
+              className="w-[80%] border-[0.3vw] bg-[#0a0a0b] p-[4vw]"
+              style={{ borderColor: colors.tertiary }}
+            >
+              <span className={cn(fonts.label, "mb-[2vw] block")} style={{ color: colors.tertiary }}>
+                {block.title}
+              </span>
+              <h2 className={cn(fonts.heading, "leading-tight")} style={{ color: colors.text }}>
+                <HighlightText
+                  text={`"${block.content}"`}
+                  color="transparent"
+                  textColor={colors.text}
+                />
+              </h2>
+            </div>
+          </div>
+        );
+      case "final":
+        return (
+          <div
+            className="relative flex h-[56.25vw] w-full items-center justify-center overflow-hidden border-[1vw]"
+            style={{ backgroundColor: bgColor, borderColor: bgColor }}
+          >
+            <ImageFrame
+              src={mainImg}
+              alt={block.title}
+              className="absolute inset-0 h-full w-full"
+              imageClassName="opacity-60"
+              overlayEnabled={overlayEnabled}
+              overlayOpacity={overlayOpacity}
+            />
+            <div className="absolute inset-0 bg-black/40" />
+            <div
+              className="relative z-10 border-[0.2vw] bg-black/80 p-[4vw] text-center"
+              style={{ borderColor: colors.tertiary }}
+            >
+              <h2 className={cn(fonts.heading, "mb-[1vw]")}>
+                <HighlightText text={block.content} color={colors.accent} textColor={accentText} />
+              </h2>
+              <p className={fonts.label} style={{ color: colors.tertiary }}>
+                {getBlockSubtitle(block, index)}
+              </p>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (block.type === "divider") {
+    return (
+      <section className="bg-[#050505] px-[6vw] py-[4vw]">
+        <div className="h-px w-full bg-white/10" />
+      </section>
+    );
+  }
+
+  return (
+    <section
+      data-gsap={dataGsap ? "section" : undefined}
+      className="relative overflow-hidden bg-black"
+    >
+      {layoutVariant === "editorial" ? renderLayoutA() : renderLayoutB()}
+    </section>
+  );
 }

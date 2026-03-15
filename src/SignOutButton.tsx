@@ -1,7 +1,9 @@
 "use client";
+
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
-import { Button } from "@radix-ui/themes";
+import { LogOutIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function SignOutButton() {
   const { isAuthenticated } = useConvexAuth();
@@ -12,12 +14,8 @@ export function SignOutButton() {
   }
 
   return (
-    <Button
-      variant="soft"
-      color="gray"
-      size="2"
-      onClick={() => void signOut()}
-    >
+    <Button variant="outline" size="sm" onClick={() => void signOut()}>
+      <LogOutIcon data-icon="inline-start" />
       Sign out
     </Button>
   );

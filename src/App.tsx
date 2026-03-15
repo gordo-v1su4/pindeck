@@ -6,10 +6,27 @@ import { Toaster } from "sonner";
 import { ImageGrid } from "./components/ImageGrid";
 import { SearchBar } from "./components/SearchBar";
 import { CategoryFilter } from "./components/CategoryFilter";
-import { Box, Text, Flex, Spinner, Button, Tabs } from "@radix-ui/themes";
 import { useState, useEffect, lazy, Suspense } from "react";
-import { ImageIcon, UploadIcon, BookmarkIcon, GridIcon } from "@radix-ui/react-icons";
+import {
+  ImagesIcon,
+  LayoutPanelTopIcon,
+  MenuIcon,
+  PresentationIcon,
+  TablePropertiesIcon,
+  UploadIcon,
+} from "lucide-react";
 import type { Id } from "../convex/_generated/dataModel";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ImageUploadForm = lazy(() =>
   import("./components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
@@ -24,6 +41,14 @@ const DeckView = lazy(() =>
   import("./components/DeckView").then((mod) => ({ default: mod.DeckView }))
 );
 
+const APP_TABS = [
+  { value: "gallery", label: "Gallery", icon: ImagesIcon },
+  { value: "upload", label: "Upload", icon: UploadIcon },
+  { value: "boards", label: "Boards", icon: LayoutPanelTopIcon },
+  { value: "deck", label: "Deck", icon: PresentationIcon },
+  { value: "table", label: "Table", icon: TablePropertiesIcon },
+] as const;
+
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>();
@@ -31,13 +56,11 @@ export default function App() {
   const [activeTab, setActiveTabState] = useState("gallery");
   const [selectedDeckId, setSelectedDeckId] = useState<Id<"decks"> | null>(null);
   const { isAuthenticated, isLoading } = useConvexAuth();
-  
-  // Check backend auth state to verify if user is actually logged in
+
   const loggedInUser = useQuery(api.auth.loggedInUser);
   const showAppChrome = Boolean(isAuthenticated || loggedInUser);
 
   const setActiveTab = (tab: string) => {
-    console.log("🔄 Setting active tab to:", tab);
     setActiveTabState(tab);
     if (tab === "deck" && selectedDeckId) {
       window.location.hash = `deck:${selectedDeckId}`;
@@ -59,13 +82,6 @@ export default function App() {
       window.location.hash = `deck:${deckId}`;
     }
   };
-  
-  useEffect(() => {
-    const authState = { isLoading, isAuthenticated, loggedInUser: loggedInUser !== undefined ? (loggedInUser !== null ? "logged in" : "not logged in") : "loading" };
-    console.log("🔐 App Auth State:", JSON.stringify(authState, null, 2));
-    console.log("🔐 Convex URL:", import.meta.env.VITE_CONVEX_URL);
-    console.log("🔐 Backend User:", loggedInUser);
-  }, [isAuthenticated, isLoading, loggedInUser]);
 
   useEffect(() => {
     const parseHash = () => {
@@ -82,93 +98,128 @@ export default function App() {
         return;
       }
 
-      if (["gallery", "upload", "boards", "table", "deck"].includes(rawHash)) {
+      if (APP_TABS.some((tab) => tab.value === rawHash)) {
         setActiveTabState(rawHash);
       }
     };
 
-    // Set initial tab from hash
     parseHash();
-    
-    // Listen for hash changes
-    const handleHashChange = () => {
-      parseHash();
-    };
-    
+    const handleHashChange = () => parseHash();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
+
   const [boardVersion, setBoardVersion] = useState(0);
-
-  const incrementBoardVersion = () => setBoardVersion(v => v + 1);
-
-  // Debug log
-  console.log("Active tab:", activeTab);
+  const incrementBoardVersion = () => setBoardVersion((value) => value + 1);
 
   return (
-    <Box className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-gray-6 bg-gray-2/80 backdrop-blur-md">
-        <Box className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Flex justify="between" align="center">
-            <Flex align="center" gap="6">
-              <Flex align="center" gap="3" className="site-brand-lockup">
-                <Box className="site-brand-mark">P/</Box>
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="site-brand-lockup">
+                <div className="site-brand-mark">P/</div>
                 <div className="site-brand-word">
                   <span className="site-brand-word-light">PIN</span>
                   <span className="site-brand-word-accent">DECK</span>
                 </div>
-              </Flex>
+              </div>
               <Authenticated>
-                <SearchBar onSearch={setSearchTerm} />
+                <div className="hidden md:block">
+                  <SearchBar onSearch={setSearchTerm} />
+                </div>
               </Authenticated>
-            </Flex>
-            <Flex align="center" gap="4">
+            </div>
+
+            <div className="flex items-center gap-2">
               <Authenticated>
-                <SignOutButton />
+                <div className="hidden md:block">
+                  <SignOutButton />
+                </div>
               </Authenticated>
-            </Flex>
-          </Flex>
+
+              {showAppChrome && (
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon-sm" className="md:hidden">
+                      <MenuIcon />
+                      <span className="sr-only">Open navigation</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right">
+                    <SheetHeader>
+                      <SheetTitle>Navigation</SheetTitle>
+                      <SheetDescription>Switch sections or continue working in your deck flow.</SheetDescription>
+                    </SheetHeader>
+                    <div className="flex flex-col gap-3 px-4 pb-6">
+                      <Authenticated>
+                        <SearchBar onSearch={setSearchTerm} />
+                      </Authenticated>
+                      <div className="flex flex-col gap-2">
+                        {APP_TABS.map((tab) => {
+                          const Icon = tab.icon;
+                          return (
+                            <Button
+                              key={tab.value}
+                              variant={activeTab === tab.value ? "default" : "ghost"}
+                              className="justify-start"
+                              onClick={() => setActiveTab(tab.value)}
+                            >
+                              <Icon data-icon="inline-start" />
+                              {tab.label}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      <Authenticated>
+                        <SignOutButton />
+                      </Authenticated>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              )}
+            </div>
+          </div>
+
           {showAppChrome && (
-            <Box className="mt-4">
-              <Tabs.Root 
-                value={activeTab} 
-                onValueChange={(value) => {
-                  console.log("📑 Tab changed to:", value);
-                  if (value) setActiveTab(value);
-                }}
+            <div className="hidden md:block">
+              <Tabs
+                value={activeTab}
+                onValueChange={(value) => value && setActiveTab(value)}
+                className="w-full"
               >
-                <Tabs.List>
-                  <Tabs.Trigger value="gallery">Gallery</Tabs.Trigger>
-                  <Tabs.Trigger value="upload">Upload</Tabs.Trigger>
-                  <Tabs.Trigger value="boards">Boards</Tabs.Trigger>
-                  <Tabs.Trigger value="deck">Deck</Tabs.Trigger>
-                  <Tabs.Trigger value="table">
-                    <GridIcon width="16" height="16" />
-                    Table
-                  </Tabs.Trigger>
-                </Tabs.List>
-              </Tabs.Root>
-            </Box>
+                <TabsList variant="line" className="h-auto flex-wrap justify-start rounded-none border-b border-border bg-transparent p-0">
+                  {APP_TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
+                        <Icon data-icon="inline-start" />
+                        {tab.label}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </Tabs>
+            </div>
           )}
+
           {showAppChrome && activeTab === "gallery" && (
-            <Box className="mt-4">
-              <CategoryFilter
-                selectedGroup={undefined}
-                onGroupChange={() => {}}
-                selectedCategory={selectedCategory}
-                onCategoryChange={setSelectedCategory}
-              />
-            </Box>
+            <CategoryFilter
+              selectedGroup={undefined}
+              onGroupChange={() => {}}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+            />
           )}
-        </Box>
+        </div>
       </header>
 
-      <main className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-        {/* Show authenticated content if frontend says authenticated OR backend says user exists */}
+      <main className="mx-auto w-full max-w-[1680px] px-4 py-8 pb-16 sm:px-6 lg:px-8">
         {showAppChrome ? (
           <>
             {activeTab === "gallery" && (
-              <Content 
+              <Content
                 searchTerm={searchTerm}
                 selectedGroup={selectedGroup}
                 selectedCategory={selectedCategory}
@@ -177,12 +228,24 @@ export default function App() {
               />
             )}
             {activeTab === "upload" && (
-              <Suspense fallback={<Flex justify="center" align="center" className="min-h-[30vh]"><Spinner size="3" /></Flex>}>
+              <Suspense
+                fallback={
+                  <div className="flex min-h-[30vh] items-center justify-center">
+                    <Spinner className="size-5" />
+                  </div>
+                }
+              >
                 <ImageUploadForm />
               </Suspense>
             )}
             {activeTab === "boards" && (
-              <Suspense fallback={<Flex justify="center" align="center" className="min-h-[30vh]"><Spinner size="3" /></Flex>}>
+              <Suspense
+                fallback={
+                  <div className="flex min-h-[30vh] items-center justify-center">
+                    <Spinner className="size-5" />
+                  </div>
+                }
+              >
                 <BoardsView
                   key={boardVersion}
                   setActiveTab={setActiveTab}
@@ -192,18 +255,30 @@ export default function App() {
               </Suspense>
             )}
             {activeTab === "deck" && (
-              <Suspense fallback={<Flex justify="center" align="center" className="min-h-[30vh]"><Spinner size="3" /></Flex>}>
+              <Suspense
+                fallback={
+                  <div className="flex min-h-[30vh] items-center justify-center">
+                    <Spinner className="size-5" />
+                  </div>
+                }
+              >
                 <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
               </Suspense>
             )}
             {activeTab === "table" && (
-              <Suspense fallback={<Flex justify="center" align="center" className="min-h-[30vh]"><Spinner size="3" /></Flex>}>
+              <Suspense
+                fallback={
+                  <div className="flex min-h-[30vh] items-center justify-center">
+                    <Spinner className="size-5" />
+                  </div>
+                }
+              >
                 <TableView />
               </Suspense>
             )}
           </>
         ) : (
-          <Content 
+          <Content
             searchTerm={searchTerm}
             selectedGroup={selectedGroup}
             selectedCategory={selectedCategory}
@@ -212,46 +287,45 @@ export default function App() {
           />
         )}
       </main>
-      
+
       <Toaster theme="dark" />
-    </Box>
+    </div>
   );
 }
 
-function Content({ searchTerm, selectedGroup, selectedCategory, setActiveTab, incrementBoardVersion }: { 
-  searchTerm: string; 
+function Content({
+  searchTerm,
+  selectedGroup,
+  selectedCategory,
+  setActiveTab,
+  incrementBoardVersion,
+}: {
+  searchTerm: string;
   selectedGroup: string | undefined;
   selectedCategory: string | undefined;
   setActiveTab: (tab: string) => void;
   incrementBoardVersion: () => void;
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  
-  useEffect(() => {
-    console.log("🔐 Auth State - isAuthenticated:", isAuthenticated);
-    console.log("🔐 Auth State - isLoading:", isLoading);
-  }, [isAuthenticated, isLoading]);
 
   if (isLoading) {
     return (
-      <Flex justify="center" align="center" className="min-h-[50vh]">
-        <Spinner size="3" />
-      </Flex>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Spinner className="size-5" />
+      </div>
     );
   }
 
   return (
-    <Flex direction="column" gap="8">
+    <div className="flex flex-col gap-8">
       <Unauthenticated>
-        <Flex align="center" justify="center" className="auth-landing min-h-[calc(100vh-10rem)] py-10 sm:py-16">
-          <Box className="w-full max-w-[42rem]">
-            <SignInForm />
-          </Box>
-        </Flex>
+        <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center py-10 sm:py-16">
+          <SignInForm />
+        </div>
       </Unauthenticated>
 
       <Authenticated>
-        <ImageGrid 
+        <ImageGrid
           searchTerm={searchTerm}
           selectedGroup={selectedGroup}
           selectedCategory={selectedCategory}
@@ -259,6 +333,6 @@ function Content({ searchTerm, selectedGroup, selectedCategory, setActiveTab, in
           incrementBoardVersion={incrementBoardVersion}
         />
       </Authenticated>
-    </Flex>
+    </div>
   );
 }
