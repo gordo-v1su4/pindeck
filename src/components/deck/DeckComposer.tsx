@@ -1425,7 +1425,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       <main className="bg-[#060606] px-4 py-4 sm:px-6 sm:py-6">
         <div
           ref={previewRef}
-          className="mx-auto w-full max-w-[980px] overflow-hidden border border-white/10 bg-black shadow-[0_24px_90px_rgba(0,0,0,0.48)]"
+          className="mx-auto w-full max-w-[1600px] overflow-hidden border border-white/10 bg-black shadow-[0_24px_90px_rgba(0,0,0,0.48)]"
         >
           {visibleBlocks.length === 0 ? (
             <Card className="m-4 border border-white/10 bg-black/20 p-10 text-center">
