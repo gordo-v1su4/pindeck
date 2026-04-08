@@ -14,10 +14,6 @@
       "destination": "https://v1su4.mintlify.app/_mintlify/api/request"
     },
     {
-      "source": "/docs",
-      "destination": "https://v1su4.mintlify.app/docs"
-    },
-    {
       "source": "/docs/llms.txt",
       "destination": "https://v1su4.mintlify.app/llms.txt"
     },
@@ -39,7 +35,11 @@
     },
     {
       "source": "/docs/:path*",
-      "destination": "https://v1su4.mintlify.app/docs/:path*"
+      "destination": "https://v1su4.mintlify.app/:path*"
+    },
+    {
+      "source": "/docs",
+      "destination": "https://v1su4.mintlify.app/"
     },
     {
       "source": "/mintlify-assets/:path+",
