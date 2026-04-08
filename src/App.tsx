@@ -8,6 +8,7 @@ import { SearchBar } from "./components/SearchBar";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { useState, useEffect, lazy, Suspense } from "react";
 import {
+  BookOpenIcon,
   ImagesIcon,
   LayoutPanelTopIcon,
   MenuIcon,
@@ -125,8 +126,17 @@ export default function App() {
                     <span className="site-brand-word-light">PIN</span>
                     <span className="site-brand-word-accent">DECK</span>
                   </div>
-                </div>
-                <Authenticated>
+                      </div>
+                      <a
+                        href="https://docs.pindeck.dev"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      >
+                        <BookOpenIcon className="h-4 w-4" />
+                        Docs
+                      </a>
+                      <Authenticated>
                   <div className="hidden md:block">
                     <SearchBar onSearch={setSearchTerm} />
                   </div>
@@ -201,6 +211,15 @@ export default function App() {
                     );
                   })}
                 </TabsList>
+                <a
+                  href="https://docs.pindeck.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <BookOpenIcon className="h-4 w-4" />
+                  Docs
+                </a>
               </Tabs>
             </div>
 
