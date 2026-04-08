@@ -171,13 +171,12 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <IconButton
-          variant="soft"
+          variant="solid"
           color="teal"
           size={size}
           aria-label="Generate options"
           onClick={(event) => event.stopPropagation()}
-          className="backdrop-blur-md"
-          style={{ opacity: 0.85 }}
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
         >
           <MagicWandIcon />
         </IconButton>
@@ -200,13 +199,12 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <IconButton
-          variant="soft"
+          variant="solid"
           color="blue"
           size={size}
           aria-label="Save to board"
           onClick={(e) => e.stopPropagation()}
-          className="backdrop-blur-md"
-          style={{ opacity: 0.85 }}
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
         >
           <BookmarkIcon />
         </IconButton>
@@ -412,22 +410,21 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
                                       size="1"
                                       aria-label="Drag to reorder"
                                       className="backdrop-blur-md cursor-grab active:cursor-grabbing"
-                                      style={{ opacity: 0.85 }}
+                                      style={{ opacity: 0.9 }}
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       <DragHandleDots2Icon />
                                     </IconButton>
                                   </Flex>
                                   <Box className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200">
-                                    <Flex gap="1" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <Flex gap="1.5" className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                       <IconButton
-                                        variant="soft"
+                                        variant="solid"
                                         color={image.isLiked ? "red" : "gray"}
                                         size="1"
                                         aria-label={image.isLiked ? "Unlike this image" : "Like this image"}
                                         onClick={(e) => { e.stopPropagation(); void handleLike(image._id, e); }}
-                                        className="backdrop-blur-md"
-                                        style={{ opacity: 0.85 }}
+                                        style={{ opacity: 0.9, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
                                       >
                                         {image.isLiked ? <HeartFilledIcon /> : <HeartIcon />}
                                       </IconButton>
@@ -474,20 +471,19 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
               
               {/* Subtle overlay on hover */}
               <Box className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200">
-                <Flex gap="1" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <Flex gap="1.5" className="absolute bottom-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <IconButton
-                    variant="soft"
+                    variant="solid"
                     color={image.isLiked ? "red" : "gray"}
-                    size="2"
+                    size="1"
                     aria-label={image.isLiked ? "Unlike this image" : "Like this image"}
                     onClick={(e) => { void handleLike(image._id, e); }}
-                    className="backdrop-blur-md"
-                    style={{ opacity: 0.85 }}
+                    style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
                   >
                     {image.isLiked ? <HeartFilledIcon /> : <HeartIcon />}
                   </IconButton>
-                  {renderSaveToBoardDropdown(image, "2")}
-                  {renderGenerateMenu(image._id, "2")}
+                  {renderSaveToBoardDropdown(image, "1")}
+                  {renderGenerateMenu(image._id, "1")}
                 </Flex>
                 
                 <Box className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">

@@ -712,6 +712,17 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     importBatchId: body.importBatchId,
   });
 
+  // Pixel-accurate server-side color sampling. Runs against the persisted
+  // Nextcloud URL so we don't depend on cdn.discordapp.com CORS.
+  await ctx.scheduler.runAfter(
+    0,
+    (internalApi as any).colorExtraction.internalExtractAndStoreColors,
+    {
+      imageId,
+      imageUrl: persistedImage.derivativeUrls?.large || persistedImage.imageUrl,
+    }
+  );
+
   return new Response(JSON.stringify({ imageId, userId: resolvedUserId }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
@@ -1697,14 +1708,13 @@ export const internalUpdateAnalysis = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const existingImage = await ctx.db.get("images", args.imageId);
-    const shouldPreserveExistingColors =
-      !!existingImage?.colors?.length &&
-      (existingImage?.sourceType === "upload" ||
-        existingImage?.sourceType === "discord" ||
-        existingImage?.sourceType === "pinterest");
+    // NOTE: we intentionally do NOT write `colors` here. The VLM was
+    // guessing plausible-looking hexes instead of sampling pixels, producing
+    // inaccurate swatches. Colors are now owned exclusively by the
+    // pixel-accurate server extractor in convex/colorExtraction.ts.
+    void existingImage;
     const patch: any = {
       description: args.description,
-      colors: shouldPreserveExistingColors ? existingImage.colors : args.colors,
     };
     const shouldSyncProjectName =
       existingImage?.sourceType === "upload" ||

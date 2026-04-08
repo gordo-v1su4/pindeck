@@ -16,7 +16,16 @@
       "Bash(git pull:*)",
       "Bash(git cherry-pick:*)",
       "Bash(git push:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(bun install:*)",
+      "Bash(bun upgrade:*)",
+      "Bash(curl -fsSL https://bun.sh/install)",
+      "Bash(bash)",
+      "Bash(export PATH=\"$HOME/.bun/bin:$PATH\")",
+      "Bash(CONVEX_DEPLOYMENT=tremendous-jaguar-953 bun run build)",
+      "Bash(PORT=3000 bash ./scripts/kill-port.sh)",
+      "Bash(PORT=4000 bash ./scripts/kill-port.sh)",
+      "Bash(lsof -tiTCP:4000 -sTCP:LISTEN)"
     ]
   }
 }

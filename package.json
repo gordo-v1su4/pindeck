@@ -7,8 +7,8 @@
   "scripts": {
     "check:prod-target": "bash ./scripts/enforce-production-convex.sh",
     "kill-port": "bash ./scripts/kill-port.sh",
-    "dev": "bun run check:prod-target && PORT=3000 bun run kill-port && concurrently \"bun run dev:frontend\" \"bun run dev:backend\"",
-    "dev:frontend": "vite --open",
+    "dev": "bun run check:prod-target && PORT=4000 bun run kill-port && bun run dev:frontend",
+    "dev:frontend": "vite --open --port 4000 --strictPort",
     "dev:backend": "convex dev",
     "discord:bot": "bash ./scripts/run-discord-bot.sh",
     "discord:bot:dry-run": "cd services/discord-bot && DISCORD_DRY_RUN=1 bun src/index.js",
