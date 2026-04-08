@@ -1,4 +1,5 @@
-import { getPaletteSync } from 'colorthief';
+import * as ColorThief from 'colorthief';
+const getPaletteSync = ColorThief.getPaletteSync;
 import type { ColorPalette } from '../types';
 
 function rgbToHex(r: number, g: number, b: number): string {
