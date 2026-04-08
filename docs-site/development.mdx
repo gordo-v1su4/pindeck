@@ -1,0 +1,92 @@
+---
+title: Development
+description: Set up Pindeck for local development
+---
+
+# Local Development
+
+Set up the Pindeck development environment on your machine.
+
+## Prerequisites
+
+- [Bun](https://bun.sh) runtime
+- A Convex account with the `tremendous-jaguar-953` deployment
+- Google or GitHub OAuth app credentials
+
+## Setup
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/gordo-v1su4/pindeck.git
+cd pindeck
+bun install
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env.local
+```
+
+Set the production Convex URL in `.env.local`:
+
+```bash
+VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud
+```
+
+### 3. Build and serve
+
+```bash
+bun run build
+bun run serve
+```
+
+The app runs on port `4173`. The serve script auto-kills any existing process on that port.
+
+<Warning>
+Do not use `convex dev` when targeting production. The build scripts enforce the production Convex target and fail fast otherwise.
+</Warning>
+
+## Environment variables
+
+### Frontend (`.env.local`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_CONVEX_URL` | Yes | Convex client URL (`*.convex.cloud`) |
+| `VITE_CONVEX_SITE_URL` | No | Convex HTTP/actions URL (`*.convex.site`) |
+
+### Convex Dashboard (backend)
+
+Set these in the Convex Project Settings:
+
+| Variable | Description |
+|----------|-------------|
+| `JWT_PRIVATE_KEY` | RSA private key for auth tokens |
+| `OPENROUTER_API_KEY` | OpenRouter API key for VLM analysis |
+| `OPENROUTER_VLM_MODEL` | Optional model override |
+| `FAL_KEY` | fal.ai API key for image generation |
+| `INGEST_API_KEY` | API key for Discord ingest endpoint |
+| `NEXTCLOUD_WEBDAV_BASE_URL` | Nextcloud WebDAV endpoint |
+| `NEXTCLOUD_WEBDAV_USER` | Nextcloud username |
+| `NEXTCLOUD_WEBDAV_APP_PASSWORD` | Nextcloud app password |
+| `NEXTCLOUD_UPLOAD_PREFIX` | Upload path prefix (default: `pindeck/media-uploads`) |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth credentials |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth credentials |
+| `SITE_URL` | Public app URL for OAuth callbacks |
+
+## Useful scripts
+
+| Command | Description |
+|---------|-------------|
+| `bun run build` | Production build (`vite build`) |
+| `bun run serve` | Preview production build on port 4173 |
+| `bun run deploy:convex` | Deploy Convex functions |
+| `bun run check:prod-target` | Verify env points to production Convex |
+
+## Production deployments
+
+- **Convex**: `tremendous-jaguar-953`
+- **Frontend**: Vercel (ensure `VITE_CONVEX_URL` is set)
+- **Discord bot**: Hosted separately — see [Discord bot guide](/guides/discord-bot)

@@ -88,6 +88,190 @@ function applyGroupContext(mode: string, prompt: string, group?: string) {
   return prompt;
 }
 
+const VISION_ANALYSIS_KEYS = [
+  "title",
+  "description",
+  "tags",
+  "colors",
+  "category",
+  "visual_style",
+  "group",
+  "project_name",
+  "projectName",
+  "moodboard_name",
+  "moodboardName",
+] as const;
+
+function extractMessageText(content: unknown): string {
+  if (typeof content === "string") return content;
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (!part || typeof part !== "object") return "";
+
+        const text =
+          "text" in part && typeof part.text === "string"
+            ? part.text
+            : "content" in part && typeof part.content === "string"
+              ? part.content
+              : "";
+        return text;
+      })
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+  }
+
+  return "";
+}
+
+function stripMarkdownFences(value: string): string {
+  return value.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+}
+
+function cleanJsonCandidate(value: string): string {
+  return value
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/,\s*([}\]])/g, "$1")
+    .replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g, '$1"$2"$3')
+    .trim();
+}
+
+function extractOuterJsonCandidate(value: string): string | undefined {
+  const firstBrace = value.indexOf("{");
+  const lastBrace = value.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return value.slice(firstBrace, lastBrace + 1);
+  }
+  return undefined;
+}
+
+function parseJsonCandidate(value: string): unknown {
+  const candidates = [
+    value,
+    cleanJsonCandidate(value),
+    extractOuterJsonCandidate(value),
+    extractOuterJsonCandidate(cleanJsonCandidate(value)),
+  ].filter((candidate, index, array): candidate is string => {
+    return Boolean(candidate) && array.indexOf(candidate) === index;
+  });
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return undefined;
+}
+
+function findVisionAnalysisObject(
+  value: unknown,
+  depth = 0
+): Record<string, unknown> | undefined {
+  if (depth > 4 || value == null) return undefined;
+
+  if (typeof value === "string") {
+    const parsed = parseJsonCandidate(stripMarkdownFences(value));
+    if (parsed !== undefined) {
+      return findVisionAnalysisObject(parsed, depth + 1);
+    }
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findVisionAnalysisObject(item, depth + 1);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (VISION_ANALYSIS_KEYS.some((key) => key in record)) {
+      return record;
+    }
+
+    for (const nestedKey of ["response", "output", "result", "data", "analysis", "message", "content"]) {
+      if (!(nestedKey in record)) continue;
+      const found = findVisionAnalysisObject(record[nestedKey], depth + 1);
+      if (found) return found;
+    }
+  }
+
+  return undefined;
+}
+
+function readString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return Array.from(
+      new Set(
+        value
+          .map((entry) => readString(entry))
+          .filter((entry): entry is string => Boolean(entry))
+      )
+    );
+  }
+
+  if (typeof value === "string") {
+    return Array.from(
+      new Set(
+        value
+          .split(/[,\n]/)
+          .map((entry) => entry.trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  return [];
+}
+
+function readHexColors(value: unknown): string[] {
+  return readStringArray(value).filter((color) => /^#?[0-9a-f]{6}$/i.test(color)).map((color) =>
+    color.startsWith("#") ? color.toUpperCase() : `#${color.toUpperCase()}`
+  );
+}
+
+function extractQuotedField(text: string, key: string): string | undefined {
+  const patterns = [
+    new RegExp(`"${key}"\\s*:\\s*"((?:\\\\.|[^"])*)"`, "i"),
+    new RegExp(`'${key}'\\s*:\\s*'((?:\\\\.|[^'])*)'`, "i"),
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match?.[1]) continue;
+    try {
+      return JSON.parse(`"${match[1].replace(/"/g, '\\"')}"`);
+    } catch {
+      return match[1];
+    }
+  }
+
+  return undefined;
+}
+
+function extractBracketField(text: string, key: string): unknown[] | undefined {
+  const match = text.match(new RegExp(`["']?${key}["']?\\s*:\\s*(\\[[\\s\\S]*?\\])`, "i"));
+  if (!match?.[1]) return undefined;
+
+  const parsed = parseJsonCandidate(match[1]);
+  return Array.isArray(parsed) ? parsed : undefined;
+}
+
 function buildVariationPromptPlan({
   modificationMode,
   variationCount,
@@ -472,63 +656,61 @@ export const internalSmartAnalyzeImage = internalAction({
       });
 
       const messageContent = completion.choices[0]?.message?.content;
-      if (!messageContent) throw new Error("No content in response");
+      const rawContent = extractMessageText(messageContent);
+      if (!rawContent) throw new Error("No content in response");
 
-      console.log(`VLM Analysis (${vlmModel}):`, messageContent);
+      console.log(`VLM Analysis (${vlmModel}):`, rawContent);
 
       let title: string | undefined;
-      let description = "No description generated.";
+      let description = args.description?.trim() || "No description generated.";
       let tags: string[] = [];
       let colors: string[] = [];
       let category: string | undefined;
       let visual_style: string | undefined;
       let group: string | undefined;
+      let project_name: string | undefined;
       let moodboard_name: string | undefined;
 
       try {
-        const cleanContent = messageContent.replace(/```(?:json)?\s*/g, "").replace(/```/g, "").trim();
-        
-        let parsed;
-        try {
-          parsed = JSON.parse(cleanContent);
-        } catch {
-          // Try to fix common JSON issues before parsing again
-          // Replace single quotes with double quotes (but not inside strings)
-          // Remove trailing commas
-          // This is a safer alternative to using Function constructor
-          const fixedContent = cleanContent
-            .replace(/'/g, '"') // Replace single quotes with double quotes
-            .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
-          
-          try {
-            parsed = JSON.parse(fixedContent);
-          } catch {
-            // If still fails, try to extract JSON object from the string
-            const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              try {
-                parsed = JSON.parse(jsonMatch[0]);
-              } catch {
-                // Last resort: return a basic structure with the raw content
-                parsed = { description: cleanContent };
-              }
-            } else {
-              parsed = { description: cleanContent };
-            }
-          }
-        }
+        const cleanContent = stripMarkdownFences(rawContent);
+        const parsed = findVisionAnalysisObject(cleanContent);
 
-        title = parsed.title;
-        description = typeof parsed.description === 'string' ? parsed.description : JSON.stringify(parsed.description);
-        tags = parsed.tags || [];
-        colors = parsed.colors || [];
-        category = parsed.category;
-        visual_style = parsed.visual_style;
-        group = parsed.group || undefined;
-        moodboard_name = parsed.moodboard_name || parsed.moodboardName || undefined;
+        if (parsed) {
+          title = readString(parsed.title);
+          description = readString(parsed.description) || description;
+          tags = readStringArray(parsed.tags);
+          colors = readHexColors(parsed.colors);
+          category = readString(parsed.category);
+          visual_style = readString(parsed.visual_style);
+          group = readString(parsed.group) || undefined;
+          project_name =
+            readString(parsed.project_name) ||
+            readString(parsed.projectName) ||
+            undefined;
+          moodboard_name =
+            readString(parsed.moodboard_name) ||
+            readString(parsed.moodboardName) ||
+            undefined;
+        } else {
+          title = extractQuotedField(cleanContent, "title");
+          description =
+            extractQuotedField(cleanContent, "description") || description;
+          tags = readStringArray(extractBracketField(cleanContent, "tags"));
+          colors = readHexColors(extractBracketField(cleanContent, "colors"));
+          category = extractQuotedField(cleanContent, "category");
+          visual_style = extractQuotedField(cleanContent, "visual_style");
+          group = extractQuotedField(cleanContent, "group") || undefined;
+          project_name =
+            extractQuotedField(cleanContent, "project_name") ||
+            extractQuotedField(cleanContent, "projectName") ||
+            undefined;
+          moodboard_name =
+            extractQuotedField(cleanContent, "moodboard_name") ||
+            extractQuotedField(cleanContent, "moodboardName") ||
+            undefined;
+        }
       } catch (jsonError) {
-        console.warn("JSON parse failed, using raw content", jsonError);
-        description = messageContent;
+        console.warn("JSON parse failed, preserving existing description", jsonError);
       }
 
       await ctx.runMutation(internal.images.internalUpdateAnalysis, {
@@ -539,8 +721,8 @@ export const internalSmartAnalyzeImage = internalAction({
         colors,
         category,
         group,
-        projectName: title || args.title,
-        moodboardName: moodboard_name,
+        projectName: project_name ?? args.projectName,
+        moodboardName: moodboard_name ?? args.moodboardName,
         sref: args.sref,
       });
 

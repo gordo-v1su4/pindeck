@@ -1,0 +1,100 @@
+---
+title: Nextcloud storage
+description: Configure Nextcloud as persistent storage for Pindeck media
+---
+
+# Nextcloud storage
+
+Pindeck uses Nextcloud as a persistent media storage layer. Images uploaded to Convex are automatically persisted to Nextcloud via WebDAV.
+
+## How it works
+
+1. An image is uploaded to Convex file storage first (fast, temporary)
+2. A background action uploads the file to Nextcloud via WebDAV
+3. Derivatives (preview, resized versions) are generated and stored
+4. The image record is updated with Nextcloud URLs and persistence status
+
+### Upload path format
+
+```
+pindeck/media-uploads/YYYY/MM_DD/original/<filename>
+pindeck/media-uploads/YYYY/MM_DD/preview/<filename>-preview.<ext>
+pindeck/media-uploads/YYYY/MM_DD/low/<filename>-w320.webp
+pindeck/media-uploads/YYYY/MM_DD/high/<filename>-w768.webp
+pindeck/media-uploads/YYYY/MM_DD/high/<filename>-w1280.webp
+```
+
+Directories are created explicitly via WebDAV `MKCOL` before `PUT`.
+
+## Configuration
+
+### Convex dashboard variables
+
+| Variable | Description |
+|----------|-------------|
+| `NEXTCLOUD_WEBDAV_BASE_URL` | WebDAV endpoint URL |
+| `NEXTCLOUD_WEBDAV_USER` | Nextcloud username |
+| `NEXTCLOUD_WEBDAV_APP_PASSWORD` | App-specific password (not your login password) |
+| `NEXTCLOUD_UPLOAD_PREFIX` | Path prefix (default: `pindeck/media-uploads`) |
+
+### Public sharing
+
+Pindeck supports two ways to serve Nextcloud files as browser-safe URLs:
+
+#### Preferred: Shared folder model
+
+Share the upload root folder once in Nextcloud and set:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXTCLOUD_PUBLIC_SHARE_TOKEN` | Yes | Token from the shared folder |
+| `NEXTCLOUD_UPLOAD_SHARE_TOKEN` | No | Separate write-enabled token for backend uploads |
+| `NEXTCLOUD_PUBLIC_SHARE_PATH` | No | Defaults to `NEXTCLOUD_UPLOAD_PREFIX` |
+| `NEXTCLOUD_PUBLIC_BASE_URL` | No | Defaults to Nextcloud server base URL |
+
+Public URLs are derived from the shared root token using:
+```
+public.php/dav/files/<token>/...
+```
+
+#### Alternate: Per-file public shares
+
+Create individual public shares through the Nextcloud OCS API for each file.
+
+## Persistence tracking
+
+Each image tracks its storage state:
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `storageProvider` | `convex`, `nextcloud` | Current storage location |
+| `nextcloudPersistStatus` | `pending`, `succeeded`, `failed` | Persistence state |
+| `nextcloudPersistError` | string | Error message on failure |
+| `derivativeUrls` | object | `{ small, medium, large }` URLs |
+| `derivativeStoragePaths` | object | `{ small, medium, large }` paths |
+
+## Backfill failed uploads
+
+Reschedule persistence for uploads stuck in Convex storage:
+
+```bash
+bunx convex run images:backfillNextcloudFailedUploads '{"limit":50}'
+```
+
+This targets images where:
+- `sourceType = "upload"`
+- `storageProvider = "convex"`
+- `storageId` is still present
+
+## Admin endpoints
+
+Two admin HTTP endpoints manage Nextcloud storage:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/admin/backfillNextcloud` | POST | Re-upload files from Convex to Nextcloud |
+| `/admin/quarantineBrokenNextcloud` | POST | Quarantine files with broken Nextcloud references |
+
+<Note>
+These admin endpoints are not part of the public API and are not documented in the API reference.
+</Note>

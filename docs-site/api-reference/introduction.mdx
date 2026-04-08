@@ -1,0 +1,45 @@
+---
+title: API reference
+description: Pindeck Convex HTTP API for external integrations
+---
+
+# API reference
+
+Pindeck exposes HTTP endpoints through Convex HTTP actions. These endpoints allow external services (like the Discord bot) to interact with Pindeck programmatically.
+
+## Base URL
+
+```
+https://tremendous-jaguar-953.convex.site
+```
+
+## Authentication
+
+All endpoints require a bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer <INGEST_API_KEY>
+```
+
+The `INGEST_API_KEY` is configured in the Convex dashboard and must match the key used by the calling service.
+
+## Available endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/smartAnalyzeImage` | AI vision analysis of an image |
+| POST | `/ingestExternal` | Ingest an image from an external source |
+| POST | `/discordQueue` | Add an image to the Discord moderation queue |
+| POST | `/discordModerate` | Approve or reject a queued Discord image |
+
+## Request format
+
+All endpoints accept `POST` requests with JSON bodies. Content type should be `application/json`.
+
+## Response format
+
+Responses are JSON objects. Successful responses include the relevant data; errors return a JSON object with an `error` field describing the issue.
+
+## Rate limits
+
+Convex HTTP actions are subject to Convex's standard rate limits. For high-volume ingest, consider batching or implementing backoff logic in the calling service.

@@ -1,4 +1,4 @@
-import ColorThief from 'colorthief';
+import { getPaletteSync } from 'colorthief';
 import type { ColorPalette } from '../types';
 
 function rgbToHex(r: number, g: number, b: number): string {
@@ -63,15 +63,14 @@ export async function extractColors(imageUrl: string): Promise<ColorPalette> {
     
     img.onload = () => {
       try {
-        const colorThief = new ColorThief();
-        const palette = colorThief.getPalette(img, 6);
+        const palette = getPaletteSync(img, { colorCount: 6 });
         
         if (!palette || palette.length < 3) {
           throw new Error('Could not extract enough colors');
         }
 
         // Sort colors by luminance
-        const hexColors = palette.map(([r, g, b]: number[]) => rgbToHex(r, g, b));
+        const hexColors = palette.map((color) => color.hex());
         const sortedByLuminance = [...hexColors].sort((a, b) => getLuminance(a) - getLuminance(b));
 
         // Pick most vibrant color for accent (highest saturation)

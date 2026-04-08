@@ -1,0 +1,39 @@
+---
+title: Discord Moderate
+description: Approve or reject a queued Discord image
+---
+
+# Discord Moderate
+
+Approve or reject a Discord-sourced image that is currently in the moderation queue. Approved images become visible in the gallery; rejected images are removed.
+
+<POpenAPI spec="/api-reference/openapi.json" path="/discordModerate" />
+
+## How it works
+
+1. An image is in the moderation queue after being added via `/discordQueue`
+2. A moderator reviews the image in the Pindeck UI
+3. The moderation decision is submitted via this endpoint
+4. Approved images are published to the gallery; rejected images are deleted
+
+## Actions
+
+| Action | Result |
+|--------|--------|
+| `approve` | Image becomes visible in the gallery with full metadata |
+| `reject` | Image record and stored file are removed |
+
+## Legacy aliases
+
+The following legacy paths are supported for backward compatibility:
+- `/discord/moderation` — Maps to the same handler
+
+<Note>
+Use the canonical `/discordModerate` path for new integrations. Legacy aliases may be removed in a future version.
+</Note>
+
+## Related
+
+- [Discord Queue](/api-reference/endpoint/discord-queue) — Add images to the moderation queue
+- [Ingest External](/api-reference/endpoint/ingest-external) — Direct ingest without moderation
+- [Discord bot guide](/guides/discord-bot) — Full bot setup instructions

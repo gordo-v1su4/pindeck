@@ -114,32 +114,32 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="site-brand-lockup">
-                <div className="site-brand-mark">P/</div>
-                <div className="site-brand-word">
-                  <span className="site-brand-word-light">PIN</span>
-                  <span className="site-brand-word-accent">DECK</span>
+      {showAppChrome && (
+        <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
+          <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="site-brand-lockup">
+                  <div className="site-brand-mark">P/</div>
+                  <div className="site-brand-word">
+                    <span className="site-brand-word-light">PIN</span>
+                    <span className="site-brand-word-accent">DECK</span>
+                  </div>
                 </div>
+                <Authenticated>
+                  <div className="hidden md:block">
+                    <SearchBar onSearch={setSearchTerm} />
+                  </div>
+                </Authenticated>
               </div>
-              <Authenticated>
-                <div className="hidden md:block">
-                  <SearchBar onSearch={setSearchTerm} />
-                </div>
-              </Authenticated>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Authenticated>
-                <div className="hidden md:block">
-                  <SignOutButton />
-                </div>
-              </Authenticated>
+              <div className="flex items-center gap-2">
+                <Authenticated>
+                  <div className="hidden md:block">
+                    <SignOutButton />
+                  </div>
+                </Authenticated>
 
-              {showAppChrome && (
                 <Sheet>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="icon-sm" className="md:hidden">
@@ -178,18 +178,19 @@ export default function App() {
                     </div>
                   </SheetContent>
                 </Sheet>
-              )}
+              </div>
             </div>
-          </div>
 
-          {showAppChrome && (
             <div className="hidden md:block">
               <Tabs
                 value={activeTab}
                 onValueChange={(value) => value && setActiveTab(value)}
                 className="w-full"
               >
-                <TabsList variant="line" className="h-auto flex-wrap justify-start rounded-none border-b border-border bg-transparent p-0">
+                <TabsList
+                  variant="line"
+                  className="h-auto flex-wrap justify-start rounded-none border-b border-border bg-transparent p-0"
+                >
                   {APP_TABS.map((tab) => {
                     const Icon = tab.icon;
                     return (
@@ -202,20 +203,26 @@ export default function App() {
                 </TabsList>
               </Tabs>
             </div>
-          )}
 
-          {showAppChrome && activeTab === "gallery" && (
-            <CategoryFilter
-              selectedGroup={undefined}
-              onGroupChange={() => {}}
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-            />
-          )}
-        </div>
-      </header>
+            {activeTab === "gallery" && (
+              <CategoryFilter
+                selectedGroup={undefined}
+                onGroupChange={() => {}}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+              />
+            )}
+          </div>
+        </header>
+      )}
 
-      <main className="mx-auto w-full max-w-[1680px] px-4 py-8 pb-16 sm:px-6 lg:px-8">
+      <main
+        className={
+          showAppChrome
+            ? "mx-auto w-full max-w-[1680px] px-4 py-8 pb-16 sm:px-6 lg:px-8"
+            : "mx-auto flex min-h-screen w-full items-center justify-center px-4 py-10 sm:px-6"
+        }
+      >
         {showAppChrome ? (
           <>
             {activeTab === "gallery" && (
@@ -319,7 +326,7 @@ function Content({
   return (
     <div className="flex flex-col gap-8">
       <Unauthenticated>
-        <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center py-10 sm:py-16">
+        <div className="flex w-full items-center justify-center">
           <SignInForm />
         </div>
       </Unauthenticated>

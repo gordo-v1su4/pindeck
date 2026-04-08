@@ -1,0 +1,97 @@
+---
+title: Discord bot
+description: Set up the Discord bot for image ingest and moderation
+---
+
+# Discord bot
+
+The Discord bot lets you ingest images from Discord channels into Pindeck using emoji reactions, with a built-in moderation queue.
+
+## Overview
+
+The bot and media gateway are deployed from a **separate repository** (`discord-bot`). The Pindeck app consumes their services via Convex HTTP actions.
+
+## Setup
+
+### 1. Create a Discord application
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create a new application and bot
+3. Note the **Client ID** and **Bot Token**
+4. Enable the **Message Content Intent** in the bot settings
+
+### 2. Invite the bot to your server
+
+Use the OAuth2 URL generator with the `bot` scope and permissions:
+- Read Messages
+- Read Message History
+- Add Reactions
+- Manage Messages (for moderation)
+
+### 3. Configure environment variables
+
+Set these in the Discord bot's `.env.local`:
+
+| Variable | Description |
+|----------|-------------|
+| `DISCORD_TOKEN` | Bot token from the Developer Portal |
+| `DISCORD_CLIENT_ID` | Application client ID |
+| `DISCORD_GUILD_ID` | Server ID where the bot operates |
+| `DISCORD_INGEST_EMOJIS` | Emoji triggers for image ingest (e.g., `:pushpin:`) |
+| `INGEST_API_KEY` | API key matching Convex's `INGEST_API_KEY` |
+| `PINDECK_INGEST_URL` | Optional override for ingest endpoint URL |
+| `PINDECK_DISCORD_QUEUE_URL` | Optional override for queue endpoint URL |
+| `PINDECK_DISCORD_MODERATION_URL` | Optional override for moderation endpoint URL |
+| `NEXTCLOUD_PUBLIC_SHARE_TOKEN` | Recommended for public asset delivery |
+| `NEXTCLOUD_UPLOAD_SHARE_TOKEN` | Recommended for backend uploads |
+
+### 4. Run the bot
+
+```bash
+cd ~/Documents/Github/discord-bot
+bun install
+bun run dev
+```
+
+## How ingest works
+
+1. A user adds a configured emoji reaction to a message with an image attachment
+2. The bot sends the image to Pindeck's `/ingestExternal` HTTP endpoint
+3. Pindeck stores the image and creates a record with `sourceType = "discord"`
+4. The image appears in the moderation queue
+
+## Moderation queue
+
+New Discord-sourced images enter the moderation queue:
+
+1. Images land in a pending state via the `/discordQueue` endpoint
+2. Moderators review and approve or reject via the `/discordModerate` endpoint
+3. Approved images are visible in the gallery; rejected images are removed
+
+## Hosting
+
+The Discord bot runs on a Hostinger VPS:
+
+- **Hostname**: `srv1353991`
+- **Tailscale IP**: `100.105.199.93`
+- **User**: `gordo-v1su4`
+
+Connect via Tailscale SSH:
+
+```bash
+ssh gordo-v1su4@100.105.199.93
+```
+
+<Warning>
+Do not treat `services/discord-bot` in the Pindeck repo as the deployment source. Always use the separate `discord-bot` repository.
+</Warning>
+
+## API endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/ingestExternal` | POST | Accept an external image for ingest |
+| `/discordQueue` | POST | Add an image to the moderation queue |
+| `/discordModerate` | POST | Approve or reject a queued image |
+
+See the [API reference](/api-reference/introduction) for full endpoint documentation.

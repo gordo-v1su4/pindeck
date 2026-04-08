@@ -281,7 +281,7 @@ async function uploadFile(
       headers: {
         "Content-Type": contentType || "application/octet-stream",
       },
-      body: data,
+      body: toBinaryBody(data),
     });
 
     if (!response.ok) {
@@ -298,7 +298,7 @@ async function uploadFile(
       Authorization: authHeader(config),
       "Content-Type": contentType || "application/octet-stream",
     },
-    body: data,
+    body: toBinaryBody(data),
   });
 
   if (!response.ok) {
@@ -307,6 +307,14 @@ async function uploadFile(
   }
 
   return buildUrl(config, normalized);
+}
+
+function toBinaryBody(data: Buffer): ArrayBuffer {
+  const bytes = Uint8Array.from(data);
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
 }
 
 async function createPublicShareUrl(config: NextcloudConfig, relativePath: string): Promise<string> {
@@ -373,7 +381,9 @@ async function uploadViaMediaGateway(args: {
   formData.append("folder", folderFromPath(args.relativePath));
   formData.append(
     "file",
-    new Blob([args.data], { type: args.contentType || "application/octet-stream" }),
+    new Blob([toBinaryBody(args.data)], {
+      type: args.contentType || "application/octet-stream",
+    }),
     fileNameFromPath(args.relativePath)
   );
 
@@ -420,7 +430,9 @@ async function processImageViaMediaGateway(args: {
   }
   formData.append(
     "file",
-    new Blob([args.data], { type: args.contentType || "application/octet-stream" }),
+    new Blob([toBinaryBody(args.data)], {
+      type: args.contentType || "application/octet-stream",
+    }),
     `${args.fileBase}.${args.originalExt}`
   );
 
@@ -719,18 +731,9 @@ async function persistImageBuffer(args: {
   const resolvedPreviewPath = previewUpload.storagePath;
 
   if (!sharpAvailable) {
-    return {
-      imageUrl,
-      previewUrl,
-      storagePath: resolvedOriginalPath,
-      previewStoragePath: resolvedPreviewPath,
-      derivativeUrls: { small: imageUrl, medium: imageUrl, large: imageUrl },
-      derivativeStoragePaths: {
-        small: resolvedOriginalPath,
-        medium: resolvedOriginalPath,
-        large: resolvedOriginalPath,
-      },
-    };
+    throw new Error(
+      "Image derivatives could not be generated. Media gateway is unavailable and Sharp is not usable in this runtime."
+    );
   }
 
   const derivativePaths = {

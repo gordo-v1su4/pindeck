@@ -42,7 +42,7 @@ import { GenerateVariationsModal } from "./GenerateVariationsModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
-import { getDenseThumbnailUrl } from "../lib/imageUrls";
+import { SmartImage } from "./SmartImage";
 
 interface Image {
   _id: Id<"images">;
@@ -142,10 +142,12 @@ export function TableView() {
         header: "Image",
         cell: ({ row }) => (
           <Box className="w-16 h-16 bg-gray-100 rounded overflow-hidden">
-            <img
-              src={getDenseThumbnailUrl(row.original)}
+            <SmartImage
+              image={row.original}
+              variant="dense"
               alt={row.original.title}
               className="w-full h-full object-cover"
+              loading="lazy"
             />
           </Box>
         ),

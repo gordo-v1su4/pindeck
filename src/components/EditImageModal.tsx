@@ -1,11 +1,24 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Button, TextField, Text, Box, Flex, Select, Badge } from "@radix-ui/themes";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
-import { getTagColor } from "../lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+
+const withAlpha = (hex: string, alpha: string) =>
+  /^#[0-9a-f]{6}$/i.test(hex) ? `${hex}${alpha}` : hex;
+
+const fieldClassName =
+  "h-9 rounded-[8px] border border-white/10 bg-white/[0.03] px-3 text-sm text-white placeholder:text-white/32 focus-visible:border-[#2f7dd1] focus-visible:ring-2 focus-visible:ring-[#2f7dd1]/20";
+
+const selectClassName =
+  "h-9 w-full rounded-[8px] border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none transition-colors focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20";
+
+const labelClassName =
+  "mb-1.5 block text-[11px] font-medium uppercase tracking-[0.12em] text-white/52";
 
 interface EditImageModalProps {
   open: boolean;
@@ -29,6 +42,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
   const [projectName, setProjectName] = useState("");
   const [moodboardName, setMoodboardName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const modalTagPalette = image?.colors?.length ? image.colors : ["#4b5563"];
 
   // Load image data when modal opens
   useEffect(() => {
@@ -108,171 +122,192 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(95vw,42rem)] max-w-[42rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/80 p-6 text-white supports-backdrop-filter:backdrop-blur-xl">
-        <DialogTitle className="text-xl font-semibold text-white">Edit Image</DialogTitle>
-        <DialogDescription className="mb-5 text-white/65">
+      <DialogContent className="w-[min(95vw,46rem)] max-w-[46rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/92 p-0 text-white supports-backdrop-filter:backdrop-blur-xl">
+        <div className="border-b border-white/8 px-6 py-5">
+          <DialogTitle className="text-[28px] font-semibold tracking-[-0.03em] text-white">
+            Edit Image
+          </DialogTitle>
+          <DialogDescription className="mt-2 max-w-[32rem] text-sm leading-6 text-white/58">
           Update image metadata, tags, and other information.
-        </DialogDescription>
+          </DialogDescription>
+        </div>
 
         <form onSubmit={handleSubmit}>
-          <Flex direction="column" gap="4">
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+          <div className="space-y-5 px-6 py-5">
+            <div>
+              <label className={labelClassName}>
                 Title *
-              </Text>
-              <TextField.Root
+              </label>
+              <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Image title"
                 required
-                size="2"
+                className={fieldClassName}
               />
-            </Box>
+            </div>
 
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+            <div>
+              <label className={labelClassName}>
                 Description
-              </Text>
-              <TextField.Root
+              </label>
+              <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Image description"
-                size="2"
+                rows={3}
+                className="min-h-[88px] w-full rounded-[8px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm leading-6 text-white outline-none transition-colors placeholder:text-white/32 focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20"
               />
-            </Box>
+            </div>
 
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
-                Type
-              </Text>
-              <Select.Root 
-                value={group || "none"} 
-                onValueChange={(value) => setGroup(value === "none" ? "" : value)}
-              >
-                <Select.Trigger placeholder="Select type" size="2" />
-                <Select.Content>
-                  <Select.Item value="none">None</Select.Item>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClassName}>Type</label>
+                <select
+                  value={group || "none"}
+                  onChange={(e) => setGroup(e.target.value === "none" ? "" : e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="none">None</option>
                   {(groups || []).map((g) => (
-                    <Select.Item key={g} value={g}>{g}</Select.Item>
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
                   ))}
-                </Select.Content>
-              </Select.Root>
-            </Box>
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
-                Genre
-              </Text>
-              <Select.Root 
-                value={category || "none"} 
-                onValueChange={(value) => setCategory(value === "none" ? "" : value)}
-              >
-                <Select.Trigger placeholder="Select genre" size="2" />
-                <Select.Content>
-                  <Select.Item value="none">None</Select.Item>
-                  {(categories || []).map((cat) => (
-                    <Select.Item key={cat} value={cat}>
-                      {cat}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-            </Box>
+                </select>
+              </div>
 
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+              <div>
+                <label className={labelClassName}>Genre</label>
+                <select
+                  value={category || "none"}
+                  onChange={(e) => setCategory(e.target.value === "none" ? "" : e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="none">None</option>
+                  {(categories || []).map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClassName}>
                 Tags
-              </Text>
-              <Flex gap="2" wrap="wrap" mb="2">
+              </label>
+              <div className="mb-3 flex gap-1.5 flex-wrap">
                 {tags.map((tag) => (
                   <Badge
                     key={tag}
-                    variant="soft"
-                    color={getTagColor(tag)}
-                    size="2"
-                    className="cursor-pointer"
+                    variant="outline"
+                    className="h-6 cursor-pointer rounded-[6px] border px-2 text-[11px] font-medium"
+                    style={{
+                      backgroundColor: withAlpha(modalTagPalette[tags.indexOf(tag) % modalTagPalette.length], "18"),
+                      borderColor: withAlpha(modalTagPalette[tags.indexOf(tag) % modalTagPalette.length], "34"),
+                      color: modalTagPalette[tags.indexOf(tag) % modalTagPalette.length],
+                    }}
                     onClick={() => handleRemoveTag(tag)}
                   >
-                    {tag} ×
+                    {tag} <span className="ml-1 text-current/70">x</span>
                   </Badge>
                 ))}
-              </Flex>
-              <Flex gap="2">
-                <TextField.Root
+              </div>
+              <div className="flex gap-2">
+                <Input
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Add a tag and press Enter"
-                  size="2"
-                  className="flex-1"
+                  className={`flex-1 ${fieldClassName}`}
                 />
                 <Button
                   type="button"
-                  variant="soft"
+                  variant="outline"
+                  size="sm"
                   onClick={handleAddTag}
                   disabled={!tagInput.trim()}
+                  className="border-white/10 bg-white/[0.03] text-white/78 hover:bg-white/[0.07] hover:text-white"
                 >
                   Add
                 </Button>
-              </Flex>
-            </Box>
+              </div>
+            </div>
 
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClassName}>
                 Source URL
-              </Text>
-              <TextField.Root
+                </label>
+                <Input
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
                 placeholder="https://..."
-                size="2"
+                className={fieldClassName}
               />
-            </Box>
+              </div>
 
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+              <div>
+                <label className={labelClassName}>
                 Style Reference (Sref)
-              </Text>
-              <TextField.Root
+                </label>
+                <Input
                 value={sref}
                 onChange={(e) => setSref(e.target.value)}
                 placeholder="Style reference"
-                size="2"
+                className={fieldClassName}
               />
-            </Box>
+              </div>
+            </div>
 
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClassName}>
                 Project Name
-              </Text>
-              <TextField.Root
+                </label>
+                <Input
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="Project name"
-                size="2"
+                className={fieldClassName}
               />
-            </Box>
+              </div>
 
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+              <div>
+                <label className={labelClassName}>
                 Moodboard Name
-              </Text>
-              <TextField.Root
+                </label>
+                <Input
                 value={moodboardName}
                 onChange={(e) => setMoodboardName(e.target.value)}
                 placeholder="Moodboard name"
-                size="2"
+                className={fieldClassName}
               />
-            </Box>
+              </div>
+            </div>
 
-            <Flex gap="3" mt="4" justify="end">
-              <Button type="button" variant="soft" color="gray" onClick={() => onOpenChange(false)}>
+            <div className="flex justify-end gap-2 border-t border-white/8 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+                className="border-white/10 bg-white/[0.03] text-white/72 hover:bg-white/[0.07] hover:text-white"
+              >
                 Cancel
               </Button>
-              <Button type="submit" variant="solid" disabled={submitting || !title.trim()}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submitting || !title.trim()}
+                className="bg-[#2f7dd1] text-white hover:bg-[#3c8ae0]"
+              >
                 {submitting ? "Saving..." : "Save Changes"}
               </Button>
-            </Flex>
-          </Flex>
+            </div>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

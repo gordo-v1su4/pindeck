@@ -64,10 +64,31 @@ window.addEventListener('message', async (message) => {
     minify: mode === "production",
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom"],
-          convex: ["convex/react", "@convex-dev/auth/react"],
-          ui: ["@radix-ui/themes", "@radix-ui/react-icons", "lucide-react"],
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined;
+          }
+
+          if (id.includes("react") || id.includes("react-dom")) {
+            return "vendor";
+          }
+
+          if (
+            id.includes("convex/react") ||
+            id.includes("@convex-dev/auth/react")
+          ) {
+            return "convex";
+          }
+
+          if (
+            id.includes("@radix-ui/themes") ||
+            id.includes("@radix-ui/react-icons") ||
+            id.includes("lucide-react")
+          ) {
+            return "ui";
+          }
+
+          return undefined;
         },
       },
     },

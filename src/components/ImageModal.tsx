@@ -1,15 +1,17 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HeartIcon, HeartFilledIcon, Cross2Icon, BookmarkIcon, PlusIcon, MagicWandIcon, CopyIcon } from "@radix-ui/react-icons";
-import { Button, Text, Flex, Box, IconButton, DropdownMenu, Badge, Tooltip } from "@radix-ui/themes";
+import { DropdownMenu, Tooltip, Badge as ThemeBadge, IconButton } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { CreateBoardModal } from "./CreateBoardModal";
 import { GenerateVariationsModal } from "./GenerateVariationsModal";
-import { sortColorsDarkToLight, getTagColor } from "../lib/utils";
-import { getDetailImageUrl } from "../lib/imageUrls";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { SmartImage } from "./SmartImage";
+import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
 
 const copyToClipboard = (text: string, label: string) => {
   navigator.clipboard.writeText(text);
@@ -44,6 +46,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
     if (!image?.colors || image.colors.length === 0) return [];
     return sortColorsDarkToLight(image.colors);
   }, [image?.colors]);
+  const displayColors = sortedColors;
 
   const isSavedToAnyBoard = useMemo(() => {
     if (!boards || !imageId) return false;
@@ -58,6 +61,19 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
         : image.projectName
       : image.title;
   }, [image]);
+  const detailBadgeClass =
+    "h-6 rounded-md border-white/10 bg-white/[0.04] px-2.5 text-[10px] font-medium uppercase tracking-[0.08em] text-white/70";
+  const sectionLabelClass = "mb-2 block text-[10px] font-medium uppercase tracking-[0.14em] text-white/42";
+
+  const detailBadges = useMemo(() => {
+    const values = [image?.category, image?.group]
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value));
+    return values.filter(
+      (value, index) =>
+        values.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index
+    );
+  }, [image?.category, image?.group]);
 
   const handleLike = async () => {
     try {
@@ -97,186 +113,205 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
       <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="pindeck-image-modal w-[min(95vw,500px)] max-w-[500px] max-h-[88vh] gap-0 overflow-y-auto rounded-[8px] border border-white/8 bg-[#111111]/96 p-0 text-[14px] text-white shadow-[0_24px_64px_rgba(0,0,0,0.58)]"
+          className="pindeck-image-modal w-[min(95vw,520px)] max-w-[520px] max-h-[88vh] gap-0 overflow-y-auto rounded-[10px] border border-white/8 bg-[#111111]/96 p-0 text-[14px] text-white shadow-[0_24px_64px_rgba(0,0,0,0.58)]"
         >
           <DialogTitle className="sr-only">{displayTitle}</DialogTitle>
           <DialogDescription className="sr-only">Image details</DialogDescription>
 
           {/* Close button - centered at the top edge */}
-          <IconButton
-            variant="soft"
-            color="gray"
-            size="1"
-            className="absolute left-1/2 top-2 z-50 -translate-x-1/2"
-            style={{ background: 'rgba(0,0,0,0.55)', borderRadius: '999px' }}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="absolute left-1/2 top-2 z-50 -translate-x-1/2 rounded-full bg-black/55 text-white/74 hover:bg-black/75 hover:text-white"
             aria-label="Close"
             onClick={onClose}
           >
             <Cross2Icon />
-          </IconButton>
+          </Button>
 
           {/* Image - full width, natural aspect */}
-          <Box style={{ width: '100%', aspectRatio: '16/9', background: '#000' }}>
-            <img
-              src={getDetailImageUrl(image)}
+          <div style={{ width: '100%', aspectRatio: '16/9', background: '#000' }}>
+            <SmartImage
+              image={image}
+              variant="detail"
               alt={displayTitle}
               className="w-full h-full object-contain"
+              loading="eager"
             />
-          </Box>
+          </div>
 
           {/* Metadata panel */}
-          <Box className="px-4 py-4">
+          <div className="space-y-4 px-5 py-5">
             {/* Title row with copy */}
-            <Flex align="center" justify="between" className="mb-2.5 gap-3">
-              <Text className="text-[15px] font-semibold leading-tight text-white">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 text-[14px] font-semibold leading-tight text-white">
                 {displayTitle}
-              </Text>
+              </div>
               <Tooltip content="Copy title">
-                <IconButton
+                <Button
+                  type="button"
                   variant="ghost"
-                  color="gray"
-                  size="1"
+                  size="icon-sm"
+                  className="rounded-md text-white/48 hover:bg-white/[0.06] hover:text-white"
                   onClick={() => copyToClipboard(displayTitle, 'Title')}
                 >
                   <CopyIcon />
-                </IconButton>
+                </Button>
               </Tooltip>
-            </Flex>
+            </div>
 
             {/* Category & Group badges */}
-            <Flex gap="1.5" wrap="wrap" className="mb-3.5">
-              <Badge color="gray" variant="soft" style={{ textTransform: 'capitalize' }}>
-                {image.category}
-              </Badge>
-              {image.group && (
-                <Badge color="gray" variant="outline" style={{ textTransform: 'capitalize' }}>
-                  {image.group}
+            <div className="flex flex-wrap gap-2">
+              {detailBadges.map((value) => (
+                <Badge
+                  key={value}
+                  variant="outline"
+                  className={detailBadgeClass}
+                >
+                  {value}
                 </Badge>
-              )}
-            </Flex>
+              ))}
+            </div>
 
             {/* Description with copy */}
             {image.description && (
-              <Flex align="start" gap="2" className="mb-4.5">
-                <Text className="flex-1 text-[12px] leading-[1.5] text-white/68">
+              <div className="flex items-start gap-2">
+                <p className="flex-1 text-[13px] leading-6 text-white/66">
                   {image.description}
-                </Text>
+                </p>
                 <Tooltip content="Copy description">
-                  <IconButton
+                  <Button
+                    type="button"
                     variant="ghost"
-                    color="gray"
-                    size="1"
+                    size="icon-sm"
+                    className="rounded-md text-white/48 hover:bg-white/[0.06] hover:text-white"
                     onClick={() => copyToClipboard(image.description || '', 'Description')}
                   >
                     <CopyIcon />
-                  </IconButton>
+                  </Button>
                 </Tooltip>
-              </Flex>
+              </div>
             )}
 
             {/* sref - code-style clickable box */}
             {image.sref && (
-              <Flex
-                align="center"
-                gap="2"
+              <button
+                type="button"
                 onClick={() => copyToClipboard(`--sref ${image.sref}`, 'sref code')}
-                className="group mb-4.5 cursor-pointer"
-                style={{
-                  background: '#1b1b1b',
-                  borderRadius: '4px',
-                  border: '1px solid rgba(255,255,255,0.09)',
-                  padding: '7px 10px',
-                }}
+                className="group flex w-full items-center gap-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:border-white/18 hover:bg-white/[0.05]"
               >
-                <Text size="1" style={{ color: '#888', fontFamily: 'monospace' }}>
-                  --sref
-                </Text>
-                <Text size="2" weight="medium" style={{ color: '#fff', fontFamily: 'monospace', flex: 1 }}>
+                <ThemeBadge
+                  variant="soft"
+                  color="blue"
+                  size="1"
+                  className="rounded-sm px-1.5 text-[10px] tracking-[0.02em]"
+                >
                   {image.sref}
-                </Text>
-                <CopyIcon style={{ color: '#666' }} className="group-hover:text-white transition-colors" />
-              </Flex>
+                </ThemeBadge>
+                <span className="flex-1 text-[9px] uppercase tracking-[0.12em] text-white/48">
+                  SREF
+                </span>
+                <CopyIcon className="text-white/35 transition-colors group-hover:text-white/80" />
+              </button>
             )}
 
             {/* Colors - clickable swatches */}
-            {sortedColors.length > 0 && (
-              <Box className="mb-4.5">
-                <Text size="1" style={{ color: '#666' }} className="mb-2 block">Colors</Text>
-                <Flex gap="1.5" wrap="wrap">
-                  {sortedColors.slice(0, 8).map((color, i) => (
+            {displayColors.length > 0 && (
+              <div>
+                <div className={sectionLabelClass}>Colors</div>
+                <div className="flex flex-wrap gap-2">
+                  {displayColors.slice(0, 8).map((color, i) => (
                     <Tooltip key={i} content={`Copy ${color}`}>
-                      <Box
+                      <button
+                        type="button"
                         onClick={() => copyToClipboard(color, 'Color')}
+                        aria-label={`Copy ${color}`}
                         style={{
-                          width: '28px',
-                          height: '28px',
+                          width: '22px',
+                          height: '22px',
                           backgroundColor: color,
-                          borderRadius: '4px',
                           cursor: 'pointer',
-                          border: '1px solid rgba(255,255,255,0.1)',
+                          border: '1px solid rgba(255,255,255,0.12)',
                           transition: 'transform 0.1s',
                         }}
-                        className="hover:scale-110"
+                        className="border border-white/10 hover:scale-110"
                       />
                     </Tooltip>
                   ))}
-                </Flex>
-              </Box>
+                </div>
+              </div>
             )}
 
             {/* Tags - colored badges matching table view */}
             {image.tags.length > 0 && (
-              <Box className="mb-4.5">
-                <Text size="1" style={{ color: '#666' }} className="mb-2 block">Tags</Text>
-                <Flex gap="1.5" wrap="wrap">
+              <div>
+                <div className={sectionLabelClass}>Tags</div>
+                <div className="flex flex-wrap gap-1.5">
                   {image.tags.slice(0, 12).map((tag, i) => (
-                    <Badge
+                    <ThemeBadge
                       key={i}
-                      color={getTagColor(tag)}
                       variant="soft"
+                      color={getTagColor(tag)}
                       size="1"
-                      className="rounded-[3px] text-[11px]"
-                      style={{ cursor: 'pointer' }}
+                      className="cursor-pointer rounded-[3px] px-1.5 text-[10px] tracking-[0.02em]"
                       onClick={() => copyToClipboard(tag, 'Tag')}
                     >
                       {tag}
-                    </Badge>
+                    </ThemeBadge>
                   ))}
                   {image.tags.length > 12 && (
-                    <Badge color="gray" variant="soft" size="1">
+                    <ThemeBadge
+                      variant="soft"
+                      color="gray"
+                      size="1"
+                      className="rounded-[3px] px-1.5 text-[10px] tracking-[0.02em]"
+                    >
                       +{image.tags.length - 12}
-                    </Badge>
+                    </ThemeBadge>
                   )}
-                </Flex>
-              </Box>
+                </div>
+              </div>
             )}
 
             {/* Stats row */}
-            <Flex gap="3" align="center" className="mb-4.5">
-              <Text size="1" style={{ color: '#888' }}>♥ {image.likes}</Text>
-              <Text size="1" style={{ color: '#888' }}>{image.views.toString().padStart(2, '0')} views</Text>
-            </Flex>
+            <div className="flex items-center gap-3 text-[11px] text-white/44">
+              <span>♥ {image.likes}</span>
+              <span>{image.views.toString().padStart(2, '0')} views</span>
+            </div>
 
             {/* Action buttons */}
-            <Flex gap="1.5" align="center" wrap="wrap">
-              <Button
+            <div className="flex flex-wrap items-center gap-1.5">
+              <IconButton
                 onClick={() => { void handleLike(); }}
                 variant="soft"
                 color={image.isLiked ? "red" : "gray"}
-                size="1"
-                className="rounded-sm"
+                size="2"
+                aria-label={image.isLiked ? "Unlike image" : "Like image"}
+                style={{ opacity: 0.9 }}
               >
                 {image.isLiked ? <HeartFilledIcon /> : <HeartIcon />}
-                {image.isLiked ? 'Liked' : 'Like'}
-              </Button>
+              </IconButton>
 
               <DropdownMenu.Root>
-                <DropdownMenu.Trigger>
-                  <Button variant="soft" color={isSavedToAnyBoard ? "blue" : "gray"} size="1" className="rounded-sm">
-                    <BookmarkIcon /> {isSavedToAnyBoard ? 'Saved' : 'Save'}
-                  </Button>
+                <DropdownMenu.Trigger asChild>
+                  <IconButton
+                    variant="soft"
+                    color={isSavedToAnyBoard ? "blue" : "gray"}
+                    size="2"
+                    aria-label="Save to board"
+                    style={{ opacity: 0.9 }}
+                  >
+                    <BookmarkIcon />
+                  </IconButton>
                 </DropdownMenu.Trigger>
-                <DropdownMenu.Content>
+                <DropdownMenu.Content
+                  side="top"
+                  align="start"
+                  sideOffset={8}
+                  collisionPadding={16}
+                  className="z-[90] min-w-[11rem]"
+                  style={{ zIndex: 90 }}
+                >
                   {boards && boards.length > 0 && boards.map((board) => (
                     <DropdownMenu.Item key={board._id} onClick={() => void handleSaveToBoard(board._id)}>
                       {board.name}
@@ -290,12 +325,25 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
               </DropdownMenu.Root>
 
               <DropdownMenu.Root>
-                <DropdownMenu.Trigger>
-                  <Button variant="soft" color="teal" size="1" className="rounded-sm">
-                    <MagicWandIcon /> Generate
-                  </Button>
+                <DropdownMenu.Trigger asChild>
+                  <IconButton
+                    variant="soft"
+                    color="teal"
+                    size="2"
+                    aria-label="Generate options"
+                    style={{ opacity: 0.9 }}
+                  >
+                    <MagicWandIcon />
+                  </IconButton>
                 </DropdownMenu.Trigger>
-                <DropdownMenu.Content className="dropdown-teal">
+                <DropdownMenu.Content
+                  side="top"
+                  align="start"
+                  sideOffset={8}
+                  collisionPadding={16}
+                  className="dropdown-teal z-[90] min-w-[11rem]"
+                  style={{ zIndex: 90 }}
+                >
                   <DropdownMenu.Item onClick={() => setVariationsModalOpen(true)}>
                     Variations
                   </DropdownMenu.Item>
@@ -307,8 +355,8 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Root>
-            </Flex>
-          </Box>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

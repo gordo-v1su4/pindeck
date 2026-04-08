@@ -1,0 +1,33 @@
+---
+title: Smart Analyze Image
+description: AI vision analysis endpoint for Pindeck images
+---
+
+# Smart Analyze Image
+
+Analyze an image using an OpenRouter VLM (vision-language model). Returns structured metadata including description, tags, colors, and category suggestions.
+
+<POpenAPI spec="/api-reference/openapi.json" path="/smartAnalyzeImage" />
+
+## How it works
+
+1. Provide the Convex `storageId` of an already-uploaded image
+2. The endpoint sends the image to an OpenRouter VLM for analysis
+3. The VLM returns structured metadata (description, tags, colors, category)
+4. Results can be used to auto-populate image metadata fields
+
+## When to use
+
+- After uploading an image, to auto-generate metadata
+- Before generating AI variations, to inform the prompt
+- In batch processing pipelines for automated tagging
+
+## VLM configuration
+
+The model used for analysis is configured in the Convex dashboard:
+
+| Variable | Description |
+|----------|-------------|
+| `OPENROUTER_API_KEY` | Required — API key for OpenRouter |
+| `OPENROUTER_VLM_MODEL` | Optional — specific VLM model to use |
+| `OPENROUTER_PROVIDER_SORT` | Optional — provider preference for routing |

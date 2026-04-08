@@ -1,0 +1,30 @@
+---
+title: Ingest External Image
+description: Ingest an image from an external source into Pindeck
+---
+
+# Ingest External Image
+
+Accept an image from an external source and store it in Pindeck. Primarily used by the Discord bot to ingest images from Discord channels.
+
+<POpenAPI spec="/api-reference/openapi.json" path="/ingestExternal" />
+
+## How it works
+
+1. An external service (e.g., Discord bot) sends an image URL and metadata
+2. Pindeck downloads the image and stores it in Convex file storage
+3. A background action persists the file to Nextcloud via WebDAV
+4. An image record is created with the specified `sourceType`
+
+## Source types
+
+| Source | Description |
+|--------|-------------|
+| `discord` | Ingested from a Discord channel via emoji trigger |
+| `pinterest` | Imported from a Pinterest board |
+| `upload` | Standard user upload (rarely used via this endpoint) |
+| `ai` | AI-generated image (rarely used via this endpoint) |
+
+## Deduplication
+
+Provide an `externalId` to prevent duplicate ingest. If an image with the same `externalId` already exists, the request will be rejected with a 400 error.

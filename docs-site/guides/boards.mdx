@@ -1,0 +1,55 @@
+---
+title: Boards
+description: Create and manage image collections and storyboards in Pindeck
+---
+
+# Boards
+
+Boards are collections of images you can organize, share, and use as the basis for storyboards and decks.
+
+## Create a board
+
+1. Select one or more images from the gallery
+2. Click **Add to Board**
+3. Choose an existing board or create a new one with a name and description
+4. Set visibility to public or private
+
+## Board structure
+
+A board contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Board title |
+| `description` | string (optional) | Board description |
+| `isPublic` | boolean | Whether the board is publicly visible |
+| `imageIds` | ID[] | Ordered list of image references |
+
+## Storyboards
+
+A storyboard is a visual layout built from a board's images. Each storyboard has:
+
+- A **template** that defines panel layout and arrangement
+- **Panels** that map images to specific positions
+- **Source images** that can be swapped or reordered
+
+### Storyboard fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `boardId` | ID | Parent collection |
+| `title` | string | Storyboard title |
+| `templateId` | string | Layout template identifier |
+| `panels` | object[] | Array of `{ imageId, layout, order }` |
+| `sourceImageIds` | ID[] | Images available for panel assignment |
+
+## Managing boards
+
+- **Reorder** — Drag and drop images within a board to rearrange
+- **Add/remove** — Add new images or remove existing ones at any time
+- **Duplicate** — Copy a board as a starting point for a new collection
+- **Share** — Public boards are accessible via a shared link
+
+## From board to deck
+
+Boards are the foundation for decks. When you create a deck from a board, the board's images become slides. See [Decks](/guides/decks) for details.

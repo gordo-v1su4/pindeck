@@ -1,0 +1,58 @@
+---
+title: AI generation
+description: Generate image variations with fal.ai and OpenRouter VLM
+---
+
+# AI generation
+
+Pindeck uses AI to generate variations of your images. Choose between shot-type changes and style transformations.
+
+## How it works
+
+1. Select an image in the gallery
+2. Click **Generate Variation**
+3. Choose a variation type and detail
+4. The system sends the image to fal.ai for generation
+5. The result is saved as a new child image linked to the original
+
+### Variation types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `shot_type` | Changes camera angle/framing | Close-up, wide shot, overhead |
+| `style` | Applies a visual style transformation | Noir, pastel, high contrast |
+
+## Configuration
+
+AI generation requires two API keys set in the Convex dashboard:
+
+| Variable | Description |
+|----------|-------------|
+| `FAL_KEY` | fal.ai API key for image generation |
+| `OPENROUTER_API_KEY` | OpenRouter API key for VLM analysis |
+| `OPENROUTER_VLM_MODEL` | Optional model override for vision analysis |
+| `OPENROUTER_PROVIDER_SORT` | Optional provider sorting preference |
+
+## Smart analysis
+
+The `/smartAnalyzeImage` endpoint uses an OpenRouter VLM (vision-language model) to analyze your image before generation. This analysis helps select appropriate variation parameters.
+
+See [Smart Analyze endpoint](/api-reference/endpoint/smart-analyze) in the API reference.
+
+## Variation metadata
+
+Generated images track their relationship to the original:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `parentImageId` | ID | Reference to the source image |
+| `variationCount` | number | Number of variations generated |
+| `variationType` | string | `shot_type` or `style` |
+| `variationDetail` | string | Specific variation applied (e.g., "close-up") |
+| `sourceType` | string | Set to `ai` for generated images |
+
+## Rate limits and costs
+
+- fal.ai charges per generation — monitor usage in your fal.ai dashboard
+- OpenRouter charges per VLM analysis call
+- Generation time varies (typically 5–15 seconds per image)

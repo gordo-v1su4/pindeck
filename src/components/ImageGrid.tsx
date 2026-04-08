@@ -17,7 +17,7 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
-import { getCardImageUrl } from "../lib/imageUrls";
+import { SmartImage } from "./SmartImage";
 
 interface ImageGridProps {
   searchTerm: string;
@@ -396,10 +396,11 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
                                   });
                                   setSelectedImage(image._id);
                                 }}
-                              >
+                                >
                                 <Box className="relative overflow-hidden aspect-video bg-gray-900">
-                                  <img
-                                    src={getCardImageUrl(image)}
+                                  <SmartImage
+                                    image={image}
+                                    variant="card"
                                     alt={image.title}
                                     className="w-full h-full object-cover"
                                     loading="lazy"
@@ -463,8 +464,9 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
             }}
           >
             <Box className="relative overflow-hidden aspect-video bg-gray-900">
-              <img
-                src={getCardImageUrl(image)}
+              <SmartImage
+                image={image}
+                variant="card"
                 alt={image.title}
                 className="w-full h-full object-cover"
                 loading="lazy"

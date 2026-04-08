@@ -1,0 +1,33 @@
+---
+title: Discord Queue
+description: Queue a Discord-sourced image for moderation
+---
+
+# Discord Queue
+
+Add a Discord-sourced image to the moderation queue. The image will not appear in the public gallery until it is approved via the [Discord Moderate](/api-reference/endpoint/discord-moderate) endpoint.
+
+<POpenAPI spec="/api-reference/openapi.json" path="/discordQueue" />
+
+## How it works
+
+1. A user adds a configured emoji reaction to a Discord message with an image
+2. The Discord bot calls this endpoint with the image URL and Discord user info
+3. Pindeck stores the image and creates a record with `sourceType = "discord"`
+4. The image enters the moderation queue (not visible in the gallery yet)
+5. A moderator approves or rejects the image via `/discordModerate`
+
+## Legacy aliases
+
+The following legacy paths are supported for backward compatibility:
+- `/discord/queue` — Maps to the same handler
+
+<Note>
+Use the canonical `/discordQueue` path for new integrations. Legacy aliases may be removed in a future version.
+</Note>
+
+## Related
+
+- [Discord Moderate](/api-reference/endpoint/discord-moderate) — Approve or reject queued images
+- [Ingest External](/api-reference/endpoint/ingest-external) — Direct ingest without moderation
+- [Discord bot guide](/guides/discord-bot) — Full bot setup instructions

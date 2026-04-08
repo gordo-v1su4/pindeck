@@ -483,38 +483,6 @@ body {
   overflow: hidden;
 }
 
-/* Dialog overlay - transparent blurry background */
-[data-radix-dialog-overlay] {
-  background-color: rgba(0, 0, 0, 0.3) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-/* Dialog content - transparent by default, individual modals set their own backgrounds */
-[data-radix-dialog-content] {
-  background-color: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border-radius: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-.pindeck-image-modal[data-radix-dialog-content] {
-  position: fixed !important;
-  inset: 50% auto auto 50% !important;
-  transform: translate(-50%, -50%) !important;
-  margin: 0 !important;
-  width: 520px;
-  max-width: 95vw;
-  max-height: 90vh;
-  animation: none !important;
-  transition: none !important;
-}
-
 /* Ensure aspect-video works correctly */
 .aspect-video {
   aspect-ratio: 16 / 9;

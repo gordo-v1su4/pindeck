@@ -1,0 +1,58 @@
+---
+title: Decks
+description: Build slide presentations from your image collections
+---
+
+# Decks
+
+Decks turn your image collections into slide presentations. Choose a template, arrange your slides, and present directly from Pindeck.
+
+## Create a deck
+
+1. Open a board
+2. Click **Create Deck**
+3. Select a template that defines slide layout and transitions
+4. Your board's images are automatically placed as slides
+
+## Deck structure
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `boardId` | ID | Parent collection |
+| `title` | string | Deck title |
+| `templateId` | string | Slide template identifier |
+| `slides` | object[] | Array of `{ imageId, layout, order }` |
+| `sourceImageIds` | ID[] | Available images for slide assignment |
+
+## Edit slides
+
+- **Reorder** — Drag and drop slides to change the sequence
+- **Change layout** — Select a different layout per slide (full image, split, caption overlay)
+- **Swap image** — Replace a slide's image with another from the source collection
+- **Add/remove** — Insert new slides or delete existing ones
+
+## Templates
+
+Templates define the visual structure of each slide:
+
+| Template | Description |
+|----------|-------------|
+| Full bleed | Image fills the entire slide |
+| Caption | Image with a title/description overlay |
+| Split | Image on one side, text on the other |
+| Comparison | Two images side by side |
+
+## Present
+
+Click **Present** to enter fullscreen presentation mode. Navigate with arrow keys or click.
+
+## Generations
+
+When you create a deck, a generation record is saved with the template details. This lets you rebuild or modify the deck later from the same starting point.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `deck` | Generation type identifier |
+| `templateId` | string | Template used |
+| `templateName` | string | Human-readable template name |
+| `content` | string | Serialized deck content |

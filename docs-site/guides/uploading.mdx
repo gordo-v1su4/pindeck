@@ -1,0 +1,75 @@
+---
+title: Uploading images
+description: How to upload and manage images in Pindeck
+---
+
+# Uploading images
+
+Upload images to Pindeck via drag-and-drop, file picker, or the Discord ingest pipeline.
+
+## Upload workflow
+
+1. Click **Upload** in the gallery or drag files onto the page
+2. Files are stored in Convex file storage first
+3. A background action persists the file to Nextcloud via WebDAV
+4. Derivatives (preview, small, medium, large) are generated and stored alongside the original
+
+### File path format on Nextcloud
+
+```
+pindeck/media-uploads/YYYY/MM_DD/original/<filename>
+pindeck/media-uploads/YYYY/MM_DD/preview/<filename>-preview.<ext>
+pindeck/media-uploads/YYYY/MM_DD/low/<filename>-w320.webp
+pindeck/media-uploads/YYYY/MM_DD/high/<filename>-w768.webp
+pindeck/media-uploads/YYYY/MM_DD/high/<filename>-w1280.webp
+```
+
+Directories are created explicitly via WebDAV `MKCOL` before `PUT`.
+
+## Image metadata
+
+Every image record includes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Display name |
+| `description` | string (optional) | Detailed description |
+| `category` | string | Classification (Commercial, Film, Moodboard, etc.) |
+| `tags` | string[] | Searchable keywords |
+| `group` | string (optional) | Project grouping (e.g., Commercial, Spec Music Video) |
+| `projectName` | string (optional) | Specific project within a group |
+| `projectOrder` | number (optional) | Sort order within a project |
+| `moodboardName` | string (optional) | Moodboard or reference name |
+| `uniqueId` | string (optional) | Auto-generated or custom unique ID |
+| `sourceType` | string | Origin: `upload`, `discord`, `pinterest`, `ai` |
+| `colors` | string[] (optional) | Extracted color palette |
+
+## Persistence tracking
+
+Each image tracks its Nextcloud persistence status:
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `nextcloudPersistStatus` | `pending`, `succeeded`, `failed` | Current persistence state |
+| `nextcloudPersistError` | string | Error message if persist failed |
+| `storageProvider` | `convex`, `nextcloud` | Where the file is currently stored |
+| `derivativeUrls` | object | URLs for small/medium/large derivatives |
+
+## Backfill failed uploads
+
+Reschedule persistence for uploads stuck in Convex storage:
+
+```bash
+bunx convex run images:backfillNextcloudFailedUploads '{"limit":50}'
+```
+
+This targets images where `sourceType = "upload"`, `storageProvider = "convex"`, and `storageId` is still present.
+
+## Sources
+
+Images can come from multiple sources:
+
+- **Direct upload** — User-initiated from the gallery UI
+- **Discord** — Ingested via the Discord bot emoji trigger (see [Discord bot](/guides/discord-bot))
+- **Pinterest** — Imported from Pinterest boards
+- **AI** — Generated as variations of existing images (see [AI generation](/guides/ai-generation))

@@ -6,6 +6,13 @@ export interface ExtractedColor {
   brightness: number;
 }
 
+function colorDistance(a: [number, number, number], b: [number, number, number]): number {
+  const dr = a[0] - b[0];
+  const dg = a[1] - b[1];
+  const db = a[2] - b[2];
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
 // Calculate saturation (0-1)
 function getSaturation(r: number, g: number, b: number): number {
   const max = Math.max(r, g, b);
@@ -34,10 +41,10 @@ function isMeaningfulColor(r: number, g: number, b: number): boolean {
   const brightness = getBrightness(r, g, b);
   const saturation = getSaturation(r, g, b);
   
-  // Filter out near-black (brightness < 0.1) and near-white (brightness > 0.9)
-  // Unless they have significant saturation (meaningful dark/light colors)
-  if (brightness < 0.1 && saturation < 0.3) return false; // Too dark and not saturated
-  if (brightness > 0.9 && saturation < 0.2) return false; // Too light and not saturated
+  // Filter out muddy shadows and blown highlights unless they are genuinely colorful.
+  if (brightness < 0.16 && saturation < 0.42) return false;
+  if (brightness > 0.92 && saturation < 0.18) return false;
+  if (saturation < 0.08) return false;
   
   return true;
 }
@@ -115,19 +122,31 @@ export async function extractColorsFromImage(imageUrl: string): Promise<string[]
           // Convert to array and score colors
           const colors: ExtractedColor[] = Array.from(colorMap.values());
           
-          // Score colors: prioritize saturation and count
-          // Higher saturation = more vibrant/meaningful
-          // Higher count = more dominant in image
+          // Score colors: favor dominant, vivid colors, but avoid over-picking shadows.
           const scoredColors = colors.map(color => ({
             ...color,
-            score: color.count * (0.6 + color.saturation * 0.4), // Weight count more, but boost saturated colors
+            score:
+              color.count *
+              (0.32 + color.saturation * 0.9 + Math.max(0, color.brightness - 0.18) * 0.28),
           }));
           
-          // Sort by score and take top 5 most meaningful colors
-          const topColors = scoredColors
-            .sort((a, b) => b.score - a.score)
+          const ranked = scoredColors.sort((a, b) => b.score - a.score);
+          const selected: ExtractedColor[] = [];
+
+          for (const color of ranked) {
+            if (selected.every((candidate) => colorDistance(candidate.rgb, color.rgb) >= 70)) {
+              selected.push(color);
+            }
+            if (selected.length === 5) break;
+          }
+
+          const fallbackColors = ranked
+            .filter((color) => !selected.some((candidate) => candidate.hex === color.hex))
+            .slice(0, Math.max(0, 5 - selected.length));
+
+          const topColors = [...selected, ...fallbackColors]
             .slice(0, 5)
-            .map(color => color.hex);
+            .map((color) => color.hex);
           
           resolve(topColors);
         } catch (error) {

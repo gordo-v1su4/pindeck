@@ -8,7 +8,7 @@ set -euo pipefail
 PORT="${PORT:-${1:-4173}}"
 
 # Windows (Git Bash / MSYS / MINGW): use PowerShell script so port is killed reliably
-if [[ "$OSTYPE" == msys* ]] || [[ "$OSTYPE" == cygwin ]] || [[ "$OS" == Windows_NT ]]; then
+if [[ "${OSTYPE:-}" == msys* ]] || [[ "${OSTYPE:-}" == cygwin ]] || [[ "${OS:-}" == Windows_NT ]]; then
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
   powershell.exe -ExecutionPolicy Bypass -File "$SCRIPT_DIR/kill-port.ps1"
   exit 0
@@ -35,7 +35,3 @@ for PID in $PIDS; do
     echo "Killed process $PID on port $PORT"
   fi
 done
-
-
-
-

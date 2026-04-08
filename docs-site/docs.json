@@ -1,0 +1,112 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "PINDOCS",
+  "colors": {
+    "primary": "#1f8fe5",
+    "light": "#52a8ff",
+    "dark": "#0c3564"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Getting started",
+            "pages": [
+              "index",
+              "quickstart",
+              "development"
+            ]
+          },
+          {
+            "group": "Core features",
+            "pages": [
+              "guides/uploading",
+              "guides/boards",
+              "guides/decks",
+              "guides/ai-generation"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "guides/discord-bot",
+              "guides/nextcloud"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "groups": [
+          {
+            "group": "API documentation",
+            "pages": [
+              "api-reference/introduction"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/endpoint/smart-analyze",
+              "api-reference/endpoint/ingest-external",
+              "api-reference/endpoint/discord-queue",
+              "api-reference/endpoint/discord-moderate"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Pindeck",
+          "href": "https://pindeck.v1siu4.dev",
+          "icon": "grid-art"
+        },
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/gordo-v1su4/pindeck",
+          "icon": "github"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "mailto:support@pindeck.v1siu4.dev"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Open Pindeck",
+      "href": "https://pindeck.v1siu4.dev"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/gordo-v1su4/pindeck"
+    }
+  }
+}

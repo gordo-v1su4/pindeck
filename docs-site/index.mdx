@@ -1,0 +1,36 @@
+---
+title: PINDOCS
+slug: /
+description: Documentation for Pindeck — AI-powered image gallery and generation for creatives
+---
+
+# Pindeck Documentation
+
+Pindeck is an AI-powered image gallery and generation platform built for creatives. Upload, organize, generate variations, and present your visual work — all in one place.
+
+## What you can do
+
+- **Upload and organize** — Drag-and-drop image uploads with automatic metadata extraction, tagging, and categorization
+- **Build boards** — Create collections and storyboards to organize images by project, mood, or theme
+- **Create decks** — Build slide presentations directly from your image collections
+- **Generate AI variations** — Use fal.ai and OpenRouter VLM to create shot-type and style variations of your images
+- **Integrate with Discord** — Ingest images from Discord channels with emoji triggers and moderation queues
+- **Store on Nextcloud** — Automatic media pipeline from Convex to Nextcloud via WebDAV with public sharing
+
+## Architecture overview
+
+Pindeck uses a modern stack:
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React + Vite |
+| Backend | Convex (real-time database, HTTP actions, file storage) |
+| AI generation | fal.ai (image generation), OpenRouter (VLM analysis) |
+| Storage | Nextcloud (WebDAV persistent storage) |
+| Deployment | Vercel (frontend), Convex Cloud (backend) |
+
+## Next steps
+
+- [Quickstart](/quickstart) — Get up and running in minutes
+- [Development](/development) — Local development setup
+- [API reference](/api-reference/introduction) — Convex HTTP endpoints

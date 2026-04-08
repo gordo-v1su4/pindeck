@@ -4,7 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { ChromeIcon, GithubIcon, UserRoundIcon } from "lucide-react";
+import { GitBranchIcon, GlobeIcon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -152,7 +152,7 @@ export function SignInForm() {
         : "Create account";
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-8 px-4">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-8">
       <div className="flex flex-col items-center text-center">
         <div className="flex scale-[1.65] flex-col items-center gap-0.5">
           <div className="site-brand-lockup">
@@ -168,12 +168,22 @@ export function SignInForm() {
         </div>
       </div>
 
-      <Card className="border-border/70 bg-card/90 shadow-2xl shadow-black/35 backdrop-blur">
+      <Card className="border border-white/8 bg-[#17191d]/95 shadow-2xl shadow-black/35 ring-0 backdrop-blur">
         <CardHeader className="gap-4">
           <Tabs value={flow} onValueChange={(value) => setFlow(value as "signIn" | "signUp")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signIn">Sign in</TabsTrigger>
-              <TabsTrigger value="signUp">Create account</TabsTrigger>
+            <TabsList className="grid h-10 w-full grid-cols-2 rounded-xl bg-white/5 p-1">
+              <TabsTrigger
+                value="signIn"
+                className="rounded-lg text-white/60 data-active:bg-sky-500 data-active:text-slate-950"
+              >
+                Sign in
+              </TabsTrigger>
+              <TabsTrigger
+                value="signUp"
+                className="rounded-lg text-white/60 data-active:bg-sky-500 data-active:text-slate-950"
+              >
+                Create account
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="text-center">
@@ -195,6 +205,7 @@ export function SignInForm() {
                   name="email"
                   placeholder="name@example.com"
                   autoComplete="email"
+                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 dark:bg-white/5"
                   required
                 />
               </Field>
@@ -208,6 +219,7 @@ export function SignInForm() {
                   name="password"
                   placeholder="Password"
                   autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 dark:bg-white/5"
                   required
                 />
                 {flow === "signUp" && (
@@ -218,47 +230,52 @@ export function SignInForm() {
               </Field>
             </FieldGroup>
 
-            <Button type="submit" size="lg" className="w-full" disabled={submitting || isLoading}>
+            <Button
+              type="submit"
+              size="lg"
+              className="h-11 w-full rounded-xl bg-sky-500 text-base font-semibold text-slate-950 hover:bg-sky-400"
+              disabled={submitting || isLoading}
+            >
               {submitting ? <Spinner data-icon="inline-start" /> : null}
               {submitLabel}
             </Button>
           </form>
 
-          <FieldSeparator>Or continue with</FieldSeparator>
+          <FieldSeparator className="text-sm [&_[data-slot=field-separator-content]]:bg-transparent [&_[data-slot=field-separator-content]]:px-0 [&_[data-slot=field-separator-content]]:text-muted-foreground">
+            Or continue with
+          </FieldSeparator>
 
           <div className="flex flex-col gap-3">
             <Button
               type="button"
-              variant="outline"
               size="lg"
-              className="w-full"
+              className="h-11 w-full rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
               onClick={() => handleProviderSignIn("github", "GitHub")}
               disabled={submitting}
             >
-              <GithubIcon data-icon="inline-start" />
+              <GitBranchIcon data-icon="inline-start" />
               GitHub
             </Button>
             <Button
               type="button"
-              variant="outline"
               size="lg"
-              className="w-full"
+              className="h-11 w-full rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
               onClick={() => handleProviderSignIn("google", "Google")}
               disabled={submitting}
             >
-              <ChromeIcon data-icon="inline-start" />
+              <GlobeIcon data-icon="inline-start" />
               Google
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="w-full"
+              className="h-10 w-full rounded-xl text-white/80 hover:bg-white/5 hover:text-white"
               onClick={() => void handleAnonymousSignIn()}
               disabled={submitting}
             >
               <UserRoundIcon data-icon="inline-start" />
-              Continue as guest
+              Continue as guest (no saved decks)
             </Button>
           </div>
         </CardContent>

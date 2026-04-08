@@ -1,7 +1,13 @@
 import { auth } from "./auth";
 import router from "./router";
 import { smartAnalyzeImage } from "./vision";
-import { backfillNextcloudHttp, discordModerateHttp, discordQueueHttp, ingestExternalHttp } from "./images";
+import {
+  backfillNextcloudHttp,
+  discordModerateHttp,
+  discordQueueHttp,
+  ingestExternalHttp,
+  quarantineBrokenNextcloudHttp,
+} from "./images";
 
 const http = router;
 
@@ -21,6 +27,12 @@ http.route({
   path: "/admin/backfillNextcloud",
   method: "POST",
   handler: backfillNextcloudHttp,
+});
+
+http.route({
+  path: "/admin/quarantineBrokenNextcloud",
+  method: "POST",
+  handler: quarantineBrokenNextcloudHttp,
 });
 
 http.route({

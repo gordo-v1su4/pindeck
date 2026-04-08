@@ -6,7 +6,7 @@ import { PlusIcon, TrashIcon, Pencil1Icon, EyeOpenIcon, BookmarkIcon, Cross2Icon
 import { CreateBoardModal } from "./CreateBoardModal";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
-import { getCardImageUrl } from "../lib/imageUrls";
+import { SmartImage } from "./SmartImage";
 
 export function BoardsView({
   setActiveTab,
@@ -142,8 +142,9 @@ export function BoardsView({
                 className="break-inside-avoid group cursor-pointer relative"
               >
                 <Box className="relative overflow-hidden aspect-video bg-gray-900 rounded-lg">
-                  <img
-                    src={getCardImageUrl(image)}
+                  <SmartImage
+                    image={image}
+                    variant="card"
                     alt={image.title}
                     className="w-full h-full object-cover"
                     loading="lazy"
@@ -238,7 +239,12 @@ export function BoardsView({
                   <Flex gap="1" className="mb-3 overflow-hidden rounded-lg">
                     {previewUrls.map((url, i) => (
                       <Box key={i} className="flex-1 min-w-0 aspect-square bg-gray-4">
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <img
+                          src={url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
                       </Box>
                     ))}
                   </Flex>

@@ -1,0 +1,321 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Pindeck API",
+    "description": "HTTP API for Pindeck — AI-powered image gallery and generation platform. These endpoints are exposed via Convex HTTP actions.",
+    "version": "1.0.0",
+    "contact": {
+      "email": "support@pindeck.v1siu4.dev"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://tremendous-jaguar-953.convex.site",
+      "description": "Production Convex deployment"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key set in the INGEST_API_KEY Convex environment variable"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/smartAnalyzeImage": {
+      "post": {
+        "summary": "Analyze image with AI vision",
+        "description": "Uses an OpenRouter VLM (vision-language model) to analyze an image. Returns structured analysis including description, tags, colors, and suggested categories.",
+        "operationId": "smartAnalyzeImage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["storageId"],
+                "properties": {
+                  "storageId": {
+                    "type": "string",
+                    "description": "Convex storage ID of the image to analyze"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Analysis complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                      "description": "AI-generated description of the image"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Suggested tags for the image"
+                    },
+                    "colors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Extracted hex color values"
+                    },
+                    "category": {
+                      "type": "string",
+                      "description": "Suggested category classification"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing API key"
+          },
+          "500": {
+            "description": "Analysis failed — VLM error or image not found"
+          }
+        }
+      }
+    },
+    "/ingestExternal": {
+      "post": {
+        "summary": "Ingest external image",
+        "description": "Accept an image from an external source (e.g., Discord bot) and store it in Pindeck. The image is saved to Convex storage and a record is created with the specified metadata.",
+        "operationId": "ingestExternal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["imageUrl", "sourceType"],
+                "properties": {
+                  "imageUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL of the image to ingest"
+                  },
+                  "sourceType": {
+                    "type": "string",
+                    "enum": ["upload", "discord", "pinterest", "ai"],
+                    "description": "Origin of the image"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Title for the image record"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the image"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Tags to assign"
+                  },
+                  "category": {
+                    "type": "string",
+                    "description": "Category classification"
+                  },
+                  "sourceUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Original source URL of the image"
+                  },
+                  "externalId": {
+                    "type": "string",
+                    "description": "External identifier for deduplication"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Image ingested successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "imageId": {
+                      "type": "string",
+                      "description": "ID of the created image record"
+                    },
+                    "storageId": {
+                      "type": "string",
+                      "description": "Convex storage ID for the uploaded file"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing API key"
+          },
+          "400": {
+            "description": "Bad request — missing required fields or invalid image URL"
+          }
+        }
+      }
+    },
+    "/discordQueue": {
+      "post": {
+        "summary": "Queue Discord image for moderation",
+        "description": "Add a Discord-sourced image to the moderation queue. The image will not appear in the public gallery until it is approved via the /discordModerate endpoint.",
+        "operationId": "discordQueue",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["imageUrl", "discordUserId", "discordUsername"],
+                "properties": {
+                  "imageUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL of the Discord image attachment"
+                  },
+                  "discordUserId": {
+                    "type": "string",
+                    "description": "Discord user ID of the person who triggered the ingest"
+                  },
+                  "discordUsername": {
+                    "type": "string",
+                    "description": "Discord username of the person who triggered the ingest"
+                  },
+                  "discordChannelId": {
+                    "type": "string",
+                    "description": "Discord channel ID where the image was shared"
+                  },
+                  "discordMessageId": {
+                    "type": "string",
+                    "description": "Discord message ID for reference"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Optional title for the image"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Image queued for moderation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "imageId": {
+                      "type": "string",
+                      "description": "ID of the created image record (pending moderation)"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["queued"],
+                      "description": "Confirmation that the image is in the moderation queue"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing API key"
+          },
+          "400": {
+            "description": "Bad request — missing required fields"
+          }
+        }
+      }
+    },
+    "/discordModerate": {
+      "post": {
+        "summary": "Moderate queued Discord image",
+        "description": "Approve or reject a Discord image that is currently in the moderation queue. Approved images become visible in the gallery; rejected images are removed.",
+        "operationId": "discordModerate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["imageId", "action"],
+                "properties": {
+                  "imageId": {
+                    "type": "string",
+                    "description": "ID of the image to moderate"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": ["approve", "reject"],
+                    "description": "Moderation decision — approve to publish, reject to remove"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Optional reason for the moderation decision"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Moderation action completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "imageId": {
+                      "type": "string",
+                      "description": "ID of the moderated image"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": ["approved", "rejected"],
+                      "description": "Resulting status of the image"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing API key"
+          },
+          "404": {
+            "description": "Image not found or not in moderation queue"
+          }
+        }
+      }
+    }
+  }
+}

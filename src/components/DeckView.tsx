@@ -25,6 +25,7 @@ export function DeckView({
   onSelectDeck: (deckId: Id<"decks"> | null) => void;
 }) {
   const decks = useQuery(api.decks.list);
+  const loggedInUser = useQuery(api.auth.loggedInUser);
 
   useEffect(() => {
     if (!selectedDeckId && decks && decks.length > 0) {
@@ -49,11 +50,25 @@ export function DeckView({
       <div className="w-full">
         <Card className="border-white/10 bg-[#050505] text-white shadow-[0_30px_120px_rgba(0,0,0,0.34)]">
           <CardHeader>
-            <CardTitle>Deck</CardTitle>
-            <CardDescription className="text-white/55">No decks yet.</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle>Deck</CardTitle>
+                <CardDescription className="text-white/55">No decks yet.</CardDescription>
+              </div>
+              {loggedInUser?.isAnonymous ? (
+                <Badge className="border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-300 hover:bg-amber-400/10">
+                  Guest session
+                </Badge>
+              ) : null}
+            </div>
           </CardHeader>
-          <CardContent className="text-sm text-white/55">
-            Go to Boards and click "Convert to Deck" after selecting images.
+          <CardContent className="space-y-3 text-sm text-white/55">
+            {loggedInUser?.isAnonymous ? (
+              <p>
+                You are signed in as a guest. Saved production decks belong to your email account, so this temporary session will look empty.
+              </p>
+            ) : null}
+            <p>Go to Boards and click "Convert to Deck" after selecting images.</p>
           </CardContent>
         </Card>
       </div>

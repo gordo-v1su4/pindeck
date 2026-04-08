@@ -109,6 +109,30 @@ function pickBackfillSourceUrl(image: any): string | undefined {
   return undefined;
 }
 
+function hasCollapsedNextcloudVariants(image: any): boolean {
+  if (!image?.storagePath || image?.storageProvider !== "nextcloud") {
+    return false;
+  }
+
+  const derivativePaths = image?.derivativeStoragePaths;
+  const derivativeUrls = image?.derivativeUrls;
+  if (!derivativePaths || !derivativeUrls) {
+    return true;
+  }
+
+  const collapsedPaths =
+    derivativePaths.small === image.storagePath &&
+    derivativePaths.medium === image.storagePath &&
+    derivativePaths.large === image.storagePath;
+
+  const collapsedUrls =
+    derivativeUrls.small === image.imageUrl &&
+    derivativeUrls.medium === image.imageUrl &&
+    derivativeUrls.large === image.imageUrl;
+
+  return collapsedPaths || collapsedUrls;
+}
+
 function mapImageForDisplay<T extends Record<string, any>>(image: T): T {
   return image;
 }
@@ -1673,12 +1697,14 @@ export const internalUpdateAnalysis = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const existingImage = await ctx.db.get("images", args.imageId);
+    const shouldPreserveExistingColors =
+      !!existingImage?.colors?.length &&
+      (existingImage?.sourceType === "upload" ||
+        existingImage?.sourceType === "discord" ||
+        existingImage?.sourceType === "pinterest");
     const patch: any = {
       description: args.description,
-      colors:
-        existingImage?.sourceType === "discord" && existingImage.colors && existingImage.colors.length > 0
-          ? existingImage.colors
-          : args.colors,
+      colors: shouldPreserveExistingColors ? existingImage.colors : args.colors,
     };
     const shouldSyncProjectName =
       existingImage?.sourceType === "upload" ||
@@ -1795,11 +1821,13 @@ export const internalListBackfillCandidates = internalQuery({
     return images.map((image) => ({
       _id: image._id,
       title: image.title,
+      status: image.status,
       imageUrl: image.imageUrl,
       previewUrl: image.previewUrl,
       derivativeUrls: image.derivativeUrls,
       sourceUrl: image.sourceUrl,
       sourceType: image.sourceType,
+      storageProvider: image.storageProvider,
       storagePath: image.storagePath,
       previewStoragePath: image.previewStoragePath,
       derivativeStoragePaths: image.derivativeStoragePaths,
@@ -1854,6 +1882,134 @@ export const backfillNextcloudFailedUploads = mutation({
     }
 
     return { scheduled };
+  },
+});
+
+export const quarantineBrokenNextcloudImages = mutation({
+  args: {
+    limit: v.optional(v.number()),
+    dryRun: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    scanned: v.number(),
+    quarantined: v.number(),
+    dryRun: v.boolean(),
+    results: v.array(
+      v.object({
+        imageId: v.id("images"),
+        title: v.string(),
+        status: v.string(),
+      })
+    ),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const limit = Math.max(1, Math.min(args.limit ?? 200, 1000));
+    const dryRun = Boolean(args.dryRun);
+    const images = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .order("desc")
+      .take(limit);
+
+    const brokenImages = images.filter(
+      (image) =>
+        (image.status === "active" || image.status === undefined) &&
+        hasCollapsedNextcloudVariants(image)
+    );
+
+    if (!dryRun) {
+      for (const image of brokenImages) {
+        await ctx.db.patch(image._id, {
+          status: "broken",
+          nextcloudPersistError:
+            image.nextcloudPersistError ||
+            "Quarantined because derivative URLs collapsed to the original Nextcloud asset.",
+        });
+      }
+    }
+
+    return {
+      scanned: images.length,
+      quarantined: brokenImages.length,
+      dryRun,
+      results: brokenImages.slice(0, 100).map((image) => ({
+        imageId: image._id,
+        title: image.title,
+        status: dryRun ? "would-quarantine" : "quarantined",
+      })),
+    };
+  },
+});
+
+export const quarantineBrokenNextcloudHttp = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const apiKey = process.env.INGEST_API_KEY;
+  const token = readBearerToken(request);
+  if (!apiKey || token !== apiKey) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const limit = Math.max(1, Math.min(Number(body?.limit ?? 200), 1000));
+  const dryRun = Boolean(body?.dryRun);
+  const images = await ctx.runQuery((internal as any).images.internalListBackfillCandidates, {
+    limit,
+  });
+
+  const brokenImages = images.filter(
+    (image: any) =>
+      (image.status === "active" || image.status === undefined) &&
+      hasCollapsedNextcloudVariants(image)
+  );
+
+  if (!dryRun) {
+    for (const image of brokenImages) {
+      await ctx.runMutation((internal as any).images.internalQuarantineBrokenImage, {
+        imageId: image._id,
+      });
+    }
+  }
+
+  return new Response(
+    JSON.stringify({
+      scanned: images.length,
+      quarantined: brokenImages.length,
+      dryRun,
+      results: brokenImages.slice(0, 100).map((image: any) => ({
+        imageId: image._id,
+        title: image.title,
+        status: dryRun ? "would-quarantine" : "quarantined",
+      })),
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+});
+
+export const internalQuarantineBrokenImage = internalMutation({
+  args: {
+    imageId: v.id("images"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const image = await ctx.db.get(args.imageId);
+    if (!image) return null;
+
+    await ctx.db.patch(args.imageId, {
+      status: "broken",
+      nextcloudPersistError:
+        image.nextcloudPersistError ||
+        "Quarantined because derivative URLs collapsed to the original Nextcloud asset.",
+    });
+    return null;
   },
 });
 
