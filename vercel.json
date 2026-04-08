@@ -6,46 +6,6 @@
   "devCommand": "bun run dev:frontend",
   "rewrites": [
     {
-      "source": "/docs/_mintlify/:path*",
-      "destination": "https://v1su4.mintlify.app/docs/_mintlify/:path*"
-    },
-    {
-      "source": "/docs/api/request",
-      "destination": "https://v1su4.mintlify.app/docs/_mintlify/api/request"
-    },
-    {
-      "source": "/docs",
-      "destination": "https://v1su4.mintlify.app/docs"
-    },
-    {
-      "source": "/docs/llms.txt",
-      "destination": "https://v1su4.mintlify.app/docs/llms.txt"
-    },
-    {
-      "source": "/docs/llms-full.txt",
-      "destination": "https://v1su4.mintlify.app/docs/llms-full.txt"
-    },
-    {
-      "source": "/docs/sitemap.xml",
-      "destination": "https://v1su4.mintlify.app/docs/sitemap.xml"
-    },
-    {
-      "source": "/docs/robots.txt",
-      "destination": "https://v1su4.mintlify.app/docs/robots.txt"
-    },
-    {
-      "source": "/docs/mcp",
-      "destination": "https://v1su4.mintlify.app/docs/mcp"
-    },
-    {
-      "source": "/docs/:path*",
-      "destination": "https://v1su4.mintlify.app/docs/:path*"
-    },
-    {
-      "source": "/mintlify-assets/:path+",
-      "destination": "https://v1su4.mintlify.app/mintlify-assets/:path+"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
