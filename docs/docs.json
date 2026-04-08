@@ -64,7 +64,7 @@
       "anchors": [
         {
           "anchor": "Pindeck",
-          "href": "https://pindeck.v1siu4.dev",
+          "href": "https://www.pindeck.dev",
           "icon": "grid-art"
         },
         {
@@ -83,13 +83,13 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:support@pindeck.v1siu4.dev"
+        "href": "mailto:support@pindeck.dev"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Open Pindeck",
-      "href": "https://pindeck.v1siu4.dev"
+      "href": "https://www.pindeck.dev"
     }
   },
   "contextual": {

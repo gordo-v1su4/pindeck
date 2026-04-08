@@ -5,7 +5,7 @@
     "description": "HTTP API for Pindeck — AI-powered image gallery and generation platform. These endpoints are exposed via Convex HTTP actions.",
     "version": "1.0.0",
     "contact": {
-      "email": "support@pindeck.v1siu4.dev"
+      "email": "support@pindeck.dev"
     }
   },
   "servers": [
