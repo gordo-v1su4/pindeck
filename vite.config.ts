@@ -56,6 +56,7 @@ window.addEventListener('message', async (message) => {
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "colorthief": path.resolve(__dirname, "./node_modules/colorthief/dist/index.browser.cjs"),
     },
   },
   build: {
