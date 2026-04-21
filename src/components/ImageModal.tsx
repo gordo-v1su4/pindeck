@@ -11,7 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { SmartImage } from "./SmartImage";
-import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
+import {
+  compactImageTagClass,
+  getPaletteTagStyle,
+  sortColorsDarkToLight,
+} from "../lib/utils";
 
 const copyToClipboard = (text: string, label: string) => {
   navigator.clipboard.writeText(text);
@@ -251,9 +255,9 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                     <ThemeBadge
                       key={i}
                       variant="soft"
-                      color={getTagColor(tag)}
                       size="1"
-                      className="cursor-pointer rounded-[3px] px-1.5 text-[10px] tracking-[0.02em]"
+                      className={`${compactImageTagClass} cursor-pointer`}
+                      style={getPaletteTagStyle(image.colors, i, Math.min(image.tags.length, 12))}
                       onClick={() => copyToClipboard(tag, 'Tag')}
                     >
                       {tag}

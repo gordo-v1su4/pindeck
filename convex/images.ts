@@ -1349,7 +1349,7 @@ export const uploadMultiple = mutation({
           category: upload.category,
           source: upload.source,
           sref: upload.sref,
-          colors: upload.colors,
+          colors: [],
           group: upload.group,
           projectName: upload.projectName,
           moodboardName: upload.moodboardName,
@@ -1584,6 +1584,17 @@ export const approveImage = mutation({
       status: nextStatus,
       aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
     });
+
+    if (!image.colors || image.colors.length === 0) {
+      await ctx.scheduler.runAfter(
+        0,
+        (internalApi as any).colorExtraction.internalExtractAndStoreColors,
+        {
+          imageId: image._id,
+          imageUrl: image.derivativeUrls?.large || image.imageUrl,
+        }
+      );
+    }
 
     if (shouldRunDiscordAnalysis) {
       await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
@@ -2189,7 +2200,7 @@ export const internalSaveGeneratedImages = internalMutation({
         // Inherit metadata from original (which might have been updated by analysis)
         category: originalImage.category,
         tags: [...originalImage.tags, "generated", "variation"],
-        colors: originalImage.colors || [], // Inherit parent's colors (from Qwen VL analysis)
+        colors: [],
         uploadedBy: originalImage.uploadedBy,
         likes: 0,
         views: 0,
@@ -2209,6 +2220,15 @@ export const internalSaveGeneratedImages = internalMutation({
         status: "pending",
         uploadedAt: Date.now(),
       });
+
+      await ctx.scheduler.runAfter(
+        0,
+        (internalApi as any).colorExtraction.internalExtractAndStoreColors,
+        {
+          imageId: childImageId,
+          imageUrl: img.derivativeUrls?.large || img.url,
+        }
+      );
 
       if (discordLineage) {
         try {

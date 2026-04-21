@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { extractColorsFromImage } from "../lib/colorExtraction";
-import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
+import {
+  compactImageTagClass,
+  getPaletteTagStyle,
+  sortColorsDarkToLight,
+} from "../lib/utils";
 import {
   Card,
   Text,
@@ -169,26 +172,6 @@ export function ImageUploadForm() {
     }));
 
     setFiles(prev => [...prev, ...newUploadFiles]);
-
-    // Extract colors asynchronously
-    try {
-      const filesWithColors = await Promise.all(newUploadFiles.map(async (fileObj) => {
-        try {
-          const colors = await extractColorsFromImage(fileObj.preview);
-          return { ...fileObj, colors };
-        } catch (e) {
-          console.error("Color extraction failed for", fileObj.file.name, e);
-          return fileObj;
-        }
-      }));
-
-      setFiles(prev => prev.map(f => {
-        const updated = filesWithColors.find(fwc => fwc.id === f.id);
-        return updated || f;
-      }));
-    } catch (e) {
-      console.error("Error in color extraction process", e);
-    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -365,7 +348,6 @@ export function ImageUploadForm() {
           category: file.category,
           source: file.source || undefined,
           sref: file.sref || undefined,
-          colors: file.colors,
           group: file.group || undefined,
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
@@ -398,13 +380,6 @@ export function ImageUploadForm() {
 
   const handleApprove = async (imageId: Id<"images">) => {
     try {
-      const pendingImage = pendingImages?.find((img) => img._id === imageId);
-      if (pendingImage?.sourceType === "discord" && pendingImage.imageUrl) {
-        const extractedColors = await extractColorsFromImage(pendingImage.imageUrl);
-        if (extractedColors.length > 0) {
-          await updateImageMetadataMutation({ imageId, colors: extractedColors });
-        }
-      }
       await approveImage({ imageId });
       toast.success("Image approved and added to your review queue!");
     } catch (error) {
@@ -1007,12 +982,18 @@ export function ImageUploadForm() {
                       </Flex>
 
                       <Flex gap="1" wrap="wrap" className="mb-2">
-                        {file.tags.map((tag) => (
-                          <Badge key={tag} variant="soft" size="1" color={getTagColor(tag)}>
+                        {file.tags.map((tag, index) => (
+                          <Badge
+                            key={tag}
+                            variant="soft"
+                            size="1"
+                            className={compactImageTagClass}
+                            style={getPaletteTagStyle(file.colors, index, file.tags.length)}
+                          >
                             {tag}
                             <button
                               onClick={() => removeTag(file.id, tag)}
-                              className="ml-1 hover:text-red-600"
+                              className="ml-1 text-current/70 transition-colors hover:text-current"
                             >
                               <Cross2Icon width="10" height="10" />
                             </button>
@@ -1341,14 +1322,11 @@ export function ImageUploadForm() {
                       <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
                       <Select.Content>
                         <Select.Item value="none">None</Select.Item>
-                        <Select.Item value="Commercial">Commercial</Select.Item>
-                        <Select.Item value="Film">Film</Select.Item>
-                        <Select.Item value="Moodboard">Moodboard</Select.Item>
-                        <Select.Item value="Spec Commercial">Spec Commercial</Select.Item>
-                        <Select.Item value="Spec Music Video">Spec Music Video</Select.Item>
-                        <Select.Item value="Music Video">Music Video</Select.Item>
-                        <Select.Item value="TV">TV</Select.Item>
-                        <Select.Item value="Other">Other</Select.Item>
+                        {(groups || []).map((group) => (
+                          <Select.Item key={group} value={group}>
+                            {group}
+                          </Select.Item>
+                        ))}
                       </Select.Content>
                     </Select.Root>
 
@@ -1406,12 +1384,18 @@ export function ImageUploadForm() {
                       </Flex>
 
                       <Flex gap="1" wrap="wrap" className="mb-2">
-                        {image.tags.map((tag) => (
-                          <Badge key={tag} variant="soft" size="1" color={getTagColor(tag)}>
+                        {image.tags.map((tag, index) => (
+                          <Badge
+                            key={tag}
+                            variant="soft"
+                            size="1"
+                            className={compactImageTagClass}
+                            style={getPaletteTagStyle(image.colors, index, image.tags.length)}
+                          >
                             {tag}
                             <button
                               onClick={() => void removeTagFromDraft(image._id, tag)}
-                              className="ml-1 hover:text-red-600"
+                              className="ml-1 text-current/70 transition-colors hover:text-current"
                             >
                               <Cross2Icon width="10" height="10" />
                             </button>

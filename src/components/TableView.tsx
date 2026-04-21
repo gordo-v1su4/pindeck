@@ -41,7 +41,11 @@ import { EditImageModal } from "./EditImageModal";
 import { GenerateVariationsModal } from "./GenerateVariationsModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import { getTagColor, sortColorsDarkToLight } from "../lib/utils";
+import {
+  compactImageTagClass,
+  getPaletteTagStyle,
+  sortColorsDarkToLight,
+} from "../lib/utils";
 import { SmartImage } from "./SmartImage";
 
 interface Image {
@@ -187,15 +191,27 @@ export function TableView() {
         header: "Tags",
         cell: ({ row }) => {
           const tags = row.original.tags ?? [];
+          const palette = row.original.colors ?? [];
           return (
             <Flex gap="1" wrap="wrap">
-              {tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="soft" color={getTagColor(tag)} size="1">
+              {tags.slice(0, 3).map((tag, index) => (
+                <Badge
+                  key={tag}
+                  variant="soft"
+                  size="1"
+                  className={compactImageTagClass}
+                  style={getPaletteTagStyle(palette, index, Math.min(tags.length, 3))}
+                >
                   {tag}
                 </Badge>
               ))}
               {tags.length > 3 && (
-                <Badge variant="soft" color="gray" size="1">
+                <Badge
+                  variant="soft"
+                  color="gray"
+                  size="1"
+                  className={compactImageTagClass}
+                >
                   +{tags.length - 3}
                 </Badge>
               )}

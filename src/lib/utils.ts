@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -66,4 +67,80 @@ export function sortColorsDarkToLight(colors: string[]): string[] {
     .filter((color) => /^#?[0-9A-Fa-f]{6}$/.test(color))
     .map((color) => (color.startsWith("#") ? color : `#${color}`))
     .sort((colorA, colorB) => getBrightness(colorA) - getBrightness(colorB));
+}
+
+export const compactImageTagClass =
+  "h-5 rounded-[4px] border px-1.5 text-[10px] font-medium leading-none tracking-[0.01em]";
+
+function withAlpha(hex: string, alpha: number): string {
+  const boundedAlpha = Math.max(0, Math.min(1, alpha));
+  const alphaHex = Math.round(boundedAlpha * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `${hex}${alphaHex}`;
+}
+
+function mixHex(hex: string, targetHex: string, amount: number): string {
+  const sourceRgb = hexToRgb(hex);
+  const targetRgb = hexToRgb(targetHex);
+  if (!sourceRgb || !targetRgb) return hex;
+
+  const clampedAmount = Math.max(0, Math.min(1, amount));
+  const mixed = sourceRgb.map((channel, index) =>
+    Math.round(channel + (targetRgb[index] - channel) * clampedAmount)
+  ) as [number, number, number];
+
+  return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function blendHex(sourceHex: string, targetHex: string, amount: number): string {
+  const sourceRgb = hexToRgb(sourceHex);
+  const targetRgb = hexToRgb(targetHex);
+  if (!sourceRgb || !targetRgb) return sourceHex;
+
+  const clampedAmount = Math.max(0, Math.min(1, amount));
+  const blended = sourceRgb.map((channel, index) =>
+    Math.round(channel + (targetRgb[index] - channel) * clampedAmount)
+  ) as [number, number, number];
+
+  return `#${blended.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+export function getPaletteTagColor(
+  colors: string[] | undefined,
+  index: number,
+  totalCount = 1
+): string {
+  const palette = sortColorsDarkToLight(colors ?? []);
+  if (palette.length === 0) return "#6b7280";
+  if (palette.length === 1) return palette[0];
+
+  const safeTotalCount = Math.max(totalCount, 1);
+  const normalizedPosition =
+    safeTotalCount === 1 ? 0 : Math.max(0, Math.min(1, index / (safeTotalCount - 1)));
+  const palettePosition = normalizedPosition * (palette.length - 1);
+  const lowerIndex = Math.floor(palettePosition);
+  const upperIndex = Math.min(lowerIndex + 1, palette.length - 1);
+  const blendAmount = palettePosition - lowerIndex;
+
+  return blendHex(palette[lowerIndex], palette[upperIndex], blendAmount);
+}
+
+export function getPaletteTagStyle(
+  colors: string[] | undefined,
+  index: number,
+  totalCount = 1
+): CSSProperties {
+  const accent = getPaletteTagColor(colors, index, totalCount);
+  const brightness = getBrightness(accent);
+  const isLightAccent = brightness > 0.66;
+  const textColor = isLightAccent
+    ? mixHex(accent, "#111111", 0.5)
+    : mixHex(accent, "#ffffff", 0.22);
+
+  return {
+    backgroundColor: withAlpha(accent, isLightAccent ? 0.14 : 0.18),
+    borderColor: withAlpha(accent, isLightAccent ? 0.3 : 0.4),
+    color: textColor,
+  };
 }
