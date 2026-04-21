@@ -1397,7 +1397,7 @@ export function ImageUploadForm() {
                           AI Analysis Failed
                         </Badge>
                         <Text size="1" color="gray">
-                          Check console logs or ensure OPEN_ROUTER_KEY and FAL_KEY are set in Convex environment variables.
+                          Check Convex logs for the exact failure. This can be caused by AI provider config or downstream media persistence errors.
                         </Text>
                         <Button
                           color="orange"

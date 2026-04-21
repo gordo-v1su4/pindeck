@@ -41,8 +41,6 @@ type UploadedImage = {
   };
 };
 
-const DEFAULT_NEXTCLOUD_PUBLIC_SHARE_TOKEN = "afc53c40a68aade";
-const DEFAULT_NEXTCLOUD_UPLOAD_SHARE_TOKEN = "403341357a556f5";
 
 function normalizePath(path: string): string {
   return path
@@ -106,9 +104,7 @@ function getNextcloudConfig(): NextcloudConfig {
 function getNextcloudPublicShareConfig(
   config: NextcloudConfig
 ): NextcloudPublicShareConfig | null {
-  const token =
-    process.env.NEXTCLOUD_PUBLIC_SHARE_TOKEN?.trim() ||
-    DEFAULT_NEXTCLOUD_PUBLIC_SHARE_TOKEN;
+  const token = process.env.NEXTCLOUD_PUBLIC_SHARE_TOKEN?.trim();
   if (!token) {
     return null;
   }
@@ -125,10 +121,13 @@ function getNextcloudPublicShareConfig(
 }
 
 function getNextcloudUploadShareToken(): string {
-  return (
-    process.env.NEXTCLOUD_UPLOAD_SHARE_TOKEN?.trim() ||
-    DEFAULT_NEXTCLOUD_UPLOAD_SHARE_TOKEN
-  );
+  const token = process.env.NEXTCLOUD_UPLOAD_SHARE_TOKEN?.trim();
+  if (!token) {
+    throw new Error(
+      "Missing NEXTCLOUD_UPLOAD_SHARE_TOKEN while using shared-folder Nextcloud uploads"
+    );
+  }
+  return token;
 }
 
 function getMediaGatewayConfig(): MediaGatewayConfig | null {

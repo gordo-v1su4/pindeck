@@ -73,14 +73,17 @@ New Discord-sourced images enter the moderation queue:
 The Discord bot runs on a Hostinger VPS:
 
 - **Hostname**: `srv1353991`
+- **Public IP**: `187.77.8.227`
 - **Tailscale IP**: `100.105.199.93`
-- **User**: `gordo-v1su4`
+- **User**: `root`
 
-Connect via Tailscale SSH:
+Connect via SSH:
 
 ```bash
-ssh gordo-v1su4@100.105.199.93
+ssh root@187.77.8.227
 ```
+
+Tailscale SSH can still be used as a fallback operator path, but the normal deploy workflow now uses direct SSH to the public IP.
 
 <Warning>
 Do not treat `services/discord-bot` in the Pindeck repo as the deployment source. Always use the separate `discord-bot` repository.

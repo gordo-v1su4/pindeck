@@ -1,0 +1,50 @@
+4/20/2026, 8:57:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: createAccountFromCredentials'
+4/20/2026, 8:57:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+4/20/2026, 8:57:39 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+4/20/2026, 8:58:14 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+4/20/2026, 8:58:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+4/20/2026, 8:58:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+4/20/2026, 8:58:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+4/20/2026, 8:58:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+4/20/2026, 8:59:41 PM [CONVEX A(mediaStorage:finalizeUploadedImage)] [ERROR] 'Failed to finalize upload in Nextcloud' Error: Media gateway process-image failed (500) for httpss-mj-runehquw2ghsic-music-video-rooftop-hideout-on-top-of-26374ad7-53de-4ab4-a5da-fe5fa3ea2-mo7x25p4-kyydek: {"error":"MKCOL failed (401): <?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\NotAuthenticated</s:exception>\n  <s:message>No public access to this"}
+    at processImageViaMediaGateway (convex:/user/mediaStorage.js:1784:11)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async persistImageBuffer (convex:/user/mediaStorage.js:1917:12)
+    at async handler (convex:/user/mediaStorage.js:2109:32)
+    at async invokeFunction (convex:/user/mediaStorage.js:1224:9)
+    at async invokeAction (convex:/user/mediaStorage.js:1284:10)
+    at async executeInner (bundledFunctions.js:36825:17)
+    at async execute (bundledFunctions.js:36768:19)
+    at bundledFunctions.js:36724:21
+    at bundledFunctions.js:36721:14
+4/20/2026, 8:59:56 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen Plan] image=k17d213gpdf2hcgqnb7mr2rw1s859jya mode=action-shot count=1 prompts=["Dramatic action or performing moment. Same person."]'
+4/20/2026, 8:59:56 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen 1/1] Mode: action-shot, Prompt: "Dramatic action or performing moment. Same person."'
+4/20/2026, 9:00:37 PM [CONVEX A(vision:internalGenerateRelatedImages)] [WARN] 'Failed to persist generated image 1: Media gateway process-image failed (500) for httpss-mj-runehquw2ghsic-music-video-rooftop-hideout-on-top-of-26374ad7-53de-4ab4-a5da-fe5fa3ea2-mo7x3e7k-3q078w: {"error":"MKCOL failed (401): <?xml version=\\"1.0\\" encoding=\\"utf-8\\"?>\\n<d:error xmlns:d=\\"DAV:\\" xmlns:s=\\"http://sabredav.org/ns\\">\\n  <s:exception>Sabre\\\\DAV\\\\Exception\\\\NotAuthenticated</s:exception>\\n  <s:message>No public access to this"}'
+4/20/2026, 9:03:33 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+4/20/2026, 9:41:51 PM [CONVEX A(mediaStorage:persistExternalImageFromUrl)] Uncaught Error: Media gateway process-image failed (500) for https-fxtwitter-com-sergeantsref-status-2046123198044086321-mo7yke40-p3dk3s: {"error":"MKCOL failed (401): <?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\NotAuthenticated</s:exception>\n  <s:message>No public access to this"}
+    at processImageViaMediaGateway (../convex/mediaStorage.ts:448:6)
+    at async persistImageBuffer (../convex/mediaStorage.ts:671:6)
+    at async handler (../convex/mediaStorage.ts:812:6)
+
+4/20/2026, 9:41:51 PM [CONVEX H(POST /ingestExternal)] [ERROR] 'Nextcloud persist failed during external ingest' [Error: Uncaught Error: Media gateway process-image failed (500) for https-fxtwitter-com-sergeantsref-status-2046123198044086321-mo7yke40-p3dk3s: {"error":"MKCOL failed (401): <?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\NotAuthenticated</s:exception>\n  <s:message>No public access to this"}
+    at processImageViaMediaGateway (../convex/mediaStorage.ts:448:6)
+    at async persistImageBuffer (../convex/mediaStorage.ts:671:6)
+    at async handler (../convex/mediaStorage.ts:812:6)
+]
+4/20/2026, 9:42:25 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+4/20/2026, 9:42:50 PM [CONVEX A(vision:internalSmartAnalyzeImage)] [LOG] 'VLM Analysis (qwen/qwen3-vl-8b-instruct):' '{\n  "title": "Neon Sentinel",\n  "description": "A cyberpunk figure stands in a neon-drenched, misty night, gazing at a glowing pagoda against a futuristic cityscape.",\n  "tags": ["cyberpunk", "neon", "futuristic", "pagoda", "night", "tattoo", "urban", "glow", "mood", "asian architecture"],\n  "colors": ["#003366", "#00ff00", "#008080", "#1a1a2e", "#333333"],\n  "category": "Cinematic",\n  "visual_style": "CGI",\n  "group": "Film",\n  "project_name": null,\n  "moodboard_name": null\n}'
+4/20/2026, 9:42:50 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen Plan] image=k17d213gpdf2hcgqnb7mr2rw1s859jya mode=action-shot count=1 prompts=["Later in the scene. Dramatic action or performing moment. Same person."]'
+4/20/2026, 9:42:50 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen 1/1] Mode: action-shot, Prompt: "Later in the scene. Dramatic action or performing moment. Same person."'
+4/20/2026, 9:44:22 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen Plan] image=k17d213gpdf2hcgqnb7mr2rw1s859jya mode=coverage count=2 prompts=["Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image.","Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image."]'
+4/20/2026, 9:44:22 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen 1/2] Mode: coverage, Prompt: "Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image."'
+4/20/2026, 9:44:22 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen 2/2] Mode: coverage, Prompt: "Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image."'
+4/20/2026, 9:45:39 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen Plan] image=k17d213gpdf2hcgqnb7mr2rw1s859jya mode=coverage count=1 prompts=["Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image."]'
+4/20/2026, 9:45:39 PM [CONVEX A(vision:internalGenerateRelatedImages)] [LOG] '[Gen 1/1] Mode: coverage, Prompt: "Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image."'
+4/20/2026, 10:03:24 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+4/20/2026, 10:10:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+4/20/2026, 10:13:46 PM [CONVEX M(boards:addImage)] Uncaught Error: Image already in board
+    at handler (../convex/boards.ts:201:4)
+
+4/20/2026, 10:13:49 PM [CONVEX M(boards:addImage)] Uncaught Error: Image already in board
+    at handler (../convex/boards.ts:201:4)
+
