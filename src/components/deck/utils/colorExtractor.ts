@@ -1,4 +1,4 @@
-import { getPaletteSync } from 'colorthief';
+import { extractColorsFromImage } from '../../../lib/colorExtraction';
 import type { ColorPalette } from '../types';
 
 function rgbToHex(r: number, g: number, b: number): string {
@@ -57,81 +57,58 @@ function toPalette(partial: Omit<ColorPalette, 'dark' | 'light'>): ColorPalette 
 }
 
 export async function extractColors(imageUrl: string): Promise<ColorPalette> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    
-    img.onload = () => {
-      try {
-        const palette = getPaletteSync(img, { colorCount: 6 });
-        
-        if (!palette || palette.length < 3) {
-          throw new Error('Could not extract enough colors');
-        }
+  const hexColors = await extractColorsFromImage(imageUrl);
+  if (!hexColors || hexColors.length < 3) {
+    throw new Error('Could not extract enough colors');
+  }
 
-        // Sort colors by luminance
-        const hexColors = palette.map((color) => color.hex());
-        const sortedByLuminance = [...hexColors].sort((a, b) => getLuminance(a) - getLuminance(b));
+  const sortedByLuminance = [...hexColors].sort((a, b) => getLuminance(a) - getLuminance(b));
 
-        // Pick most vibrant color for accent (highest saturation)
-        const getMostVibrant = (colors: string[]): string => {
-          let maxSaturation = 0;
-          let vibrant = colors[0];
-          
-          colors.forEach(hex => {
-            const rgb = parseInt(hex.replace('#', ''), 16);
-            const r = (rgb >> 16) & 0xff;
-            const g = (rgb >> 8) & 0xff;
-            const b = (rgb >> 0) & 0xff;
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            const saturation = max === 0 ? 0 : (max - min) / max;
-            
-            if (saturation > maxSaturation) {
-              maxSaturation = saturation;
-              vibrant = hex;
-            }
-          });
-          
-          return vibrant;
-        };
+  const getMostVibrant = (colors: string[]): string => {
+    let maxSaturation = 0;
+    let vibrant = colors[0];
 
-        const saturated = [...hexColors].sort(
-          (a, b) => getSaturation(b) - getSaturation(a)
-        );
-        const primary = hexColors[0];
-        const secondary = hexColors[1] || adjustBrightness(primary, 20);
-        const accent = getMostVibrant(saturated);
-        const tertiary = saturated[1] || mix(primary, accent, 0.5);
-        const background = adjustBrightness(sortedByLuminance[0], -32);
-        const surface = mix(background, sortedByLuminance[1] || primary, 0.22);
-        const text = adjustBrightness(sortedByLuminance[sortedByLuminance.length - 1], 12);
-        const muted = mix(text, tertiary, 0.35);
-        const border = mix(accent, text, 0.35);
+    colors.forEach((hex) => {
+      const rgb = parseInt(hex.replace('#', ''), 16);
+      const r = (rgb >> 16) & 0xff;
+      const g = (rgb >> 8) & 0xff;
+      const b = (rgb >> 0) & 0xff;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const saturation = max === 0 ? 0 : (max - min) / max;
 
-        resolve(
-          toPalette({
-            primary,
-            secondary,
-            accent,
-            tertiary,
-            background,
-            surface,
-            text,
-            muted,
-            border,
-          })
-        );
-      } catch (error) {
-        reject(error);
+      if (saturation > maxSaturation) {
+        maxSaturation = saturation;
+        vibrant = hex;
       }
-    };
+    });
 
-    img.onerror = () => {
-      reject(new Error('Failed to load image'));
-    };
+    return vibrant;
+  };
 
-    img.src = imageUrl;
+  const saturated = [...hexColors].sort(
+    (a, b) => getSaturation(b) - getSaturation(a)
+  );
+  const primary = hexColors[0];
+  const secondary = hexColors[1] || adjustBrightness(primary, 20);
+  const accent = getMostVibrant(saturated);
+  const tertiary = saturated[1] || mix(primary, accent, 0.5);
+  const background = adjustBrightness(sortedByLuminance[0], -32);
+  const surface = mix(background, sortedByLuminance[1] || primary, 0.22);
+  const text = adjustBrightness(sortedByLuminance[sortedByLuminance.length - 1], 12);
+  const muted = mix(text, tertiary, 0.35);
+  const border = mix(accent, text, 0.35);
+
+  return toPalette({
+    primary,
+    secondary,
+    accent,
+    tertiary,
+    background,
+    surface,
+    text,
+    muted,
+    border,
   });
 }
 
