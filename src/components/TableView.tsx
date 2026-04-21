@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import {
   compactImageTagClass,
   getPaletteTagStyle,
+  getPaletteSwatchStyle,
   sortColorsDarkToLight,
 } from "../lib/utils";
 import { SmartImage } from "./SmartImage";
@@ -249,8 +250,8 @@ export function TableView() {
               {sortedColors.map((color, index) => (
                 <Box
                   key={index}
-                  className="w-4 h-4 rounded"
-                  style={{ backgroundColor: color }}
+                  className="w-4 h-4 rounded border"
+                  style={getPaletteSwatchStyle(color)}
                   title={color}
                 />
               ))}

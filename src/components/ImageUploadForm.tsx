@@ -5,6 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import {
   compactImageTagClass,
   getPaletteTagStyle,
+  getPaletteSwatchStyle,
   sortColorsDarkToLight,
 } from "../lib/utils";
 import {
@@ -974,8 +975,8 @@ export function ImageUploadForm() {
                         {sortColorsDarkToLight(file.colors || []).map((color) => (
                           <Box
                             key={color}
-                            className="w-4 h-4 rounded-full border border-gray-200"
-                            style={{ backgroundColor: color }}
+                            className="w-4 h-4 rounded-full border"
+                            style={getPaletteSwatchStyle(color)}
                             title={color}
                           />
                         ))}
@@ -1376,8 +1377,8 @@ export function ImageUploadForm() {
                         {image.colors && sortColorsDarkToLight(image.colors).map((color) => (
                           <Box
                             key={color}
-                            className="w-3 h-3 rounded-full border border-gray-200"
-                            style={{ backgroundColor: color }}
+                            className="w-3 h-3 rounded-full border"
+                            style={getPaletteSwatchStyle(color)}
                             title={color}
                           />
                         ))}

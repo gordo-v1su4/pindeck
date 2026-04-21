@@ -120,3 +120,17 @@ export function getPaletteTagStyle(
     color: textColor,
   };
 }
+
+export function getPaletteSwatchStyle(color: string): CSSProperties {
+  const normalized = color.startsWith("#") ? color : `#${color}`;
+  const brightness = getBrightness(normalized);
+  const borderColor =
+    brightness > 0.66
+      ? mixHex(normalized, "#111111", 0.28)
+      : mixHex(normalized, "#ffffff", 0.18);
+
+  return {
+    backgroundColor: normalized,
+    borderColor,
+  };
+}
