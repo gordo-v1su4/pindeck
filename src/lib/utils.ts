@@ -93,19 +93,6 @@ function mixHex(hex: string, targetHex: string, amount: number): string {
   return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function blendHex(sourceHex: string, targetHex: string, amount: number): string {
-  const sourceRgb = hexToRgb(sourceHex);
-  const targetRgb = hexToRgb(targetHex);
-  if (!sourceRgb || !targetRgb) return sourceHex;
-
-  const clampedAmount = Math.max(0, Math.min(1, amount));
-  const blended = sourceRgb.map((channel, index) =>
-    Math.round(channel + (targetRgb[index] - channel) * clampedAmount)
-  ) as [number, number, number];
-
-  return `#${blended.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
-}
-
 export function getPaletteTagColor(
   colors: string[] | undefined,
   index: number,
@@ -113,17 +100,7 @@ export function getPaletteTagColor(
 ): string {
   const palette = sortColorsDarkToLight(colors ?? []);
   if (palette.length === 0) return "#6b7280";
-  if (palette.length === 1) return palette[0];
-
-  const safeTotalCount = Math.max(totalCount, 1);
-  const normalizedPosition =
-    safeTotalCount === 1 ? 0 : Math.max(0, Math.min(1, index / (safeTotalCount - 1)));
-  const palettePosition = normalizedPosition * (palette.length - 1);
-  const lowerIndex = Math.floor(palettePosition);
-  const upperIndex = Math.min(lowerIndex + 1, palette.length - 1);
-  const blendAmount = palettePosition - lowerIndex;
-
-  return blendHex(palette[lowerIndex], palette[upperIndex], blendAmount);
+  return palette[index % palette.length];
 }
 
 export function getPaletteTagStyle(
