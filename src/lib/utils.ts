@@ -70,7 +70,7 @@ export function sortColorsDarkToLight(colors: string[]): string[] {
 }
 
 export const compactImageTagClass =
-  "h-5 rounded-[4px] border px-1.5 text-[10px] font-medium leading-none tracking-[0.01em]";
+  "h-5 rounded-[4px] px-1.5 text-[9px] font-medium leading-none tracking-[0.01em]";
 
 function withAlpha(hex: string, alpha: number): string {
   const boundedAlpha = Math.max(0, Math.min(1, alpha));
@@ -117,7 +117,6 @@ export function getPaletteTagStyle(
 
   return {
     backgroundColor: withAlpha(accent, isLightAccent ? 0.14 : 0.18),
-    borderColor: withAlpha(accent, isLightAccent ? 0.3 : 0.4),
     color: textColor,
   };
 }
