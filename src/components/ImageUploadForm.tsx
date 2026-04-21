@@ -48,6 +48,7 @@ interface UploadFile {
 }
 
 export function ImageUploadForm() {
+  const loggedInUser = useQuery(api.auth.loggedInUser);
   const generateUploadUrl = useMutation(api.images.generateUploadUrl);
   const uploadMultiple = useMutation(api.images.uploadMultiple);
   const categories = useQuery(api.images.getCategories);
@@ -72,6 +73,11 @@ export function ImageUploadForm() {
   const localDraftImages = draftImages || [];
   const discordDraftImages = (draftImages || []).filter((img) => img.sourceType === "discord");
   const discordProcessingImages = (processingImages || []).filter((img) => img.sourceType === "discord");
+  const discordQueueLoaded =
+    loggedInUser !== undefined &&
+    pendingImages !== undefined &&
+    processingImages !== undefined &&
+    draftImages !== undefined;
 
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -525,6 +531,41 @@ export function ImageUploadForm() {
           {activeUploadTab === "discord" && (
             <Box className="mt-6 animate-in fade-in">
               <Separator size="4" className="mb-6" />
+              <Card className="p-4 mb-4">
+                <Flex align="start" justify="between" gap="3" wrap="wrap">
+                  <Box>
+                    <Heading size="3" className="mb-1">Queue Diagnostics</Heading>
+                    <Text size="2" color="gray" className="block">
+                      Signed-in queue owner:{" "}
+                      {loggedInUser === undefined
+                        ? "Loading…"
+                        : loggedInUser
+                          ? (loggedInUser.email || loggedInUser.name || "Authenticated user")
+                          : "Not signed in"}
+                    </Text>
+                    <Text size="2" color="gray" className="block">
+                      User ID: {loggedInUser?._id ?? "Unavailable"}
+                    </Text>
+                    <Text size="2" color="gray" className="block">
+                      Queue query: {discordQueueLoaded ? "Loaded" : "Loading…"}
+                    </Text>
+                  </Box>
+                  <Flex gap="2" wrap="wrap">
+                    <Badge color="blue" variant="soft">
+                      Pending {discordPendingImages.length}
+                    </Badge>
+                    <Badge color="amber" variant="soft">
+                      Processing {discordProcessingImages.length}
+                    </Badge>
+                    <Badge color="green" variant="soft">
+                      Draft {discordDraftImages.length}
+                    </Badge>
+                  </Flex>
+                </Flex>
+                <Text size="2" color="gray" className="block mt-3">
+                  The Discord bot imports into its configured <code>PINDECK_USER_ID</code>. If that bot-side user ID differs from the signed-in user shown here, this queue will stay empty even when ingest succeeds.
+                </Text>
+              </Card>
               <Flex align="center" gap="2" className="mb-4">
                 <ImageIcon width="20" height="20" className="text-blue-500" />
                 <Box>
