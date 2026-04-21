@@ -9,7 +9,7 @@
 // This pipeline REPLACES the VLM "colors" field — the VLM was imagining
 // plausible-looking hexes, which is why swatches never matched the photo.
 
-import { internalAction, internalMutation, mutation } from "./_generated/server";
+import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
@@ -157,68 +157,10 @@ export const internalExtractAndStoreColors = internalAction({
     if (colors.length === 0) return { ok: false, colors: [] };
 
     await ctx.runMutation(
-      (internal as any).colorExtraction.internalSetColors,
+      (internal as any).colorExtractionWrite.internalSetColors,
       { imageId: args.imageId, colors }
     );
     return { ok: true, colors };
   },
 });
 
-export const internalSetColors = internalMutation({
-  args: {
-    imageId: v.id("images"),
-    colors: v.array(v.string()),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await ctx.db.patch("images", args.imageId, { colors: args.colors });
-    return null;
-  },
-});
-
-/**
- * Public mutation to backfill all images (or only ones missing colors).
- * Schedules an individual internal action per image so long runs don't block.
- */
-export const reExtractAll = mutation({
-  args: {
-    onlyMissing: v.optional(v.boolean()),
-  },
-  returns: v.object({ scheduled: v.number() }),
-  handler: async (ctx, args) => {
-    const all = await ctx.db.query("images").collect();
-    let scheduled = 0;
-    for (const img of all) {
-      if (args.onlyMissing && img.colors && img.colors.length > 0) continue;
-      const url = img.derivativeUrls?.large || img.imageUrl;
-      if (!url) continue;
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any).colorExtraction.internalExtractAndStoreColors,
-        { imageId: img._id, imageUrl: url }
-      );
-      scheduled += 1;
-    }
-    return { scheduled };
-  },
-});
-
-/**
- * Public mutation to re-sample colors for a single image.
- */
-export const reExtractForImage = mutation({
-  args: { imageId: v.id("images") },
-  returns: v.object({ scheduled: v.boolean() }),
-  handler: async (ctx, args) => {
-    const img = await ctx.db.get("images", args.imageId);
-    if (!img) return { scheduled: false };
-    const url = img.derivativeUrls?.large || img.imageUrl;
-    if (!url) return { scheduled: false };
-    await ctx.scheduler.runAfter(
-      0,
-      (internal as any).colorExtraction.internalExtractAndStoreColors,
-      { imageId: args.imageId, imageUrl: url }
-    );
-    return { scheduled: true };
-  },
-});
