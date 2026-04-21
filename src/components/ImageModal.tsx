@@ -66,8 +66,8 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
       : image.title;
   }, [image]);
   const detailBadgeClass =
-    "h-6 rounded-md border-white/10 bg-white/[0.04] px-2.5 text-[10px] font-medium uppercase tracking-[0.08em] text-white/70";
-  const sectionLabelClass = "mb-2 block text-[10px] font-medium uppercase tracking-[0.14em] text-white/42";
+    "h-6 rounded-md border-white/10 bg-white/[0.04] px-2.5 text-[11px] font-medium tracking-[0.01em] text-white/72";
+  const sectionLabelClass = "mb-2 block text-[12px] font-medium tracking-[0.01em] text-white/48";
 
   const detailBadges = useMemo(() => {
     const values = [image?.category, image?.group]
@@ -256,7 +256,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                       key={i}
                       variant="soft"
                       size="1"
-                      className={`${compactImageTagClass} cursor-pointer`}
+                      className={`${compactImageTagClass} cursor-pointer border-0`}
                       style={getPaletteTagStyle(image.colors, i, Math.min(image.tags.length, 12))}
                       onClick={() => copyToClipboard(tag, 'Tag')}
                     >
