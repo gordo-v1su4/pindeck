@@ -20,6 +20,12 @@ const selectClassName =
 const labelClassName =
   "mb-1.5 block text-[11px] font-medium uppercase tracking-[0.12em] text-white/52";
 
+const panelClassName =
+  "rounded-[16px] border border-white/8 bg-white/[0.02] p-4 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]";
+
+const sectionTitleClassName =
+  "text-[12px] font-semibold uppercase tracking-[0.16em] text-white/44";
+
 interface EditImageModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,6 +49,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
   const [moodboardName, setMoodboardName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const modalTagPalette = image?.colors?.length ? image.colors : ["#4b5563"];
+  const previewUrl = image?.previewUrl || image?.imageUrl;
 
   // Load image data when modal opens
   useEffect(() => {
@@ -122,191 +129,265 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(95vw,46rem)] max-w-[46rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/92 p-0 text-white supports-backdrop-filter:backdrop-blur-xl">
+      <DialogContent className="w-[min(96vw,58rem)] max-w-[58rem] max-h-[90vh] overflow-y-auto border-white/10 bg-neutral-950/92 p-0 text-white supports-backdrop-filter:backdrop-blur-xl">
         <div className="border-b border-white/8 px-6 py-5">
-          <DialogTitle className="text-[28px] font-semibold tracking-[-0.03em] text-white">
-            Edit Image
-          </DialogTitle>
-          <DialogDescription className="mt-2 max-w-[32rem] text-sm leading-6 text-white/58">
-          Update image metadata, tags, and other information.
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <DialogTitle className="text-[28px] font-semibold tracking-[-0.03em] text-white">
+                Edit Image
+              </DialogTitle>
+              <DialogDescription className="mt-2 max-w-[34rem] text-sm leading-6 text-white/58">
+                Update image metadata, tags, and project details without losing the original visual context.
+              </DialogDescription>
+            </div>
+
+            <div className="hidden shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-white/46 md:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/90" />
+              Metadata Editor
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="space-y-5 px-6 py-5">
-            <div>
-              <label className={labelClassName}>
-                Title *
-              </label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Image title"
-                required
-                className={fieldClassName}
-              />
-            </div>
+          <div className="grid gap-5 px-6 py-5 lg:grid-cols-[minmax(0,1.18fr)_minmax(18rem,0.82fr)]">
+            <div className="space-y-5">
+              <section className={panelClassName}>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <h3 className={sectionTitleClassName}>Core Details</h3>
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-white/32">
+                    Required fields first
+                  </div>
+                </div>
 
-            <div>
-              <label className={labelClassName}>
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Image description"
-                rows={3}
-                className="min-h-[88px] w-full rounded-[8px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm leading-6 text-white outline-none transition-colors placeholder:text-white/32 focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20"
-              />
-            </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClassName}>
+                      Title *
+                    </label>
+                    <Input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Image title"
+                      required
+                      className={fieldClassName}
+                    />
+                  </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClassName}>Type</label>
-                <select
-                  value={group || "none"}
-                  onChange={(e) => setGroup(e.target.value === "none" ? "" : e.target.value)}
-                  className={selectClassName}
-                >
-                  <option value="none">None</option>
-                  {(groups || []).map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
+                  <div>
+                    <label className={labelClassName}>
+                      Description
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Image description"
+                      rows={5}
+                      className="min-h-[132px] w-full rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm leading-6 text-white outline-none transition-colors placeholder:text-white/32 focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className={panelClassName}>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <h3 className={sectionTitleClassName}>Tags</h3>
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-white/32">
+                    Click a tag to remove
+                  </div>
+                </div>
+
+                <div className="mb-3 flex min-h-10 gap-1.5 flex-wrap">
+                  {tags.map((tag, index) => (
+                    <Badge
+                      key={tag}
+                      variant="outline"
+                      className="h-6 cursor-pointer rounded-[6px] border px-2 text-[11px] font-medium"
+                      style={{
+                        backgroundColor: withAlpha(modalTagPalette[index % modalTagPalette.length], "18"),
+                        borderColor: withAlpha(modalTagPalette[index % modalTagPalette.length], "34"),
+                        color: modalTagPalette[index % modalTagPalette.length],
+                      }}
+                      onClick={() => handleRemoveTag(tag)}
+                    >
+                      {tag} <span className="ml-1 text-current/70">x</span>
+                    </Badge>
                   ))}
-                </select>
-              </div>
+                </div>
 
-              <div>
-                <label className={labelClassName}>Genre</label>
-                <select
-                  value={category || "none"}
-                  onChange={(e) => setCategory(e.target.value === "none" ? "" : e.target.value)}
-                  className={selectClassName}
-                >
-                  <option value="none">None</option>
-                  {(categories || []).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className={labelClassName}>
-                Tags
-              </label>
-              <div className="mb-3 flex gap-1.5 flex-wrap">
-                {tags.map((tag) => (
-                  <Badge
-                    key={tag}
+                <div className="flex gap-2">
+                  <Input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Add a tag and press Enter"
+                    className={`flex-1 ${fieldClassName}`}
+                  />
+                  <Button
+                    type="button"
                     variant="outline"
-                    className="h-6 cursor-pointer rounded-[6px] border px-2 text-[11px] font-medium"
-                    style={{
-                      backgroundColor: withAlpha(modalTagPalette[tags.indexOf(tag) % modalTagPalette.length], "18"),
-                      borderColor: withAlpha(modalTagPalette[tags.indexOf(tag) % modalTagPalette.length], "34"),
-                      color: modalTagPalette[tags.indexOf(tag) % modalTagPalette.length],
-                    }}
-                    onClick={() => handleRemoveTag(tag)}
+                    size="sm"
+                    onClick={handleAddTag}
+                    disabled={!tagInput.trim()}
+                    className="border-white/10 bg-white/[0.03] text-white/78 hover:bg-white/[0.07] hover:text-white"
                   >
-                    {tag} <span className="ml-1 text-current/70">x</span>
-                  </Badge>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Add a tag and press Enter"
-                  className={`flex-1 ${fieldClassName}`}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddTag}
-                  disabled={!tagInput.trim()}
-                  className="border-white/10 bg-white/[0.03] text-white/78 hover:bg-white/[0.07] hover:text-white"
-                >
-                  Add
-                </Button>
-              </div>
+                    Add
+                  </Button>
+                </div>
+              </section>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClassName}>
-                Source URL
-                </label>
-                <Input
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-                placeholder="https://..."
-                className={fieldClassName}
-              />
-              </div>
+            <div className="space-y-5">
+              <section className={panelClassName}>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <h3 className={sectionTitleClassName}>Preview</h3>
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-white/32">
+                    Current palette
+                  </div>
+                </div>
 
-              <div>
-                <label className={labelClassName}>
-                Style Reference (Sref)
-                </label>
-                <Input
-                value={sref}
-                onChange={(e) => setSref(e.target.value)}
-                placeholder="Style reference"
-                className={fieldClassName}
-              />
-              </div>
+                <div className="overflow-hidden rounded-[12px] border border-white/8 bg-black/20">
+                  {previewUrl ? (
+                    <img
+                      src={previewUrl}
+                      alt={title || image.title}
+                      className="aspect-[4/3] w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex aspect-[4/3] w-full items-center justify-center text-sm text-white/38">
+                      No preview available
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {modalTagPalette.slice(0, 5).map((color) => (
+                    <span
+                      key={color}
+                      className="h-6 w-6 rounded-full border"
+                      style={{
+                        backgroundColor: color,
+                        borderColor: withAlpha(color, "66"),
+                      }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <section className={panelClassName}>
+                <h3 className={`mb-4 ${sectionTitleClassName}`}>Classification</h3>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                  <div>
+                    <label className={labelClassName}>Type</label>
+                    <select
+                      value={group || "none"}
+                      onChange={(e) => setGroup(e.target.value === "none" ? "" : e.target.value)}
+                      className={selectClassName}
+                    >
+                      <option value="none">None</option>
+                      {(groups || []).map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClassName}>Genre</label>
+                    <select
+                      value={category || "none"}
+                      onChange={(e) => setCategory(e.target.value === "none" ? "" : e.target.value)}
+                      className={selectClassName}
+                    >
+                      <option value="none">None</option>
+                      {(categories || []).map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              <section className={panelClassName}>
+                <h3 className={`mb-4 ${sectionTitleClassName}`}>Source & Naming</h3>
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    <div>
+                      <label className={labelClassName}>
+                        Source URL
+                      </label>
+                      <Input
+                        value={source}
+                        onChange={(e) => setSource(e.target.value)}
+                        placeholder="https://..."
+                        className={fieldClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>
+                        SREF
+                      </label>
+                      <Input
+                        value={sref}
+                        onChange={(e) => setSref(e.target.value)}
+                        placeholder="Style reference"
+                        className={fieldClassName}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    <div>
+                      <label className={labelClassName}>
+                        Project Name
+                      </label>
+                      <Input
+                        value={projectName}
+                        onChange={(e) => setProjectName(e.target.value)}
+                        placeholder="Project name"
+                        className={fieldClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>
+                        Moodboard Name
+                      </label>
+                      <Input
+                        value={moodboardName}
+                        onChange={(e) => setMoodboardName(e.target.value)}
+                        placeholder="Moodboard name"
+                        className={fieldClassName}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
+          </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClassName}>
-                Project Name
-                </label>
-                <Input
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                placeholder="Project name"
-                className={fieldClassName}
-              />
-              </div>
-
-              <div>
-                <label className={labelClassName}>
-                Moodboard Name
-                </label>
-                <Input
-                value={moodboardName}
-                onChange={(e) => setMoodboardName(e.target.value)}
-                placeholder="Moodboard name"
-                className={fieldClassName}
-              />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-white/8 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onOpenChange(false)}
-                className="border-white/10 bg-white/[0.03] text-white/72 hover:bg-white/[0.07] hover:text-white"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={submitting || !title.trim()}
-                className="bg-[#2f7dd1] text-white hover:bg-[#3c8ae0]"
-              >
-                {submitting ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
+          <div className="flex justify-end gap-2 border-t border-white/8 px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="border-white/10 bg-white/[0.03] text-white/72 hover:bg-white/[0.07] hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={submitting || !title.trim()}
+              className="bg-[#2f7dd1] text-white hover:bg-[#3c8ae0]"
+            >
+              {submitting ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
         </form>
       </DialogContent>
