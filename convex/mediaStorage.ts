@@ -929,6 +929,13 @@ export const finalizeUploadedImage = internalAction({
         console.warn("Failed to delete temporary Convex storage file", storageDeleteError);
       }
 
+      // Pixel-accurate color sampling (runs in parallel with VLM analyze).
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any).colorExtraction.internalExtractAndStoreColors,
+        { imageId: args.imageId, imageUrl: uploaded.derivativeUrls?.large || uploaded.imageUrl }
+      );
+
       await ctx.scheduler.runAfter(0, (internal as any).vision.internalSmartAnalyzeImage, {
         imageId: args.imageId,
         userId: args.userId,

@@ -17,12 +17,16 @@ export function SearchBar({ onSearch }: SearchBarProps) {
 
   return (
     <form onSubmit={handleSubmit} className="relative w-full max-w-[20rem]">
-      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-[#a9cfff]" />
+      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-[#4cc2ff]" />
       <Input
         value={searchTerm}
         onChange={(event) => setSearchTerm(event.target.value)}
         placeholder="Search visuals..."
-        className="h-8 w-full rounded-[4px] border-0 bg-[#133a63] pl-10 text-[#dbe8ff] placeholder:text-[#9db5d7] shadow-none transition-colors focus-visible:bg-[#17416d] focus-visible:ring-0 focus-visible:ring-offset-0"
+        className="h-8 w-full rounded-[4px] border-0 pl-10 shadow-none transition-colors placeholder:text-[#4cc2ff]/55 focus-visible:ring-0 focus-visible:ring-offset-0"
+        style={{
+          backgroundColor: 'rgba(0, 144, 255, 0.16)',
+          color: '#4cc2ff',
+        }}
       />
     </form>
   );
