@@ -13,13 +13,13 @@ import {
 } from "../lib/utils";
 
 const fieldClassName =
-  "h-9 rounded-[8px] border border-white/10 bg-white/[0.03] px-3 text-sm text-white placeholder:text-white/32 focus-visible:border-[#2f7dd1] focus-visible:ring-2 focus-visible:ring-[#2f7dd1]/20";
+  "!h-7 rounded-[5px] border border-white/10 bg-white/[0.03] px-2 !text-[12px] !text-zinc-200 placeholder:text-zinc-500 focus-visible:border-[#2f7dd1] focus-visible:ring-2 focus-visible:ring-[#2f7dd1]/20 md:!text-[12px]";
 
 const selectClassName =
-  "h-9 w-full rounded-[8px] border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none transition-colors focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20";
+  "h-7 w-full rounded-[5px] border border-white/10 bg-white/[0.03] px-2 text-[12px] text-zinc-200 outline-none transition-colors focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20";
 
 const labelClassName =
-  "mb-1.5 block text-[12px] font-medium tracking-[0.01em] text-white/56";
+  "mb-1 block text-[10.5px] font-medium tracking-[0.02em] uppercase text-zinc-500";
 
 interface EditImageModalProps {
   open: boolean;
@@ -122,18 +122,18 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(94vw,36rem)] max-w-[36rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/92 p-0 text-white supports-backdrop-filter:backdrop-blur-xl">
-        <div className="border-b border-white/8 px-6 py-5">
-          <DialogTitle className="text-[28px] font-semibold tracking-[-0.03em] text-white">
+      <DialogContent className="w-[min(94vw,32rem)] max-w-[32rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/92 p-0 text-zinc-200 supports-backdrop-filter:backdrop-blur-xl">
+        <div className="border-b border-white/8 px-4 py-2.5">
+          <DialogTitle className="text-[13px] font-semibold tracking-[-0.01em] text-zinc-100">
             Edit Image
           </DialogTitle>
-          <DialogDescription className="mt-2 max-w-[30rem] text-sm leading-6 text-white/58">
-            Update image metadata, tags, and other information.
+          <DialogDescription className="mt-0.5 text-[10.5px] leading-[14px] text-zinc-500">
+            Update metadata, tags, and other information.
           </DialogDescription>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="space-y-5 px-6 py-5">
+          <div className="space-y-2.5 px-4 py-3">
             <div>
               <label className={labelClassName}>
                 Title *
@@ -155,12 +155,12 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Image description"
-                rows={4}
-                className="min-h-[136px] w-full rounded-[8px] border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm leading-6 text-white outline-none transition-colors placeholder:text-white/32 focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20"
+                rows={2}
+                className="min-h-[52px] w-full rounded-[5px] border border-white/10 bg-white/[0.03] px-2 py-1.5 text-[12px] leading-[16px] text-zinc-200 outline-none transition-colors placeholder:text-zinc-500 focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20"
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className={labelClassName}>Type</label>
                 <select
@@ -198,19 +198,21 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
               <label className={labelClassName}>
                 Tags
               </label>
-              <div className="mb-3 flex min-h-10 gap-2 flex-wrap">
-                {tags.map((tag, index) => (
-                  <Badge
-                    key={tag}
-                    variant="outline"
-                    className={`${compactImageTagClass} cursor-pointer border-0`}
-                    style={getPaletteTagStyle(image.colors, index, tags.length)}
-                    onClick={() => handleRemoveTag(tag)}
-                  >
-                    {tag} <span className="ml-1 text-current/70">x</span>
-                  </Badge>
-                ))}
-              </div>
+              {tags.length > 0 && (
+                <div className="mb-2 flex gap-2 flex-wrap">
+                  {tags.map((tag, index) => (
+                    <Badge
+                      key={tag}
+                      variant="outline"
+                      className={`${compactImageTagClass} cursor-pointer border-0`}
+                      style={getPaletteTagStyle(image.colors, index, tags.length)}
+                      onClick={() => handleRemoveTag(tag)}
+                    >
+                      {tag} <span className="ml-1 text-current/70">x</span>
+                    </Badge>
+                  ))}
+                </div>
+              )}
               <div className="flex items-stretch gap-2">
                 <Input
                   value={tagInput}
@@ -225,14 +227,14 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
                   size="sm"
                   onClick={handleAddTag}
                   disabled={!tagInput.trim()}
-                  className="h-9 rounded-[8px] border-white/10 bg-white/[0.03] px-4 text-white/78 hover:bg-white/[0.07] hover:text-white"
+                  className="h-7 rounded-[5px] border-white/10 bg-white/[0.03] px-2.5 text-[11px] text-zinc-300 hover:bg-white/[0.07] hover:text-zinc-100"
                 >
                   Add
                 </Button>
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className={labelClassName}>
                   Source URL
@@ -258,7 +260,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className={labelClassName}>
                   Project Name
@@ -285,13 +287,13 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-white/8 px-6 py-4">
+          <div className="flex justify-end gap-2 border-t border-white/8 px-4 py-2.5">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="border-white/10 bg-white/[0.03] text-white/72 hover:bg-white/[0.07] hover:text-white"
+              className="h-7 rounded-[5px] border-white/10 bg-white/[0.03] px-2.5 text-[11px] text-zinc-300 hover:bg-white/[0.07] hover:text-zinc-100"
             >
               Cancel
             </Button>
@@ -299,7 +301,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
               type="submit"
               size="sm"
               disabled={submitting || !title.trim()}
-              className="bg-[#2f7dd1] text-white hover:bg-[#3c8ae0]"
+              className="h-7 rounded-[5px] bg-[#2f7dd1] px-2.5 text-[11px] text-white hover:bg-[#3c8ae0]"
             >
               {submitting ? "Saving..." : "Save Changes"}
             </Button>

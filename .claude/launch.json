@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pindeck-preview",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "serve"],
+      "port": 4173
+    }
+  ]
+}

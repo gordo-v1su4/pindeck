@@ -246,32 +246,29 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
               </div>
             )}
 
-            {/* Tags - colored badges matching table view */}
+            {/* Tags - matches EditImageModal exactly */}
             {image.tags.length > 0 && (
               <div>
                 <div className={sectionLabelClass}>Tags</div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {image.tags.slice(0, 12).map((tag, i) => (
-                    <ThemeBadge
+                    <Badge
                       key={i}
-                      variant="soft"
-                      size="1"
+                      variant="outline"
                       className={`${compactImageTagClass} cursor-pointer border-0`}
                       style={getPaletteTagStyle(image.colors, i, Math.min(image.tags.length, 12))}
                       onClick={() => copyToClipboard(tag, 'Tag')}
                     >
                       {tag}
-                    </ThemeBadge>
+                    </Badge>
                   ))}
                   {image.tags.length > 12 && (
-                    <ThemeBadge
-                      variant="soft"
-                      color="gray"
-                      size="1"
-                      className="rounded-[3px] px-1.5 text-[10px] tracking-[0.02em]"
+                    <Badge
+                      variant="outline"
+                      className={`${compactImageTagClass} border-0 bg-white/[0.06] text-white/60`}
                     >
                       +{image.tags.length - 12}
-                    </ThemeBadge>
+                    </Badge>
                   )}
                 </div>
               </div>

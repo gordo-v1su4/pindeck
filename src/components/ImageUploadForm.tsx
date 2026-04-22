@@ -23,6 +23,7 @@ import {
   Separator,
   Dialog
 } from "@radix-ui/themes";
+import { Badge as ShadBadge } from "@/components/ui/badge";
 import {
   UploadIcon,
   Cross2Icon,
@@ -982,13 +983,12 @@ export function ImageUploadForm() {
                         ))}
                       </Flex>
 
-                      <Flex gap="1" wrap="wrap" className="mb-2">
+                      <Flex gap="2" wrap="wrap" className="mb-2">
                         {file.tags.map((tag, index) => (
-                          <Badge
+                          <ShadBadge
                             key={tag}
-                            variant="soft"
-                            size="1"
-                            className={compactImageTagClass}
+                            variant="outline"
+                            className={`${compactImageTagClass} border-0`}
                             style={getPaletteTagStyle(file.colors, index, file.tags.length)}
                           >
                             {tag}
@@ -998,7 +998,7 @@ export function ImageUploadForm() {
                             >
                               <Cross2Icon width="10" height="10" />
                             </button>
-                          </Badge>
+                          </ShadBadge>
                         ))}
                       </Flex>
 
@@ -1384,13 +1384,12 @@ export function ImageUploadForm() {
                         ))}
                       </Flex>
 
-                      <Flex gap="1" wrap="wrap" className="mb-2">
+                      <Flex gap="2" wrap="wrap" className="mb-2">
                         {image.tags.map((tag, index) => (
-                          <Badge
+                          <ShadBadge
                             key={tag}
-                            variant="soft"
-                            size="1"
-                            className={compactImageTagClass}
+                            variant="outline"
+                            className={`${compactImageTagClass} border-0`}
                             style={getPaletteTagStyle(image.colors, index, image.tags.length)}
                           >
                             {tag}
@@ -1400,7 +1399,7 @@ export function ImageUploadForm() {
                             >
                               <Cross2Icon width="10" height="10" />
                             </button>
-                          </Badge>
+                          </ShadBadge>
                         ))}
                       </Flex>
 

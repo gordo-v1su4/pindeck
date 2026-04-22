@@ -39,6 +39,7 @@ import {
 import { ImageModal } from "./ImageModal";
 import { EditImageModal } from "./EditImageModal";
 import { GenerateVariationsModal } from "./GenerateVariationsModal";
+import { Badge as ShadBadge } from "@/components/ui/badge";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
@@ -194,27 +195,24 @@ export function TableView() {
           const tags = row.original.tags ?? [];
           const palette = row.original.colors ?? [];
           return (
-            <Flex gap="1" wrap="wrap">
+            <Flex gap="2" wrap="wrap">
               {tags.slice(0, 3).map((tag, index) => (
-                <Badge
+                <ShadBadge
                   key={tag}
-                  variant="soft"
-                  size="1"
-                  className={compactImageTagClass}
+                  variant="outline"
+                  className={`${compactImageTagClass} border-0`}
                   style={getPaletteTagStyle(palette, index, Math.min(tags.length, 3))}
                 >
                   {tag}
-                </Badge>
+                </ShadBadge>
               ))}
               {tags.length > 3 && (
-                <Badge
-                  variant="soft"
-                  color="gray"
-                  size="1"
-                  className={compactImageTagClass}
+                <ShadBadge
+                  variant="outline"
+                  className={`${compactImageTagClass} border-0 bg-white/[0.06] text-white/60`}
                 >
                   +{tags.length - 3}
-                </Badge>
+                </ShadBadge>
               )}
             </Flex>
           );
