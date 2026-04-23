@@ -145,7 +145,7 @@ export function BoardsView({
                 key={image._id}
                 className="break-inside-avoid group cursor-pointer relative"
               >
-                <Box className="relative overflow-hidden aspect-video bg-gray-900 rounded-lg">
+                <Box className="relative overflow-hidden aspect-video rounded-lg bg-[#111113]">
                   <SmartImage
                     image={image}
                     variant="card"
@@ -237,12 +237,12 @@ export function BoardsView({
           {boards.map((board) => {
             const previewUrls = boardPreviewUrls?.[board._id] ?? [];
             return (
-            <Card key={board._id} className="hover:shadow-xl transition-shadow bg-gray-900/20">
+            <Card key={board._id} className="bg-[#0b0b0d] transition-colors hover:border-white/14">
               <Box className="p-5">
                 {previewUrls.length > 0 && (
                   <Flex gap="1" className="mb-3 overflow-hidden rounded-lg">
                     {previewUrls.map((url, i) => (
-                      <Box key={i} className="flex-1 min-w-0 aspect-square bg-gray-4">
+                      <Box key={i} className="aspect-square min-w-0 flex-1 bg-[#111113]">
                         <img
                           src={url}
                           alt=""

@@ -270,7 +270,7 @@ body {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(58, 123, 255, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(36, 87, 214, 0.5), transparent);
   animation: pd-scan 1.6s linear infinite;
   z-index: 1;
 }
@@ -692,12 +692,7 @@ body {
   box-shadow: 0 0 0 3px rgba(36, 87, 214, 0.18);
 }
 
-.creative-action-primary,
-.creative-action-accent,
-.creative-icon-button--active,
-.creative-pill-button--active,
-.creative-accent-badge,
-.creative-code-badge {
+.creative-action-accent {
   border-color: rgba(36, 87, 214, 0.36) !important;
   background: rgba(36, 87, 214, 0.16) !important;
   color: var(--pd-accent-ink) !important;
@@ -726,6 +721,15 @@ body {
 .creative-page-button:hover {
   background: rgba(255, 255, 255, 0.06) !important;
   color: white !important;
+}
+
+.creative-icon-button--active,
+.creative-pill-button--active,
+.creative-accent-badge,
+.creative-code-badge {
+  border-color: rgba(36, 87, 214, 0.36) !important;
+  background: rgba(36, 87, 214, 0.16) !important;
+  color: var(--pd-accent-ink) !important;
 }
 
 .creative-code-badge {

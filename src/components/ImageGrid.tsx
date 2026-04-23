@@ -401,7 +401,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
                                   setSelectedImage(image._id);
                                 }}
                                 >
-                                <Box className="relative overflow-hidden aspect-video bg-gray-900">
+                                <Box className="relative overflow-hidden aspect-video bg-[#111113]">
                                   <SmartImage
                                     image={image}
                                     variant="card"
@@ -466,7 +466,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
               setSelectedImage(image._id);
             }}
           >
-            <Box className="relative overflow-hidden aspect-video bg-gray-900">
+            <Box className="relative overflow-hidden aspect-video bg-[#111113]">
               <SmartImage
                 image={image}
                 variant="card"

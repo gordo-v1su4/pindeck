@@ -882,9 +882,9 @@ export function ImageUploadForm() {
 
           <Grid columns={{ initial: "1", lg: "2" }} gap="4">
             {files.map((file) => (
-              <Card key={file.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <Card key={file.id} className="overflow-hidden border border-white/10 bg-[#0b0b0d] shadow-none transition-colors hover:border-white/14">
                 <Flex gap="4">
-                  <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                  <Box className="h-24 w-24 shrink-0 overflow-hidden bg-white/[0.04]">
                     <img
                       src={file.preview}
                       alt={file.title}
@@ -900,6 +900,7 @@ export function ImageUploadForm() {
                           onChange={(e) => updateFile(file.id, { title: e.target.value })}
                           placeholder="Title (Leave blank for AI)"
                           size="1"
+                          className={FIELD_CLASS}
                         >
                           <TextField.Slot>
                             <MagicWandIcon className="text-[var(--pd-accent-ink)]" />
@@ -921,6 +922,7 @@ export function ImageUploadForm() {
                       onChange={(e) => updateFile(file.id, { description: e.target.value })}
                       placeholder="Description (Leave blank for AI)"
                       size="1"
+                      className={FIELD_CLASS}
                     />
                     
                     <Flex gap="2" align="center">
@@ -928,7 +930,7 @@ export function ImageUploadForm() {
                         value={file.category}
                         onValueChange={(value) => updateFile(file.id, { category: value })}
                       >
-                        <Select.Trigger placeholder="Select category" />
+                        <Select.Trigger placeholder="Select category" className={FIELD_CLASS} />
                         <Select.Content>
                           {(categories || []).map((category) => (
                             <Select.Item key={category} value={category}>
@@ -944,7 +946,7 @@ export function ImageUploadForm() {
                       value={file.group ? file.group : "none"}
                       onValueChange={(value) => updateFile(file.id, { group: value === "none" ? undefined : value })}
                     >
-                      <Select.Trigger placeholder="Type (Commercial, Film, etc.)" />
+                      <Select.Trigger placeholder="Type (Commercial, Film, etc.)" className={FIELD_CLASS} />
                       <Select.Content>
                         <Select.Item value="none">None</Select.Item>
                         {(groups || []).map((g) => (
@@ -959,6 +961,7 @@ export function ImageUploadForm() {
                       onChange={(e) => updateFile(file.id, { projectName: e.target.value || undefined })}
                       placeholder="Project Name (e.g., Kitty Bite Back)"
                       size="1"
+                      className={FIELD_CLASS}
                     />
 
                     {/* Moodboard Name */}
@@ -967,6 +970,7 @@ export function ImageUploadForm() {
                       onChange={(e) => updateFile(file.id, { moodboardName: e.target.value || undefined })}
                       placeholder="Moodboard Name (e.g., pink girl smoking)"
                       size="1"
+                      className={FIELD_CLASS}
                     />
 
                     {/* Unique ID */}
@@ -975,6 +979,7 @@ export function ImageUploadForm() {
                       onChange={(e) => updateFile(file.id, { uniqueId: e.target.value || undefined })}
                       placeholder="Unique ID (auto-generated if blank)"
                       size="1"
+                      className={FIELD_CLASS}
                     />
 
                     <Flex gap="2">
@@ -983,14 +988,14 @@ export function ImageUploadForm() {
                         onChange={(e) => updateFile(file.id, { sref: e.target.value })}
                         placeholder="Style Ref (sref)"
                         size="1"
-                        className="flex-1"
+                        className={`flex-1 ${FIELD_CLASS}`}
                       />
                       <TextField.Root
                         value={file.source}
                         onChange={(e) => updateFile(file.id, { source: e.target.value })}
                         placeholder="Source URL/Origin"
                         size="1"
-                        className="flex-1"
+                        className={`flex-1 ${FIELD_CLASS}`}
                       />
                     </Flex>
 
@@ -1028,6 +1033,7 @@ export function ImageUploadForm() {
                       <TextField.Root
                         placeholder="Add tags..."
                         size="1"
+                        className={FIELD_CLASS}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -1107,8 +1113,8 @@ export function ImageUploadForm() {
 
           <Grid columns={{ initial: "2", sm: "3", md: "4" }} gap="4">
             {processingImages.map((image) => (
-              <Card key={image._id} className="overflow-hidden opacity-80 p-2 group/card">
-                <Box className="relative aspect-video overflow-hidden bg-gray-100">
+              <Card key={image._id} className="group/card overflow-hidden border border-white/10 bg-[#0b0b0d] p-2 opacity-80 shadow-none">
+                <Box className="relative aspect-video overflow-hidden bg-white/[0.04]">
                   <img
                     src={image.previewUrl || image.imageUrl}
                     alt={image.title}
@@ -1301,6 +1307,7 @@ export function ImageUploadForm() {
                           onChange={(e) => void updateImageMetadata(image._id, { title: e.target.value })}
                           placeholder="Title"
                           size="1"
+                          className={FIELD_CLASS}
                         >
                           <TextField.Slot>
                             <MagicWandIcon className="text-[var(--pd-accent-ink)]" />
@@ -1322,6 +1329,7 @@ export function ImageUploadForm() {
                       onChange={(e) => void updateImageMetadata(image._id, { description: e.target.value })}
                       placeholder="Description"
                       size="1"
+                      className={FIELD_CLASS}
                     />
 
                     <Flex gap="2" align="center">
@@ -1329,7 +1337,7 @@ export function ImageUploadForm() {
                         value={image.category}
                         onValueChange={(value) => void updateImageMetadata(image._id, { category: value })}
                       >
-                        <Select.Trigger placeholder="Select category" />
+                        <Select.Trigger placeholder="Select category" className={FIELD_CLASS} />
                         <Select.Content>
                           {(categories || []).map((category) => (
                             <Select.Item key={category} value={category}>
@@ -1345,7 +1353,7 @@ export function ImageUploadForm() {
                       value={image.group ? image.group : "none"}
                       onValueChange={(value) => void updateImageMetadata(image._id, { group: value === "none" ? undefined : value })}
                     >
-                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
+                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" className={FIELD_CLASS} />
                       <Select.Content>
                         <Select.Item value="none">None</Select.Item>
                         {(groups || []).map((group) => (
@@ -1362,6 +1370,7 @@ export function ImageUploadForm() {
                       onChange={(e) => void updateImageMetadata(image._id, { projectName: e.target.value || undefined })}
                       placeholder="Project Name (e.g., Kitty Bite Back)"
                       size="1"
+                      className={FIELD_CLASS}
                     />
 
                     {/* Moodboard Name */}
@@ -1370,6 +1379,7 @@ export function ImageUploadForm() {
                       onChange={(e) => void updateImageMetadata(image._id, { moodboardName: e.target.value || undefined })}
                       placeholder="Moodboard Name (e.g., pink girl smoking)"
                       size="1"
+                      className={FIELD_CLASS}
                     />
 
                     {/* Unique ID */}
@@ -1378,6 +1388,7 @@ export function ImageUploadForm() {
                       onChange={(e) => void updateImageMetadata(image._id, { uniqueId: e.target.value || undefined })}
                       placeholder="Unique ID (auto-generated if blank)"
                       size="1"
+                      className={FIELD_CLASS}
                     />
 
                     <Flex gap="2">
@@ -1386,14 +1397,14 @@ export function ImageUploadForm() {
                         onChange={(e) => void updateImageMetadata(image._id, { sref: e.target.value })}
                         placeholder="Style Ref (sref)"
                         size="1"
-                        className="flex-1"
+                        className={`flex-1 ${FIELD_CLASS}`}
                       />
                       <TextField.Root
                         value={image.source || ""}
                         onChange={(e) => void updateImageMetadata(image._id, { source: e.target.value })}
                         placeholder="Source URL/Origin"
                         size="1"
-                        className="flex-1"
+                        className={`flex-1 ${FIELD_CLASS}`}
                       />
                     </Flex>
 
@@ -1431,6 +1442,7 @@ export function ImageUploadForm() {
                       <TextField.Root
                         placeholder="Add tags..."
                         size="1"
+                        className={FIELD_CLASS}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
