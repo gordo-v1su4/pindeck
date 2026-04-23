@@ -281,7 +281,7 @@ function normalizeType(block: BlockData) {
 function getBlockSubtitle(block: BlockData, index: number) {
   switch (block.type) {
     case "hero":
-      return "Commercial visual engine";
+      return "Deck opening statement";
     case "logline":
       return "Project logline and central premise overview.";
     case "story":

@@ -49,6 +49,15 @@ import {
   sortColorsDarkToLight,
 } from "../lib/utils";
 import { SmartImage } from "./SmartImage";
+import {
+  ACCENT_BADGE_CLASS,
+  CODE_BADGE_CLASS,
+  ICON_BUTTON_ACTIVE_CLASS,
+  NEUTRAL_BADGE_CLASS,
+  PAGE_BUTTON_CLASS,
+  PILL_BUTTON_ACTIVE_CLASS,
+  PILL_BUTTON_CLASS,
+} from "@/components/ui/actionStyles";
 
 interface Image {
   _id: Id<"images">;
@@ -225,7 +234,7 @@ export function TableView() {
         cell: ({ row }) => {
           const sref = row.original.sref;
           return sref ? (
-            <Badge variant="soft" color="blue" size="1">
+            <Badge variant="soft" color="gray" size="1" className={CODE_BADGE_CLASS}>
               {sref}
             </Badge>
           ) : (
@@ -265,7 +274,7 @@ export function TableView() {
           const parentId = row.original.parentImageId;
           if (!parentId) {
             return (
-              <Badge variant="soft" color="gray" size="1" className="rounded-sm px-1.5 text-[10px] tracking-[0.02em]">
+              <Badge variant="soft" color="gray" size="1" className={NEUTRAL_BADGE_CLASS}>
                   Original
               </Badge>
             );
@@ -278,14 +287,14 @@ export function TableView() {
                 variant="soft"
                 color="gray"
                 size="1"
-                className="h-6 max-w-[10rem] rounded-sm px-2 text-[11px]"
+                className={`${PILL_BUTTON_CLASS} h-6 max-w-[10rem] rounded-sm px-2 text-[11px]`}
                 onClick={() => setSelectedImage(parentId)}
               >
                 {parentImage.title.substring(0, 20)}{parentImage.title.length > 20 ? '...' : ''}
               </Button>
             </Flex>
           ) : (
-            <Badge variant="soft" color="gray" size="1" className="rounded-sm px-1.5 text-[10px] tracking-[0.02em]">
+            <Badge variant="soft" color="gray" size="1" className={NEUTRAL_BADGE_CLASS}>
               Derived
             </Badge>
           );
@@ -312,7 +321,7 @@ export function TableView() {
         cell: ({ row }) => {
           const source = row.original.source;
           return source ? (
-            <Button variant="soft" color="blue" size="1" asChild style={{ opacity: 0.9 }}>
+            <Button variant="soft" color="gray" size="1" className={PILL_BUTTON_ACTIVE_CLASS} asChild style={{ opacity: 0.9 }}>
               <a
                 href={source}
                 target="_blank"
@@ -349,8 +358,9 @@ export function TableView() {
           <Flex gap="1">
             <Button
               variant="soft"
-              color="blue"
+              color="gray"
               size="1"
+              className={PILL_BUTTON_ACTIVE_CLASS}
               onClick={() => setSelectedImage(row.original._id)}
               style={{ opacity: 0.9 }}
             >
@@ -360,15 +370,16 @@ export function TableView() {
               <DropdownMenu.Trigger>
                 <IconButton
                   variant="soft"
-                  color="teal"
+                  color="gray"
                   size="1"
+                  className={ICON_BUTTON_ACTIVE_CLASS}
                   title="Generate"
                   style={{ opacity: 0.9 }}
                 >
                   <MagicWandIcon />
                 </IconButton>
               </DropdownMenu.Trigger>
-              <DropdownMenu.Content className="dropdown-teal">
+              <DropdownMenu.Content>
                 <DropdownMenu.Item onClick={() => setVariationsModalImageId(row.original._id)}>
                   Variations
                 </DropdownMenu.Item>
@@ -382,8 +393,9 @@ export function TableView() {
             </DropdownMenu.Root>
             <IconButton
               variant="soft"
-              color="blue"
+              color="gray"
               size="1"
+              className={ICON_BUTTON_ACTIVE_CLASS}
               onClick={() => setEditingImage(row.original._id)}
               title="Edit image"
               style={{ opacity: 0.9 }}
@@ -513,9 +525,9 @@ export function TableView() {
               <Text size="2" weight="medium" className="text-[13px]">Show Only Original Images:</Text>
               <Button
                 variant="soft"
-                color={showOnlyOriginals ? "blue" : "gray"}
+                color="gray"
                 size="1"
-                className={compactPillClass}
+                className={showOnlyOriginals ? `${compactPillClass} ${PILL_BUTTON_ACTIVE_CLASS}` : `${compactPillClass} ${PILL_BUTTON_CLASS}`}
                 onClick={() => setShowOnlyOriginals(!showOnlyOriginals)}
               >
                 {showOnlyOriginals ? 'On' : 'Off'}
@@ -523,9 +535,9 @@ export function TableView() {
               <Text size="2" weight="medium" className="ml-4 text-[13px]">Show Sref Only:</Text>
               <Button
                 variant="soft"
-                color={showOnlySref ? "blue" : "gray"}
+                color="gray"
                 size="1"
-                className={compactPillClass}
+                className={showOnlySref ? `${compactPillClass} ${PILL_BUTTON_ACTIVE_CLASS}` : `${compactPillClass} ${PILL_BUTTON_CLASS}`}
                 onClick={() => setShowOnlySref(!showOnlySref)}
               >
                 {showOnlySref ? 'On' : 'Off'}
@@ -541,9 +553,9 @@ export function TableView() {
                 <Button
                   key={tag}
                   variant="soft"
-                  color={selectedTags.includes(tag) ? "blue" : "gray"}
+                  color="gray"
                   size="1"
-                  className={compactPillClass}
+                  className={selectedTags.includes(tag) ? `${compactPillClass} ${PILL_BUTTON_ACTIVE_CLASS}` : `${compactPillClass} ${PILL_BUTTON_CLASS}`}
                   onClick={() => {
                     setSelectedTags(prev => 
                       prev.includes(tag) 
@@ -577,9 +589,9 @@ export function TableView() {
                 <Button
                   key={color}
                   variant="soft"
-                  color={selectedColors.includes(color) ? "blue" : "gray"}
+                  color="gray"
                   size="1"
-                  className={compactPillClass}
+                  className={selectedColors.includes(color) ? `${compactPillClass} ${PILL_BUTTON_ACTIVE_CLASS}` : `${compactPillClass} ${PILL_BUTTON_CLASS}`}
                   onClick={() => {
                     setSelectedColors(prev => 
                       prev.includes(color) 
@@ -697,8 +709,9 @@ export function TableView() {
             <Flex gap="2">
               <IconButton
                 variant="soft"
-                color="blue"
+                color="gray"
                 size="1"
+                className={PAGE_BUTTON_CLASS}
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
                 style={{ opacity: table.getCanPreviousPage() ? 0.9 : 0.5 }}
@@ -707,8 +720,9 @@ export function TableView() {
               </IconButton>
               <IconButton
                 variant="soft"
-                color="blue"
+                color="gray"
                 size="1"
+                className={PAGE_BUTTON_CLASS}
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
                 style={{ opacity: table.getCanPreviousPage() ? 0.9 : 0.5 }}
@@ -717,8 +731,9 @@ export function TableView() {
               </IconButton>
               <IconButton
                 variant="soft"
-                color="blue"
+                color="gray"
                 size="1"
+                className={PAGE_BUTTON_CLASS}
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
                 style={{ opacity: table.getCanNextPage() ? 0.9 : 0.5 }}
@@ -727,8 +742,9 @@ export function TableView() {
               </IconButton>
               <IconButton
                 variant="soft"
-                color="blue"
+                color="gray"
                 size="1"
+                className={PAGE_BUTTON_CLASS}
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
                 style={{ opacity: table.getCanNextPage() ? 0.9 : 0.5 }}

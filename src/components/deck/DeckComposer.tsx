@@ -925,7 +925,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, finalWidth, finalHeight);
       }
 
-      pdf.save(`${deck.title || "pitch-deck"}.pdf`);
+      pdf.save(`${deck.title || "deck"}.pdf`);
       toast.success(`PDF exported (${contentSlides.length} pages)`);
     } catch {
       toast.error("Failed to export PDF");
@@ -1010,20 +1010,16 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       <div className="sticky top-0 z-30 border-b border-white/8 bg-[#060606]/96 backdrop-blur-md">
         <div className="border-b border-white/8 px-4 py-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[2px] bg-white text-black">
-                <span className="text-lg font-black">P/</span>
-              </div>
-              <div className="min-w-0">
-                <h2 className="truncate text-[1.7rem] font-semibold tracking-[-0.04em] text-white">
-                  PitchCraft
-                </h2>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-white/35">
-                  Commercial visual engine
-                </p>
-              </div>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-white/35">
+                DeckComposer
+              </span>
+              {hasUnsavedChanges ? (
+                <div className="inline-flex items-center border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.22em] text-amber-300">
+                  Unsaved
+                </div>
+              ) : null}
             </div>
-
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setSidebarOpen((value) => !value)}
@@ -1036,7 +1032,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 className={cn(
                   "rounded-[4px] border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] transition-colors",
                   isEditing
-                    ? "border-blue-500/60 bg-blue-500/12 text-blue-300"
+                    ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
                     : "border-white/12 text-white/62 hover:text-white"
                 )}
               >
@@ -1051,7 +1047,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
               <button
                 onClick={() => void exportToPDF()}
                 disabled={isExporting}
-                className="rounded-[4px] bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-black transition-opacity disabled:opacity-50"
+                className="rounded-[4px] border border-white/12 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 transition-colors hover:text-white disabled:opacity-50"
               >
                 {isExporting ? "Exporting..." : "Export PDF"}
               </button>
@@ -1071,7 +1067,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 className={cn(
                   "rounded-[4px] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.26em] transition-colors",
                   activePanel === panel.id
-                    ? "bg-white text-black"
+                    ? "border border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
                     : "text-white/38 hover:text-white"
                 )}
               >
@@ -1413,11 +1409,6 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
               >
                 Reset
               </Button>
-              {hasUnsavedChanges && (
-                <div className="inline-flex items-center border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[10px] uppercase tracking-[0.24em] text-amber-300">
-                  Unsaved
-                </div>
-              )}
             </div>
         </div>
       </div>

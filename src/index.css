@@ -158,9 +158,9 @@ body {
   --pd-line-strong: rgba(255, 255, 255, 0.11);
   --pd-line-hi: rgba(255, 255, 255, 0.18);
 
-  --pd-accent: #3a7bff;
-  --pd-accent-soft: rgba(58, 123, 255, 0.14);
-  --pd-accent-ink: #9ab8ff;
+  --pd-accent: #2457d6;
+  --pd-accent-soft: rgba(36, 87, 214, 0.16);
+  --pd-accent-ink: #c5d2ff;
 
   --pd-amber: #f5a524;
   --pd-amber-soft: rgba(245, 165, 36, 0.18);
@@ -275,7 +275,7 @@ body {
   z-index: 1;
 }
 
-/* Deck builder typography hooks (imported integration from pitch-deck-builder) */
+/* Deck editor typography hooks (imported deck-composer integration) */
 .font-display {
   font-family: "Bebas Neue", "Oswald", var(--font-sans);
 }
@@ -487,7 +487,7 @@ body {
 }
 
 .site-brand-word-accent {
-  color: #1f8fe5;
+  color: #2457d6;
 }
 
 .auth-shell {
@@ -535,7 +535,7 @@ body {
   width: 100%;
   min-height: 3.4rem;
   border-radius: 0.8rem !important;
-  background: #1f8fe5 !important;
+  background: #2457d6 !important;
   color: white !important;
   font-size: 0.98rem !important;
   font-weight: 700 !important;
@@ -543,7 +543,7 @@ body {
 }
 
 .auth-switch-link {
-  color: #52a8ff !important;
+  color: #8ca8ff !important;
   font-weight: 600 !important;
 }
 
@@ -651,16 +651,91 @@ body {
   color: var(--accent-a11) !important;
 }
 
-/* Teal dropdown variant - for Generate menus */
-.rt-DropdownMenuContent.dropdown-teal .rt-DropdownMenuItem[data-highlighted] {
-  background-color: var(--teal-a3) !important;
-  color: var(--teal-a11) !important;
-}
-
 /* Select items - same soft accent style */
 .rt-SelectContent .rt-SelectItem[data-highlighted] {
   background-color: var(--accent-a3) !important;
   color: var(--accent-a11) !important;
+}
+
+/* Creative database / deck workspace shared surface language */
+.creative-modal {
+  box-shadow:
+    0 32px 120px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.creative-field,
+.creative-textarea,
+.creative-select {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgb(228 228 231);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.creative-field::placeholder,
+.creative-textarea::placeholder {
+  color: rgb(113 113 122);
+}
+
+.creative-field:focus,
+.creative-field:focus-visible,
+.creative-textarea:focus,
+.creative-textarea:focus-visible,
+.creative-select:focus,
+.creative-select:focus-visible {
+  outline: none;
+  border-color: var(--pd-accent);
+  box-shadow: 0 0 0 3px rgba(36, 87, 214, 0.18);
+}
+
+.creative-action-primary,
+.creative-action-accent,
+.creative-icon-button--active,
+.creative-pill-button--active,
+.creative-accent-badge,
+.creative-code-badge {
+  border-color: rgba(36, 87, 214, 0.36) !important;
+  background: rgba(36, 87, 214, 0.16) !important;
+  color: var(--pd-accent-ink) !important;
+}
+
+.creative-action-primary {
+  background: var(--pd-accent) !important;
+  color: white !important;
+}
+
+.creative-action-secondary,
+.creative-action-tertiary,
+.creative-icon-button,
+.creative-pill-button,
+.creative-page-button,
+.creative-neutral-badge {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.creative-action-secondary:hover,
+.creative-action-tertiary:hover,
+.creative-icon-button:hover,
+.creative-pill-button:hover,
+.creative-page-button:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: white !important;
+}
+
+.creative-code-badge {
+  font-family: var(--pd-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.creative-progress-copy {
+  color: var(--pd-accent-ink);
 }
 
 @theme inline {

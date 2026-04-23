@@ -18,6 +18,10 @@ import {
   useDroppable,
 } from "@dnd-kit/core";
 import { SmartImage } from "./SmartImage";
+import {
+  ACCENT_BADGE_CLASS,
+  ICON_BUTTON_ACTIVE_CLASS,
+} from "@/components/ui/actionStyles";
 
 interface ImageGridProps {
   searchTerm: string;
@@ -30,7 +34,7 @@ interface ImageGridProps {
 function DroppableRow({ id, children }: { id: string; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} className={isOver ? "ring-2 ring-blue-9 rounded-lg" : ""}>
+    <div ref={setNodeRef} className={isOver ? "rounded-lg ring-2 ring-[var(--pd-accent)]" : ""}>
       {children}
     </div>
   );
@@ -172,8 +176,9 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
       <DropdownMenu.Trigger asChild>
         <IconButton
           variant="solid"
-          color="teal"
+          color="gray"
           size={size}
+          className={ICON_BUTTON_ACTIVE_CLASS}
           aria-label="Generate options"
           onClick={(event) => event.stopPropagation()}
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
@@ -181,7 +186,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
           <MagicWandIcon />
         </IconButton>
       </DropdownMenu.Trigger>
-      <DropdownMenu.Content onClick={(e) => e.stopPropagation()} className="dropdown-teal">
+      <DropdownMenu.Content onClick={(e) => e.stopPropagation()}>
         <DropdownMenu.Item onClick={(e) => { e.stopPropagation(); setVariationsModalImageId(imageId); }}>
           Variations
         </DropdownMenu.Item>
@@ -200,8 +205,9 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
       <DropdownMenu.Trigger asChild>
         <IconButton
           variant="solid"
-          color="blue"
+          color="gray"
           size={size}
+          className={ICON_BUTTON_ACTIVE_CLASS}
           aria-label="Save to board"
           onClick={(e) => e.stopPropagation()}
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
@@ -369,7 +375,7 @@ export function ImageGrid({ searchTerm, selectedGroup, selectedCategory, setActi
                       {firstImage?.group && (
                         <>
                           <Text size="2" color="gray">-</Text>
-                          <Badge variant="soft" color="blue" size="1">
+                          <Badge variant="soft" color="gray" size="1" className={ACCENT_BADGE_CLASS}>
                             {firstImage.group}
                           </Badge>
                         </>

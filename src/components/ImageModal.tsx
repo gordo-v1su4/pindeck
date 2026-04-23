@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HeartIcon, HeartFilledIcon, Cross2Icon, BookmarkIcon, PlusIcon, MagicWandIcon, CopyIcon } from "@radix-ui/react-icons";
-import { DropdownMenu, Tooltip, Badge as ThemeBadge, IconButton } from "@radix-ui/themes";
+import { DropdownMenu, Tooltip, IconButton } from "@radix-ui/themes";
 import { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -16,6 +16,14 @@ import {
   getPaletteTagStyle,
   sortColorsDarkToLight,
 } from "../lib/utils";
+import {
+  CODE_BADGE_CLASS,
+  ICON_BUTTON_ACTIVE_CLASS,
+  ICON_BUTTON_CLASS,
+  MODAL_CONTENT_CLASS,
+  NEUTRAL_BADGE_CLASS,
+  SECTION_LABEL_CLASS,
+} from "@/components/ui/actionStyles";
 
 const copyToClipboard = (text: string, label: string) => {
   navigator.clipboard.writeText(text);
@@ -65,9 +73,6 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
         : image.projectName
       : image.title;
   }, [image]);
-  const detailBadgeClass =
-    "h-6 rounded-md border-white/10 bg-white/[0.04] px-2.5 text-[11px] font-medium tracking-[0.01em] text-white/72";
-  const sectionLabelClass = "mb-2 block text-[12px] font-medium tracking-[0.01em] text-white/48";
 
   const detailBadges = useMemo(() => {
     const values = [image?.category, image?.group]
@@ -117,7 +122,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
       <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="pindeck-image-modal w-[min(95vw,520px)] max-w-[520px] max-h-[88vh] gap-0 overflow-y-auto rounded-[10px] border border-white/8 bg-[#111111]/96 p-0 text-[14px] text-white shadow-[0_24px_64px_rgba(0,0,0,0.58)]"
+          className={`pindeck-image-modal ${MODAL_CONTENT_CLASS} w-[min(95vw,520px)] max-w-[520px] gap-0 rounded-[10px] p-0 text-[14px] text-white shadow-[0_24px_64px_rgba(0,0,0,0.58)]`}
         >
           <DialogTitle className="sr-only">{displayTitle}</DialogTitle>
           <DialogDescription className="sr-only">Image details</DialogDescription>
@@ -170,7 +175,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                 <Badge
                   key={value}
                   variant="outline"
-                  className={detailBadgeClass}
+                  className={NEUTRAL_BADGE_CLASS}
                 >
                   {value}
                 </Badge>
@@ -204,14 +209,9 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                 onClick={() => copyToClipboard(`--sref ${image.sref}`, 'sref code')}
                 className="group flex w-full items-center gap-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:border-white/18 hover:bg-white/[0.05]"
               >
-                <ThemeBadge
-                  variant="soft"
-                  color="blue"
-                  size="1"
-                  className="rounded-sm px-1.5 text-[10px] tracking-[0.02em]"
-                >
+                <Badge variant="outline" className={CODE_BADGE_CLASS}>
                   {image.sref}
-                </ThemeBadge>
+                </Badge>
                 <span className="flex-1 text-[9px] uppercase tracking-[0.12em] text-white/48">
                   SREF
                 </span>
@@ -222,7 +222,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
             {/* Colors - clickable swatches */}
             {displayColors.length > 0 && (
               <div>
-                <div className={sectionLabelClass}>Colors</div>
+                <div className={SECTION_LABEL_CLASS}>Colors</div>
                 <div className="flex flex-wrap gap-2">
                   {displayColors.slice(0, 8).map((color, i) => (
                     <Tooltip key={i} content={`Copy ${color}`}>
@@ -249,7 +249,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
             {/* Tags - matches EditImageModal exactly */}
             {image.tags.length > 0 && (
               <div>
-                <div className={sectionLabelClass}>Tags</div>
+                <div className={SECTION_LABEL_CLASS}>Tags</div>
                 <div className="flex flex-wrap gap-2">
                   {image.tags.slice(0, 12).map((tag, i) => (
                     <Badge
@@ -297,10 +297,10 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                 <DropdownMenu.Trigger asChild>
                   <IconButton
                     variant="soft"
-                    color={isSavedToAnyBoard ? "blue" : "gray"}
+                    color="gray"
                     size="2"
+                    className={isSavedToAnyBoard ? ICON_BUTTON_ACTIVE_CLASS : ICON_BUTTON_CLASS}
                     aria-label="Save to board"
-                    style={{ opacity: 0.9 }}
                   >
                     <BookmarkIcon />
                   </IconButton>
@@ -329,10 +329,10 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                 <DropdownMenu.Trigger asChild>
                   <IconButton
                     variant="soft"
-                    color="teal"
+                    color="gray"
                     size="2"
+                    className={ICON_BUTTON_ACTIVE_CLASS}
                     aria-label="Generate options"
-                    style={{ opacity: 0.9 }}
                   >
                     <MagicWandIcon />
                   </IconButton>
@@ -342,7 +342,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                   align="start"
                   sideOffset={8}
                   collisionPadding={16}
-                  className="dropdown-teal z-[90] min-w-[11rem]"
+                  className="z-[90] min-w-[11rem]"
                   style={{ zIndex: 90 }}
                 >
                   <DropdownMenu.Item onClick={() => setVariationsModalOpen(true)}>

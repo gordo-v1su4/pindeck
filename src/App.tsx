@@ -142,9 +142,11 @@ export default function App() {
           </div>
         )}
         {activeTab === "deck" && (
-          <Suspense fallback={<ViewSpinner />}>
-            <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
-          </Suspense>
+          <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: 16 }}>
+            <Suspense fallback={<ViewSpinner />}>
+              <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
+            </Suspense>
+          </div>
         )}
         {activeTab === "table" && (
           <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto" }}>

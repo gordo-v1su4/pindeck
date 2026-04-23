@@ -36,7 +36,7 @@ document.documentElement.classList.add("dark");
 createRoot(document.getElementById("root")!).render(
   <ConvexProvider client={convex}>
     <ConvexAuthProvider client={convex}>
-      <Theme appearance="dark" accentColor="blue" grayColor="slate" radius="small" scaling="100%">
+      <Theme appearance="dark" accentColor="indigo" grayColor="slate" radius="small" scaling="100%">
         <App />
       </Theme>
     </ConvexAuthProvider>

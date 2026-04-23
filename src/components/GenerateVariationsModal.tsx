@@ -6,6 +6,15 @@ import { Button, TextField, Text, Flex, Box, Select } from "@radix-ui/themes";
 import { MagicWandIcon } from "@radix-ui/react-icons";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  FIELD_CLASS,
+  FIELD_LABEL_CLASS,
+  MODAL_CONTENT_CLASS,
+  MODAL_DESCRIPTION_CLASS,
+  MODAL_TITLE_CLASS,
+  PRIMARY_BUTTON_CLASS,
+  SECONDARY_BUTTON_CLASS,
+} from "@/components/ui/actionStyles";
 
 interface GenerateVariationsModalProps {
   imageId: Id<"images">;
@@ -43,17 +52,17 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(95vw,28rem)] max-w-[28rem] border-white/10 bg-neutral-950/80 p-6 text-white supports-backdrop-filter:backdrop-blur-xl">
-        <DialogTitle className="text-xl font-semibold text-white">Generate Variations</DialogTitle>
-        <DialogDescription className="text-white/65">
+      <DialogContent className={`${MODAL_CONTENT_CLASS} w-[min(95vw,28rem)] max-w-[28rem] p-6 text-white`}>
+        <DialogTitle className={MODAL_TITLE_CLASS}>Generate Variations</DialogTitle>
+        <DialogDescription className={MODAL_DESCRIPTION_CLASS}>
           Create AI-generated variations of this image.
         </DialogDescription>
 
         <Flex direction="column" gap="3" className="mt-4">
           <Box>
-            <Text size="2" weight="medium" className="mb-1 block">Type</Text>
+            <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>Type</Text>
             <Select.Root value={modificationMode} onValueChange={setModificationMode}>
-              <Select.Trigger className="w-full" />
+              <Select.Trigger className={`w-full ${FIELD_CLASS}`} />
               <Select.Content>
                 <Select.Item value="shot-variation">Shot variation</Select.Item>
                 <Select.Item value="b-roll">B-Roll</Select.Item>
@@ -65,9 +74,9 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
             </Select.Root>
           </Box>
           <Box>
-            <Text size="2" weight="medium" className="mb-1 block">Aspect ratio</Text>
+            <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>Aspect ratio</Text>
             <Select.Root value={aspectRatio} onValueChange={setAspectRatio}>
-              <Select.Trigger className="w-full" />
+              <Select.Trigger className={`w-full ${FIELD_CLASS}`} />
               <Select.Content>
                 <Select.Item value="16:9">16:9 (horizontal)</Select.Item>
                 <Select.Item value="9:16">9:16 (vertical)</Select.Item>
@@ -78,7 +87,7 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
             </Select.Root>
           </Box>
           <Box>
-            <Text size="2" weight="medium" className="mb-1 block">Count (1–12)</Text>
+            <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>Count (1–12)</Text>
             <TextField.Root
               type="number"
               min={1}
@@ -89,24 +98,36 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
                 if (!Number.isNaN(val)) setVariationCount(Math.min(Math.max(val, 1), 12));
               }}
               size="2"
+              className={FIELD_CLASS}
             />
           </Box>
           <Box>
-            <Text size="2" weight="medium" className="mb-1 block">Detail (optional)</Text>
+            <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>Detail (optional)</Text>
             <TextField.Root
               value={variationDetail}
               onChange={(e) => setVariationDetail(e.target.value)}
               placeholder="e.g., wide shot, neon mood"
               size="2"
+              className={FIELD_CLASS}
             />
           </Box>
         </Flex>
 
         <Flex justify="end" gap="2" className="mt-4">
-          <Button variant="soft" color="gray" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="soft"
+            color="gray"
+            className={SECONDARY_BUTTON_CLASS}
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button color="teal" onClick={() => void handleGenerate()}>
+          <Button
+            variant="soft"
+            color="gray"
+            className={PRIMARY_BUTTON_CLASS}
+            onClick={() => void handleGenerate()}
+          >
             <MagicWandIcon /> Generate {variationCount}
           </Button>
         </Flex>

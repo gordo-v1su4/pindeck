@@ -7,6 +7,10 @@ import { CreateBoardModal } from "./CreateBoardModal";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 import { SmartImage } from "./SmartImage";
+import {
+  ACCENT_BADGE_CLASS,
+  NEUTRAL_BADGE_CLASS,
+} from "@/components/ui/actionStyles";
 
 export function BoardsView({
   setActiveTab,
@@ -108,11 +112,11 @@ export function BoardsView({
             </Box>
           </Flex>
           <Flex gap="2">
-            <Badge variant="soft" color="gray" size="2">
+            <Badge variant="soft" color="gray" size="2" className={NEUTRAL_BADGE_CLASS}>
               {selectedBoard.imageIds.length} images
             </Badge>
             {selectedBoard.isPublic && (
-              <Badge variant="soft" color="blue" size="2">
+              <Badge variant="soft" color="gray" size="2" className={ACCENT_BADGE_CLASS}>
                 Public
               </Badge>
             )}
@@ -281,11 +285,11 @@ export function BoardsView({
 
                 <Flex justify="between" align="center" className="mt-4">
                   <Flex gap="3" align="center">
-                    <Badge variant="soft" color="gray" size="2">
+                    <Badge variant="soft" color="gray" size="2" className={NEUTRAL_BADGE_CLASS}>
                       {board.imageIds.length} images
                     </Badge>
                     {board.isPublic && (
-                      <Badge variant="soft" color="blue" size="2">
+                      <Badge variant="soft" color="gray" size="2" className={ACCENT_BADGE_CLASS}>
                         Public
                       </Badge>
                     )}

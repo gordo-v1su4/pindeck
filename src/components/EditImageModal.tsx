@@ -8,18 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  FIELD_CLASS,
+  FIELD_LABEL_CLASS,
+  MODAL_CONTENT_CLASS,
+  MODAL_DESCRIPTION_CLASS,
+  MODAL_TITLE_CLASS,
+  PRIMARY_BUTTON_CLASS,
+  SECONDARY_BUTTON_CLASS,
+  TEXTAREA_CLASS,
+  SELECT_CLASS,
+} from "@/components/ui/actionStyles";
+import {
   compactImageTagClass,
   getPaletteTagStyle,
 } from "../lib/utils";
-
-const fieldClassName =
-  "!h-7 rounded-[5px] border border-white/10 bg-white/[0.03] px-2 !text-[12px] !text-zinc-200 placeholder:text-zinc-500 focus-visible:border-[#2f7dd1] focus-visible:ring-2 focus-visible:ring-[#2f7dd1]/20 md:!text-[12px]";
-
-const selectClassName =
-  "h-7 w-full rounded-[5px] border border-white/10 bg-white/[0.03] px-2 text-[12px] text-zinc-200 outline-none transition-colors focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20";
-
-const labelClassName =
-  "mb-1 block text-[10.5px] font-medium tracking-[0.02em] uppercase text-zinc-500";
 
 interface EditImageModalProps {
   open: boolean;
@@ -122,12 +124,12 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(94vw,32rem)] max-w-[32rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/92 p-0 text-zinc-200 supports-backdrop-filter:backdrop-blur-xl">
+      <DialogContent className={`${MODAL_CONTENT_CLASS} w-[min(94vw,32rem)] max-w-[32rem] p-0 text-zinc-200`}>
         <div className="border-b border-white/8 px-4 py-2.5">
-          <DialogTitle className="text-[13px] font-semibold tracking-[-0.01em] text-zinc-100">
+          <DialogTitle className={MODAL_TITLE_CLASS}>
             Edit Image
           </DialogTitle>
-          <DialogDescription className="mt-0.5 text-[10.5px] leading-[14px] text-zinc-500">
+          <DialogDescription className={MODAL_DESCRIPTION_CLASS}>
             Update metadata, tags, and other information.
           </DialogDescription>
         </div>
@@ -135,7 +137,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
         <form onSubmit={handleSubmit}>
           <div className="space-y-2.5 px-4 py-3">
             <div>
-              <label className={labelClassName}>
+              <label className={FIELD_LABEL_CLASS}>
                 Title *
               </label>
               <Input
@@ -143,12 +145,12 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Image title"
                 required
-                className={fieldClassName}
+                className={FIELD_CLASS}
               />
             </div>
 
             <div>
-              <label className={labelClassName}>
+              <label className={FIELD_LABEL_CLASS}>
                 Description
               </label>
               <textarea
@@ -156,17 +158,17 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Image description"
                 rows={2}
-                className="min-h-[52px] w-full rounded-[5px] border border-white/10 bg-white/[0.03] px-2 py-1.5 text-[12px] leading-[16px] text-zinc-200 outline-none transition-colors placeholder:text-zinc-500 focus:border-[#2f7dd1] focus:ring-2 focus:ring-[#2f7dd1]/20"
+                className={`min-h-[52px] w-full px-2 py-1.5 text-[12px] leading-[16px] ${TEXTAREA_CLASS}`}
               />
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <label className={labelClassName}>Type</label>
+                <label className={FIELD_LABEL_CLASS}>Type</label>
                 <select
                   value={group || "none"}
                   onChange={(e) => setGroup(e.target.value === "none" ? "" : e.target.value)}
-                  className={selectClassName}
+                  className={SELECT_CLASS}
                 >
                   <option value="none">None</option>
                   {(groups || []).map((g) => (
@@ -178,11 +180,11 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
               </div>
 
               <div>
-                <label className={labelClassName}>Genre</label>
+                <label className={FIELD_LABEL_CLASS}>Genre</label>
                 <select
                   value={category || "none"}
                   onChange={(e) => setCategory(e.target.value === "none" ? "" : e.target.value)}
-                  className={selectClassName}
+                  className={SELECT_CLASS}
                 >
                   <option value="none">None</option>
                   {(categories || []).map((cat) => (
@@ -195,7 +197,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
             </div>
 
             <div>
-              <label className={labelClassName}>
+              <label className={FIELD_LABEL_CLASS}>
                 Tags
               </label>
               {tags.length > 0 && (
@@ -219,7 +221,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Add a tag and press Enter"
-                  className={`flex-1 ${fieldClassName}`}
+                  className={`flex-1 ${FIELD_CLASS}`}
                 />
                 <Button
                   type="button"
@@ -227,7 +229,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
                   size="sm"
                   onClick={handleAddTag}
                   disabled={!tagInput.trim()}
-                  className="h-7 rounded-[5px] border-white/10 bg-white/[0.03] px-2.5 text-[11px] text-zinc-300 hover:bg-white/[0.07] hover:text-zinc-100"
+                  className={`h-7 px-2.5 text-[11px] ${SECONDARY_BUTTON_CLASS}`}
                 >
                   Add
                 </Button>
@@ -236,52 +238,52 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
 
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <label className={labelClassName}>
+                <label className={FIELD_LABEL_CLASS}>
                   Source URL
                 </label>
                 <Input
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                   placeholder="https://..."
-                  className={fieldClassName}
+                  className={FIELD_CLASS}
                 />
               </div>
 
               <div>
-                <label className={labelClassName}>
+                <label className={FIELD_LABEL_CLASS}>
                   SREF
                 </label>
                 <Input
                   value={sref}
                   onChange={(e) => setSref(e.target.value)}
                   placeholder="SREF"
-                  className={fieldClassName}
+                  className={FIELD_CLASS}
                 />
               </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <label className={labelClassName}>
+                <label className={FIELD_LABEL_CLASS}>
                   Project Name
                 </label>
                 <Input
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   placeholder="Project name"
-                  className={fieldClassName}
+                  className={FIELD_CLASS}
                 />
               </div>
 
               <div>
-                <label className={labelClassName}>
+                <label className={FIELD_LABEL_CLASS}>
                   Moodboard Name
                 </label>
                 <Input
                   value={moodboardName}
                   onChange={(e) => setMoodboardName(e.target.value)}
                   placeholder="Moodboard name"
-                  className={fieldClassName}
+                  className={FIELD_CLASS}
                 />
               </div>
             </div>
@@ -293,7 +295,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="h-7 rounded-[5px] border-white/10 bg-white/[0.03] px-2.5 text-[11px] text-zinc-300 hover:bg-white/[0.07] hover:text-zinc-100"
+              className={`h-7 px-2.5 text-[11px] ${SECONDARY_BUTTON_CLASS}`}
             >
               Cancel
             </Button>
@@ -301,7 +303,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
               type="submit"
               size="sm"
               disabled={submitting || !title.trim()}
-              className="h-7 rounded-[5px] bg-[#2f7dd1] px-2.5 text-[11px] text-white hover:bg-[#3c8ae0]"
+              className={`h-7 px-2.5 text-[11px] ${PRIMARY_BUTTON_CLASS}`}
             >
               {submitting ? "Saving..." : "Save Changes"}
             </Button>

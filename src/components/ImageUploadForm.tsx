@@ -34,6 +34,24 @@ import {
   MagnifyingGlassIcon
 } from "@radix-ui/react-icons";
 import { toast } from "sonner";
+import {
+  ACCENT_BADGE_CLASS,
+  FIELD_CLASS,
+  FIELD_LABEL_CLASS,
+  MODAL_CONTENT_CLASS,
+  MODAL_DESCRIPTION_CLASS,
+  MODAL_TITLE_CLASS,
+  NEUTRAL_BADGE_CLASS,
+  PRIMARY_BUTTON_CLASS,
+  PILL_BUTTON_ACTIVE_CLASS,
+  SECONDARY_BUTTON_CLASS,
+} from "@/components/ui/actionStyles";
+import {
+  Dialog as AppDialog,
+  DialogContent as AppDialogContent,
+  DialogDescription as AppDialogDescription,
+  DialogTitle as AppDialogTitle,
+} from "@/components/ui/dialog";
 
 interface UploadFile {
   id: string;
@@ -528,13 +546,13 @@ export function ImageUploadForm() {
                     </Text>
                   </Box>
                   <Flex gap="2" wrap="wrap">
-                    <Badge color="blue" variant="soft">
+                    <Badge color="gray" variant="soft" className={ACCENT_BADGE_CLASS}>
                       Pending {discordPendingImages.length}
                     </Badge>
-                    <Badge color="amber" variant="soft">
+                    <Badge color="gray" variant="soft" className={NEUTRAL_BADGE_CLASS}>
                       Processing {discordProcessingImages.length}
                     </Badge>
-                    <Badge color="green" variant="soft">
+                    <Badge color="gray" variant="soft" className={NEUTRAL_BADGE_CLASS}>
                       Draft {discordDraftImages.length}
                     </Badge>
                   </Flex>
@@ -544,7 +562,7 @@ export function ImageUploadForm() {
                 </Text>
               </Card>
               <Flex align="center" gap="2" className="mb-4">
-                <ImageIcon width="20" height="20" className="text-blue-500" />
+                <ImageIcon width="20" height="20" className="text-[var(--pd-accent)]" />
                 <Box>
                   <Heading size="4">Discord Queue</Heading>
                   <Text size="2" color="gray">
@@ -562,7 +580,7 @@ export function ImageUploadForm() {
               ) : (
                 <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
                   {discordPendingImages.map((image) => (
-                    <Card key={image._id} className="overflow-hidden p-0 group relative">
+                    <Card key={image._id} className="group relative overflow-hidden border border-white/10 bg-[#0b0b0d] p-0 shadow-none">
                       <Box
                         className="relative aspect-video cursor-pointer"
                         onClick={() => setDiscordPreviewImageId(image._id)}
@@ -574,32 +592,32 @@ export function ImageUploadForm() {
                         />
                         <Box className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                           <Button
-                            color="green"
-                            variant="solid"
+                            color="gray"
+                            variant="soft"
                             size="1"
                             onClick={(e) => {
                               e.stopPropagation();
                               void handleApprove(image._id);
                             }}
-                            className="flex-1 shadow-lg bg-green-500/90 hover:bg-green-500 cursor-pointer"
+                            className={`${PRIMARY_BUTTON_CLASS} flex-1 shadow-lg cursor-pointer`}
                           >
                             <CheckIcon /> Keep
                           </Button>
                           <Button
-                            color="red"
-                            variant="solid"
+                            color="gray"
+                            variant="soft"
                             size="1"
                             onClick={(e) => {
                               e.stopPropagation();
                               void handleReject(image._id);
                             }}
-                            className="flex-1 shadow-lg bg-red-500/90 hover:bg-red-500 cursor-pointer"
+                            className="flex-1 cursor-pointer border border-red-400/30 bg-red-400/10 text-red-200 shadow-lg hover:bg-red-400/15"
                           >
                             <Cross2Icon /> Discard
                           </Button>
                         </Box>
                       </Box>
-                      <Box className="p-2 bg-gray-50 dark:bg-gray-900/50">
+                      <Box className="border-t border-white/8 bg-white/[0.03] p-2">
                         <Text weight="medium" size="1" className="block truncate">{(image as any).title}</Text>
                         <Text size="1" color="gray" className="line-clamp-1 text-[10px]">{(image as any).description}</Text>
                       </Box>
@@ -639,7 +657,7 @@ export function ImageUploadForm() {
                   <Dialog.Description className="sr-only">Enlarged preview of queued Discord import</Dialog.Description>
                   {discordPreviewImage && (
                     <Box className="flex flex-col">
-                      <Box className="relative flex items-center justify-center bg-gray-2 p-2">
+                      <Box className="relative flex items-center justify-center bg-white/[0.03] p-2">
                         <img
                           src={discordPreviewImage.previewUrl || discordPreviewImage.imageUrl}
                           alt={discordPreviewImage.title}
@@ -647,7 +665,7 @@ export function ImageUploadForm() {
                           style={{ maxWidth: "min(860px, 88vw)" }}
                         />
                       </Box>
-                      <Box className="p-3 border-t border-gray-6 bg-gray-2">
+                      <Box className="border-t border-white/8 bg-white/[0.03] p-3">
                         <Text weight="medium" size="2" className="block">{(discordPreviewImage as any).title}</Text>
                         <Text size="2" color="gray" className="block mt-1 line-clamp-2">{(discordPreviewImage as any).description}</Text>
                       </Box>
@@ -661,27 +679,27 @@ export function ImageUploadForm() {
       ) : (
         <>
           {/* Generate Variations Modal - shown AFTER image is uploaded and analyzed */}
-          <Dialog.Root open={variationModalOpen} onOpenChange={(open) => {
+          <AppDialog open={variationModalOpen} onOpenChange={(open) => {
             setVariationModalOpen(open);
             if (!open) setVariationTargetImageIds([]);
           }}>
-            <Dialog.Content style={{ maxWidth: 520 }}>
-              <Dialog.Title>Generate Variations</Dialog.Title>
-              <Dialog.Description size="2" color="gray">
+            <AppDialogContent className={`${MODAL_CONTENT_CLASS} w-[min(95vw,32rem)] max-w-[32rem] p-6`}>
+              <AppDialogTitle className={MODAL_TITLE_CLASS}>Generate Variations</AppDialogTitle>
+              <AppDialogDescription className={MODAL_DESCRIPTION_CLASS}>
                 Create AI-generated variations for {variationTargetImageIds.length === 1 ? "this image" : `${variationTargetImageIds.length} uploaded images`}. Choose what kind of variations you want before anything gets generated.
-              </Dialog.Description>
+              </AppDialogDescription>
 
           <Flex direction="column" gap="4" className="mt-4">
             {/* Variation Type */}
             <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+              <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>
                 Variation Type
               </Text>
               <Select.Root
                 value={modificationMode}
                 onValueChange={setModificationMode}
               >
-                <Select.Trigger className="w-full" />
+                <Select.Trigger className={`w-full ${FIELD_CLASS}`} />
                 <Select.Content>
                   <Select.Group>
                     <Select.Label>Camera & Framing</Select.Label>
@@ -718,11 +736,11 @@ export function ImageUploadForm() {
 
             {/* Aspect Ratio */}
             <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+              <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>
                 Aspect Ratio
               </Text>
               <Select.Root value={aspectRatio} onValueChange={setAspectRatio}>
-                <Select.Trigger className="w-full" />
+                <Select.Trigger className={`w-full ${FIELD_CLASS}`} />
                 <Select.Content>
                   <Select.Item value="16:9">16:9 (horizontal)</Select.Item>
                   <Select.Item value="9:16">9:16 (vertical)</Select.Item>
@@ -735,7 +753,7 @@ export function ImageUploadForm() {
 
             {/* Variation Count */}
             <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+              <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>
                 How Many? (1-12)
               </Text>
               <TextField.Root
@@ -750,12 +768,13 @@ export function ImageUploadForm() {
                   }
                 }}
                 size="2"
+                className={FIELD_CLASS}
               />
             </Box>
 
             {/* Custom Detail */}
             <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+              <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>
                 Custom Direction (optional)
               </Text>
               <TextField.Root
@@ -769,6 +788,7 @@ export function ImageUploadForm() {
                   "e.g., slight smile, different hand position"
                 }
                 size="2"
+                className={FIELD_CLASS}
               />
               <Text size="1" color="gray" className="mt-1">
                 Leave blank for automatic random variations
@@ -780,19 +800,22 @@ export function ImageUploadForm() {
             <Button
               variant="soft"
               color="gray"
+              className={SECONDARY_BUTTON_CLASS}
               onClick={() => setVariationModalOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              color="teal"
+              variant="soft"
+              color="gray"
+              className={PRIMARY_BUTTON_CLASS}
               onClick={() => void handleGenerateVariations()}
             >
               <MagicWandIcon /> Generate {variationCount} Variation{variationCount !== 1 ? "s" : ""}
             </Button>
           </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
+        </AppDialogContent>
+      </AppDialog>
 
       <Box>
         <Heading size="6" weight="bold">Upload Images</Heading>
@@ -804,10 +827,10 @@ export function ImageUploadForm() {
       {/* Refined Drop Zone */}
       <Box
         className={`
-          relative overflow-hidden transition-all duration-200 ease-in-out border border-gray-6
+          relative overflow-hidden border transition-all duration-200 ease-in-out
           ${dragActive
-            ? 'bg-blue-3 ring-2 ring-blue-9 ring-offset-2'
-            : 'bg-gray-2 hover:bg-gray-3'
+            ? 'border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] ring-2 ring-[var(--pd-accent)]/40 ring-offset-2 ring-offset-black'
+            : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
           }
         `}
         style={{ minHeight: '150px' }}
@@ -824,13 +847,13 @@ export function ImageUploadForm() {
           onChange={handleFileInput}
         />
         <Flex direction="column" align="center" justify="center" className="h-full py-6 px-4 text-center pointer-events-none">
-          <Box className="bg-gray-4 p-3 shadow-sm mb-3">
-            <UploadIcon width="24" height="24" className="text-gray-11" />
+          <Box className="mb-3 border border-white/10 bg-white/[0.04] p-3 shadow-sm">
+            <UploadIcon width="24" height="24" className="text-white/72" />
           </Box>
-          <Text size="3" weight="medium" className="mb-1 text-gray-11">
+          <Text size="3" weight="medium" className="mb-1 text-white/86">
             Click to upload or drag and drop
           </Text>
-          <Text size="1" color="gray" className="max-w-xs">
+          <Text size="1" className="max-w-xs text-white/45">
             SVG, PNG, JPG or GIF (max. 10MB per file). Multiple files supported.
           </Text>
         </Flex>
@@ -879,7 +902,7 @@ export function ImageUploadForm() {
                           size="1"
                         >
                           <TextField.Slot>
-                            <MagicWandIcon className="text-teal-400" />
+                            <MagicWandIcon className="text-[var(--pd-accent-ink)]" />
                           </TextField.Slot>
                         </TextField.Root>
                       </Box>
@@ -1020,7 +1043,7 @@ export function ImageUploadForm() {
             ))}
           </Grid>
 
-          <Flex justify="end" gap="3" className="pt-4 border-t border-gray-6">
+          <Flex justify="end" gap="3" className="border-t border-white/8 pt-4">
             <Button
               variant="soft"
               color="gray"
@@ -1055,7 +1078,7 @@ export function ImageUploadForm() {
           <Separator size="4" className="mb-6" />
           <Flex align="center" justify="between" gap="2" className="mb-4">
             <Flex align="center" gap="2">
-              <Box className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+              <Box className="w-4 h-4 border-2 border-[var(--pd-accent)] border-t-transparent rounded-full animate-spin" />
               <Box>
                 <Heading size="4">AI Analysis in Progress</Heading>
                 <Text size="2" color="gray">
@@ -1092,7 +1115,7 @@ export function ImageUploadForm() {
                     className="w-full h-full object-cover grayscale"
                   />
                   <Box className="absolute inset-0 bg-black/10 flex items-center justify-center">
-                    <Badge color="purple" variant="solid" size="1">
+                    <Badge color="gray" variant="soft" size="1" className={ACCENT_BADGE_CLASS}>
                       Processing...
                     </Badge>
                   </Box>
@@ -1103,7 +1126,8 @@ export function ImageUploadForm() {
                     <Button
                       size="1"
                       variant="soft"
-                      color="green"
+                      color="gray"
+                      className={PRIMARY_BUTTON_CLASS}
                       onClick={(e) => {
                         e.stopPropagation();
                         void setAiStatusMutation({ imageId: image._id, status: "completed" })
@@ -1129,7 +1153,8 @@ export function ImageUploadForm() {
                     <Button
                       size="1"
                       variant="soft"
-                      color="blue"
+                      color="gray"
+                      className={PILL_BUTTON_ACTIVE_CLASS}
                       onClick={(e) => {
                         e.stopPropagation();
                         void rerunSmartAnalysisMutation({
@@ -1168,7 +1193,7 @@ export function ImageUploadForm() {
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
           <Flex align="center" gap="2" className="mb-4">
-            <MagicWandIcon width="20" height="20" className="text-teal-500" />
+            <MagicWandIcon width="20" height="20" className="text-[var(--pd-accent)]" />
             <Box>
               <Heading size="4">AI Suggestions</Heading>
               <Text size="2" color="gray">
@@ -1179,7 +1204,7 @@ export function ImageUploadForm() {
 
           <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
             {localPendingImages.map((image) => (
-              <Card key={image._id} className="overflow-hidden p-0 group relative">
+              <Card key={image._id} className="group relative overflow-hidden border border-white/10 bg-[#0b0b0d] p-0 shadow-none">
                 <Box className="relative aspect-video">
                   <img
                     src={image.previewUrl || image.imageUrl}
@@ -1189,32 +1214,32 @@ export function ImageUploadForm() {
                   {/* Buttons container - Always visible on hover, bottom aligned */}
                   <Box className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <Button
-                      color="green"
-                      variant="solid"
+                      color="gray"
+                      variant="soft"
                       size="1"
                       onClick={(e) => { 
                         e.stopPropagation(); 
                         void handleApprove(image._id); 
                       }}
-                      className="flex-1 shadow-lg bg-green-500/90 hover:bg-green-500 cursor-pointer"
+                      className={`${PRIMARY_BUTTON_CLASS} flex-1 shadow-lg cursor-pointer`}
                     >
                       <CheckIcon /> Keep
                     </Button>
                     <Button
-                      color="red"
-                      variant="solid"
+                      color="gray"
+                      variant="soft"
                       size="1"
                       onClick={(e) => { 
                         e.stopPropagation(); 
                         void handleReject(image._id); 
                       }}
-                      className="flex-1 shadow-lg bg-red-500/90 hover:bg-red-500 cursor-pointer"
+                      className="flex-1 cursor-pointer border border-red-400/30 bg-red-400/10 text-red-200 shadow-lg hover:bg-red-400/15"
                     >
                       <Cross2Icon /> Discard
                     </Button>
                   </Box>
                 </Box>
-                <Box className="p-2 bg-gray-50 dark:bg-gray-900/50">
+                <Box className="border-t border-white/8 bg-white/[0.03] p-2">
                   <Text weight="medium" size="1" className="block truncate">{(image as any).title}</Text>
                   <Text size="1" color="gray" className="line-clamp-1 text-[10px]">{(image as any).description}</Text>
                 </Box>
@@ -1228,9 +1253,9 @@ export function ImageUploadForm() {
       {localDraftImages.length > 0 && (
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
-          <Flex align="center" justify="between" className="mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 border border-gray-200 dark:border-gray-800">
+          <Flex align="center" justify="between" className="mb-4 border border-white/10 bg-white/[0.03] p-3">
              <Flex align="center" gap="2">
-                <CheckIcon width="20" height="20" className="text-green-500" />
+                <CheckIcon width="20" height="20" className="text-[var(--pd-accent)]" />
                 <Box>
                 <Heading size="4">Review & Finalize</Heading>
                 <Text size="2" color="gray">
@@ -1241,8 +1266,8 @@ export function ImageUploadForm() {
              <Button
               onClick={() => void handleFinalizeUploads()}
               size="2"
-              color="green"
-              className="shadow-sm"
+              color="gray"
+              className={`${PRIMARY_BUTTON_CLASS} shadow-sm`}
             >
               Finalize All
             </Button>
@@ -1250,9 +1275,9 @@ export function ImageUploadForm() {
 
           <Grid columns={{ initial: "1", lg: "2" }} gap="4">
             {localDraftImages.map((image) => (
-              <Card key={image._id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <Card key={image._id} className="overflow-hidden border border-white/10 bg-[#0b0b0d] shadow-none transition-colors hover:border-white/14">
                 <Flex gap="4">
-                  <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden relative group">
+                  <Box className="relative group h-24 w-24 shrink-0 overflow-hidden bg-white/[0.04]">
                     <img
                       src={image.previewUrl || image.imageUrl}
                       alt={image.title}
@@ -1278,7 +1303,7 @@ export function ImageUploadForm() {
                           size="1"
                         >
                           <TextField.Slot>
-                            <MagicWandIcon className="text-teal-400" />
+                            <MagicWandIcon className="text-[var(--pd-accent-ink)]" />
                           </TextField.Slot>
                         </TextField.Root>
                       </Box>
@@ -1425,9 +1450,10 @@ export function ImageUploadForm() {
                           Check Convex logs for the exact failure. This can be caused by AI provider config or downstream media persistence errors.
                         </Text>
                         <Button
-                          color="orange"
+                          color="gray"
                           variant="soft"
                           size="1"
+                          className={PILL_BUTTON_ACTIVE_CLASS}
                           onClick={() => void reRunAnalysis(
                              image._id,
                              image.storageId,
@@ -1449,21 +1475,21 @@ export function ImageUploadForm() {
 
                     {/* Generate Variations Button - shown when analysis is complete */}
                     {image.aiStatus === "completed" && (
-                      <Flex gap="2" className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <Flex gap="2" className="mt-2 border-t border-white/8 pt-2">
                         <Button
-                          color="teal"
+                          color="gray"
                           variant="soft"
                           size="1"
+                          className={`${PILL_BUTTON_ACTIVE_CLASS} flex-1`}
                           onClick={() => openVariationModal(image._id)}
-                          className="flex-1"
                         >
                           <MagicWandIcon /> Generate Variations
                         </Button>
                       </Flex>
                     )}
                     {image.aiStatus === "processing" && (
-                      <Flex align="center" gap="2" className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <Box className="w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                      <Flex align="center" gap="2" className="mt-2 border-t border-white/8 pt-2">
+                        <Box className="w-3 h-3 border-2 border-[var(--pd-accent)] border-t-transparent rounded-full animate-spin" />
                         <Text size="1" color="gray">Generating variations...</Text>
                       </Flex>
                     )}

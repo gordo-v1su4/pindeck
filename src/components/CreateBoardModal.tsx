@@ -6,6 +6,17 @@ import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 import { UploadIcon, Cross2Icon } from "@radix-ui/react-icons";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  ACCENT_BADGE_CLASS,
+  FIELD_CLASS,
+  FIELD_LABEL_CLASS,
+  MODAL_CONTENT_CLASS,
+  MODAL_DESCRIPTION_CLASS,
+  MODAL_TITLE_CLASS,
+  PRIMARY_BUTTON_CLASS,
+  PROGRESS_COPY_CLASS,
+  SECONDARY_BUTTON_CLASS,
+} from "@/components/ui/actionStyles";
 
 interface CreateBoardModalProps {
   open: boolean;
@@ -164,15 +175,15 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(95vw,36rem)] max-w-[36rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/80 p-6 text-white supports-backdrop-filter:backdrop-blur-xl">
-        <DialogTitle className="text-xl font-semibold text-white">Create New Board</DialogTitle>
-        <DialogDescription className="mb-5 text-white/65">
+      <DialogContent className={`${MODAL_CONTENT_CLASS} w-[min(95vw,36rem)] max-w-[36rem] p-6 text-white`}>
+        <DialogTitle className={MODAL_TITLE_CLASS}>Create New Board</DialogTitle>
+        <DialogDescription className={`${MODAL_DESCRIPTION_CLASS} mb-5`}>
           Create a new board to organize your favorite images.
         </DialogDescription>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Box>
-            <Text size="2" weight="medium" className="mb-2 block">
+            <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>
               Board Name *
             </Text>
             <TextField.Root
@@ -181,11 +192,12 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
               placeholder="e.g., My Inspiration Board"
               required
               size="2"
+              className={FIELD_CLASS}
             />
           </Box>
 
           <Box>
-            <Text size="2" weight="medium" className="mb-2 block">
+            <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>
               Description
             </Text>
             <TextField.Root
@@ -193,6 +205,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description..."
               size="2"
+              className={FIELD_CLASS}
             />
           </Box>
 
@@ -204,6 +217,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
                 checked={isPublic}
                 onChange={(e) => setIsPublic(e.target.checked)}
                 className="rounded"
+                style={{ accentColor: "var(--pd-accent)" }}
               />
               <Text size="2" as="label" htmlFor="isPublic" className="cursor-pointer">
                 Make this board public
@@ -214,11 +228,11 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
           {/* Image upload section - only shown when allowUpload is true and no existing imageId */}
           {allowUpload && !imageId && (
             <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
+              <Text size="2" weight="medium" className={FIELD_LABEL_CLASS}>
                 Add Images (optional)
               </Text>
               <Box
-                className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                className="cursor-pointer rounded-lg border-2 border-dashed border-white/12 bg-white/[0.02] p-4 text-center transition-colors hover:border-[var(--pd-accent)]"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <input
@@ -230,7 +244,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
                   className="hidden"
                 />
                 <UploadIcon width="24" height="24" className="mx-auto mb-2 text-gray-400" />
-                <Text size="2" color="gray">
+                <Text size="2" className="text-zinc-400">
                   Click to select images or drag and drop
                 </Text>
               </Box>
@@ -240,7 +254,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
                 <Box className="mt-3">
                   <Flex gap="2" wrap="wrap">
                     {selectedFiles.map((file, index) => (
-                      <Badge key={index} variant="soft" color="gray" size="1" className="pr-1">
+                      <Badge key={index} variant="soft" color="gray" size="1" className={`${ACCENT_BADGE_CLASS} pr-1`}>
                         <Flex align="center" gap="1">
                           <Text size="1" className="max-w-24 truncate">{file.name}</Text>
                           <Cross2Icon
@@ -261,16 +275,28 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
               )}
 
               {uploadProgress && (
-                <Text size="2" color="blue" className="mt-2">{uploadProgress}</Text>
+                <Text size="2" className={`${PROGRESS_COPY_CLASS} mt-2`}>{uploadProgress}</Text>
               )}
             </Box>
           )}
 
           <Flex gap="3" mt="6" justify="end">
-            <Button type="button" variant="soft" color="gray" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="soft"
+              color="gray"
+              className={SECONDARY_BUTTON_CLASS}
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="solid" disabled={submitting || !name.trim()}>
+            <Button
+              type="submit"
+              variant="soft"
+              color="gray"
+              className={PRIMARY_BUTTON_CLASS}
+              disabled={submitting || !name.trim()}
+            >
               {submitting ? (uploadProgress || "Creating...") : "Create Board"}
             </Button>
           </Flex>
