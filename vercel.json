@@ -1,9 +1,20 @@
 {
   "buildCommand": "npx convex deploy --cmd 'bun run build'",
   "outputDirectory": "dist",
-  "framework": "vite",
   "installCommand": "bun install",
   "devCommand": "bun run dev:frontend",
+  "experimentalServices": {
+    "frontend": {
+      "entrypoint": ".",
+      "routePrefix": "/",
+      "framework": "vite"
+    },
+    "media-gateway": {
+      "entrypoint": "services/media-gateway",
+      "routePrefix": "/_/media-gateway",
+      "framework": "express"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
