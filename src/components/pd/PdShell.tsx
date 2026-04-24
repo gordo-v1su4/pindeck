@@ -1,7 +1,7 @@
 import { useEffect, useMemo, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Btn, Chip, Hotkey, Icon, Label } from "./primitives";
+import { Chip, Hotkey, Icon, Label } from "./primitives";
 import { SignOutButton } from "@/SignOutButton";
 
 export type PdView = "gallery" | "upload" | "boards" | "deck" | "table";
@@ -75,7 +75,7 @@ function PdSidebar({
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (!t) return;
-      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || (t as HTMLElement).isContentEditable) return;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
       const map: Record<string, PdView> = { g: "gallery", t: "table", b: "boards", d: "deck", u: "upload" };
       const v = map[e.key.toLowerCase()];
       if (v) onView(v);
@@ -203,6 +203,8 @@ function PdTopbar({
     { id: "gallery" as const, icon: "masonry" as const, label: "Gallery" },
     { id: "table" as const, icon: "table" as const, label: "Table" },
     { id: "boards" as const, icon: "board" as const, label: "Boards" },
+    { id: "deck" as const, icon: "deck" as const, label: "Decks" },
+    { id: "upload" as const, icon: "upload" as const, label: "Upload" },
   ]), []);
 
   return (
@@ -283,8 +285,6 @@ function PdTopbar({
           </button>
         ))}
       </div>
-
-      <Btn variant="accent" icon="sparkle" onClick={() => setView("upload")}>Upload</Btn>
 
       {onToggleTweaks && (
         <button

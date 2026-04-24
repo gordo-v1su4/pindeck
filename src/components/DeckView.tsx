@@ -14,7 +14,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 
 const DeckComposer = lazy(() =>
-  import("./deck/DeckComposer").then((mod) => ({ default: mod.DeckComposer }))
+  import("./deck/DeckComposer").then((mod) => ({ default: mod.DeckComposer })),
 );
 
 export function DeckView({
@@ -35,7 +35,10 @@ export function DeckView({
 
   const activeDeckId =
     selectedDeckId ?? (decks && decks.length > 0 ? decks[0]._id : null);
-  const deck = useQuery(api.decks.getById, activeDeckId ? { deckId: activeDeckId } : "skip");
+  const deck = useQuery(
+    api.decks.getById,
+    activeDeckId ? { deckId: activeDeckId } : "skip",
+  );
 
   if (decks === undefined) {
     return (
@@ -53,7 +56,9 @@ export function DeckView({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <CardTitle>Deck</CardTitle>
-                <CardDescription className="text-white/55">No decks yet.</CardDescription>
+                <CardDescription className="text-white/55">
+                  No decks yet.
+                </CardDescription>
               </div>
               {loggedInUser?.isAnonymous ? (
                 <Badge className="border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-300 hover:bg-amber-400/10">
@@ -65,10 +70,13 @@ export function DeckView({
           <CardContent className="space-y-3 text-sm text-white/55">
             {loggedInUser?.isAnonymous ? (
               <p>
-                You are signed in as a guest. Saved production decks belong to your email account, so this temporary session will look empty.
+                You are signed in as a guest. Saved production decks belong to
+                your email account, so this temporary session will look empty.
               </p>
             ) : null}
-            <p>Go to Boards and click "Convert to Deck" after selecting images.</p>
+            <p>
+              Go to Boards and click "Convert to Deck" after selecting images.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -77,46 +85,50 @@ export function DeckView({
 
   return (
     <div className="relative flex w-full flex-col gap-3 text-white">
-      {decks.length > 1 || loggedInUser?.isAnonymous ? (
-        <div className="border border-white/8 bg-[#080808] px-4 py-2.5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <span className="text-[10px] uppercase tracking-[0.28em] text-white/35">DeckView</span>
-              <Badge className="border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-white/52 hover:bg-white/[0.03]">
-                {decks.length} deck{decks.length === 1 ? "" : "s"}
+      <div className="border-b border-white/8 bg-[#080808] px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.28em] text-white/35">
+              Deck library
+            </span>
+            <Badge className="border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-white/52 hover:bg-white/[0.03]">
+              {decks.length} deck{decks.length === 1 ? "" : "s"}
+            </Badge>
+            {deck?.boardName ? (
+              <span className="text-[11px] text-white/42">
+                from {deck.boardName}
+              </span>
+            ) : null}
+            {loggedInUser?.isAnonymous ? (
+              <Badge className="border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-300 hover:bg-amber-400/10">
+                Guest
               </Badge>
-              {deck?.boardName ? (
-                <span className="text-[11px] text-white/42">from {deck.boardName}</span>
-              ) : null}
-              {loggedInUser?.isAnonymous ? (
-                <Badge className="border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-300 hover:bg-amber-400/10">
-                  Guest
-                </Badge>
-              ) : null}
-            </div>
-
-            {decks.length > 1 ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {decks.map((item) => {
-                  const active = item._id === activeDeckId;
-                  return (
-                    <Button
-                      key={item._id}
-                      variant="ghost"
-                      className={active
-                        ? "h-auto border border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--pd-accent-ink)] hover:bg-[var(--pd-accent-soft)]"
-                        : "h-auto border border-white/10 bg-[#0c0c0c] text-[10px] font-semibold uppercase tracking-[0.2em] text-white/58 hover:border-white/16 hover:bg-[#101010] hover:text-white"}
-                      onClick={() => onSelectDeck(item._id)}
-                    >
-                      {item.title}
-                    </Button>
-                  );
-                })}
-              </div>
             ) : null}
           </div>
+
+          {decks.length > 1 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {decks.map((item) => {
+                const active = item._id === activeDeckId;
+                return (
+                  <Button
+                    key={item._id}
+                    variant="ghost"
+                    className={
+                      active
+                        ? "h-auto border border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--pd-accent-ink)] hover:bg-[var(--pd-accent-soft)]"
+                        : "h-auto border border-white/10 bg-[#0c0c0c] text-[10px] font-semibold uppercase tracking-[0.2em] text-white/58 hover:border-white/16 hover:bg-[#101010] hover:text-white"
+                    }
+                    onClick={() => onSelectDeck(item._id)}
+                  >
+                    {item.title}
+                  </Button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       {deck === undefined ? (
         <Card className="border-white/10 bg-[#050505] text-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
@@ -143,6 +155,6 @@ export function DeckView({
           </CardContent>
         </Card>
       )}
-      </div>
+    </div>
   );
 }

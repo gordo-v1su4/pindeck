@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" width="140" height="32">
-  <rect x="2" y="4" width="24" height="24" rx="4" fill="#0c3564"/>
-  <text x="14" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="900" font-style="italic" fill="#1f8fe5" text-anchor="middle" letter-spacing="-0.07em">P</text>
-  <text x="34" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#0c3564" letter-spacing="-0.07em">Pin</text>
-  <text x="78" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#1f8fe5" letter-spacing="-0.07em">deck</text>
+  <rect x="2" y="4" width="24" height="24" rx="4" fill="#172554"/>
+  <text x="14" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="900" font-style="italic" fill="#2F5BEA" text-anchor="middle" letter-spacing="-0.07em">P</text>
+  <text x="34" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#172554" letter-spacing="-0.07em">Pin</text>
+  <text x="78" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#2F5BEA" letter-spacing="-0.07em">deck</text>
 </svg>

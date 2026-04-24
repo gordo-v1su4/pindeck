@@ -3,9 +3,9 @@
   "theme": "mint",
   "name": "PINDOCS",
   "colors": {
-    "primary": "#1f8fe5",
-    "light": "#52a8ff",
-    "dark": "#0c3564"
+    "primary": "#2F5BEA",
+    "light": "#C2D0FF",
+    "dark": "#2447B8"
   },
   "font": {
     "family": "Inter"
@@ -18,11 +18,7 @@
         "groups": [
           {
             "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
-            ]
+            "pages": ["index", "quickstart", "development"]
           },
           {
             "group": "Core features",
@@ -35,10 +31,7 @@
           },
           {
             "group": "Integrations",
-            "pages": [
-              "guides/discord-bot",
-              "guides/nextcloud"
-            ]
+            "pages": ["guides/discord-bot", "guides/nextcloud"]
           }
         ]
       },
@@ -47,9 +40,7 @@
         "groups": [
           {
             "group": "API documentation",
-            "pages": [
-              "api-reference/introduction"
-            ]
+            "pages": ["api-reference/introduction"]
           },
           {
             "group": "Endpoints",

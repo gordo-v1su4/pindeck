@@ -38,7 +38,9 @@ export function SignInForm() {
     if (!isAuthenticated) return;
 
     toast.success(
-      flow === "signIn" ? "Signed in successfully." : "Account created successfully."
+      flow === "signIn"
+        ? "Signed in successfully."
+        : "Account created successfully.",
     );
     setSignInStarted(false);
     setSubmitting(false);
@@ -48,7 +50,9 @@ export function SignInForm() {
     if (!signInStarted || isAuthenticated) return;
 
     const timeout = setTimeout(() => {
-      toast.error("Sign-in timed out. Please check your connection and try again.");
+      toast.error(
+        "Sign-in timed out. Please check your connection and try again.",
+      );
       setSignInStarted(false);
       setSubmitting(false);
     }, 10000);
@@ -76,12 +80,19 @@ export function SignInForm() {
     try {
       const result = await signIn("password", formData);
 
-      if (result && typeof result === "object" && "signingIn" in result && result.signingIn) {
+      if (
+        result &&
+        typeof result === "object" &&
+        "signingIn" in result &&
+        result.signingIn
+      ) {
         return;
       }
 
       toast.success(
-        flow === "signIn" ? "Signed in successfully." : "Account created successfully."
+        flow === "signIn"
+          ? "Signed in successfully."
+          : "Account created successfully.",
       );
       form.reset();
       setSubmitting(false);
@@ -90,21 +101,31 @@ export function SignInForm() {
       const message = error instanceof Error ? error.message : "Unknown error";
 
       if (message.includes("already exists")) {
-        toast.error("An account with this email already exists. Please sign in instead.");
+        toast.error(
+          "An account with this email already exists. Please sign in instead.",
+        );
         setFlow("signIn");
-      } else if (message.includes("InvalidSecret") || message.includes("Invalid password")) {
-        toast.error("Invalid password. Please check your password and try again.");
-      } else if (message.includes("User not found") || message.includes("not found")) {
+      } else if (
+        message.includes("InvalidSecret") ||
+        message.includes("Invalid password")
+      ) {
+        toast.error(
+          "Invalid password. Please check your password and try again.",
+        );
+      } else if (
+        message.includes("User not found") ||
+        message.includes("not found")
+      ) {
         toast.error(
           flow === "signIn"
             ? "No account found with this email. Please sign up first."
-            : "Could not create account. Please try again."
+            : "Could not create account. Please try again.",
         );
       } else {
         toast.error(
           flow === "signIn"
             ? `Could not sign in: ${message}`
-            : `Could not sign up: ${message}`
+            : `Could not sign up: ${message}`,
         );
       }
 
@@ -113,7 +134,10 @@ export function SignInForm() {
     }
   };
 
-  const handleProviderSignIn = (provider: "google" | "github", label: string) => {
+  const handleProviderSignIn = (
+    provider: "google" | "github",
+    label: string,
+  ) => {
     setSubmitting(true);
     void signIn(provider).catch((error) => {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -170,17 +194,20 @@ export function SignInForm() {
 
       <Card className="border border-white/8 bg-[#17191d]/95 shadow-2xl shadow-black/35 ring-0 backdrop-blur">
         <CardHeader className="gap-4">
-          <Tabs value={flow} onValueChange={(value) => setFlow(value as "signIn" | "signUp")}>
+          <Tabs
+            value={flow}
+            onValueChange={(value) => setFlow(value as "signIn" | "signUp")}
+          >
             <TabsList className="grid h-10 w-full grid-cols-2 rounded-xl bg-white/5 p-1">
               <TabsTrigger
                 value="signIn"
-                className="rounded-lg text-white/60 data-active:bg-sky-500 data-active:text-slate-950"
+                className="rounded-lg text-white/60 data-active:bg-[var(--pd-accent)] data-active:text-white"
               >
                 Sign in
               </TabsTrigger>
               <TabsTrigger
                 value="signUp"
-                className="rounded-lg text-white/60 data-active:bg-sky-500 data-active:text-slate-950"
+                className="rounded-lg text-white/60 data-active:bg-[var(--pd-accent)] data-active:text-white"
               >
                 Create account
               </TabsTrigger>
@@ -193,7 +220,12 @@ export function SignInForm() {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-6">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <form
+            onSubmit={(event) => {
+              void handleSubmit(event);
+            }}
+            className="flex flex-col gap-6"
+          >
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="auth-email" className="sr-only">
@@ -205,7 +237,7 @@ export function SignInForm() {
                   name="email"
                   placeholder="name@example.com"
                   autoComplete="email"
-                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 dark:bg-white/5"
+                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-[var(--pd-accent)] focus-visible:ring-[var(--pd-accent-soft)] dark:bg-white/5"
                   required
                 />
               </Field>
@@ -218,13 +250,16 @@ export function SignInForm() {
                   type="password"
                   name="password"
                   placeholder="Password"
-                  autoComplete={flow === "signIn" ? "current-password" : "new-password"}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 dark:bg-white/5"
+                  autoComplete={
+                    flow === "signIn" ? "current-password" : "new-password"
+                  }
+                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-[var(--pd-accent)] focus-visible:ring-[var(--pd-accent-soft)] dark:bg-white/5"
                   required
                 />
                 {flow === "signUp" && (
                   <FieldDescription>
-                    Use at least 8 characters so your account is ready for future sign-ins.
+                    Use at least 8 characters so your account is ready for
+                    future sign-ins.
                   </FieldDescription>
                 )}
               </Field>
@@ -233,7 +268,7 @@ export function SignInForm() {
             <Button
               type="submit"
               size="lg"
-              className="h-11 w-full rounded-xl bg-sky-500 text-base font-semibold text-slate-950 hover:bg-sky-400"
+              className="h-11 w-full rounded-xl bg-[var(--pd-accent)] text-base font-semibold text-white hover:bg-[#2447b8]"
               disabled={submitting || isLoading}
             >
               {submitting ? <Spinner data-icon="inline-start" /> : null}

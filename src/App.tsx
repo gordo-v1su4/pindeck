@@ -1,4 +1,9 @@
-import { Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react";
+import {
+  Authenticated,
+  Unauthenticated,
+  useConvexAuth,
+  useQuery,
+} from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "./SignInForm";
 import { Toaster } from "sonner";
@@ -9,25 +14,39 @@ import { Spinner } from "@/components/ui/spinner";
 import { PdShell, type PdView } from "@/components/pd/PdShell";
 
 const ImageUploadForm = lazy(() =>
-  import("./components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
+  import("./components/ImageUploadForm").then((mod) => ({
+    default: mod.ImageUploadForm,
+  })),
 );
 const BoardsView = lazy(() =>
-  import("./components/BoardsView").then((mod) => ({ default: mod.BoardsView }))
+  import("./components/BoardsView").then((mod) => ({
+    default: mod.BoardsView,
+  })),
 );
 const TableView = lazy(() =>
-  import("./components/TableView").then((mod) => ({ default: mod.TableView }))
+  import("./components/TableView").then((mod) => ({ default: mod.TableView })),
 );
 const DeckView = lazy(() =>
-  import("./components/DeckView").then((mod) => ({ default: mod.DeckView }))
+  import("./components/DeckView").then((mod) => ({ default: mod.DeckView })),
 );
 
-const APP_TABS: ReadonlyArray<PdView> = ["gallery", "upload", "boards", "deck", "table"];
+const APP_TABS: ReadonlyArray<PdView> = [
+  "gallery",
+  "upload",
+  "boards",
+  "deck",
+  "table",
+];
 
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [selectedCategory, setSelectedCategory] = useState<
+    string | undefined
+  >();
   const [activeTab, setActiveTabState] = useState<PdView>("gallery");
-  const [selectedDeckId, setSelectedDeckId] = useState<Id<"decks"> | null>(null);
+  const [selectedDeckId, setSelectedDeckId] = useState<Id<"decks"> | null>(
+    null,
+  );
   const { isAuthenticated } = useConvexAuth();
 
   const loggedInUser = useQuery(api.auth.loggedInUser);
@@ -102,17 +121,6 @@ export default function App() {
     );
   }
 
-  if (activeTab === "deck") {
-    return (
-      <div style={{ minHeight: "100vh", background: "var(--pd-bg)", color: "var(--pd-ink)" }}>
-        <Suspense fallback={<ViewSpinner />}>
-          <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
-        </Suspense>
-        <Toaster theme="dark" />
-      </div>
-    );
-  }
-
   return (
     <PdShell
       activeView={activeTab}
@@ -122,9 +130,20 @@ export default function App() {
       selectedCategory={selectedCategory}
       onCategoryChange={setSelectedCategory}
     >
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
         {activeTab === "gallery" && (
-          <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: 16 }}>
+          <div
+            className="pd-scroll pd-fade-in"
+            style={{ flex: 1, overflow: "auto", padding: 16 }}
+          >
             <Content
               searchTerm={searchTerm}
               selectedCategory={selectedCategory}
@@ -134,14 +153,20 @@ export default function App() {
           </div>
         )}
         {activeTab === "upload" && (
-          <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: 16 }}>
+          <div
+            className="pd-scroll pd-fade-in"
+            style={{ flex: 1, overflow: "auto", padding: 16 }}
+          >
             <Suspense fallback={<ViewSpinner />}>
               <ImageUploadForm />
             </Suspense>
           </div>
         )}
         {activeTab === "boards" && (
-          <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: 16 }}>
+          <div
+            className="pd-scroll pd-fade-in"
+            style={{ flex: 1, overflow: "auto", padding: 16 }}
+          >
             <Suspense fallback={<ViewSpinner />}>
               <BoardsView
                 key={boardVersion}
@@ -153,9 +178,25 @@ export default function App() {
           </div>
         )}
         {activeTab === "table" && (
-          <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto" }}>
+          <div
+            className="pd-scroll pd-fade-in"
+            style={{ flex: 1, overflow: "auto" }}
+          >
             <Suspense fallback={<ViewSpinner />}>
               <TableView />
+            </Suspense>
+          </div>
+        )}
+        {activeTab === "deck" && (
+          <div
+            className="pd-scroll pd-fade-in"
+            style={{ flex: 1, overflow: "auto" }}
+          >
+            <Suspense fallback={<ViewSpinner />}>
+              <DeckView
+                selectedDeckId={selectedDeckId}
+                onSelectDeck={selectDeck}
+              />
             </Suspense>
           </div>
         )}
