@@ -102,6 +102,17 @@ export default function App() {
     );
   }
 
+  if (activeTab === "deck") {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--pd-bg)", color: "var(--pd-ink)" }}>
+        <Suspense fallback={<ViewSpinner />}>
+          <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
+        </Suspense>
+        <Toaster theme="dark" />
+      </div>
+    );
+  }
+
   return (
     <PdShell
       activeView={activeTab}
@@ -138,13 +149,6 @@ export default function App() {
                 incrementBoardVersion={incrementBoardVersion}
                 onDeckCreated={openDeckTab}
               />
-            </Suspense>
-          </div>
-        )}
-        {activeTab === "deck" && (
-          <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: 16 }}>
-            <Suspense fallback={<ViewSpinner />}>
-              <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
             </Suspense>
           </div>
         )}

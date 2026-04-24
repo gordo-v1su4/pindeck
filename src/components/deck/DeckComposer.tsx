@@ -45,6 +45,7 @@ export type DeckDetail = {
 };
 
 type ComposerPanel = "layout" | "style";
+type ScrollFx = "parallax" | "snap" | "kinetic" | "dolly" | "sequence";
 
 type ColorPickerInput = HTMLInputElement & {
   showPicker?: () => void;
@@ -139,6 +140,30 @@ const LAYOUT_OPTIONS: Array<{
   },
 ];
 
+const STYLE_OPTIONS: Array<{
+  id: StyleVariant;
+  label: string;
+  topLabel: string;
+  detail: string;
+}> = [
+  { id: "cinematic", label: "CINEMA", topLabel: "CINEMATIC TREATMENT", detail: "Moody widescreen. Full-bleed stills, letterboxed type." },
+  { id: "minimal", label: "EDITOR", topLabel: "EDITORIAL / NO.12", detail: "Editorial rhythm with quieter contrast and cleaner type." },
+  { id: "neon", label: "MV", topLabel: "MUSIC VIDEO PITCH", detail: "High-contrast neon treatment with louder color tension." },
+  { id: "bold", label: "COMM", topLabel: "COMMERCIAL BOARD", detail: "Commercial-forward contrast with stronger action graphics." },
+  { id: "noir", label: "ARCH", topLabel: "ARCHIVAL REFERENCE", detail: "Archival contrast with restrained texture and darker mood." },
+];
+
+const SCROLL_FX_OPTIONS: Array<{
+  id: ScrollFx;
+  label: string;
+}> = [
+  { id: "parallax", label: "PARALLAX" },
+  { id: "snap", label: "SNAP" },
+  { id: "kinetic", label: "KINETIC" },
+  { id: "dolly", label: "DOLLY" },
+  { id: "sequence", label: "FRAME" },
+];
+
 const COLOR_KEYS: Array<{
   key: keyof ColorPalette;
   label: string;
@@ -166,6 +191,7 @@ const templateBlocks: BlockData[] = [
     content: "A cinematic visual proposition.",
     layout: "A",
     visible: true,
+    locked: true,
   },
   {
     id: "2",
@@ -175,6 +201,7 @@ const templateBlocks: BlockData[] = [
       "A one-breath summary that turns the image set into a pitch you can feel instantly.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "3",
@@ -184,6 +211,7 @@ const templateBlocks: BlockData[] = [
       "A progression from setup to escalation to release, framed with visual clarity and emotional lift.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "4",
@@ -193,6 +221,7 @@ const templateBlocks: BlockData[] = [
       "Production design, setting logic, and tonal references all anchored in the selected image language.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "5",
@@ -202,6 +231,7 @@ const templateBlocks: BlockData[] = [
       "A lead presence shaped by silhouette, attitude, costume, and emotional tension.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "6",
@@ -211,6 +241,7 @@ const templateBlocks: BlockData[] = [
       "The deck should broadcast how it feels before anyone reads a paragraph.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "7",
@@ -220,6 +251,7 @@ const templateBlocks: BlockData[] = [
       "Repeatable shapes, materials, and lighting signatures that give the deck continuity.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "8",
@@ -228,6 +260,7 @@ const templateBlocks: BlockData[] = [
     content: "Identity, consequence, transformation, obsession.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "9",
@@ -237,6 +270,7 @@ const templateBlocks: BlockData[] = [
       "If the central figure fails, the fallout grows from private collapse to a wider public impact.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "10",
@@ -245,6 +279,7 @@ const templateBlocks: BlockData[] = [
     content: "A final image and phrase that leaves the room wanting the next page.",
     layout: "A",
     visible: true,
+    locked: false,
   },
 ];
 
@@ -453,6 +488,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
 
+  const [title, setTitle] = useState(deck.title);
   const [referenceImages, setReferenceImages] = useState<string[]>(
     sourceImages.slice(0, 10)
   );
@@ -466,8 +502,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const [isExporting, setIsExporting] = useState(false);
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
   const [dragOverBlock, setDragOverBlock] = useState<string | null>(null);
+  const [styleVariant, setStyleVariant] = useState<StyleVariant>("cinematic");
   const [fontStyle, setFontStyle] = useState<FontStyle>("agency");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("editorial");
+  const [scrollFx, setScrollFx] = useState<ScrollFx>("parallax");
   const [overlayStrength, setOverlayStrength] = useState(58);
   const [overlayVariation, setOverlayVariation] = useState(32);
   const [overlaySeed, setOverlaySeed] = useState(0);
@@ -478,12 +516,15 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const [expandedLayoutBlockId, setExpandedLayoutBlockId] = useState<string | null>(null);
 
   const resetToDeckDefaults = useCallback(() => {
+    setTitle(deck.title);
     setReferenceImages(sourceImages.slice(0, 10));
     setActiveImageIndex(0);
     setBlocks(buildDeckBlocks(deck.title, sourceImageTitles));
+    setStyleVariant("cinematic");
     setColors(stylePresets.cinematic);
     setFontStyle("agency");
     setLayoutVariant("editorial");
+    setScrollFx("parallax");
     setOverlayStrength(58);
     setOverlayVariation(32);
     setOverlaySeed(0);
@@ -514,6 +555,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
           ? saved.referenceImages.slice(0, 10)
           : sourceImages.slice(0, 10)
       );
+      setTitle(typeof saved.title === "string" ? saved.title : deck.title);
       setActiveImageIndex(
         typeof saved.activeImageIndex === "number" ? saved.activeImageIndex : 0
       );
@@ -523,8 +565,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
           ? saved.blocks
           : buildDeckBlocks(deck.title, sourceImageTitles)
       );
+      setStyleVariant(saved.styleVariant ?? "cinematic");
       setFontStyle(saved.fontStyle ?? "agency");
       setLayoutVariant(saved.layoutVariant ?? "editorial");
+      setScrollFx(saved.scrollFx ?? "parallax");
       setOverlayStrength(
         typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58
       );
@@ -550,12 +594,15 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
           storageKey,
           JSON.stringify({
             version: STORAGE_VERSION,
+            title,
             referenceImages,
             activeImageIndex,
             colors,
             blocks,
+            styleVariant,
             fontStyle,
             layoutVariant,
+            scrollFx,
             overlayStrength,
             overlayVariation,
             overlaySeed,
@@ -573,12 +620,15 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     return () => clearTimeout(timer);
   }, [
     storageKey,
+    title,
     referenceImages,
     activeImageIndex,
     colors,
     blocks,
+    styleVariant,
     fontStyle,
     layoutVariant,
+    scrollFx,
     overlayStrength,
     overlayVariation,
     overlaySeed,
@@ -783,6 +833,11 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     []
   );
 
+  const applyStylePreset = useCallback((nextStyle: StyleVariant) => {
+    setStyleVariant(nextStyle);
+    setColors(stylePresets[nextStyle]);
+  }, []);
+
   const openColorEditor = useCallback((key: keyof ColorPalette, value: string) => {
     setEditingColor(key);
 
@@ -925,14 +980,14 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, finalWidth, finalHeight);
       }
 
-      pdf.save(`${deck.title || "deck"}.pdf`);
+      pdf.save(`${title || deck.title || "deck"}.pdf`);
       toast.success(`PDF exported (${contentSlides.length} pages)`);
     } catch {
       toast.error("Failed to export PDF");
     } finally {
       setIsExporting(false);
     }
-  }, [colors.background, deck.title]);
+  }, [colors.background, deck.title, title]);
 
   const visibleBlocks = useMemo(
     () => blocks.filter((block) => block.visible),
@@ -1007,20 +1062,364 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         onBlur={() => setEditingColor(null)}
       />
 
-      <div className="sticky top-0 z-30 border-b border-white/8 bg-[#060606]/96 backdrop-blur-md">
-        <div className="border-b border-white/8 px-4 py-4 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-white/35">
-                DeckComposer
-              </span>
-              {hasUnsavedChanges ? (
-                <div className="inline-flex items-center border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.22em] text-amber-300">
-                  Unsaved
-                </div>
-              ) : null}
+      <div className="flex min-h-[72vh]">
+        <aside
+          className={cn(
+            "w-[296px] shrink-0 border-r border-white/8 bg-[#0d0d10] text-white",
+            sidebarOpen ? "flex flex-col" : "hidden lg:flex lg:flex-col"
+          )}
+        >
+          <div className="flex items-center gap-3 border-b border-white/8 px-5 py-4">
+            <button
+              onClick={() => setSidebarOpen((value) => !value)}
+              className="flex h-8 w-8 items-center justify-center rounded-[4px] border border-white/10 text-white/55 transition-colors hover:text-white lg:hidden"
+            >
+              ×
+            </button>
+            <div>
+              <div className="text-lg font-semibold tracking-[-0.02em] text-white">DeckComposer</div>
+              <div className="text-[10px] uppercase tracking-[0.28em] text-white/28">
+                Builder · Pindeck
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-6">
+            <div className="space-y-8">
+              <section className="space-y-3">
+                <div className="flex items-center gap-3 border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                    Deck Name
+                  </span>
+                </div>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="h-11 w-full rounded-[4px] border border-white/10 bg-[#121218] px-4 text-[0.98rem] font-medium text-white outline-none"
+                />
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center gap-3 border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                    Images
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--pd-accent)]">
+                    {referenceImages.filter(Boolean).length}/10
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {Array.from({ length: 10 }).map((_, index) => {
+                    const image = referenceImages[index];
+                    const isActive = index === activeImageIndex && Boolean(image);
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          if (image) {
+                            setActiveImageIndex(index);
+                          } else {
+                            fileInputRef.current?.click();
+                          }
+                        }}
+                        title={sourceImageTitles[index] || `Reference ${index + 1}`}
+                        className={cn(
+                          "relative aspect-[4/3] overflow-hidden rounded-[3px] border text-white/30 transition-all",
+                          image
+                            ? isActive
+                              ? "border-[var(--pd-accent)] shadow-[0_0_0_1px_rgba(36,87,214,0.35)]"
+                              : "border-white/10 hover:border-white/20"
+                            : "border-dashed border-white/10 bg-white/[0.02]"
+                        )}
+                      >
+                        {image ? (
+                          <img
+                            src={image}
+                            alt={`Reference ${index + 1}`}
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="absolute inset-0 flex items-center justify-center text-sm">+</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  Colors
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    { label: "PRI", value: colors.primary },
+                    { label: "SEC", value: colors.secondary },
+                    { label: "ACC", value: colors.accent },
+                    { label: "DAR", value: colors.tertiary },
+                    { label: "LIQ", value: colors.surface },
+                  ].map((swatch) => (
+                    <button
+                      key={swatch.label}
+                      onClick={() => openColorEditor("primary", swatch.value)}
+                      className="overflow-hidden rounded-[3px] border border-white/10"
+                    >
+                      <div style={{ backgroundColor: swatch.value }} className="h-18 w-full" />
+                      <div className="bg-[#111117] px-2 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                        {swatch.label}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                    Overlay
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">
+                    {overlayStrength}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={overlayStrength}
+                  onChange={(event) => setOverlayStrength(Number(event.target.value))}
+                  className="deck-rect-range w-full"
+                />
+                <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-white/28">
+                  <span>Show image</span>
+                  <span>Dark</span>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  Style
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {STYLE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => applyStylePreset(option.id)}
+                      className={cn(
+                        "rounded-[3px] px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] transition-all",
+                        styleVariant === option.id
+                          ? "bg-[#f5a524] text-black"
+                          : "text-white/45 hover:text-white"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-relaxed text-white/45">
+                  {STYLE_OPTIONS.find((option) => option.id === styleVariant)?.detail}
+                </p>
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                    Typography
+                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
+                    {fontStyle}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {FONT_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setFontStyle(option.id)}
+                      className={cn(
+                        "min-h-[78px] rounded-[3px] border px-3 py-3 text-left transition-all",
+                        fontStyle === option.id
+                          ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
+                          : "border-white/10 bg-[#111117] text-white/50 hover:text-white"
+                      )}
+                    >
+                      <div
+                        className="text-[1.1rem] font-semibold leading-none"
+                        style={{ fontFamily: option.previewFamily }}
+                      >
+                        {option.preview}
+                      </div>
+                      <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em]">
+                        {option.name}
+                      </div>
+                      <div className="mt-1 text-[10px] leading-relaxed opacity-70">
+                        {option.detail}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  Scroll FX
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {SCROLL_FX_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setScrollFx(option.id)}
+                      className={cn(
+                        "rounded-[3px] px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] transition-all",
+                        scrollFx === option.id
+                          ? "bg-[#f5a524] text-black"
+                          : "text-white/45 hover:text-white"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  Layout
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {LAYOUT_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setLayoutVariant(option.id)}
+                      className={cn(
+                        "rounded-[3px] border px-3 py-3 text-left transition-all",
+                        layoutVariant === option.id
+                          ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
+                          : "border-white/10 bg-[#111117] text-white/50 hover:text-white"
+                      )}
+                    >
+                      <div className="text-[12px] font-semibold uppercase tracking-[0.12em]">
+                        {option.name}
+                      </div>
+                      <div className="mt-1 text-[10px] leading-relaxed opacity-70">
+                        {option.detail}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                    Blocks
+                  </span>
+                  <button className="text-[11px] font-semibold text-white/75 hover:text-white">
+                    + Add
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {blocks.map((block) => (
+                    <div
+                      key={block.id}
+                      draggable
+                      onDragStart={() => handleDragStart(block.id)}
+                      onDragOver={(event) => handleDragOver(event, block.id)}
+                      onDrop={() => handleDrop(block.id)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        "flex items-center gap-3 rounded-[4px] border px-3 py-3 transition-all",
+                        draggedBlock === block.id && "opacity-50",
+                        dragOverBlock === block.id
+                          ? "border-[#f5a524]/40 bg-[#f5a524]/5"
+                          : "border-white/10 bg-[#111117]"
+                      )}
+                    >
+                      <span className="text-white/20">⋮⋮</span>
+                      <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">
+                        {block.title}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setBlocks((previous) =>
+                            previous.map((item) =>
+                              item.id === block.id ? { ...item, locked: !item.locked } : item
+                            )
+                          )
+                        }
+                        className={cn(
+                          "rounded-[4px] border px-2 py-1 text-[10px] uppercase tracking-[0.16em]",
+                          block.locked
+                            ? "border-[#f5a524]/45 text-[#f5a524]"
+                            : "border-white/10 text-white/35"
+                        )}
+                        title={block.locked ? "Unlock block" : "Lock block"}
+                      >
+                        {block.locked ? "🔒" : "🔓"}
+                      </button>
+                      <button
+                        onClick={() => toggleBlockVisibility(block.id)}
+                        className={cn(
+                          "rounded-[4px] border px-2 py-1 text-[10px] uppercase tracking-[0.16em]",
+                          block.visible
+                            ? "border-[var(--pd-accent)] text-[var(--pd-accent-ink)]"
+                            : "border-white/10 text-white/35"
+                        )}
+                        title={block.visible ? "Hide block" : "Show block"}
+                      >
+                        {block.visible ? "◉" : "⊘"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div className="border-t border-white/8 px-5 py-4">
+            <button
+              onClick={() => setIsPreviewOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-[4px] bg-[#f5a524] px-4 py-4 text-[12px] font-bold uppercase tracking-[0.16em] text-black"
+            >
+              ▶ Present Live
+            </button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => void exportToPDF()}
+                disabled={isExporting}
+                className="rounded-[4px] border border-white/12 px-4 py-3 text-[12px] font-semibold text-white/72 transition-colors hover:text-white disabled:opacity-50"
+              >
+                {isExporting ? "Exporting..." : "PDF"}
+              </button>
+              <button
+                onClick={resetToDefaults}
+                className="rounded-[4px] border border-white/12 px-4 py-3 text-[12px] font-semibold text-white/72 transition-colors hover:text-white"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="sticky top-0 z-30 border-b border-white/8 bg-[#09090b]/96 px-5 py-4 backdrop-blur-md">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-white/48">← gallery</span>
+              <span className="text-white/18">|</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-white/35">DECK /</span>
+              <span className="text-[1.05rem] font-semibold text-white">{title}</span>
+              <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
+                {STYLE_OPTIONS.find((option) => option.id === styleVariant)?.topLabel || "TREATMENT"}
+              </span>
+              <span className="border border-[#f5a524]/45 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#f5a524]">
+                FX · {scrollFx.toUpperCase()}
+              </span>
+              <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
+                {visibleBlocks.length} BLOCKS
+              </span>
+              <div className="flex-1" />
+              {hasUnsavedChanges ? (
+                <span className="text-[10px] uppercase tracking-[0.22em] text-amber-300">Unsaved</span>
+              ) : null}
               <button
                 onClick={() => setSidebarOpen((value) => !value)}
                 className="rounded-[4px] border border-white/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 lg:hidden"
@@ -1036,388 +1435,22 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                     : "border-white/12 text-white/62 hover:text-white"
                 )}
               >
-                {isEditing ? "Editing mode" : "Preview mode"}
+                Preview
               </button>
               <button
                 onClick={() => setIsPreviewOpen(true)}
-                className="rounded-[4px] border border-white/12 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 transition-colors hover:text-white"
+                className="rounded-[4px] bg-[#f5a524] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-black"
               >
-                Fullscreen
-              </button>
-              <button
-                onClick={() => void exportToPDF()}
-                disabled={isExporting}
-                className="rounded-[4px] border border-white/12 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 transition-colors hover:text-white disabled:opacity-50"
-              >
-                {isExporting ? "Exporting..." : "Export PDF"}
+                Present
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="px-4 py-4 sm:px-6">
-          <div className="grid grid-cols-2 gap-2 border border-white/8 bg-white/[0.03] p-1">
-            {([
-              { id: "layout", label: "Layout" },
-              { id: "style", label: "Style" },
-            ] as const).map((panel) => (
-              <button
-                key={panel.id}
-                onClick={() => setActivePanel(panel.id)}
-                className={cn(
-                  "rounded-[4px] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.26em] transition-colors",
-                  activePanel === panel.id
-                    ? "border border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
-                    : "text-white/38 hover:text-white"
-                )}
-              >
-                {panel.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "border-t border-white/8 bg-[#050505] px-4 py-5 sm:px-6 lg:block",
-            sidebarOpen ? "block" : "hidden"
-          )}
-        >
-            {activePanel === "style" && (
-              <div className="space-y-6">
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                      Attach Images
-                    </label>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      {referenceImages.length}/10
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-5 gap-2 lg:grid-cols-10">
-                    {Array.from({ length: 10 }).map((_, index) => {
-                      const image = referenceImages[index];
-                      const isActive = index === activeImageIndex && Boolean(image);
-
-                      return (
-                        <div
-                          key={index}
-                          className={cn(
-                            "relative aspect-square overflow-hidden rounded-[4px] border transition-all",
-                            image
-                              ? isActive
-                                ? "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
-                                : "border-white/10 hover:border-white/25"
-                              : "border-dashed border-white/10 bg-white/[0.03]"
-                          )}
-                          onClick={() => {
-                            if (image) {
-                              setActiveImageIndex(index);
-                            } else {
-                              fileInputRef.current?.click();
-                            }
-                          }}
-                          title={sourceImageTitles[index] || `Slide ${index + 1}`}
-                        >
-                          {image ? (
-                            <div className="group absolute inset-0">
-                              <img
-                                src={image}
-                                alt={`Reference ${index + 1}`}
-                                className="absolute inset-0 h-full w-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/55" />
-                              {isActive ? <div className="absolute left-1 top-1 h-2 w-2 rounded-full bg-amber-400" /> : null}
-                              <div className="absolute bottom-1 right-1 bg-black/60 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.18em] text-white/65">
-                                {index + 1}
-                              </div>
-                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                                <button
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    void extractColorsFromImage(index);
-                                  }}
-                                  className="rounded-[4px] border border-white/15 bg-white/20 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
-                                >
-                                  Extract
-                                </button>
-                                <button
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    removeImage(index);
-                                  }}
-                                  className="rounded-[4px] border border-red-300/20 bg-red-500/70 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-white/20">
-                              <span className="text-lg">+</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="1" variant="soft" color="gray" onClick={() => fileInputRef.current?.click()}>
-                      Add images
-                    </Button>
-                    <Button
-                      size="1"
-                      variant="soft"
-                      color="gray"
-                      disabled={!referenceImages[activeImageIndex]}
-                      onClick={() => void extractColorsFromImage(activeImageIndex)}
-                    >
-                      Extract active
-                    </Button>
-                  </div>
-                </section>
-
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                      Typography engine
-                    </label>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      {fontStyle}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                    {FONT_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => setFontStyle(option.id)}
-                        className={cn(
-                          "min-h-[84px] border p-3 text-left transition-all",
-                          fontStyle === option.id
-                            ? "border-white bg-white/10"
-                            : "border-white/10 bg-[#111]"
-                        )}
-                      >
-                        <div
-                          className="text-[1.45rem] font-semibold leading-none text-white"
-                          style={{ fontFamily: option.previewFamily }}
-                        >
-                          {option.name}
-                        </div>
-                        <div className="mt-1 text-[8px] leading-relaxed text-white/35">
-                          {option.detail}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="border border-white/10 bg-[#111] p-5">
-                  <div className="mb-4 flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                      Extracted palette
-                    </label>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      {paletteSummary.length} tones
-                    </span>
-                  </div>
-                  <div className="space-y-4">
-                    <section className="space-y-4 border-b border-white/8 pb-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                          Image overlay
-                        </label>
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                          {overlayStrength}%
-                        </span>
-                      </div>
-                      <p className="text-[11px] leading-relaxed text-white/40">
-                        This black gradient is applied to a randomized subset of image sections, so not every page gets the same treatment.
-                      </p>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={overlayStrength}
-                        onChange={(event) => setOverlayStrength(Number(event.target.value))}
-                        className="deck-rect-range w-full"
-                      />
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                          Variation
-                        </label>
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                          {overlayVariation}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={overlayVariation}
-                        onChange={(event) => setOverlayVariation(Number(event.target.value))}
-                        className="deck-rect-range w-full"
-                      />
-                      <Button
-                        size="1"
-                        variant="soft"
-                        color="gray"
-                        onClick={() => setOverlaySeed((value) => value + 1)}
-                      >
-                        Reroll overlay mix
-                      </Button>
-                    </section>
-
-                    <div className="grid grid-cols-3 gap-x-3 gap-y-2">
-                      {paletteSummary.map(({ key, label, value }) => (
-                        <button
-                          key={String(key)}
-                          className="flex w-full items-center justify-between border-b border-white/8 pb-2 text-left transition-colors hover:border-white/16"
-                          onClick={() => openColorEditor(key, value)}
-                        >
-                          <span className="flex items-center gap-3">
-                            <span
-                              className="h-6 w-6 border border-white/10"
-                              style={{ backgroundColor: value }}
-                            />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/62">
-                              {label}
-                            </span>
-                          </span>
-                          <code className="text-[9px] uppercase text-white/26">{value}</code>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              </div>
-            )}
-
-            {activePanel === "layout" && (
-              <div className="space-y-5">
-                <section className="space-y-3">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                    Layout system
-                  </label>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {LAYOUT_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => setLayoutVariant(option.id)}
-                        className={cn(
-                          "border px-4 py-4 text-left transition-all",
-                          layoutVariant === option.id
-                            ? "border-white/30 bg-white/[0.07]"
-                            : "border-white/10 bg-[#111] hover:border-white/20"
-                        )}
-                      >
-                        <div className="text-sm font-semibold text-white">{option.name}</div>
-                        <div className="mt-1 text-[11px] leading-relaxed text-white/45">
-                          {option.detail}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="space-y-4">
-                  <div className="border border-white/10 bg-[#111] p-4 text-[11px] leading-relaxed text-white/45">
-                    Drag to reorder. Open a section card to adjust its title and copy inline, so layout and content stay together.
-                  </div>
-                  <div className="grid gap-2 xl:grid-cols-2">
-                    {blocks.map((block) => (
-                      <div
-                        key={block.id}
-                        draggable
-                        onDragStart={() => handleDragStart(block.id)}
-                        onDragOver={(event) => handleDragOver(event, block.id)}
-                        onDrop={() => handleDrop(block.id)}
-                        onDragEnd={handleDragEnd}
-                        className={cn(
-                          "border bg-[#111] p-4 transition-all",
-                          draggedBlock === block.id && "opacity-50",
-                          dragOverBlock === block.id
-                            ? "border-amber-300/40 bg-amber-300/5"
-                            : "border-white/10"
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.24em] text-white/35">
-                              {block.type}
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-white">
-                              {block.title}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => toggleBlockVisibility(block.id)}
-                            className={cn(
-                              "rounded-[4px] border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
-                              block.visible
-                                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                                : "border-white/15 text-white/45"
-                            )}
-                          >
-                            {block.visible ? "Visible" : "Hidden"}
-                          </button>
-                        </div>
-                        <button
-                          onClick={() =>
-                            setExpandedLayoutBlockId((current) =>
-                              current === block.id ? null : block.id
-                            )
-                          }
-                          className="mt-3 w-full border border-white/8 bg-black/20 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.2em] text-white/55 transition-colors hover:border-white/16 hover:text-white"
-                        >
-                          {expandedLayoutBlockId === block.id ? "Hide copy editor" : "Edit copy"}
-                        </button>
-                        {expandedLayoutBlockId === block.id ? (
-                          <div className="mt-3 space-y-3 border-t border-white/8 pt-3">
-                            <input
-                              value={block.title}
-                              onChange={(event) =>
-                                handleBlockUpdate({ ...block, title: event.target.value })
-                              }
-                              className="w-full border-b border-white/10 bg-transparent pb-2 text-sm font-semibold uppercase tracking-tight text-white outline-none"
-                            />
-                            <textarea
-                              value={block.content}
-                              onChange={(event) =>
-                                handleBlockUpdate({ ...block, content: event.target.value })
-                              }
-                              rows={4}
-                              className="w-full resize-none border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-white/65 outline-none"
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </div>
-            )}
-
-            <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-4">
-              <Button
-                size="1"
-                variant="soft"
-                color="gray"
-                onClick={resetToDefaults}
-              >
-                Reset
-              </Button>
-            </div>
-        </div>
-      </div>
-
-      <main className="bg-[#060606] px-4 py-4 sm:px-6 sm:py-6">
-        <div
-          ref={previewRef}
-          className="mx-auto w-full max-w-[1600px] overflow-hidden border border-white/10 bg-black shadow-[0_24px_90px_rgba(0,0,0,0.48)]"
-        >
+          <main className="flex-1 bg-[#060606] px-6 py-6">
+            <div
+              ref={previewRef}
+              className="mx-auto w-full max-w-[880px] overflow-hidden border border-white/10 bg-black shadow-[0_24px_90px_rgba(0,0,0,0.48)]"
+            >
           {visibleBlocks.length === 0 ? (
             <Card className="m-4 border border-white/10 bg-black/20 p-10 text-center">
               <Text color="gray">No visible blocks. Enable sections from the Layout panel.</Text>
@@ -1445,8 +1478,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
               </Box>
             ))
           )}
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
 
       {isPreviewOpen && (
         <div className="fixed inset-0 z-[120] bg-black/95">
@@ -1455,7 +1490,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
               <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
                 Live presentation
               </p>
-              <h3 className="mt-1 text-lg font-semibold text-white">{deck.title}</h3>
+              <h3 className="mt-1 text-lg font-semibold text-white">{title}</h3>
             </div>
             <Button size="1" variant="soft" color="gray" onClick={() => setIsPreviewOpen(false)}>
               Close

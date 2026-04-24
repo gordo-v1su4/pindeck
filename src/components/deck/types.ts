@@ -5,6 +5,7 @@ export interface BlockData {
   content: string;
   layout: 'A' | 'B';
   visible: boolean;
+  locked?: boolean;
 }
 
 export type BlockType =

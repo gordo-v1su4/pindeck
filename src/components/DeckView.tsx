@@ -77,51 +77,46 @@ export function DeckView({
 
   return (
     <div className="relative flex w-full flex-col gap-3 text-white">
-      <div className="border border-white/8 bg-[#080808] px-4 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-white/35">Deck library</p>
-            <h2 className="mt-1 truncate text-lg font-semibold tracking-[-0.03em] text-white">
-              {deck?.title ?? "Decks"}
-            </h2>
-            <p className="mt-1 text-xs text-white/42">
-              {deck?.boardName
-                ? `Working from ${deck.boardName}.`
-                : "Choose a deck and keep editing without leaving the app."}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-white/52 hover:bg-white/[0.03]">
-              {decks.length} deck{decks.length === 1 ? "" : "s"}
-            </Badge>
-            {loggedInUser?.isAnonymous ? (
-              <Badge className="border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-300 hover:bg-amber-400/10">
-                Guest session
+      {decks.length > 1 || loggedInUser?.isAnonymous ? (
+        <div className="border border-white/8 bg-[#080808] px-4 py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="text-[10px] uppercase tracking-[0.28em] text-white/35">DeckView</span>
+              <Badge className="border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-white/52 hover:bg-white/[0.03]">
+                {decks.length} deck{decks.length === 1 ? "" : "s"}
               </Badge>
+              {deck?.boardName ? (
+                <span className="text-[11px] text-white/42">from {deck.boardName}</span>
+              ) : null}
+              {loggedInUser?.isAnonymous ? (
+                <Badge className="border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-300 hover:bg-amber-400/10">
+                  Guest
+                </Badge>
+              ) : null}
+            </div>
+
+            {decks.length > 1 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {decks.map((item) => {
+                  const active = item._id === activeDeckId;
+                  return (
+                    <Button
+                      key={item._id}
+                      variant="ghost"
+                      className={active
+                        ? "h-auto border border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--pd-accent-ink)] hover:bg-[var(--pd-accent-soft)]"
+                        : "h-auto border border-white/10 bg-[#0c0c0c] text-[10px] font-semibold uppercase tracking-[0.2em] text-white/58 hover:border-white/16 hover:bg-[#101010] hover:text-white"}
+                      onClick={() => onSelectDeck(item._id)}
+                    >
+                      {item.title}
+                    </Button>
+                  );
+                })}
+              </div>
             ) : null}
           </div>
         </div>
-
-        {decks.length > 1 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {decks.map((item) => {
-              const active = item._id === activeDeckId;
-              return (
-                <Button
-                  key={item._id}
-                  variant="ghost"
-                  className={active
-                    ? "h-auto border border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--pd-accent-ink)] hover:bg-[var(--pd-accent-soft)]"
-                    : "h-auto border border-white/10 bg-[#0c0c0c] text-[10px] font-semibold uppercase tracking-[0.2em] text-white/58 hover:border-white/16 hover:bg-[#101010] hover:text-white"}
-                  onClick={() => onSelectDeck(item._id)}
-                >
-                  {item.title}
-                </Button>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
+      ) : null}
 
       {deck === undefined ? (
         <Card className="border-white/10 bg-[#050505] text-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
