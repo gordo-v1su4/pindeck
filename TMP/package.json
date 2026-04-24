@@ -1,0 +1,10 @@
+{
+  "name": "pindeck-tmp",
+  "private": true,
+  "scripts": {
+    "preview": "serve -l 3333 ."
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

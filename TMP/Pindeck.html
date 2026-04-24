@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Pindeck — Unified UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&family=Archivo:wght@400;500;600;700;800;900&family=Archivo+Narrow:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  --bg: #08080a;
+  --bg-1: #0c0c0f;
+  --bg-2: #101014;
+  --panel: #0b0b0e;
+  --panel-2: #111116;
+  --line: rgba(255,255,255,0.055);
+  --line-strong: rgba(255,255,255,0.09);
+  --line-hi: rgba(255,255,255,0.14);
+  --ink: #c9ccd1;              /* softened from #eef0f2 — less harsh on dark bg */
+  --ink-dim: rgba(238,240,242,0.62);
+  --ink-mute: rgba(238,240,242,0.56);   /* lifted from 0.42 so section labels (STYLE/FILTERS) read */
+  --ink-faint: rgba(238,240,242,0.30);
+  --accent: #3a7bff;         /* richer blue, not baby */
+  --accent-ink: #c7ddff;
+  --accent-soft: rgba(58,123,255,0.14);
+  --amber: #f5a524;
+  --cyan: #22b8cf;
+  --magenta: #d946ef;
+  --green: #2ee6a6;
+  --red: #ef4343;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow-deep: 0 16px 40px -18px rgba(0,0,0,0.95), 0 2px 0 rgba(255,255,255,0.02) inset;
+  --font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+  --font-display: 'Archivo Narrow', 'Archivo', 'Geist', sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11","ss01","ss03";
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; padding: 0; }
+input, select, textarea { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--accent); color: white; }
+
+/* Film grain overlay (subtle) */
+.grain::before {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.55'/></svg>");
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+
+/* Scrollbars */
+.scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll::-webkit-scrollbar-track { background: transparent; }
+.scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 8px; }
+.scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+
+/* Focus */
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+/* Mono label */
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Tag chip (the user's favorite pattern) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 7px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  background: rgba(255,255,255,0.05);
+  color: var(--ink-dim);
+  border: 1px solid transparent;
+}
+.chip--outline { background: transparent; border-color: var(--line-strong); }
+.chip--mono { font-family: var(--font-mono); letter-spacing: 0; }
+
+/* Keyframes */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes slideRight { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+
+.fade-in { animation: fadeIn 180ms cubic-bezier(.2,.8,.2,1) both; }
+.slide-in { animation: slideRight 220ms cubic-bezier(.2,.8,.2,1) both; }
+
+/* Letterbox */
+.letterbox { position: relative; }
+.letterbox::before, .letterbox::after {
+  content: ""; position: absolute; left: 0; right: 0; height: var(--lb, 0px);
+  background: #000; z-index: 2; pointer-events: none;
+  transition: height 180ms ease;
+}
+.letterbox::before { top: 0; }
+.letterbox::after { bottom: 0; }
+
+/* Card hover variants */
+.card-lift { transition: transform 220ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms; }
+.card-lift:hover { transform: translateY(-3px); box-shadow: 0 16px 36px -14px rgba(0,0,0,0.8), 0 0 0 1px var(--line-hi); }
+
+.card-tilt { transition: transform 260ms cubic-bezier(.2,.8,.2,1); transform-style: preserve-3d; }
+.card-tilt:hover { transform: perspective(900px) rotateX(2.5deg) rotateY(-2.5deg) translateY(-2px); }
+
+.card-zoom img { transition: transform 420ms cubic-bezier(.2,.8,.2,1); }
+.card-zoom:hover img { transform: scale(1.06); }
+
+.card-flip { perspective: 1200px; }
+.card-flip .flip-inner { position: relative; width: 100%; height: 100%; transition: transform 520ms cubic-bezier(.2,.8,.2,1); transform-style: preserve-3d; }
+.card-flip:hover .flip-inner { transform: rotateY(6deg); }
+
+/* Skeleton (for shimmer on lazy items) */
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.06) 40%, rgba(255,255,255,0.02) 80%);
+  background-size: 400px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Mini scan line for 'processing' */
+.scan-line { position: absolute; left: 0; right: 0; height: 40%; background: linear-gradient(180deg, transparent, rgba(58,123,255,0.18), transparent); animation: scan 2.2s linear infinite; }
+
+/* ═══════════ Deck composer styles (scoped to .deck-scope) ═══════════ */
+.deck-scope {
+  --font-display: 'Archivo Narrow','Archivo','Geist',sans-serif;
+  --font-serif: 'Instrument Serif','DM Serif Display',serif;
+}
+.deck-scope .display { font-family: var(--font-display); text-transform: uppercase; letter-spacing: -0.02em; }
+.deck-scope .serif { font-family: var(--font-serif); }
+
+/* deck chip (narrower/mono/uppercase — different from Pindeck's .chip) */
+.deck-scope .chip {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:2px 7px; border-radius:2px; font-size:10px; font-weight:500;
+  letter-spacing:.02em; border:1px solid var(--line-strong);
+  color: var(--ink-dim); font-family: var(--font-mono);
+  text-transform: uppercase; white-space: nowrap;
+  background: transparent;
+}
+.deck-scope .chip-accent { color: var(--accent); border-color: var(--accent); }
+.deck-scope .chip-solid { background: rgba(255,255,255,0.04); }
+
+.deck-scope .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em; color: var(--ink-faint); text-transform: uppercase; }
+.deck-scope .section-label { display:flex; align-items:center; gap:8px; font-family: var(--font-mono); font-size:10px; letter-spacing:.16em; color: var(--ink-faint); text-transform: uppercase; margin-bottom: 10px; }
+.deck-scope .section-label::after { content:""; flex:1; height:1px; background: var(--line); }
+
+.deck-scope .field { width:100%; padding:7px 9px; background: var(--bg-2); border:1px solid var(--line); border-radius:3px; font-size:12px; color: var(--ink); transition: border-color .15s; outline: none; }
+.deck-scope .field:focus { border-color: var(--line-hi); }
+
+.deck-scope .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:5px 9px; border:1px solid var(--line-strong); border-radius:3px; color: var(--ink-dim); font-size:11.5px; font-weight:500; transition:all .15s; cursor:pointer; background:transparent; white-space:nowrap; }
+.deck-scope .btn:hover { color: var(--ink); border-color: var(--line-hi); background: rgba(255,255,255,0.02); }
+.deck-scope .btn-accent { background: var(--accent); color:#000; border-color: var(--accent); font-weight:600; }
+.deck-scope .btn-accent:hover { background:#fff; border-color:#fff; color:#000; }
+.deck-scope .btn-ghost { border-color: transparent; padding:4px 7px; }
+
+.deck-scope .pill { flex:1; padding:6px 0; text-align:center; font-size:10.5px; font-weight:500; letter-spacing:.04em; color: var(--ink-mute); text-transform: uppercase; cursor:pointer; transition: all .15s; border-radius:2px; font-family: var(--font-mono); border: 0; background: transparent; }
+.deck-scope .pill:hover { color: var(--ink-dim); }
+.deck-scope .pill.is-on { background: var(--accent); color:#000; }
+
+.deck-scope .block-row { display:flex; align-items:center; gap:8px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; cursor:grab; background: var(--bg-1); transition: all .15s; }
+.deck-scope .block-row:hover { border-color: var(--line-strong); background: var(--bg-2); }
+.deck-scope .block-row.is-off { opacity: .42; }
+.deck-scope .block-row.is-locked { border-color: rgba(245,165,36,0.3); }
+
+.deck-scope .slot { aspect-ratio:16/9; background: var(--bg-2); border:1px dashed var(--line-strong); border-radius:2px; display:flex; align-items:center; justify-content:center; color: var(--ink-faint); font-size:16px; cursor:pointer; transition: all .15s; overflow:hidden; position:relative; }
+.deck-scope .slot:hover { border-color: var(--line-hi); background: var(--bg-1); color: var(--ink-mute); }
+.deck-scope .slot.is-filled { border-style: solid; border-color: transparent; padding:0; }
+
+.deck-scope .swatch { position:relative; aspect-ratio:4/5; border-radius:2px; border:1px solid rgba(0,0,0,0.4); cursor:pointer; overflow:hidden; }
+.deck-scope .swatch-label { position:absolute; inset:auto 0 0 0; padding:3px 5px; font-family: var(--font-mono); font-size:8.5px; letter-spacing:.1em; background: rgba(0,0,0,0.55); color:#fff; text-transform: uppercase; text-align:center; }
+
+.deck-scope input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:2px; background: var(--line-strong); outline:none; border-radius:1px; }
+.deck-scope input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:10px; height:14px; border-radius:1px; background: var(--accent); cursor:pointer; border:1px solid rgba(0,0,0,0.5); }
+.deck-scope input[type=range]::-moz-range-thumb { width:10px; height:14px; border-radius:1px; background: var(--accent); cursor:pointer; border:1px solid rgba(0,0,0,0.5); }
+
+.deck-scope .crop { position:absolute; width:11px; height:11px; border-color: var(--ink-mute); pointer-events:none; }
+.deck-scope .crop-tl { top:10px; left:10px; border-top:1px solid; border-left:1px solid; }
+.deck-scope .crop-tr { top:10px; right:10px; border-top:1px solid; border-right:1px solid; }
+.deck-scope .crop-bl { bottom:10px; left:10px; border-bottom:1px solid; border-left:1px solid; }
+.deck-scope .crop-br { bottom:10px; right:10px; border-bottom:1px solid; border-right:1px solid; }
+
+.deck-scope .glyph { font-family: var(--font-display); letter-spacing:-0.04em; text-transform:uppercase; line-height:.85; }
+.deck-scope .canvas-stage { position:relative; overflow:hidden; background:#000; }
+
+/* Modal animations (for PresentModal) */
+@keyframes deckModalIn { from { opacity:0; transform: scale(.985) translateY(10px); } to { opacity:1; transform:none; } }
+.modal-in { animation: deckModalIn .24s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes deckScrim { from { opacity:0; } to { opacity:1; } }
+.scrim { animation: deckScrim .2s both; }
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* Persistent tweaks block (editable by host) */
+window.__TWEAKS_DEFAULT = /*EDITMODE-BEGIN*/{
+  "accent": "#3a7bff",
+  "density": "comfortable",
+  "cardStyle": "bordered",
+  "typography": "archivo",
+  "hover": "lift",
+  "letterbox": false,
+  "grain": true,
+  "showTweaks": false
+}/*EDITMODE-END*/;
+</script>
+
+<script type="text/babel" data-presets="react" src="data.jsx"></script>
+<script type="text/babel" data-presets="react" src="parts.jsx"></script>
+<script type="text/babel" data-presets="react" src="views.jsx"></script>
+<script type="text/babel" data-presets="react" src="deck.jsx"></script>
+<script type="text/babel" data-presets="react" src="decks-gallery.jsx"></script>
+<script type="text/babel" data-presets="react" src="app.jsx"></script>
+</body>
+</html>
