@@ -183,7 +183,7 @@ const SCROLL_FX_OPTIONS: Array<{
   { id: "sequence", label: "FRAME" },
 ];
 
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 const GOOGLE_FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Karla:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Source+Serif+4:wght@300;400;600;700&family=Archivo:wght@400;600;700&family=Archivo+Black&family=Quicksand:wght@400;500;600;700&family=Cabin:wght@400;500;600;700&family=Inter:wght@300;400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap";
 
@@ -263,7 +263,7 @@ const templateBlocks: BlockData[] = [
     title: "THEMES",
     content: "Identity, consequence, transformation, obsession.",
     layout: "A",
-    visible: true,
+    visible: false,
     locked: false,
   },
   {
@@ -468,6 +468,99 @@ function hashString(value: string): number {
   return hash;
 }
 
+function DeckComposerTuningPanel({
+  selectedBlock,
+  fontStyle,
+  onFontStyleChange,
+  onBlockLayoutChange,
+}: {
+  selectedBlock: BlockData | null;
+  fontStyle: FontStyle;
+  onFontStyleChange: (fontStyle: FontStyle) => void;
+  onBlockLayoutChange: (blockId: string, layout: BlockData["layout"]) => void;
+}) {
+  return (
+    <section className="border-t border-white/8 bg-[#0a0a0c] px-6 py-7">
+      <div className="mx-auto grid w-full max-w-[980px] gap-8 lg:grid-cols-[0.78fr_1.22fr]">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.24em] text-white/30">
+            Selected block
+          </div>
+          <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white">
+            {selectedBlock ? selectedBlock.title : "Pick a block"}
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-white/34">
+            {selectedBlock
+              ? `${selectedBlock.type} · layout ${selectedBlock.layout}`
+              : "Choose a canvas slide to tune variants"}
+          </div>
+
+          {selectedBlock ? (
+            <div className="mt-5">
+              <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-white/30">
+                Layout variants
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {(["A", "B"] as const).map((layout) => (
+                  <button
+                    key={layout}
+                    onClick={() => onBlockLayoutChange(selectedBlock.id, layout)}
+                    className={cn(
+                      "rounded-[3px] border px-3 py-3 text-left transition-colors",
+                      selectedBlock.layout === layout
+                        ? "border-[#f5a524] bg-[#f5a524]/12 text-[#f5a524]"
+                        : "border-white/10 bg-[#111117] text-white/52 hover:text-white",
+                    )}
+                  >
+                    <span className="block text-[12px] font-semibold uppercase tracking-[0.14em]">
+                      Layout {layout}
+                    </span>
+                    <span className="mt-1 block text-[10px] leading-relaxed opacity-70">
+                      {layout === "A"
+                        ? "Editorial pacing with cleaner hero emphasis."
+                        : "Denser contact-sheet rhythm and modular media."}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-white/30">
+            Font family
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {FONT_OPTIONS.slice(0, 6).map((option) => (
+              <button
+                key={option.id}
+                onClick={() => onFontStyleChange(option.id)}
+                className={cn(
+                  "rounded-[3px] border bg-[#111117] px-3 py-3 text-left transition-colors",
+                  fontStyle === option.id
+                    ? "border-[#f5a524] bg-[#f5a524]/12 text-white"
+                    : "border-white/10 text-white/55 hover:text-white",
+                )}
+              >
+                <span
+                  className="block text-lg font-semibold leading-none"
+                  style={{ fontFamily: option.previewFamily }}
+                >
+                  {option.name}
+                </span>
+                <span className="mt-2 block text-[9px] uppercase tracking-[0.2em] text-[#f5a524]/80">
+                  {option.detail}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const sourceSlides = useMemo(
     () => [...deck.slides].sort((a, b) => a.order - b.order),
@@ -572,7 +665,11 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       setColors(withAliases(saved.colors));
       setBlocks(
         Array.isArray(saved.blocks)
-          ? saved.blocks
+          ? saved.blocks.map((block: BlockData) =>
+              saved.version === STORAGE_VERSION || block.type !== "theme"
+                ? block
+                : { ...block, visible: false },
+            )
           : buildDeckBlocks(deck.title, sourceImageTitles),
       );
       setStyleVariant(saved.styleVariant ?? "cinematic");
@@ -1549,46 +1646,44 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
             </div>
           </div>
 
-          <main className="flex-1 bg-[#060606] px-6 py-6">
-            {selectedBlock && !isPreviewMode ? (
-              <div className="mx-auto mb-3 flex w-full max-w-[980px] flex-wrap items-center justify-between gap-3 border border-white/8 bg-[#0b0b0d] px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-white/45">
-                <span>
-                  Selected ·{" "}
-                  <span className="text-white/78">{selectedBlock.title}</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span>Variant</span>
-                  {(["A", "B"] as const).map((layout) => (
-                    <button
-                      key={layout}
-                      onClick={() => setBlockLayout(selectedBlock.id, layout)}
-                      className={cn(
-                        "rounded-[3px] border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]",
-                        selectedBlock.layout === layout
-                          ? "border-[#f5a524] bg-[#f5a524] text-black"
-                          : "border-white/10 text-white/42 hover:text-white",
-                      )}
-                    >
-                      Layout {layout}
-                    </button>
-                  ))}
+          <main className="flex-1 overflow-y-auto bg-[#050507]">
+            <div className="px-6 py-6">
+              {selectedBlock && !isPreviewMode ? (
+                <div className="mx-auto mb-3 flex w-full max-w-[620px] flex-wrap items-center justify-between gap-3 border border-white/8 bg-[#0b0b0d] px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  <span>
+                    Selected ·{" "}
+                    <span className="text-white/78">
+                      {selectedBlock.title}
+                    </span>
+                  </span>
+                  <span className="text-[#f5a524]">
+                    Layout {selectedBlock.layout}
+                  </span>
                 </div>
+              ) : null}
+              <div ref={previewRef} className="mx-auto w-full max-w-[620px]">
+                <DeckCanvasPage
+                  title={title}
+                  blocks={blocks}
+                  colors={colors}
+                  referenceImages={referenceImages}
+                  selectedBlockId={selectedBlockId}
+                  onSelectBlock={setSelectedBlockId}
+                  fontStyle={fontStyle}
+                  layoutVariant={layoutVariant}
+                  overlayStrength={overlayStrength}
+                  editable={!isPreviewMode}
+                />
               </div>
-            ) : null}
-            <div ref={previewRef} className="mx-auto w-full max-w-[980px]">
-              <DeckCanvasPage
-                title={title}
-                blocks={blocks}
-                colors={colors}
-                referenceImages={referenceImages}
-                selectedBlockId={selectedBlockId}
-                onSelectBlock={setSelectedBlockId}
-                fontStyle={fontStyle}
-                layoutVariant={layoutVariant}
-                overlayStrength={overlayStrength}
-                editable={!isPreviewMode}
-              />
             </div>
+            {!isPreviewMode ? (
+              <DeckComposerTuningPanel
+                selectedBlock={selectedBlock}
+                fontStyle={fontStyle}
+                onFontStyleChange={setFontStyle}
+                onBlockLayoutChange={setBlockLayout}
+              />
+            ) : null}
           </main>
         </div>
       </div>

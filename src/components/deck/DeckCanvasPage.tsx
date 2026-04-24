@@ -123,7 +123,7 @@ function BlockFrame({
   return (
     <section
       className={cn(
-        "slide-block relative overflow-hidden transition-[outline-color,box-shadow]",
+        "slide-block relative aspect-video overflow-hidden bg-black transition-[outline-color,box-shadow]",
         editable && "cursor-pointer",
         editable && selected
           ? "outline outline-2 outline-offset-[-2px] outline-[#f5a524]"
@@ -133,6 +133,7 @@ function BlockFrame({
         className,
       )}
       onClick={editable ? () => onSelect(block.id) : undefined}
+      style={{ containerType: "inline-size" }}
     >
       {editable ? (
         <div className="pointer-events-none absolute right-4 top-4 z-20 font-mono text-[9px] uppercase tracking-[0.2em] text-white/32">
@@ -206,7 +207,7 @@ export function DeckCanvasPage({
 
   return (
     <div
-      className="deck-canvas-page overflow-hidden border border-white/10 bg-black shadow-[0_24px_90px_rgba(0,0,0,0.48)]"
+      className="deck-canvas-page flex flex-col gap-3 bg-[#050507]"
       style={base}
     >
       {visible.map((block, index) => {
@@ -232,7 +233,7 @@ export function DeckCanvasPage({
               editable={editable}
               onSelect={onSelectBlock}
             >
-              <div className="relative aspect-video min-h-[28rem] bg-black">
+              <div className="relative h-full bg-black">
                 <CanvasImage
                   src={img}
                   className="absolute inset-[-4%] h-[108%] w-[108%] opacity-80 saturate-[1.08] contrast-[1.05]"
@@ -248,21 +249,21 @@ export function DeckCanvasPage({
                     className="mb-5 font-mono text-[10px] uppercase tracking-[0.26em]"
                     style={{ color: accent }}
                   >
-                    Pindeck / {title || "Untitled deck"}
+                    PINDECK / {title || "Untitled deck"}
                   </div>
                   <h1
                     className="max-w-[82%] text-balance font-black uppercase leading-[0.86] tracking-[-0.07em]"
                     style={{
                       fontFamily: fonts.display,
                       fontSize: compactTitle
-                        ? "clamp(3rem, 5.6vw, 5.8rem)"
-                        : "clamp(4.5rem, 10vw, 8.5rem)",
+                        ? "clamp(2.15rem, 8.2cqw, 4.9rem)"
+                        : "clamp(3rem, 12cqw, 6.5rem)",
                     }}
                   >
                     {displayTitle}
                   </h1>
                   <p
-                    className="mt-5 max-w-[38rem] text-sm italic leading-relaxed text-white/70"
+                    className="mt-4 max-w-[58cqw] text-[clamp(0.65rem,1.45cqw,0.95rem)] italic leading-relaxed text-white/70"
                     style={{ fontFamily: fonts.serif }}
                   >
                     {block.content}
@@ -287,7 +288,7 @@ export function DeckCanvasPage({
               editable={editable}
               onSelect={onSelectBlock}
             >
-              <div className="grid min-h-[25rem] grid-cols-[0.95fr_1.55fr] bg-black">
+              <div className="grid h-full grid-cols-[0.95fr_1.55fr] bg-black">
                 <div
                   className="relative overflow-hidden"
                   style={{ backgroundColor: accent }}
@@ -297,13 +298,13 @@ export function DeckCanvasPage({
                     className="absolute inset-0 opacity-75 mix-blend-multiply saturate-125"
                   />
                   <div
-                    className="absolute bottom-6 left-6 text-[clamp(4rem,9vw,8rem)] font-black leading-none text-black/85"
+                    className="absolute bottom-[6cqw] left-[6cqw] text-[clamp(3rem,12cqw,6rem)] font-black leading-none text-black/85"
                     style={{ fontFamily: fonts.display }}
                   >
                     L/01
                   </div>
                 </div>
-                <div className="flex flex-col justify-center px-[8%] py-14">
+                <div className="flex flex-col justify-center px-[8%] py-[5%]">
                   <div
                     className="mb-6 font-mono text-[10px] uppercase tracking-[0.24em]"
                     style={{ color: accent }}
@@ -311,7 +312,7 @@ export function DeckCanvasPage({
                     {sectionLabel(block, index)}
                   </div>
                   <p
-                    className="text-balance text-[clamp(1.5rem,2.55vw,2.7rem)] leading-[1.16]"
+                    className="text-balance text-[clamp(1.05rem,3.15cqw,2.2rem)] leading-[1.16]"
                     style={{ fontFamily: fonts.serif }}
                   >
                     “{block.content}”
@@ -347,7 +348,7 @@ export function DeckCanvasPage({
               editable={editable}
               onSelect={onSelectBlock}
             >
-              <div className="bg-black p-[4%]">
+              <div className="flex h-full flex-col bg-black p-[4%]">
                 <div className="mb-5 flex items-center gap-4">
                   <div
                     className="font-mono text-[10px] uppercase tracking-[0.24em]"
@@ -366,7 +367,7 @@ export function DeckCanvasPage({
                 </div>
                 <div
                   className={cn(
-                    "grid gap-1.5",
+                    "grid flex-1 gap-1.5",
                     dense ? "grid-cols-4" : "grid-cols-3",
                   )}
                 >
@@ -390,7 +391,7 @@ export function DeckCanvasPage({
                   ))}
                 </div>
                 <p
-                  className="mt-5 max-w-2xl text-sm leading-relaxed"
+                  className="mt-4 max-w-[72cqw] text-[clamp(0.65rem,1.35cqw,0.9rem)] leading-relaxed"
                   style={{ color: muted }}
                 >
                   {block.content}
@@ -410,7 +411,7 @@ export function DeckCanvasPage({
               editable={editable}
               onSelect={onSelectBlock}
             >
-              <div className="grid min-h-[28rem] grid-cols-[0.9fr_1.25fr] items-center gap-[7%] bg-black px-[7%] py-[6%]">
+              <div className="grid h-full grid-cols-[0.9fr_1.25fr] items-center gap-[7%] bg-black px-[7%] py-[6%]">
                 <div className="relative aspect-[4/5] overflow-hidden bg-[#111]">
                   <CanvasImage src={img} className="grayscale contrast-110" />
                   <div className="absolute inset-0 bg-black/10" />
@@ -423,7 +424,7 @@ export function DeckCanvasPage({
                     {sectionLabel(block, index)}
                   </div>
                   <h2
-                    className="text-[clamp(3.5rem,7.5vw,7rem)] font-black uppercase leading-[0.88] tracking-[-0.06em]"
+                    className="text-[clamp(2.2rem,8cqw,5rem)] font-black uppercase leading-[0.88] tracking-[-0.06em]"
                     style={{ fontFamily: fonts.display }}
                   >
                     {block.title}
@@ -432,7 +433,7 @@ export function DeckCanvasPage({
                     className="my-6 h-0.5 w-16"
                     style={{ backgroundColor: accent }}
                   />
-                  <p className="max-w-xl text-sm leading-relaxed text-white/72">
+                  <p className="max-w-[48cqw] text-[clamp(0.65rem,1.35cqw,0.9rem)] leading-relaxed text-white/72">
                     {block.content}
                   </p>
                 </div>
@@ -451,7 +452,7 @@ export function DeckCanvasPage({
               editable={editable}
               onSelect={onSelectBlock}
             >
-              <div className="grid min-h-[22rem] grid-cols-[0.9fr_1.4fr] items-center gap-[6%] bg-black px-[6%] py-[5%]">
+              <div className="grid h-full grid-cols-[0.9fr_1.4fr] items-center gap-[6%] bg-black px-[6%] py-[5%]">
                 <div>
                   <div
                     className="mb-4 font-mono text-[10px] uppercase tracking-[0.24em]"
@@ -460,7 +461,7 @@ export function DeckCanvasPage({
                     {sectionLabel(block, index)}
                   </div>
                   <p
-                    className="text-balance text-[clamp(1.45rem,3vw,3.1rem)] leading-[1.16]"
+                    className="text-balance text-[clamp(1rem,3.4cqw,2.45rem)] leading-[1.16]"
                     style={{
                       fontFamily:
                         block.type === "story" ? fonts.serif : fonts.display,
@@ -494,7 +495,7 @@ export function DeckCanvasPage({
               editable={editable}
               onSelect={onSelectBlock}
             >
-              <div className="relative flex min-h-[22rem] items-center justify-center bg-black px-[8%] py-[6%] text-center">
+              <div className="relative flex h-full items-center justify-center bg-black px-[8%] py-[6%] text-center">
                 <div
                   className="absolute left-1/2 top-8 h-12 w-px"
                   style={{ backgroundColor: accent }}
@@ -507,7 +508,7 @@ export function DeckCanvasPage({
                     {sectionLabel(block, index)}
                   </div>
                   <p
-                    className="mx-auto max-w-4xl text-balance text-[clamp(2rem,4.3vw,4.6rem)] font-black uppercase leading-[1] tracking-[-0.04em]"
+                    className="mx-auto max-w-[76cqw] text-balance text-[clamp(1.45rem,5.2cqw,3.8rem)] font-black uppercase leading-[1] tracking-[-0.04em]"
                     style={{ fontFamily: fonts.display }}
                   >
                     “{block.content}”
@@ -528,7 +529,7 @@ export function DeckCanvasPage({
               editable={editable}
               onSelect={onSelectBlock}
             >
-              <div className="relative flex aspect-video min-h-[26rem] items-center justify-center overflow-hidden bg-black text-center">
+              <div className="relative flex h-full items-center justify-center overflow-hidden bg-black text-center">
                 <CanvasImage
                   src={img}
                   className="absolute inset-0 opacity-45"
@@ -536,7 +537,7 @@ export function DeckCanvasPage({
                 <div className="absolute inset-0 bg-black/62" />
                 <div className="relative z-10 px-[6%]">
                   <h2
-                    className="text-balance text-[clamp(2.8rem,6.2vw,6rem)] font-black uppercase leading-[0.9] tracking-[-0.06em]"
+                    className="text-balance text-[clamp(2rem,7cqw,5rem)] font-black uppercase leading-[0.9] tracking-[-0.06em]"
                     style={{ fontFamily: fonts.display }}
                   >
                     {block.content}
@@ -559,7 +560,7 @@ export function DeckCanvasPage({
             editable={editable}
             onSelect={onSelectBlock}
           >
-            <div className="bg-black px-[7%] py-[5%]">
+            <div className="h-full bg-black px-[7%] py-[5%]">
               <div
                 className="mb-4 font-mono text-[10px] uppercase tracking-[0.24em]"
                 style={{ color: accent }}
