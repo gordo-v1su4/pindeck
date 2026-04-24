@@ -55,8 +55,10 @@ export default function App() {
   const setActiveTab = (tab: string) => {
     const t = tab as PdView;
     setActiveTabState(t);
-    if (t === "deck" && selectedDeckId) {
-      window.location.hash = `deck:${selectedDeckId}`;
+    if (t === "deck") {
+      // Main nav: always open the deck library, not a specific deck.
+      setSelectedDeckId(null);
+      window.location.hash = "deck";
       return;
     }
     window.location.hash = t;
@@ -70,9 +72,11 @@ export default function App() {
 
   const selectDeck = (deckId: Id<"decks"> | null) => {
     setSelectedDeckId(deckId);
+    setActiveTabState("deck");
     if (deckId) {
-      setActiveTabState("deck");
       window.location.hash = `deck:${deckId}`;
+    } else {
+      window.location.hash = "deck";
     }
   };
 
@@ -86,7 +90,15 @@ export default function App() {
         const deckId = rawHash.slice("deck:".length);
         if (deckId) {
           setSelectedDeckId(deckId as Id<"decks">);
+        } else {
+          setSelectedDeckId(null);
         }
+        setActiveTabState("deck");
+        return;
+      }
+
+      if (rawHash === "deck") {
+        setSelectedDeckId(null);
         setActiveTabState("deck");
         return;
       }
@@ -196,6 +208,7 @@ export default function App() {
               <DeckView
                 selectedDeckId={selectedDeckId}
                 onSelectDeck={selectDeck}
+                onStartFromGallery={() => setActiveTab("gallery")}
               />
             </Suspense>
           </div>

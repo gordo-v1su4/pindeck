@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import { Button } from "@radix-ui/themes";
+import {
+  DragHandleDots2Icon,
+  EyeNoneIcon,
+  EyeOpenIcon,
+  LockClosedIcon,
+  LockOpen1Icon,
+} from "@radix-ui/react-icons";
+import { Button, Select } from "@radix-ui/themes";
 import { toast } from "sonner";
 import { DeckCanvasPage } from "./DeckCanvasPage";
 import { DeckSection } from "./DeckSection";
@@ -12,6 +19,7 @@ import type {
   StyleVariant,
 } from "./types";
 import { cn } from "./utils/cn";
+import { FIELD_CLASS } from "@/components/ui/actionStyles";
 import { defaultColors, extractColors } from "./utils/colorExtractor";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -120,16 +128,19 @@ const FONT_OPTIONS: Array<{
 const LAYOUT_OPTIONS: Array<{
   id: LayoutVariant;
   name: string;
+  short: string;
   detail: string;
 }> = [
   {
     id: "editorial",
-    name: "Editorial",
+    name: "Layout A",
+    short: "A",
     detail: "Wide frames, cinematic pacing, strong hero moments.",
   },
   {
     id: "collage",
-    name: "Structured Grid",
+    name: "Layout B",
+    short: "B",
     detail: "Dense composition, modular cards, stronger image rhythm.",
   },
 ];
@@ -155,7 +166,7 @@ const STYLE_OPTIONS: Array<{
   {
     id: "neon",
     label: "MV",
-    topLabel: "MUSIC VIDEO PITCH",
+    topLabel: "MUSIC VIDEO",
     detail: "High-contrast neon treatment with louder color tension.",
   },
   {
@@ -202,7 +213,7 @@ const templateBlocks: BlockData[] = [
     type: "logline",
     title: "LOGLINE",
     content:
-      "A one-breath summary that turns the image set into a pitch you can feel instantly.",
+      "A one-breath summary that makes the image set land as a single, felt idea.",
     layout: "A",
     visible: true,
     locked: false,
@@ -384,9 +395,9 @@ function buildDeckBlocks(
     if (block.type === "hero") {
       return {
         ...block,
-        title: deckTitle || "PITCH DECK",
+        title: deckTitle || "UNTITLED DECK",
         content: a
-          ? `Built from the visual DNA of "${a}" and expanded into a sharper deck experience.`
+          ? `Built from the visual DNA of "${a}" and expanded into a tighter deck read.`
           : "Built from your selected board imagery and tuned for presentation flow.",
       };
     }
@@ -394,7 +405,7 @@ function buildDeckBlocks(
     if (block.type === "logline" && b) {
       return {
         ...block,
-        content: `A tight pitch statement built around "${b}" and the world suggested by the broader board selection.`,
+        content: `A tight one-line treatment built around "${b}" and the world suggested by the broader board selection.`,
       };
     }
 
@@ -468,100 +479,13 @@ function hashString(value: string): number {
   return hash;
 }
 
-function DeckComposerTuningPanel({
-  selectedBlock,
-  fontStyle,
-  onFontStyleChange,
-  onBlockLayoutChange,
+export function DeckComposer({
+  deck,
+  onBackToLibrary,
 }: {
-  selectedBlock: BlockData | null;
-  fontStyle: FontStyle;
-  onFontStyleChange: (fontStyle: FontStyle) => void;
-  onBlockLayoutChange: (blockId: string, layout: BlockData["layout"]) => void;
+  deck: DeckDetail;
+  onBackToLibrary: () => void;
 }) {
-  return (
-    <section className="border-t border-white/8 bg-[#0a0a0c] px-6 py-7">
-      <div className="mx-auto grid w-full max-w-[980px] gap-8 lg:grid-cols-[0.78fr_1.22fr]">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.24em] text-white/30">
-            Selected block
-          </div>
-          <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white">
-            {selectedBlock ? selectedBlock.title : "Pick a block"}
-          </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-white/34">
-            {selectedBlock
-              ? `${selectedBlock.type} · layout ${selectedBlock.layout}`
-              : "Choose a canvas slide to tune variants"}
-          </div>
-
-          {selectedBlock ? (
-            <div className="mt-5">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-white/30">
-                Layout variants
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {(["A", "B"] as const).map((layout) => (
-                  <button
-                    key={layout}
-                    onClick={() => onBlockLayoutChange(selectedBlock.id, layout)}
-                    className={cn(
-                      "rounded-[3px] border px-3 py-3 text-left transition-colors",
-                      selectedBlock.layout === layout
-                        ? "border-[#f5a524] bg-[#f5a524]/12 text-[#f5a524]"
-                        : "border-white/10 bg-[#111117] text-white/52 hover:text-white",
-                    )}
-                  >
-                    <span className="block text-[12px] font-semibold uppercase tracking-[0.14em]">
-                      Layout {layout}
-                    </span>
-                    <span className="mt-1 block text-[10px] leading-relaxed opacity-70">
-                      {layout === "A"
-                        ? "Editorial pacing with cleaner hero emphasis."
-                        : "Denser contact-sheet rhythm and modular media."}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div>
-          <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-white/30">
-            Font family
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {FONT_OPTIONS.slice(0, 6).map((option) => (
-              <button
-                key={option.id}
-                onClick={() => onFontStyleChange(option.id)}
-                className={cn(
-                  "rounded-[3px] border bg-[#111117] px-3 py-3 text-left transition-colors",
-                  fontStyle === option.id
-                    ? "border-[#f5a524] bg-[#f5a524]/12 text-white"
-                    : "border-white/10 text-white/55 hover:text-white",
-                )}
-              >
-                <span
-                  className="block text-lg font-semibold leading-none"
-                  style={{ fontFamily: option.previewFamily }}
-                >
-                  {option.name}
-                </span>
-                <span className="mt-2 block text-[9px] uppercase tracking-[0.2em] text-[#f5a524]/80">
-                  {option.detail}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const sourceSlides = useMemo(
     () => [...deck.slides].sort((a, b) => a.order - b.order),
     [deck.slides],
@@ -924,11 +848,6 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     [],
   );
 
-  const applyStylePreset = useCallback((nextStyle: StyleVariant) => {
-    setStyleVariant(nextStyle);
-    setColors(stylePresets[nextStyle]);
-  }, []);
-
   const openColorEditor = useCallback(
     (key: keyof ColorPalette, value: string) => {
       setEditingColor(key);
@@ -948,18 +867,6 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       }
 
       input.click();
-    },
-    [],
-  );
-
-  const setBlockLayout = useCallback(
-    (blockId: string, layout: BlockData["layout"]) => {
-      setBlocks((previous) =>
-        previous.map((block) =>
-          block.id === blockId ? { ...block, layout } : block,
-        ),
-      );
-      setSelectedBlockId(blockId);
     },
     [],
   );
@@ -1199,23 +1106,32 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       <div className="flex min-h-[72vh]">
         <aside
           className={cn(
-            "w-[296px] shrink-0 border-r border-white/8 bg-[#0d0d10] text-white",
+            "w-[328px] shrink-0 border-r border-white/8 bg-[#0d0d10] text-white",
             sidebarOpen ? "flex flex-col" : "hidden lg:flex lg:flex-col",
           )}
         >
-          <div className="flex items-center gap-3 border-b border-white/8 px-5 py-4">
-            <button
-              onClick={() => setSidebarOpen((value) => !value)}
-              className="flex h-8 w-8 items-center justify-center rounded-[4px] border border-white/10 text-white/55 transition-colors hover:text-white lg:hidden"
-            >
-              ×
-            </button>
-            <div>
-              <div className="text-lg font-semibold tracking-[-0.02em] text-white">
-                Pitch Deck
-              </div>
-              <div className="text-[10px] uppercase tracking-[0.28em] text-white/28">
-                Editor · Pindeck
+          <div className="border-b-2 border-[var(--pd-green)] px-5 py-4">
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen((value) => !value)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] border border-white/10 text-white/55 transition-colors hover:text-white lg:hidden"
+              >
+                ×
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={onBackToLibrary}
+                    className="rounded border border-white/20 bg-white/[0.03] px-2 py-1 text-left text-[10px] font-medium leading-none tracking-wide text-white/90 transition-colors hover:border-white/30 hover:bg-white/[0.05] hover:text-white"
+                  >
+                    ← Decks
+                  </button>
+                  <span className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/32">
+                    COMPOSER
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -1289,10 +1205,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
               </section>
 
               <section className="space-y-3">
-                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500/90">
                   Colors
                 </div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-1.5">
                   {[
                     {
                       key: "primary" as const,
@@ -1322,15 +1238,25 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                   ].map((swatch) => (
                     <button
                       key={swatch.label}
+                      type="button"
                       onClick={() => openColorEditor(swatch.key, swatch.value)}
-                      className="overflow-hidden rounded-[3px] border border-white/10"
+                      className="flex aspect-[1/1.15] w-full min-h-0 min-w-0 flex-col overflow-hidden rounded border border-white/[0.1] bg-black/30 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                      title={swatch.label}
                     >
                       <div
+                        className="min-h-0 flex-1"
                         style={{ backgroundColor: swatch.value }}
-                        className="h-18 w-full"
                       />
-                      <div className="bg-[#111117] px-2 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-                        {swatch.label}
+                      <div
+                        className="flex w-full shrink-0 items-center justify-center border-t border-black/55 py-1"
+                        style={{
+                          backgroundColor: `color-mix(in srgb, ${swatch.value} 22%, #070709)`,
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+                        }}
+                      >
+                        <span className="font-mono text-[7.5px] font-semibold uppercase tracking-[0.2em] text-zinc-400/85">
+                          {swatch.label}
+                        </span>
                       </div>
                     </button>
                   ))}
@@ -1364,89 +1290,126 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
 
               <section className="space-y-3">
                 <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
-                  Style
+                  Typography
                 </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {STYLE_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => applyStylePreset(option.id)}
-                      className={cn(
-                        "rounded-[3px] px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] transition-all",
-                        styleVariant === option.id
-                          ? "bg-[#f5a524] text-black"
-                          : "text-white/45 hover:text-white",
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] leading-relaxed text-white/45">
-                  {
-                    STYLE_OPTIONS.find((option) => option.id === styleVariant)
-                      ?.detail
-                  }
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <div className="flex items-center justify-between border-b border-white/8 pb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
-                    Typography
-                  </span>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                    {fontStyle}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {FONT_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => setFontStyle(option.id)}
-                      className={cn(
-                        "min-h-[78px] rounded-[3px] border px-3 py-3 text-left transition-all",
-                        fontStyle === option.id
-                          ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
-                          : "border-white/10 bg-[#111117] text-white/50 hover:text-white",
-                      )}
-                    >
-                      <div
-                        className="text-[1.1rem] font-semibold leading-none"
-                        style={{ fontFamily: option.previewFamily }}
+                <div className="deck-composer-select w-full min-w-0">
+                <Select.Root
+                  value={fontStyle}
+                  onValueChange={(v) => setFontStyle(v as FontStyle)}
+                >
+                  <Select.Trigger
+                    className={cn(
+                      "w-full max-w-full !min-h-14 rounded-[4px] border border-white/10 !bg-[#121218] px-3 !py-3.5 data-[state=open]:border-white/20",
+                      FIELD_CLASS,
+                    )}
+                    aria-label="Typography preset"
+                  >
+                    {(() => {
+                      const option = FONT_OPTIONS.find((o) => o.id === fontStyle);
+                      if (!option) {
+                        return (
+                          <span className="text-[10px] text-white/45">
+                            Choose typography
+                          </span>
+                        );
+                      }
+                      return (
+                        <div className="flex min-w-0 max-w-full items-center gap-2.5">
+                          <div
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-white/90"
+                            style={{ fontFamily: option.previewFamily }}
+                          >
+                            {option.preview}
+                          </div>
+                          <div className="min-w-0 flex-1 text-left leading-tight">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-200/92">
+                              {option.name}
+                            </div>
+                            <div className="mt-0.5 truncate text-[9px] text-white/45">
+                              {option.detail}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </Select.Trigger>
+                  <Select.Content
+                    className="z-[200] max-h-[min(70vh,360px)]"
+                    position="popper"
+                    sideOffset={4}
+                    align="start"
+                  >
+                    {FONT_OPTIONS.map((option) => (
+                      <Select.Item
+                        key={option.id}
+                        value={option.id}
+                        textValue={`${option.name} ${option.detail}`}
+                        className="!min-h-0 !py-2.5 !pl-2 !pr-3"
                       >
-                        {option.preview}
-                      </div>
-                      <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em]">
-                        {option.name}
-                      </div>
-                      <div className="mt-1 text-[10px] leading-relaxed opacity-70">
-                        {option.detail}
-                      </div>
-                    </button>
-                  ))}
+                        <div className="flex min-w-0 max-w-[280px] items-center gap-2.5">
+                          <div
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-white/90"
+                            style={{ fontFamily: option.previewFamily }}
+                          >
+                            {option.preview}
+                          </div>
+                          <div className="min-w-0 flex-1 text-left">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-200/92">
+                              {option.name}
+                            </div>
+                            <div className="mt-0.5 truncate text-[9px] leading-tight text-white/45">
+                              {option.detail}
+                            </div>
+                          </div>
+                        </div>
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
                 </div>
               </section>
 
               <section className="space-y-3">
                 <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
-                  Scroll FX
+                  GSAP SCROLL FX
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {SCROLL_FX_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => setScrollFx(option.id)}
-                      className={cn(
-                        "rounded-[3px] px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] transition-all",
-                        scrollFx === option.id
-                          ? "bg-[#f5a524] text-black"
-                          : "text-white/45 hover:text-white",
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                <div className="deck-composer-select w-full min-w-0">
+                <Select.Root
+                  value={scrollFx}
+                  onValueChange={(v) => setScrollFx(v as ScrollFx)}
+                >
+                  <Select.Trigger
+                    className={cn(
+                      "w-full max-w-full min-h-11 rounded-[4px] border border-white/10 !bg-[#121218] px-3 py-2 data-[state=open]:border-white/20",
+                      FIELD_CLASS,
+                    )}
+                    aria-label="GSAP scroll effect"
+                  >
+                    <span className="block min-w-0 flex-1 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
+                      {SCROLL_FX_OPTIONS.find((o) => o.id === scrollFx)?.label ??
+                        scrollFx.toUpperCase()}
+                    </span>
+                  </Select.Trigger>
+                  <Select.Content
+                    className="z-[200] max-h-[min(70vh,320px)]"
+                    position="popper"
+                    sideOffset={4}
+                    align="start"
+                  >
+                    {SCROLL_FX_OPTIONS.map((option) => (
+                      <Select.Item
+                        key={option.id}
+                        value={option.id}
+                        textValue={option.label}
+                        className="!pl-3 !pr-3"
+                      >
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+                          {option.label}
+                        </span>
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
                 </div>
               </section>
 
@@ -1454,24 +1417,50 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
                   Layout
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-2">
                   {LAYOUT_OPTIONS.map((option) => (
                     <button
                       key={option.id}
+                      type="button"
                       onClick={() => setLayoutVariant(option.id)}
                       className={cn(
-                        "rounded-[3px] border px-3 py-3 text-left transition-all",
+                        "relative w-full rounded-[3px] border px-3 pb-6 pt-2.5 text-left transition-all",
                         layoutVariant === option.id
                           ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
                           : "border-white/10 bg-[#111117] text-white/50 hover:text-white",
                       )}
                     >
-                      <div className="text-[12px] font-semibold uppercase tracking-[0.12em]">
+                      <span
+                        className={cn(
+                          "block text-[11px] font-semibold uppercase tracking-[0.12em]",
+                          layoutVariant === option.id
+                            ? "text-[var(--pd-accent-ink)]"
+                            : "text-white/78",
+                        )}
+                      >
                         {option.name}
-                      </div>
-                      <div className="mt-1 text-[10px] leading-relaxed opacity-70">
+                      </span>
+                      <p
+                        className={cn(
+                          "mt-1.5 w-full pr-6 text-[9px] leading-snug",
+                          layoutVariant === option.id
+                            ? "text-[var(--pd-accent-ink)]/75"
+                            : "text-white/40",
+                        )}
+                      >
                         {option.detail}
-                      </div>
+                      </p>
+                      <span
+                        className={cn(
+                          "pointer-events-none absolute bottom-1.5 right-2 font-mono text-[10px] uppercase tracking-[0.18em]",
+                          layoutVariant === option.id
+                            ? "text-[var(--pd-accent-ink)]/55"
+                            : "text-white/22",
+                        )}
+                        aria-hidden={true}
+                      >
+                        {option.short}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -1479,10 +1468,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
 
               <section className="space-y-3">
                 <div className="flex items-center justify-between border-b border-white/8 pb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500/90">
                     Blocks
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500/80">
                     {visibleBlocks.length}/{blocks.length} visible
                   </span>
                 </div>
@@ -1497,70 +1486,72 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                       onDrop={() => handleDrop(block.id)}
                       onDragEnd={handleDragEnd}
                       className={cn(
-                        "flex items-center gap-3 rounded-[4px] border px-3 py-3 transition-all",
+                        "flex cursor-grab select-none items-center gap-2.5 rounded-[4px] border px-2.5 py-2.5 transition-[border-color,background-color,opacity,box-shadow] active:cursor-grabbing",
                         draggedBlock === block.id && "opacity-50",
+                        !block.visible && "opacity-[0.48]",
                         selectedBlockId === block.id
-                          ? "border-[#f5a524]/55 bg-[#f5a524]/8 shadow-[inset_3px_0_0_#f5a524]"
+                          ? "border-[#d4a24b]/55 bg-[#d4a24b]/[0.07]"
                           : dragOverBlock === block.id
-                            ? "border-[#f5a524]/40 bg-[#f5a524]/5"
-                            : "border-white/10 bg-[#111117]",
+                            ? "border-[#c9973a]/35 bg-white/[0.02]"
+                            : "border-white/[0.08] bg-[#0c0c10]",
                       )}
                     >
-                      <span className="text-white/20">⋮⋮</span>
-                      <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">
+                      <span
+                        className="shrink-0 text-white/22"
+                        aria-hidden={true}
+                      >
+                        <DragHandleDots2Icon className="h-4 w-4" />
+                      </span>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200/85",
+                          !block.visible && "text-zinc-500/90",
+                        )}
+                      >
                         {block.title}
                       </span>
-                      <div className="flex rounded-[4px] border border-white/10 p-0.5">
-                        {(["A", "B"] as const).map((layout) => (
-                          <button
-                            key={layout}
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setBlockLayout(block.id, layout);
-                            }}
-                            className={cn(
-                              "px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]",
-                              block.layout === layout
-                                ? "bg-[#f5a524] text-black"
-                                : "text-white/35 hover:text-white",
-                            )}
-                            title={`Use layout ${layout}`}
-                          >
-                            {layout}
-                          </button>
-                        ))}
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleBlockLock(block.id);
+                          }}
+                          className={cn(
+                            "rounded p-1.5 transition-colors",
+                            block.locked
+                              ? "text-[#d4a24b] hover:text-[#e8b55c]"
+                              : "text-zinc-500/90 hover:text-zinc-400/90",
+                          )}
+                          title={block.locked ? "Unlock block" : "Lock block"}
+                        >
+                          {block.locked ? (
+                            <LockClosedIcon className="h-4 w-4" />
+                          ) : (
+                            <LockOpen1Icon className="h-4 w-4" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleBlockVisibility(block.id);
+                          }}
+                          className={cn(
+                            "rounded p-1.5 transition-colors",
+                            block.visible
+                              ? "text-[#d4a24b] hover:text-[#e8b55c]"
+                              : "text-zinc-500/50 hover:text-zinc-400/70",
+                          )}
+                          title={block.visible ? "Hide block" : "Show block"}
+                        >
+                          {block.visible ? (
+                            <EyeOpenIcon className="h-4 w-4" />
+                          ) : (
+                            <EyeNoneIcon className="h-4 w-4" />
+                          )}
+                        </button>
                       </div>
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleBlockLock(block.id);
-                        }}
-                        className={cn(
-                          "rounded-[4px] border px-2 py-1 text-[10px] uppercase tracking-[0.16em]",
-                          block.locked
-                            ? "border-[#f5a524]/45 text-[#f5a524]"
-                            : "border-white/10 text-white/35",
-                        )}
-                        title={block.locked ? "Unlock block" : "Lock block"}
-                      >
-                        {block.locked ? "🔒" : "🔓"}
-                      </button>
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleBlockVisibility(block.id);
-                        }}
-                        className={cn(
-                          "rounded-[4px] border px-2 py-1 text-[10px] uppercase tracking-[0.16em]",
-                          block.visible
-                            ? "border-[var(--pd-accent)] text-[var(--pd-accent-ink)]"
-                            : "border-white/10 text-white/35",
-                        )}
-                        title={block.visible ? "Hide block" : "Show block"}
-                      >
-                        {block.visible ? "◉" : "⊘"}
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -1657,7 +1648,8 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                     </span>
                   </span>
                   <span className="text-[#f5a524]">
-                    Layout {selectedBlock.layout}
+                    {LAYOUT_OPTIONS.find((o) => o.id === layoutVariant)?.name ??
+                      "Layout A"}
                   </span>
                 </div>
               ) : null}
@@ -1676,14 +1668,6 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 />
               </div>
             </div>
-            {!isPreviewMode ? (
-              <DeckComposerTuningPanel
-                selectedBlock={selectedBlock}
-                fontStyle={fontStyle}
-                onFontStyleChange={setFontStyle}
-                onBlockLayoutChange={setBlockLayout}
-              />
-            ) : null}
           </main>
         </div>
       </div>

@@ -782,6 +782,27 @@ body {
   box-shadow: 0 0 0 3px rgba(36, 87, 214, 0.18);
 }
 
+/* Deck composer Radix Select: value block left, chevron right, vertically centered */
+.deck-composer-select .rt-SelectTrigger {
+  display: flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  column-gap: 0.5rem;
+}
+
+.deck-composer-select .rt-SelectTriggerInner {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0%;
+  align-items: center;
+}
+
+.deck-composer-select .rt-SelectIcon {
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .creative-action-accent {
   border-color: rgba(36, 87, 214, 0.36) !important;
   background: rgba(36, 87, 214, 0.16) !important;

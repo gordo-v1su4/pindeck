@@ -198,6 +198,8 @@ function PdTopbar({
 }) {
   const totalImages = useQuery(api.images.list, {});
   const imageCount = totalImages?.length ?? 0;
+  const deckList = useQuery(api.decks.list);
+  const deckCount = deckList?.length ?? 0;
 
   const viewToggles = useMemo(() => ([
     { id: "gallery" as const, icon: "masonry" as const, label: "Gallery" },
@@ -252,9 +254,21 @@ function PdTopbar({
 
       {/* Breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--pd-ink-mute)", marginLeft: 8 }}>
-        <span className="pd-mono">{view}</span>
-        <span style={{ color: "var(--pd-ink-faint)" }}>/</span>
-        <span>{imageCount} images</span>
+        {view === "deck" ? (
+          <>
+            <span className="pd-mono">decks</span>
+            <span style={{ color: "var(--pd-ink-faint)" }}>/</span>
+            <span>
+              {deckList === undefined ? "…" : `${deckCount} deck${deckCount === 1 ? "" : "s"}`}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="pd-mono">{view}</span>
+            <span style={{ color: "var(--pd-ink-faint)" }}>/</span>
+            <span>{imageCount} images</span>
+          </>
+        )}
       </div>
 
       <div style={{ flex: 1 }} />

@@ -196,7 +196,6 @@ export function DeckCanvasPage({
   };
   const overlay = Math.max(0.18, Math.min(0.86, overlayStrength / 100));
   const visible = blocks.filter((block) => block.visible);
-
   if (visible.length === 0) {
     return (
       <div className="flex min-h-[42rem] items-center justify-center border border-white/10 bg-black text-sm text-white/45">

@@ -1,11 +1,29 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 const DECK_TEMPLATE = {
   id: "deck:image-highlight",
   layout: "single-image",
 };
+
+async function imagePreviewUrl(
+  ctx: QueryCtx,
+  imageId: Id<"images">,
+): Promise<string | null> {
+  const image = await ctx.db.get("images", imageId);
+  if (!image) {
+    return null;
+  }
+  return (
+    image.derivativeUrls?.large ||
+    image.derivativeUrls?.medium ||
+    image.previewUrl ||
+    image.imageUrl ||
+    null
+  );
+}
 
 export const listByBoard = query({
   args: { boardId: v.id("collections") },
@@ -32,11 +50,40 @@ export const list = query({
       return [];
     }
 
-    return ctx.db
+    const decks = await ctx.db
       .query("decks")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+
+    const maxStrip = 8;
+
+    return Promise.all(
+      decks.map(async (deck) => {
+        const board = await ctx.db.get("collections", deck.boardId);
+        const slides = [...deck.slides].sort((a, b) => a.order - b.order);
+
+        const imageIds: Id<"images">[] =
+          slides.length > 0
+            ? slides.map((s) => s.imageId)
+            : deck.sourceImageIds;
+
+        const stripImageUrls: string[] = [];
+        for (const imageId of imageIds.slice(0, maxStrip)) {
+          const url = await imagePreviewUrl(ctx, imageId);
+          if (url) {
+            stripImageUrls.push(url);
+          }
+        }
+
+        return {
+          ...deck,
+          boardName: board?.name ?? null,
+          /** Ordered stills in this deck (for library filmstrip). */
+          stripImageUrls,
+        };
+      }),
+    );
   },
 });
 
