@@ -2,7 +2,7 @@
   "name": "pindeck-tmp",
   "private": true,
   "scripts": {
-    "build": "echo 'pindeck-tmp: static, no bundler'",
+    "build": "rm -rf dist && mkdir -p dist && cp Pindeck.html app.jsx data.jsx deck.jsx decks-gallery.jsx parts.jsx views.jsx dist/ && cp 'Deck Composer.html' dist/",
     "preview": "serve -l 3333 ."
   },
   "devDependencies": {
