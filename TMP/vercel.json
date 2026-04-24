@@ -8,7 +8,7 @@
   ],
   "headers": [
     {
-      "source": "/(.*)\\.jsx",
+      "source": "/(.*)\\.(jsx|tsx)",
       "headers": [
         { "key": "Content-Type", "value": "text/javascript; charset=utf-8" }
       ]
