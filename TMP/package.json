@@ -2,6 +2,7 @@
   "name": "pindeck-tmp",
   "private": true,
   "scripts": {
+    "build": "echo 'pindeck-tmp: static, no bundler'",
     "preview": "serve -l 3333 ."
   },
   "devDependencies": {
