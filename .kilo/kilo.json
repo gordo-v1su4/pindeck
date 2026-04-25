@@ -1,0 +1,32 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@playwright/mcp@0.0.38"
+      ]
+    },
+    "puppeteer": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+    "exa": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "exa-mcp-server"
+      ],
+      "environment": {
+        "EXA_API_KEY": "92313d68-ac92-4079-a773-81cb7291c667"
+      }
+    }
+  }
+}

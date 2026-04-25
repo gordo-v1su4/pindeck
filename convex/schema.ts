@@ -20,7 +20,9 @@ const applicationTables = {
     status: v.optional(v.string()),
     aiStatus: v.optional(v.string()),
     uploadedAt: v.optional(v.number()),
-    group: v.optional(v.string()), // e.g., "Commercial", "Film", "Moodboard", "Spec Commercial", "Spec Music Video"
+    group: v.optional(v.string()), // e.g., "Commercial", "Film", "Moodboard"
+    genre: v.optional(v.string()), // e.g., "Noir", "Sci-Fi", "Drama", "Horror"
+    style: v.optional(v.string()), // e.g., "35mm Film", "16mm", "VHS", "Digital"
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
     projectOrder: v.optional(v.number()), // order within same projectName (for project-rows drag-and-drop)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
@@ -74,6 +76,8 @@ const applicationTables = {
     .index("by_uploaded_by", ["uploadedBy"])
     .index("by_likes", ["likes"])
     .index("by_group", ["group"])
+    .index("by_genre", ["genre"])
+    .index("by_style", ["style"])
     .index("by_project_name", ["projectName"])
     .index("by_unique_id", ["uniqueId"])
     .index("by_parent", ["parentImageId"])
@@ -113,7 +117,29 @@ const applicationTables = {
     boardId: v.id("collections"),
     userId: v.id("users"),
     title: v.string(),
+    subtitle: v.optional(v.string()),
+    tag: v.optional(v.string()), // ACTIVE / DRAFT / SENT
     templateId: v.string(),
+    templateName: v.optional(v.string()),
+    scrollFx: v.optional(v.string()),
+    overlay: v.optional(v.number()),
+    palette: v.optional(v.array(v.string())),
+    fontFamily: v.optional(v.string()),
+    logline: v.optional(v.string()),
+    characterName: v.optional(v.string()),
+    characterBody: v.optional(v.string()),
+    outroTitle: v.optional(v.string()),
+    outroEmail: v.optional(v.string()),
+    blocks: v.optional(v.array(
+      v.object({
+        id: v.string(),
+        label: v.string(),
+        on: v.boolean(),
+        locked: v.boolean(),
+        kind: v.string(),
+        variant: v.string(),
+      })
+    )),
     sourceImageIds: v.array(v.id("images")),
     slides: v.array(
       v.object({
@@ -123,6 +149,7 @@ const applicationTables = {
       })
     ),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_board", ["boardId"]),

@@ -1,355 +1,302 @@
-import { Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
-import { SignInForm } from "./SignInForm";
-import { SignOutButton } from "./SignOutButton";
+import React, { useState, useEffect, lazy, Suspense } from "react";
+import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
+import { SignInForm } from "@/SignInForm";
+import { SignOutButton } from "@/SignOutButton";
 import { Toaster } from "sonner";
-import { ImageGrid } from "./components/ImageGrid";
-import { SearchBar } from "./components/SearchBar";
-import { CategoryFilter } from "./components/CategoryFilter";
-import { useState, useEffect, lazy, Suspense } from "react";
-import {
-  BookOpenIcon,
-  ImagesIcon,
-  LayoutPanelTopIcon,
-  MenuIcon,
-  PresentationIcon,
-  TablePropertiesIcon,
-  UploadIcon,
-} from "lucide-react";
+import { PinIcon, PinHotkey } from "@/components/ui/pindeck";
+import { TweaksPanel, DEFAULT_TWEAKS, type Tweaks } from "@/components/pd/TweaksPanel";
+import { GalleryView } from "@/components/pd/GalleryView";
+import { TableView } from "@/components/pd/TableView";
+import { BoardsView } from "@/components/pd/BoardsView";
+import { DecksGallery } from "@/components/pd/deck/DecksGallery";
+import { ImageDetailDrawer } from "@/components/pd/ImageDetailDrawer";
 import type { Id } from "../convex/_generated/dataModel";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ImageUploadForm = lazy(() =>
-  import("./components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
+  import("@/components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
 );
-const BoardsView = lazy(() =>
-  import("./components/BoardsView").then((mod) => ({ default: mod.BoardsView }))
-);
-const TableView = lazy(() =>
-  import("./components/TableView").then((mod) => ({ default: mod.TableView }))
-);
-const DeckView = lazy(() =>
-  import("./components/DeckView").then((mod) => ({ default: mod.DeckView }))
+const DeckComposer = lazy(() =>
+  import("@/components/pd/deck/DeckComposer").then((mod) => ({ default: mod.DeckComposer }))
 );
 
-const APP_TABS = [
-  { value: "gallery", label: "Gallery", icon: ImagesIcon },
-  { value: "upload", label: "Upload", icon: UploadIcon },
-  { value: "boards", label: "Boards", icon: LayoutPanelTopIcon },
-  { value: "deck", label: "Deck", icon: PresentationIcon },
-  { value: "table", label: "Table", icon: TablePropertiesIcon },
+const APP_VIEWS = [
+  { id: "gallery", label: "Gallery", icon: "masonry", hk: "G" },
+  { id: "table", label: "Table", icon: "table", hk: "T" },
+  { id: "boards", label: "Boards", icon: "board", hk: "B" },
+  { id: "deck", label: "Decks", icon: "deck", hk: "D" },
+  { id: "upload", label: "Upload", icon: "upload", hk: "U" },
 ] as const;
 
 export default function App() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState<string | undefined>();
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
-  const [activeTab, setActiveTabState] = useState("gallery");
-  const [selectedDeckId, setSelectedDeckId] = useState<Id<"decks"> | null>(null);
-  const { isAuthenticated, isLoading } = useConvexAuth();
-
-  const loggedInUser = useQuery(api.auth.loggedInUser);
-  const showAppChrome = Boolean(isAuthenticated || loggedInUser);
-
-  const setActiveTab = (tab: string) => {
-    setActiveTabState(tab);
-    if (tab === "deck" && selectedDeckId) {
-      window.location.hash = `deck:${selectedDeckId}`;
-      return;
+  const [tweaks, setTweaks] = useState<Tweaks>(() => {
+    try {
+      const saved = localStorage.getItem("pindeck_tweaks");
+      return saved ? { ...DEFAULT_TWEAKS, ...JSON.parse(saved) } : DEFAULT_TWEAKS;
+    } catch {
+      return DEFAULT_TWEAKS;
     }
-    window.location.hash = tab;
-  };
-
-  const openDeckTab = (deckId: Id<"decks">) => {
-    setSelectedDeckId(deckId);
-    setActiveTabState("deck");
-    window.location.hash = `deck:${deckId}`;
-  };
-
-  const selectDeck = (deckId: Id<"decks"> | null) => {
-    setSelectedDeckId(deckId);
-    if (deckId) {
-      setActiveTabState("deck");
-      window.location.hash = `deck:${deckId}`;
-    }
-  };
+  });
+  const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [view, setView] = useState(() => localStorage.getItem("pindeck_view") || "gallery");
+  const [search, setSearch] = useState("");
+  const [selectedImage, setSelectedImage] = useState<any | null>(null);
+  const [activeDeckId, setActiveDeckId] = useState<Id<"decks"> | null>(null);
+  const { isAuthenticated } = useConvexAuth();
 
   useEffect(() => {
-    const parseHash = () => {
-      if (!window.location.hash) return;
-      const rawHash = window.location.hash.substring(1);
-      if (!rawHash) return;
+    localStorage.setItem("pindeck_tweaks", JSON.stringify(tweaks));
+  }, [tweaks]);
 
-      if (rawHash.startsWith("deck:")) {
-        const deckId = rawHash.slice("deck:".length);
-        if (deckId) {
-          setSelectedDeckId(deckId as Id<"decks">);
-        }
-        setActiveTabState("deck");
-        return;
-      }
+  useEffect(() => {
+    localStorage.setItem("pindeck_view", view);
+  }, [view]);
 
-      if (APP_TABS.some((tab) => tab.value === rawHash)) {
-        setActiveTabState(rawHash);
-      }
+  useEffect(() => {
+    if (view !== "deck") setActiveDeckId(null);
+  }, [view]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "Escape") { setSelectedImage(null); setTweaksOpen(false); }
+      if (e.key === "g") setView("gallery");
+      if (e.key === "t") setView("table");
+      if (e.key === "b") setView("boards");
+      if (e.key === "d") setView("deck");
+      if (e.key === "u") setView("upload");
     };
-
-    parseHash();
-    const handleHashChange = () => parseHash();
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const [boardVersion, setBoardVersion] = useState(0);
-  const incrementBoardVersion = () => setBoardVersion((value) => value + 1);
+  const openDeck = (deckId: Id<"decks">) => {
+    setActiveDeckId(deckId);
+    setView("deck");
+  };
+
+  const showAppChrome = isAuthenticated;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className={`pd-theme ${tweaks.grain ? "pd-grain" : ""}`}
+      style={{
+        height: "100vh",
+        display: "flex",
+        background: "var(--pd-bg)",
+        position: "relative",
+        color: "var(--pd-ink)",
+        fontFamily: "var(--pd-font-sans)",
+        fontSize: 13,
+        lineHeight: 1.45,
+      }}
+    >
       {showAppChrome && (
-        <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
-          <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-4">
-                <div className="site-brand-lockup">
-                  <div className="site-brand-mark">P/</div>
-                  <div className="site-brand-word">
-                    <span className="site-brand-word-light">PIN</span>
-                    <span className="site-brand-word-accent">DECK</span>
-                  </div>
-                      </div>
-                      <a
-                        href="https://docs.pindeck.dev"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      >
-                        <BookOpenIcon className="h-4 w-4" />
-                        Docs
-                      </a>
-                      <Authenticated>
-                  <div className="hidden md:block">
-                    <SearchBar onSearch={setSearchTerm} />
-                  </div>
-                </Authenticated>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Authenticated>
-                  <div className="hidden md:block">
-                    <SignOutButton />
-                  </div>
-                </Authenticated>
-
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="icon-sm" className="md:hidden">
-                      <MenuIcon />
-                      <span className="sr-only">Open navigation</span>
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right">
-                    <SheetHeader>
-                      <SheetTitle>Navigation</SheetTitle>
-                      <SheetDescription>Switch sections or continue working in your deck flow.</SheetDescription>
-                    </SheetHeader>
-                    <div className="flex flex-col gap-3 px-4 pb-6">
-                      <Authenticated>
-                        <SearchBar onSearch={setSearchTerm} />
-                      </Authenticated>
-                      <div className="flex flex-col gap-2">
-                        {APP_TABS.map((tab) => {
-                          const Icon = tab.icon;
-                          return (
-                            <Button
-                              key={tab.value}
-                              variant={activeTab === tab.value ? "default" : "ghost"}
-                              className="justify-start"
-                              onClick={() => setActiveTab(tab.value)}
-                            >
-                              <Icon data-icon="inline-start" />
-                              {tab.label}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                      <Authenticated>
-                        <SignOutButton />
-                      </Authenticated>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              </div>
-            </div>
-
-            <div className="hidden md:block">
-              <Tabs
-                value={activeTab}
-                onValueChange={(value) => value && setActiveTab(value)}
-                className="w-full"
-              >
-                <TabsList
-                  variant="line"
-                  className="h-auto flex-wrap justify-start rounded-none border-b border-border bg-transparent p-0"
-                >
-                  {APP_TABS.map((tab) => {
-                    const Icon = tab.icon;
-                    return (
-                      <TabsTrigger key={tab.value} value={tab.value} className="flex-none">
-                        <Icon data-icon="inline-start" />
-                        {tab.label}
-                      </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
-              </Tabs>
-            </div>
-
-            {activeTab === "gallery" && (
-              <CategoryFilter
-                selectedGroup={undefined}
-                onGroupChange={() => {}}
-                selectedCategory={selectedCategory}
-                onCategoryChange={setSelectedCategory}
-              />
-            )}
-          </div>
-        </header>
+        <Sidebar activeView={view} onView={setView} />
       )}
 
-      <main
-        className={
-          showAppChrome
-            ? "mx-auto w-full max-w-[1680px] px-4 py-8 pb-16 sm:px-6 lg:px-8"
-            : "mx-auto flex min-h-screen w-full items-center justify-center px-4 py-10 sm:px-6"
-        }
-      >
-        {showAppChrome ? (
-          <>
-            {activeTab === "gallery" && (
-              <Content
-                searchTerm={searchTerm}
-                selectedGroup={selectedGroup}
-                selectedCategory={selectedCategory}
-                setActiveTab={setActiveTab}
-                incrementBoardVersion={incrementBoardVersion}
-              />
-            )}
-            {activeTab === "upload" && (
-              <Suspense
-                fallback={
-                  <div className="flex min-h-[30vh] items-center justify-center">
-                    <Spinner className="size-5" />
-                  </div>
-                }
-              >
-                <ImageUploadForm />
-              </Suspense>
-            )}
-            {activeTab === "boards" && (
-              <Suspense
-                fallback={
-                  <div className="flex min-h-[30vh] items-center justify-center">
-                    <Spinner className="size-5" />
-                  </div>
-                }
-              >
-                <BoardsView
-                  key={boardVersion}
-                  setActiveTab={setActiveTab}
-                  incrementBoardVersion={incrementBoardVersion}
-                  onDeckCreated={openDeckTab}
-                />
-              </Suspense>
-            )}
-            {activeTab === "deck" && (
-              <Suspense
-                fallback={
-                  <div className="flex min-h-[30vh] items-center justify-center">
-                    <Spinner className="size-5" />
-                  </div>
-                }
-              >
-                <DeckView selectedDeckId={selectedDeckId} onSelectDeck={selectDeck} />
-              </Suspense>
-            )}
-            {activeTab === "table" && (
-              <Suspense
-                fallback={
-                  <div className="flex min-h-[30vh] items-center justify-center">
-                    <Spinner className="size-5" />
-                  </div>
-                }
-              >
-                <TableView />
-              </Suspense>
-            )}
-          </>
-        ) : (
-          <Content
-            searchTerm={searchTerm}
-            selectedGroup={selectedGroup}
-            selectedCategory={selectedCategory}
-            setActiveTab={setActiveTab}
-            incrementBoardVersion={incrementBoardVersion}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
+        {showAppChrome && (
+          <Topbar
+            search={search}
+            setSearch={setSearch}
+            view={view}
+            setView={setView}
+            tweaksOn={tweaksOpen}
+            onToggleTweaks={() => setTweaksOpen(!tweaksOpen)}
           />
         )}
-      </main>
+
+        <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <Unauthenticated>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <SignInForm />
+              </div>
+            </Unauthenticated>
+            <Authenticated>
+              {view === "gallery" && (
+                <GalleryView search={search} tweaks={tweaks} onOpenImage={setSelectedImage} />
+              )}
+              {view === "table" && (
+                <TableView search={search} onOpenImage={setSelectedImage} />
+              )}
+              {view === "boards" && (
+                <BoardsView onOpenDeck={openDeck} />
+              )}
+              {view === "deck" && !activeDeckId && (
+                <DecksGallery onOpenDeck={openDeck} tweaks={tweaks} />
+              )}
+              {view === "deck" && activeDeckId && (
+                <Suspense fallback={<Placeholder />}>
+                  <DeckComposer deckId={activeDeckId} onBack={() => setActiveDeckId(null)} tweaks={tweaks} />
+                </Suspense>
+              )}
+              {view === "upload" && (
+                <Suspense fallback={<Placeholder />}>
+                  <ImageUploadForm />
+                </Suspense>
+              )}
+            </Authenticated>
+          </div>
+
+          {selectedImage && (
+            <ImageDetailDrawer image={selectedImage} onClose={() => setSelectedImage(null)} tweaks={tweaks} />
+          )}
+        </div>
+
+        {tweaksOpen && (
+          <TweaksPanel tweaks={tweaks} setTweaks={setTweaks} onClose={() => setTweaksOpen(false)} />
+        )}
+
+        {showAppChrome && (
+          <div className="pd-mono" style={{
+            position: "fixed", bottom: 0, left: 208, right: 0, height: 22,
+            background: "var(--pd-bg-1)", borderTop: "1px solid var(--pd-line)",
+            display: "flex", alignItems: "center", padding: "0 10px", gap: 10,
+            fontSize: 10, color: "var(--pd-ink-faint)", zIndex: 5,
+          }}>
+            <span><span style={{ color: "var(--pd-green)" }}>●</span> convex · live</span>
+            <span>·</span>
+            <span>{view}</span>
+            <div style={{ flex: 1 }} />
+            <span>accent {tweaks.accent}</span>
+            <span>·</span>
+            <span>{tweaks.density}</span>
+            <span>·</span>
+            <span>{tweaks.cardStyle}</span>
+          </div>
+        )}
+      </div>
 
       <Toaster theme="dark" />
     </div>
   );
 }
 
-function Content({
-  searchTerm,
-  selectedGroup,
-  selectedCategory,
-  setActiveTab,
-  incrementBoardVersion,
-}: {
-  searchTerm: string;
-  selectedGroup: string | undefined;
-  selectedCategory: string | undefined;
-  setActiveTab: (tab: string) => void;
-  incrementBoardVersion: () => void;
-}) {
-  const { isAuthenticated, isLoading } = useConvexAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Spinner className="size-5" />
-      </div>
-    );
-  }
-
+function Sidebar({ activeView, onView }: { activeView: string; onView: (v: string) => void }) {
   return (
-    <div className="flex flex-col gap-8">
-      <Unauthenticated>
-        <div className="flex w-full items-center justify-center">
-          <SignInForm />
+    <aside style={{
+      width: 208, flexShrink: 0, background: "var(--pd-bg-1)",
+      borderRight: "1px solid var(--pd-line)", display: "flex", flexDirection: "column",
+      height: "100%", position: "relative", overflow: "hidden",
+    }}>
+      <div style={{ padding: "14px 14px 10px", borderBottom: "1px solid var(--pd-line)", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          width: 22, height: 22, borderRadius: 4, background: "#000",
+          border: "1px solid var(--pd-line-hi)", display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 800, fontStyle: "italic", letterSpacing: "-0.06em",
+        }}>P/</div>
+        <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.03em", fontStyle: "italic" }}>
+          <span style={{ color: "var(--pd-ink)" }}>PIN</span>
+          <span style={{ color: "var(--pd-accent)" }}>DECK</span>
         </div>
-      </Unauthenticated>
+      </div>
 
-      <Authenticated>
-        <ImageGrid
-          searchTerm={searchTerm}
-          selectedGroup={selectedGroup}
-          selectedCategory={selectedCategory}
-          setActiveTab={setActiveTab}
-          incrementBoardVersion={incrementBoardVersion}
-        />
-      </Authenticated>
+      <div style={{ padding: "10px 8px 6px", display: "flex", flexDirection: "column", gap: 1 }}>
+        {APP_VIEWS.map((n) => (
+          <button key={n.id} onClick={() => onView(n.id)} style={{
+            display: "flex", alignItems: "center", gap: 9, padding: "6px 8px",
+            borderRadius: 4, color: activeView === n.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
+            background: activeView === n.id ? "rgba(255,255,255,0.05)" : "transparent",
+            fontSize: 12, fontWeight: 500, textAlign: "left", transition: "background 120ms",
+          }}>
+            <PinIcon name={n.icon} size={13} stroke={activeView === n.id ? 1.8 : 1.5} />
+            <span style={{ flex: 1 }}>{n.label}</span>
+            <PinHotkey k={n.hk} />
+          </button>
+        ))}
+      </div>
+
+      <div className="pd-scroll" style={{ flex: 1, overflow: "auto", padding: "8px 12px 14px" }}>
+        <Authenticated>
+          <div style={{ padding: "8px 4px 4px" }}>
+            <div className="pd-mono" style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--pd-ink-faint)", marginBottom: 8 }}>Filters</div>
+            <label style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+              <input type="checkbox" /> Originals only
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+              <input type="checkbox" /> Has sref
+            </label>
+          </div>
+        </Authenticated>
+      </div>
+
+      <div style={{ borderTop: "1px solid var(--pd-line)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 10.5 }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--pd-green)", boxShadow: "0 0 8px var(--pd-green)" }} />
+        <span className="pd-mono" style={{ color: "var(--pd-ink-mute)" }}>convex · live</span>
+        <div style={{ flex: 1 }} />
+        <SignOutButton />
+      </div>
+    </aside>
+  );
+}
+
+function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks }: {
+  search: string; setSearch: (s: string) => void; view: string; setView: (v: string) => void;
+  tweaksOn: boolean; onToggleTweaks: () => void;
+}) {
+  return (
+    <header style={{
+      height: 44, flexShrink: 0, borderBottom: "1px solid var(--pd-line)",
+      background: "var(--pd-bg-1)", display: "flex", alignItems: "center", gap: 8,
+      padding: "0 12px", position: "relative", zIndex: 10,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 6,
+        background: "var(--pd-bg-2)", border: "1px solid var(--pd-line)",
+        borderRadius: 5, padding: "5px 8px", width: 320, maxWidth: "38vw",
+      }}>
+        <PinIcon name="search" size={12} />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search titles, tags, srefs…"
+          style={{ flex: 1, border: 0, outline: 0, background: "transparent", fontSize: 12, color: "var(--pd-ink)" }} />
+        <PinHotkey k="⌘K" />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--pd-ink-mute)", marginLeft: 8 }}>
+        <span className="pd-mono">{view}</span>
+        <span style={{ color: "var(--pd-ink-faint)" }}>/</span>
+        <span>Pindeck Library</span>
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      <div style={{ display: "flex", alignItems: "center", gap: 2, border: "1px solid var(--pd-line)", borderRadius: 5, padding: 1 }}>
+        {[
+          { id: "gallery", icon: "masonry", label: "Gallery" },
+          { id: "table", icon: "table", label: "Table" },
+          { id: "boards", icon: "board", label: "Boards" },
+        ].map((v) => (
+          <button key={v.id} onClick={() => setView(v.id)} title={v.label} style={{
+            display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
+            borderRadius: 4, fontSize: 11, fontWeight: 500,
+            color: view === v.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
+            background: view === v.id ? "rgba(255,255,255,0.06)" : "transparent",
+          }}>
+            <PinIcon name={v.icon} size={12} />
+            <span>{v.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <button onClick={onToggleTweaks} title="Tweaks" style={{
+        width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+        borderRadius: 4, border: "1px solid var(--pd-line)",
+        background: tweaksOn ? "var(--pd-accent-soft)" : "transparent",
+        color: tweaksOn ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+      }}>
+        <PinIcon name="bolt" size={13} />
+      </button>
+    </header>
+  );
+}
+
+function Placeholder() {
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--pd-ink-faint)", fontSize: 12 }}>
+      <div style={{ textAlign: "center" }}>
+        <PinIcon name="film" size={28} stroke={1.2} />
+        <div style={{ marginTop: 10 }}>Loading…</div>
+      </div>
     </div>
   );
 }
