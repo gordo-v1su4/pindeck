@@ -47,7 +47,11 @@ export function PinBtn({
     ghost: { background: "transparent", color: "var(--pd-ink-dim)", border: "1px solid transparent" },
     outline: { background: "rgba(255,255,255,0.015)", color: "var(--pd-ink-dim)", border: "1px solid var(--pd-line-strong)" },
     danger: { background: "transparent", color: "var(--pd-red)", border: "1px solid rgba(239,67,67,0.3)" },
-    accent: { background: "var(--pd-accent-soft)", color: "var(--pd-accent-ink)", border: "1px solid rgba(58,123,255,0.3)" },
+    accent: {
+      background: "var(--pd-accent-soft)",
+      color: "var(--pd-accent-ink)",
+      border: "1px solid color-mix(in srgb, var(--pd-accent) 38%, transparent)",
+    },
   };
 
   const activeStyle: React.CSSProperties = active

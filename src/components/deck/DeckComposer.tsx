@@ -1,13 +1,15 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import { Box, Button, Card, Flex, Text } from "@radix-ui/themes";
+import {
+  DragHandleDots2Icon,
+  EyeNoneIcon,
+  EyeOpenIcon,
+  LockClosedIcon,
+  LockOpen1Icon,
+} from "@radix-ui/react-icons";
+import { Button, Select } from "@radix-ui/themes";
 import { toast } from "sonner";
+import { DeckCanvasPage } from "./DeckCanvasPage";
 import { DeckSection } from "./DeckSection";
 import type {
   BlockData,
@@ -17,7 +19,12 @@ import type {
   StyleVariant,
 } from "./types";
 import { cn } from "./utils/cn";
-import { defaultColors, extractColors } from "./utils/colorExtractor";
+import { FIELD_CLASS } from "@/components/ui/actionStyles";
+import {
+  defaultColors,
+  extractColors,
+  paletteFromDominantHexes,
+} from "./utils/colorExtractor";
 import type { Id } from "../../../convex/_generated/dataModel";
 
 type DeckSlide = {
@@ -33,6 +40,8 @@ type DeckSlide = {
     category: string;
     sref?: string;
     source?: string;
+    /** Dominant palette from `images.colors` (same ordering as extraction). */
+    colors?: string[];
   } | null;
 };
 
@@ -44,7 +53,7 @@ export type DeckDetail = {
   slides: DeckSlide[];
 };
 
-type ComposerPanel = "layout" | "style";
+type ScrollFx = "parallax" | "snap" | "kinetic" | "dolly" | "sequence";
 
 type ColorPickerInput = HTMLInputElement & {
   showPicker?: () => void;
@@ -125,36 +134,73 @@ const FONT_OPTIONS: Array<{
 const LAYOUT_OPTIONS: Array<{
   id: LayoutVariant;
   name: string;
+  short: string;
   detail: string;
 }> = [
   {
     id: "editorial",
-    name: "Editorial",
+    name: "Layout A",
+    short: "A",
     detail: "Wide frames, cinematic pacing, strong hero moments.",
   },
   {
     id: "collage",
-    name: "Structured Grid",
+    name: "Layout B",
+    short: "B",
     detail: "Dense composition, modular cards, stronger image rhythm.",
   },
 ];
 
-const COLOR_KEYS: Array<{
-  key: keyof ColorPalette;
+const STYLE_OPTIONS: Array<{
+  id: StyleVariant;
   label: string;
+  topLabel: string;
+  detail: string;
 }> = [
-  { key: "primary", label: "Primary" },
-  { key: "secondary", label: "Secondary" },
-  { key: "accent", label: "Accent" },
-  { key: "tertiary", label: "Tertiary" },
-  { key: "background", label: "Background" },
-  { key: "surface", label: "Surface" },
-  { key: "text", label: "Text" },
-  { key: "muted", label: "Muted" },
-  { key: "border", label: "Border" },
+  {
+    id: "cinematic",
+    label: "CINEMA",
+    topLabel: "CINEMATIC TREATMENT",
+    detail: "Moody widescreen. Full-bleed stills, letterboxed type.",
+  },
+  {
+    id: "minimal",
+    label: "EDITOR",
+    topLabel: "EDITORIAL / NO.12",
+    detail: "Editorial rhythm with quieter contrast and cleaner type.",
+  },
+  {
+    id: "neon",
+    label: "MV",
+    topLabel: "MUSIC VIDEO",
+    detail: "High-contrast neon treatment with louder color tension.",
+  },
+  {
+    id: "bold",
+    label: "COMM",
+    topLabel: "COMMERCIAL BOARD",
+    detail: "Commercial-forward contrast with stronger action graphics.",
+  },
+  {
+    id: "noir",
+    label: "ARCH",
+    topLabel: "ARCHIVAL REFERENCE",
+    detail: "Archival contrast with restrained texture and darker mood.",
+  },
 ];
 
-const STORAGE_VERSION = 2;
+const SCROLL_FX_OPTIONS: Array<{
+  id: ScrollFx;
+  label: string;
+}> = [
+  { id: "parallax", label: "PARALLAX" },
+  { id: "snap", label: "SNAP" },
+  { id: "kinetic", label: "KINETIC" },
+  { id: "dolly", label: "DOLLY" },
+  { id: "sequence", label: "FRAME" },
+];
+
+const STORAGE_VERSION = 4;
 const GOOGLE_FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Karla:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Source+Serif+4:wght@300;400;600;700&family=Archivo:wght@400;600;700&family=Archivo+Black&family=Quicksand:wght@400;500;600;700&family=Cabin:wght@400;500;600;700&family=Inter:wght@300;400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap";
 
@@ -166,15 +212,17 @@ const templateBlocks: BlockData[] = [
     content: "A cinematic visual proposition.",
     layout: "A",
     visible: true,
+    locked: true,
   },
   {
     id: "2",
     type: "logline",
     title: "LOGLINE",
     content:
-      "A one-breath summary that turns the image set into a pitch you can feel instantly.",
+      "A one-breath summary that makes the image set land as a single, felt idea.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "3",
@@ -184,6 +232,7 @@ const templateBlocks: BlockData[] = [
       "A progression from setup to escalation to release, framed with visual clarity and emotional lift.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "4",
@@ -193,6 +242,7 @@ const templateBlocks: BlockData[] = [
       "Production design, setting logic, and tonal references all anchored in the selected image language.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "5",
@@ -202,6 +252,7 @@ const templateBlocks: BlockData[] = [
       "A lead presence shaped by silhouette, attitude, costume, and emotional tension.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "6",
@@ -211,6 +262,7 @@ const templateBlocks: BlockData[] = [
       "The deck should broadcast how it feels before anyone reads a paragraph.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "7",
@@ -220,6 +272,7 @@ const templateBlocks: BlockData[] = [
       "Repeatable shapes, materials, and lighting signatures that give the deck continuity.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "8",
@@ -227,7 +280,8 @@ const templateBlocks: BlockData[] = [
     title: "THEMES",
     content: "Identity, consequence, transformation, obsession.",
     layout: "A",
-    visible: true,
+    visible: false,
+    locked: false,
   },
   {
     id: "9",
@@ -237,14 +291,17 @@ const templateBlocks: BlockData[] = [
       "If the central figure fails, the fallout grows from private collapse to a wider public impact.",
     layout: "A",
     visible: true,
+    locked: false,
   },
   {
     id: "10",
     type: "closing",
     title: "CLOSING",
-    content: "A final image and phrase that leaves the room wanting the next page.",
+    content:
+      "A final image and phrase that leaves the room wanting the next page.",
     layout: "A",
     visible: true,
+    locked: false,
   },
 ];
 
@@ -254,7 +311,8 @@ function withAliases(palette: Partial<ColorPalette> | undefined): ColorPalette {
     ...(palette ?? {}),
   };
 
-  const background = merged.background ?? merged.dark ?? defaultColors.background;
+  const background =
+    merged.background ?? merged.dark ?? defaultColors.background;
   const text = merged.text ?? merged.light ?? defaultColors.text;
 
   return {
@@ -333,16 +391,19 @@ const stylePresets: Record<StyleVariant, ColorPalette> = {
   }),
 };
 
-function buildDeckBlocks(deckTitle: string, imageTitles: string[]): BlockData[] {
+function buildDeckBlocks(
+  deckTitle: string,
+  imageTitles: string[],
+): BlockData[] {
   const [a, b, c, d, e, f, g, h, i, j] = imageTitles;
 
   return templateBlocks.map((block) => {
     if (block.type === "hero") {
       return {
         ...block,
-        title: deckTitle || "PITCH DECK",
+        title: deckTitle || "UNTITLED DECK",
         content: a
-          ? `Built from the visual DNA of "${a}" and expanded into a sharper deck experience.`
+          ? `Built from the visual DNA of "${a}" and expanded into a tighter deck read.`
           : "Built from your selected board imagery and tuned for presentation flow.",
       };
     }
@@ -350,7 +411,7 @@ function buildDeckBlocks(deckTitle: string, imageTitles: string[]): BlockData[] 
     if (block.type === "logline" && b) {
       return {
         ...block,
-        content: `A tight pitch statement built around "${b}" and the world suggested by the broader board selection.`,
+        content: `A tight one-line treatment built around "${b}" and the world suggested by the broader board selection.`,
       };
     }
 
@@ -424,10 +485,16 @@ function hashString(value: string): number {
   return hash;
 }
 
-export function DeckComposer({ deck }: { deck: DeckDetail }) {
+export function DeckComposer({
+  deck,
+  onBackToLibrary,
+}: {
+  deck: DeckDetail;
+  onBackToLibrary: () => void;
+}) {
   const sourceSlides = useMemo(
     () => [...deck.slides].sort((a, b) => a.order - b.order),
-    [deck.slides]
+    [deck.slides],
   );
 
   const sourceImages = useMemo(
@@ -435,17 +502,17 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       sourceSlides
         .map((slide) => slide.image?.imageUrl)
         .filter((value): value is string => Boolean(value)),
-    [sourceSlides]
+    [sourceSlides],
   );
 
   const sourceImageTitles = useMemo(
     () => sourceSlides.map((slide) => slide.image?.title || ""),
-    [sourceSlides]
+    [sourceSlides],
   );
 
   const storageKey = useMemo(
     () => `pindeck-deck-state:${deck._id}`,
-    [deck._id]
+    [deck._id],
   );
 
   const previewRef = useRef<HTMLDivElement>(null);
@@ -453,43 +520,66 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
 
+  const [title, setTitle] = useState(deck.title);
   const [referenceImages, setReferenceImages] = useState<string[]>(
-    sourceImages.slice(0, 10)
+    sourceImages.slice(0, 10),
   );
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [colors, setColors] = useState<ColorPalette>(stylePresets.cinematic);
-  const [editingColor, setEditingColor] = useState<keyof ColorPalette | null>(null);
-  const [blocks, setBlocks] = useState<BlockData[]>(() =>
-    buildDeckBlocks(deck.title, sourceImageTitles)
+  const [editingColor, setEditingColor] = useState<keyof ColorPalette | null>(
+    null,
   );
-  const [isEditing, setIsEditing] = useState(false);
+  const [blocks, setBlocks] = useState<BlockData[]>(() =>
+    buildDeckBlocks(deck.title, sourceImageTitles),
+  );
+  const [selectedBlockId, setSelectedBlockId] = useState<string>("1");
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
   const [dragOverBlock, setDragOverBlock] = useState<string | null>(null);
+  const [styleVariant, setStyleVariant] = useState<StyleVariant>("cinematic");
   const [fontStyle, setFontStyle] = useState<FontStyle>("agency");
-  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("editorial");
+  const [layoutVariant, setLayoutVariant] =
+    useState<LayoutVariant>("editorial");
+  const [scrollFx, setScrollFx] = useState<ScrollFx>("parallax");
   const [overlayStrength, setOverlayStrength] = useState(58);
   const [overlayVariation, setOverlayVariation] = useState(32);
   const [overlaySeed, setOverlaySeed] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [activePanel, setActivePanel] = useState<ComposerPanel>("style");
-  const [expandedLayoutBlockId, setExpandedLayoutBlockId] = useState<string | null>(null);
 
   const resetToDeckDefaults = useCallback(() => {
+    setTitle(deck.title);
     setReferenceImages(sourceImages.slice(0, 10));
     setActiveImageIndex(0);
     setBlocks(buildDeckBlocks(deck.title, sourceImageTitles));
+    setStyleVariant("cinematic");
     setColors(stylePresets.cinematic);
     setFontStyle("agency");
     setLayoutVariant("editorial");
+    setScrollFx("parallax");
     setOverlayStrength(58);
     setOverlayVariation(32);
     setOverlaySeed(0);
-    setExpandedLayoutBlockId(null);
-    setActivePanel("style");
+    setSelectedBlockId("1");
   }, [sourceImages, deck.title, sourceImageTitles]);
+
+  /** URL for palette sampling: active strip cell, else first filled slot */
+  const heroSampleUrl = useMemo(() => {
+    const at = referenceImages[activeImageIndex];
+    if (at) return at;
+    return referenceImages.find(Boolean);
+  }, [referenceImages, activeImageIndex]);
+
+  /** Convex dominants matched to the active strip URL (`imageUrl` equality). */
+  const activeHeroDominantHexes = useMemo((): string[] | null => {
+    const url = referenceImages[activeImageIndex];
+    if (!url) return null;
+    const matched = sourceSlides.find((s) => s.image?.imageUrl === url);
+    const cols = matched?.image?.colors;
+    return cols?.length ? cols.filter(Boolean).map(String) : null;
+  }, [sourceSlides, referenceImages, activeImageIndex]);
 
   useEffect(() => {
     if (document.getElementById("deck-builder-fonts")) return;
@@ -501,47 +591,110 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
   }, []);
 
   useEffect(() => {
-    try {
-      const savedRaw = localStorage.getItem(storageKey);
-      if (!savedRaw) {
+    const run = async () => {
+      try {
+        const savedRaw = localStorage.getItem(storageKey);
+        if (!savedRaw) {
+          resetToDeckDefaults();
+          return;
+        }
+
+        const saved = JSON.parse(savedRaw);
+        setReferenceImages(
+          Array.isArray(saved.referenceImages)
+            ? saved.referenceImages.slice(0, 10)
+            : sourceImages.slice(0, 10),
+        );
+        setTitle(typeof saved.title === "string" ? saved.title : deck.title);
+        setActiveImageIndex(
+          typeof saved.activeImageIndex === "number"
+            ? saved.activeImageIndex
+            : 0,
+        );
+        /* Colors come from hero `images.colors` or client extraction — not localStorage. */
+        setBlocks(
+          Array.isArray(saved.blocks)
+            ? saved.blocks.map((block: BlockData) =>
+                saved.version === STORAGE_VERSION || block.type !== "theme"
+                  ? block
+                  : { ...block, visible: false },
+              )
+            : buildDeckBlocks(deck.title, sourceImageTitles),
+        );
+        setStyleVariant(saved.styleVariant ?? "cinematic");
+        setSelectedBlockId(
+          typeof saved.selectedBlockId === "string"
+            ? saved.selectedBlockId
+            : "1",
+        );
+        setFontStyle(saved.fontStyle ?? "agency");
+        setLayoutVariant(saved.layoutVariant ?? "editorial");
+        setScrollFx(saved.scrollFx ?? "parallax");
+        setOverlayStrength(
+          typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58,
+        );
+        setOverlayVariation(
+          typeof saved.overlayVariation === "number"
+            ? saved.overlayVariation
+            : 32,
+        );
+        setOverlaySeed(
+          typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0,
+        );
+      } catch {
         resetToDeckDefaults();
-        return;
+      }
+    };
+
+    void run();
+  }, [
+    storageKey,
+    resetToDeckDefaults,
+    sourceImages,
+    sourceImageTitles,
+    deck.title,
+  ]);
+
+  /**
+   * Swatches must match the hero still: sample from the image URL first (with blob
+   * fallback if CORS taints the canvas). Convex `images.colors` is only a fallback
+   * so stale DB swatches don’t override a correct client read.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const url = heroSampleUrl;
+      if (url?.startsWith("http") || url?.startsWith("data:")) {
+        try {
+          const extracted = await extractColors(url);
+          if (!cancelled) setColors(withAliases(extracted));
+          return;
+        } catch {
+          /* try Convex palette */
+        }
       }
 
-      const saved = JSON.parse(savedRaw);
-      setReferenceImages(
-        Array.isArray(saved.referenceImages)
-          ? saved.referenceImages.slice(0, 10)
-          : sourceImages.slice(0, 10)
-      );
-      setActiveImageIndex(
-        typeof saved.activeImageIndex === "number" ? saved.activeImageIndex : 0
-      );
-      setColors(withAliases(saved.colors));
-      setBlocks(
-        Array.isArray(saved.blocks)
-          ? saved.blocks
-          : buildDeckBlocks(deck.title, sourceImageTitles)
-      );
-      setFontStyle(saved.fontStyle ?? "agency");
-      setLayoutVariant(saved.layoutVariant ?? "editorial");
-      setOverlayStrength(
-        typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58
-      );
-      setOverlayVariation(
-        typeof saved.overlayVariation === "number" ? saved.overlayVariation : 32
-      );
-      setOverlaySeed(typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0);
-      setExpandedLayoutBlockId(typeof saved.expandedLayoutBlockId === "string" ? saved.expandedLayoutBlockId : null);
-      setActivePanel(
-        saved.activePanel === "layout" || saved.activePanel === "style"
-          ? saved.activePanel
-          : "style"
-      );
-    } catch {
-      resetToDeckDefaults();
-    }
-  }, [storageKey, resetToDeckDefaults, sourceImages, sourceImageTitles, deck.title]);
+      if (activeHeroDominantHexes && activeHeroDominantHexes.length >= 3) {
+        try {
+          const merged = withAliases(
+            paletteFromDominantHexes(activeHeroDominantHexes),
+          );
+          if (!cancelled) setColors(merged);
+        } catch {
+          /* keep preset */
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    deck._id,
+    heroSampleUrl,
+    activeHeroDominantHexes?.join("|") ?? "",
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -550,18 +703,19 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
           storageKey,
           JSON.stringify({
             version: STORAGE_VERSION,
+            title,
             referenceImages,
             activeImageIndex,
-            colors,
             blocks,
+            styleVariant,
             fontStyle,
             layoutVariant,
+            scrollFx,
             overlayStrength,
             overlayVariation,
             overlaySeed,
-            expandedLayoutBlockId,
-            activePanel,
-          })
+            selectedBlockId,
+          }),
         );
         setHasUnsavedChanges(false);
       } catch {
@@ -573,17 +727,18 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
     return () => clearTimeout(timer);
   }, [
     storageKey,
+    title,
     referenceImages,
     activeImageIndex,
-    colors,
     blocks,
+    styleVariant,
     fontStyle,
     layoutVariant,
+    scrollFx,
     overlayStrength,
     overlayVariation,
     overlaySeed,
-    expandedLayoutBlockId,
-    activePanel,
+    selectedBlockId,
   ]);
 
   useEffect(() => {
@@ -604,15 +759,17 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
 
       const scroller = presentationRef.current;
       const sections = Array.from(
-        scroller.querySelectorAll<HTMLElement>('[data-gsap="section"]')
+        scroller.querySelectorAll<HTMLElement>('[data-gsap="section"]'),
       );
 
       const context = gsap.context(() => {
         sections.forEach((section) => {
           const copy = Array.from(
-            section.querySelectorAll<HTMLElement>("h1, h2, p, span")
+            section.querySelectorAll<HTMLElement>("h1, h2, p, span"),
           );
-          const media = Array.from(section.querySelectorAll<HTMLElement>("img"));
+          const media = Array.from(
+            section.querySelectorAll<HTMLElement>("img"),
+          );
 
           gsap.fromTo(
             section,
@@ -628,7 +785,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 end: "top 34%",
                 scrub: 0.45,
               },
-            }
+            },
           );
 
           if (copy.length > 0) {
@@ -647,7 +804,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                   start: "top 72%",
                   toggleActions: "play none none reverse",
                 },
-              }
+              },
             );
           }
 
@@ -667,7 +824,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                   end: "bottom top",
                   scrub: 0.8,
                 },
-              }
+              },
             );
           }
         });
@@ -713,8 +870,12 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       const readAsDataUrl = (file: File): Promise<string> =>
         new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = (loadEvent) => resolve(String(loadEvent.target?.result ?? ""));
-          reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+          reader.onload = (loadEvent) => {
+            const result = loadEvent.target?.result;
+            resolve(typeof result === "string" ? result : "");
+          };
+          reader.onerror = () =>
+            reject(new Error(`Failed to read ${file.name}`));
           reader.readAsDataURL(file);
         });
 
@@ -723,11 +884,14 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         const merged = [...referenceImages, ...newImages].slice(0, 10);
         setReferenceImages(merged);
         setActiveImageIndex(Math.max(0, merged.length - 1));
-        toast.success(`Added ${newImages.length} image${newImages.length === 1 ? "" : "s"}`);
+        toast.success(
+          `Added ${newImages.length} image${newImages.length === 1 ? "" : "s"}`,
+        );
 
-        if (newImages[0]) {
+        const sampleNew = newImages[newImages.length - 1];
+        if (sampleNew) {
           try {
-            const extracted = await extractColors(newImages[0]);
+            const extracted = await extractColors(sampleNew);
             setColors(withAliases(extracted));
           } catch {
             // Ignore extraction failure on upload.
@@ -739,36 +903,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [referenceImages]
-  );
-
-  const removeImage = useCallback(
-    (index: number) => {
-      setReferenceImages((previous) => {
-        const next = previous.filter((_, imageIndex) => imageIndex !== index);
-        if (activeImageIndex >= next.length) {
-          setActiveImageIndex(Math.max(0, next.length - 1));
-        }
-        return next;
-      });
-      toast.info("Image removed");
-    },
-    [activeImageIndex]
-  );
-
-  const extractColorsFromImage = useCallback(
-    async (index: number) => {
-      const imageUrl = referenceImages[index];
-      if (!imageUrl) return;
-      try {
-        const extracted = await extractColors(imageUrl);
-        setColors(withAliases(extracted));
-        toast.success("Colors extracted");
-      } catch {
-        toast.error("Failed to extract colors");
-      }
-    },
-    [referenceImages]
+    [referenceImages],
   );
 
   const handleColorChange = useCallback(
@@ -777,43 +912,48 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         withAliases({
           ...previous,
           [key]: value,
-        })
+        }),
       );
     },
-    []
+    [],
   );
 
-  const openColorEditor = useCallback((key: keyof ColorPalette, value: string) => {
-    setEditingColor(key);
+  const openColorEditor = useCallback(
+    (key: keyof ColorPalette, value: string) => {
+      setEditingColor(key);
 
-    const input = colorInputRef.current as ColorPickerInput | null;
-    if (!input) return;
+      const input = colorInputRef.current as ColorPickerInput | null;
+      if (!input) return;
 
-    input.value = value;
+      input.value = value;
 
-    try {
-      if (typeof input.showPicker === "function") {
-        input.showPicker();
-        return;
+      try {
+        if (typeof input.showPicker === "function") {
+          input.showPicker();
+          return;
+        }
+      } catch {
+        // Fall back to the standard click-triggered picker below.
       }
-    } catch {
-      // Fall back to the standard click-triggered picker below.
-    }
 
-    input.click();
-  }, []);
+      input.click();
+    },
+    [],
+  );
 
-  const handleBlockUpdate = useCallback((updated: BlockData) => {
+  const toggleBlockLock = useCallback((blockId: string) => {
     setBlocks((previous) =>
-      previous.map((block) => (block.id === updated.id ? updated : block))
+      previous.map((block) =>
+        block.id === blockId ? { ...block, locked: !block.locked } : block,
+      ),
     );
   }, []);
 
   const toggleBlockVisibility = useCallback((blockId: string) => {
     setBlocks((previous) =>
       previous.map((block) =>
-        block.id === blockId ? { ...block, visible: !block.visible } : block
-      )
+        block.id === blockId ? { ...block, visible: !block.visible } : block,
+      ),
     );
   }, []);
 
@@ -828,7 +968,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         setDragOverBlock(blockId);
       }
     },
-    [draggedBlock]
+    [draggedBlock],
   );
 
   const handleDrop = useCallback(
@@ -836,8 +976,12 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       if (!draggedBlock || draggedBlock === targetBlockId) return;
 
       setBlocks((previous) => {
-        const draggedIndex = previous.findIndex((block) => block.id === draggedBlock);
-        const targetIndex = previous.findIndex((block) => block.id === targetBlockId);
+        const draggedIndex = previous.findIndex(
+          (block) => block.id === draggedBlock,
+        );
+        const targetIndex = previous.findIndex(
+          (block) => block.id === targetBlockId,
+        );
         if (draggedIndex < 0 || targetIndex < 0) return previous;
 
         const reordered = [...previous];
@@ -849,7 +993,7 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       setDraggedBlock(null);
       setDragOverBlock(null);
     },
-    [draggedBlock]
+    [draggedBlock],
   );
 
   const handleDragEnd = useCallback(() => {
@@ -910,7 +1054,10 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
           logging: false,
         });
 
-        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+        const ratio = Math.min(
+          pageWidth / canvas.width,
+          pageHeight / canvas.height,
+        );
         const finalWidth = canvas.width * ratio;
         const finalHeight = canvas.height * ratio;
         const x = (pageWidth - finalWidth) / 2;
@@ -922,21 +1069,36 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
 
         pdf.setFillColor(colors.background);
         pdf.rect(0, 0, pageWidth, pageHeight, "F");
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, finalWidth, finalHeight);
+        pdf.addImage(
+          canvas.toDataURL("image/png"),
+          "PNG",
+          x,
+          y,
+          finalWidth,
+          finalHeight,
+        );
       }
 
-      pdf.save(`${deck.title || "pitch-deck"}.pdf`);
+      pdf.save(`${title || deck.title || "deck"}.pdf`);
       toast.success(`PDF exported (${contentSlides.length} pages)`);
     } catch {
       toast.error("Failed to export PDF");
     } finally {
       setIsExporting(false);
     }
-  }, [colors.background, deck.title]);
+  }, [colors.background, deck.title, title]);
 
   const visibleBlocks = useMemo(
     () => blocks.filter((block) => block.visible),
-    [blocks]
+    [blocks],
+  );
+
+  const selectedBlock = useMemo(
+    () =>
+      visibleBlocks.find((block) => block.id === selectedBlockId) ??
+      visibleBlocks[0] ??
+      null,
+    [visibleBlocks, selectedBlockId],
   );
 
   const overlayAssignments = useMemo(
@@ -944,10 +1106,11 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
       visibleBlocks.map((block, index) => {
         if (!referenceImages.length) return false;
         if (block.type === "hero" || block.type === "closing") return true;
-        const score = hashString(`${deck._id}:${block.id}:${index}:${overlaySeed}`) % 100;
+        const score =
+          hashString(`${deck._id}:${block.id}:${index}:${overlaySeed}`) % 100;
         return score < 64;
       }),
-    [visibleBlocks, referenceImages.length, deck._id, overlaySeed]
+    [visibleBlocks, referenceImages.length, deck._id, overlaySeed],
   );
 
   const overlayDirections = useMemo(
@@ -963,36 +1126,41 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 : "bottom";
 
         const options = ["bottom", "top", "left", "right", "radial"] as const;
-        const score = hashString(`${deck._id}:${block.id}:gradient:${index}:${overlaySeed}`) % options.length;
+        const score =
+          hashString(
+            `${deck._id}:${block.id}:gradient:${index}:${overlaySeed}`,
+          ) % options.length;
         const randomDirection = options[score];
         return overlayVariation <= 10 ? blockBias : randomDirection;
       }),
-    [visibleBlocks, deck._id, overlaySeed, overlayVariation]
+    [visibleBlocks, deck._id, overlaySeed, overlayVariation],
   );
 
   const overlayStrengths = useMemo(
     () =>
       visibleBlocks.map((block, index) => {
-        const variance = hashString(`${deck._id}:${block.id}:strength:${index}:${overlaySeed}`) % 100;
-        const jitter = ((variance / 100) - 0.5) * overlayVariation;
+        const variance =
+          hashString(
+            `${deck._id}:${block.id}:strength:${index}:${overlaySeed}`,
+          ) % 100;
+        const jitter = (variance / 100 - 0.5) * overlayVariation;
         return Math.max(8, Math.min(100, overlayStrength + jitter));
       }),
-    [visibleBlocks, deck._id, overlaySeed, overlayStrength, overlayVariation]
+    [visibleBlocks, deck._id, overlaySeed, overlayStrength, overlayVariation],
   );
 
-  const paletteSummary = useMemo(
-    () => COLOR_KEYS.map(({ key, label }) => ({ key, label, value: colors[key] })),
-    [colors]
-  );
+  const chromeFont = "var(--pd-font-sans)" as const;
 
   return (
-    <div className="relative overflow-hidden border border-white/10 bg-[#050505] text-white shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
+    <div className="deck-scope relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border border-white/10 bg-[#050505] text-white shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         multiple
-        onChange={handleImageUpload}
+        onChange={(event) => {
+          void handleImageUpload(event);
+        }}
         className="hidden"
       />
       <input
@@ -1007,24 +1175,518 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
         onBlur={() => setEditingColor(null)}
       />
 
-      <div className="sticky top-0 z-30 border-b border-white/8 bg-[#060606]/96 backdrop-blur-md">
-        <div className="border-b border-white/8 px-4 py-4 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[2px] bg-white text-black">
-                <span className="text-lg font-black">P/</span>
-              </div>
-              <div className="min-w-0">
-                <h2 className="truncate text-[1.7rem] font-semibold tracking-[-0.04em] text-white">
-                  PitchCraft
-                </h2>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-white/35">
-                  Commercial visual engine
-                </p>
+      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+        <aside
+          className={cn(
+            "flex min-h-0 w-[328px] shrink-0 flex-col overflow-hidden border-r border-white/8 bg-[#0d0d10] text-white",
+            sidebarOpen ? "flex" : "hidden lg:flex",
+          )}
+          style={{ fontFamily: chromeFont }}
+        >
+          <div className="border-b-2 border-[var(--pd-green)] px-5 py-4">
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen((value) => !value)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] border border-white/10 text-white/55 transition-colors hover:text-white lg:hidden"
+              >
+                ×
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={onBackToLibrary}
+                    className="rounded border border-white/20 bg-white/[0.03] px-2 py-1 text-left text-[10px] font-medium leading-none tracking-wide text-white/90 transition-colors hover:border-white/30 hover:bg-white/[0.05] hover:text-white"
+                  >
+                    ← Decks
+                  </button>
+                  <span className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/32">
+                    COMPOSER
+                  </span>
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6">
+            <div className="space-y-8">
+              <section className="space-y-3">
+                <div className="flex items-center gap-3 border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                    Deck Name
+                  </span>
+                </div>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="h-11 w-full rounded-[4px] border border-white/10 bg-[#121218] px-4 text-[0.98rem] font-medium text-white outline-none"
+                />
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center gap-3 border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                    Images
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--pd-accent)]">
+                    {referenceImages.filter(Boolean).length}/10
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {Array.from({ length: 10 }).map((_, index) => {
+                    const image = referenceImages[index];
+                    const isActive =
+                      index === activeImageIndex && Boolean(image);
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          if (image) {
+                            setActiveImageIndex(index);
+                          } else {
+                            fileInputRef.current?.click();
+                          }
+                        }}
+                        title={
+                          sourceImageTitles[index] || `Reference ${index + 1}`
+                        }
+                        className={cn(
+                          "relative aspect-[4/3] overflow-hidden rounded-[3px] border text-white/30 transition-all",
+                          image
+                            ? isActive
+                              ? "border-[var(--pd-accent)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--pd-accent)_42%,transparent)]"
+                              : "border-white/10 hover:border-white/20"
+                            : "border-dashed border-white/10 bg-white/[0.02]",
+                        )}
+                      >
+                        {image ? (
+                          <img
+                            src={image}
+                            alt={`Reference ${index + 1}`}
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="absolute inset-0 flex items-center justify-center text-sm">
+                            +
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500/90">
+                  Colors
+                </div>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {[
+                    {
+                      key: "primary" as const,
+                      label: "PRI",
+                      value: colors.primary,
+                    },
+                    {
+                      key: "secondary" as const,
+                      label: "SEC",
+                      value: colors.secondary,
+                    },
+                    {
+                      key: "accent" as const,
+                      label: "ACC",
+                      value: colors.accent,
+                    },
+                    {
+                      key: "tertiary" as const,
+                      label: "DAR",
+                      value: colors.tertiary,
+                    },
+                    {
+                      key: "surface" as const,
+                      label: "LIQ",
+                      value: colors.surface,
+                    },
+                  ].map((swatch) => (
+                    <button
+                      key={swatch.label}
+                      type="button"
+                      onClick={() => openColorEditor(swatch.key, swatch.value)}
+                      className="flex aspect-[1/1.15] w-full min-h-0 min-w-0 flex-col overflow-hidden rounded border border-white/[0.1] bg-black/30 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                      title={swatch.label}
+                    >
+                      <div
+                        className="min-h-0 flex-1"
+                        style={{ backgroundColor: swatch.value }}
+                      />
+                      <div
+                        className="flex w-full shrink-0 items-center justify-center border-t border-black/55 py-1"
+                        style={{
+                          backgroundColor: `color-mix(in srgb, ${swatch.value} 22%, #070709)`,
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+                        }}
+                      >
+                        <span className="font-mono text-[7.5px] font-semibold uppercase tracking-[0.2em] text-zinc-400/85">
+                          {swatch.label}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                    Overlay
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">
+                    {overlayStrength}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={overlayStrength}
+                  onChange={(event) =>
+                    setOverlayStrength(Number(event.target.value))
+                  }
+                  className="deck-rect-range w-full"
+                />
+                <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-white/28">
+                  <span>Show image</span>
+                  <span>Dark</span>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  Typography
+                </div>
+                <div className="deck-composer-select w-full min-w-0">
+                <Select.Root
+                  value={fontStyle}
+                  onValueChange={(v) => setFontStyle(v as FontStyle)}
+                >
+                  <Select.Trigger
+                    className={cn(
+                      "w-full max-w-full !min-h-14 rounded-[4px] border border-white/10 !bg-[#121218] px-3 !py-3.5 data-[state=open]:border-white/20",
+                      FIELD_CLASS,
+                    )}
+                    aria-label="Typography preset"
+                  >
+                    {(() => {
+                      const option = FONT_OPTIONS.find((o) => o.id === fontStyle);
+                      if (!option) {
+                        return (
+                          <span className="text-[10px] text-white/45">
+                            Choose typography
+                          </span>
+                        );
+                      }
+                      return (
+                        <div className="flex min-w-0 max-w-full items-center gap-2.5">
+                          <div
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-white/90"
+                            style={{ fontFamily: option.previewFamily }}
+                          >
+                            {option.preview}
+                          </div>
+                          <div className="min-w-0 flex-1 text-left leading-tight">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-200/92">
+                              {option.name}
+                            </div>
+                            <div className="mt-0.5 truncate text-[9px] text-white/45">
+                              {option.detail}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </Select.Trigger>
+                  <Select.Content
+                    className="deck-composer-select-content z-[200] max-h-[min(70vh,360px)]"
+                    position="popper"
+                    sideOffset={4}
+                    align="start"
+                  >
+                    {FONT_OPTIONS.map((option) => (
+                      <Select.Item
+                        key={option.id}
+                        value={option.id}
+                        textValue={`${option.name} ${option.detail}`}
+                        className="!min-h-0 !py-2.5 !pl-2 !pr-3"
+                      >
+                        <div className="flex min-w-0 max-w-[280px] items-center gap-2.5">
+                          <div
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-white/90"
+                            style={{ fontFamily: option.previewFamily }}
+                          >
+                            {option.preview}
+                          </div>
+                          <div className="min-w-0 flex-1 text-left">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-200/92">
+                              {option.name}
+                            </div>
+                            <div className="mt-0.5 truncate text-[9px] leading-tight text-white/45">
+                              {option.detail}
+                            </div>
+                          </div>
+                        </div>
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  GSAP SCROLL FX
+                </div>
+                <div className="deck-composer-select w-full min-w-0">
+                <Select.Root
+                  value={scrollFx}
+                  onValueChange={(v) => setScrollFx(v as ScrollFx)}
+                >
+                  <Select.Trigger
+                    className={cn(
+                      "w-full max-w-full min-h-11 rounded-[4px] border border-white/10 !bg-[#121218] px-3 py-2 data-[state=open]:border-white/20",
+                      FIELD_CLASS,
+                    )}
+                    aria-label="GSAP scroll effect"
+                  >
+                    <span className="block min-w-0 flex-1 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
+                      {SCROLL_FX_OPTIONS.find((o) => o.id === scrollFx)?.label ??
+                        scrollFx.toUpperCase()}
+                    </span>
+                  </Select.Trigger>
+                  <Select.Content
+                    className="deck-composer-select-content z-[200] max-h-[min(70vh,320px)]"
+                    position="popper"
+                    sideOffset={4}
+                    align="start"
+                  >
+                    {SCROLL_FX_OPTIONS.map((option) => (
+                      <Select.Item
+                        key={option.id}
+                        value={option.id}
+                        textValue={option.label}
+                        className="!pl-3 !pr-3"
+                      >
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+                          {option.label}
+                        </span>
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  Layout
+                </div>
+                <div className="flex flex-col gap-2">
+                  {LAYOUT_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setLayoutVariant(option.id)}
+                      className={cn(
+                        "relative w-full rounded-[3px] border px-3 pb-6 pt-2.5 text-left outline-none ring-0 transition-all focus-visible:border-[var(--pd-accent)] focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--pd-accent)_35%,transparent)]",
+                        layoutVariant === option.id
+                          ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
+                          : "border-white/10 bg-[#111117] text-white/50 hover:text-white",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "block text-[11px] font-semibold uppercase tracking-[0.12em]",
+                          layoutVariant === option.id
+                            ? "text-[var(--pd-accent-ink)]"
+                            : "text-white/78",
+                        )}
+                      >
+                        {option.name}
+                      </span>
+                      <p
+                        className={cn(
+                          "mt-1.5 w-full pr-6 text-[9px] leading-snug",
+                          layoutVariant === option.id
+                            ? "text-[var(--pd-accent-ink)]/75"
+                            : "text-white/40",
+                        )}
+                      >
+                        {option.detail}
+                      </p>
+                      <span
+                        className={cn(
+                          "pointer-events-none absolute bottom-1.5 right-2 font-mono text-[10px] uppercase tracking-[0.18em]",
+                          layoutVariant === option.id
+                            ? "text-[var(--pd-accent-ink)]/55"
+                            : "text-white/22",
+                        )}
+                        aria-hidden={true}
+                      >
+                        {option.short}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between border-b border-white/8 pb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500/90">
+                    Blocks
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500/80">
+                    {visibleBlocks.length}/{blocks.length} visible
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {blocks.map((block) => (
+                    <div
+                      key={block.id}
+                      draggable
+                      onClick={() => setSelectedBlockId(block.id)}
+                      onDragStart={() => handleDragStart(block.id)}
+                      onDragOver={(event) => handleDragOver(event, block.id)}
+                      onDrop={() => handleDrop(block.id)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        "flex cursor-grab select-none items-center gap-2.5 rounded-[4px] border px-2.5 py-2.5 transition-[border-color,background-color,opacity,box-shadow] active:cursor-grabbing",
+                        draggedBlock === block.id && "opacity-50",
+                        !block.visible && "opacity-[0.48]",
+                        selectedBlockId === block.id
+                          ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                          : dragOverBlock === block.id
+                            ? "border-[color:color-mix(in_srgb,var(--pd-accent)_35%,transparent)] bg-white/[0.02]"
+                            : "border-white/[0.08] bg-[#0c0c10]",
+                      )}
+                    >
+                      <span
+                        className="shrink-0 text-white/22"
+                        aria-hidden={true}
+                      >
+                        <DragHandleDots2Icon className="h-4 w-4" />
+                      </span>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200/85",
+                          !block.visible && "text-zinc-500/90",
+                        )}
+                      >
+                        {block.title}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleBlockLock(block.id);
+                          }}
+                          className={cn(
+                            "rounded p-1.5 transition-colors",
+                            block.locked
+                              ? "text-[var(--pd-accent)] hover:text-[var(--pd-accent-ink)]"
+                              : "text-zinc-500/90 hover:text-zinc-400/90",
+                          )}
+                          title={block.locked ? "Unlock block" : "Lock block"}
+                        >
+                          {block.locked ? (
+                            <LockClosedIcon className="h-4 w-4" />
+                          ) : (
+                            <LockOpen1Icon className="h-4 w-4" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleBlockVisibility(block.id);
+                          }}
+                          className={cn(
+                            "rounded p-1.5 transition-colors",
+                            block.visible
+                              ? "text-[var(--pd-accent)] hover:text-[var(--pd-accent-ink)]"
+                              : "text-zinc-500/50 hover:text-zinc-400/70",
+                          )}
+                          title={block.visible ? "Hide block" : "Show block"}
+                        >
+                          {block.visible ? (
+                            <EyeOpenIcon className="h-4 w-4" />
+                          ) : (
+                            <EyeNoneIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div className="border-t border-white/8 px-5 py-4">
+            <button
+              onClick={() => setIsPreviewOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-[4px] bg-[var(--pd-accent)] px-4 py-4 text-[12px] font-bold uppercase tracking-[0.16em] text-[var(--pd-accent-contrast-text)] shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)] transition-[filter] hover:brightness-105"
+            >
+              ▶ Present Live
+            </button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => void exportToPDF()}
+                disabled={isExporting}
+                className="rounded-[4px] border border-white/12 px-4 py-3 text-[12px] font-semibold text-white/72 transition-colors hover:text-white disabled:opacity-50"
+              >
+                {isExporting ? "Exporting..." : "PDF"}
+              </button>
+              <button
+                onClick={resetToDefaults}
+                className="rounded-[4px] border border-white/12 px-4 py-3 text-[12px] font-semibold text-white/72 transition-colors hover:text-white"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <div
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          style={{ fontFamily: chromeFont }}
+        >
+          <div className="sticky top-0 z-30 shrink-0 border-b border-white/8 bg-[#09090b]/96 px-5 py-4 backdrop-blur-md">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-white/48">Deck workspace</span>
+              <span className="text-white/18">|</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-white/35">
+                DECK /
+              </span>
+              <span className="text-[1.05rem] font-semibold text-white">
+                {title}
+              </span>
+              <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
+                {STYLE_OPTIONS.find((option) => option.id === styleVariant)
+                  ?.topLabel || "TREATMENT"}
+              </span>
+              <span className="border border-[var(--pd-accent)]/45 bg-[var(--pd-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--pd-accent)]">
+                FX · {scrollFx.toUpperCase()}
+              </span>
+              <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
+                {visibleBlocks.length} BLOCKS
+              </span>
+              <div className="flex-1" />
+              {hasUnsavedChanges ? (
+                <span className="text-[10px] uppercase tracking-[0.22em] text-[var(--pd-accent-ink)]">
+                  Unsaved
+                </span>
+              ) : null}
               <button
                 onClick={() => setSidebarOpen((value) => !value)}
                 className="rounded-[4px] border border-white/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 lg:hidden"
@@ -1032,430 +1694,59 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
                 {sidebarOpen ? "Hide edit" : "Show edit"}
               </button>
               <button
-                onClick={() => setIsEditing((value) => !value)}
+                onClick={() => setIsPreviewMode((value) => !value)}
                 className={cn(
                   "rounded-[4px] border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] transition-colors",
-                  isEditing
-                    ? "border-blue-500/60 bg-blue-500/12 text-blue-300"
-                    : "border-white/12 text-white/62 hover:text-white"
+                  isPreviewMode
+                    ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
+                    : "border-white/12 text-white/62 hover:text-white",
                 )}
               >
-                {isEditing ? "Editing mode" : "Preview mode"}
+                {isPreviewMode ? "Edit" : "Preview"}
               </button>
               <button
                 onClick={() => setIsPreviewOpen(true)}
-                className="rounded-[4px] border border-white/12 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 transition-colors hover:text-white"
+                className="rounded-[4px] bg-[var(--pd-accent)] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--pd-accent-contrast-text)] hover:brightness-105"
               >
-                Fullscreen
-              </button>
-              <button
-                onClick={() => void exportToPDF()}
-                disabled={isExporting}
-                className="rounded-[4px] bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-black transition-opacity disabled:opacity-50"
-              >
-                {isExporting ? "Exporting..." : "Export PDF"}
+                Present
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="px-4 py-4 sm:px-6">
-          <div className="grid grid-cols-2 gap-2 border border-white/8 bg-white/[0.03] p-1">
-            {([
-              { id: "layout", label: "Layout" },
-              { id: "style", label: "Style" },
-            ] as const).map((panel) => (
-              <button
-                key={panel.id}
-                onClick={() => setActivePanel(panel.id)}
-                className={cn(
-                  "rounded-[4px] px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.26em] transition-colors",
-                  activePanel === panel.id
-                    ? "bg-white text-black"
-                    : "text-white/38 hover:text-white"
-                )}
-              >
-                {panel.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "border-t border-white/8 bg-[#050505] px-4 py-5 sm:px-6 lg:block",
-            sidebarOpen ? "block" : "hidden"
-          )}
-        >
-            {activePanel === "style" && (
-              <div className="space-y-6">
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                      Attach Images
-                    </label>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      {referenceImages.length}/10
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#050507]">
+            <div className="px-6 py-6">
+              {selectedBlock && !isPreviewMode ? (
+                <div className="mx-auto mb-3 flex w-full max-w-[620px] flex-wrap items-center justify-between gap-3 border border-white/8 bg-[#0b0b0d] px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  <span>
+                    Selected ·{" "}
+                    <span className="text-white/78">
+                      {selectedBlock.title}
                     </span>
-                  </div>
-
-                  <div className="grid grid-cols-5 gap-2 lg:grid-cols-10">
-                    {Array.from({ length: 10 }).map((_, index) => {
-                      const image = referenceImages[index];
-                      const isActive = index === activeImageIndex && Boolean(image);
-
-                      return (
-                        <div
-                          key={index}
-                          className={cn(
-                            "relative aspect-square overflow-hidden rounded-[4px] border transition-all",
-                            image
-                              ? isActive
-                                ? "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
-                                : "border-white/10 hover:border-white/25"
-                              : "border-dashed border-white/10 bg-white/[0.03]"
-                          )}
-                          onClick={() => {
-                            if (image) {
-                              setActiveImageIndex(index);
-                            } else {
-                              fileInputRef.current?.click();
-                            }
-                          }}
-                          title={sourceImageTitles[index] || `Slide ${index + 1}`}
-                        >
-                          {image ? (
-                            <div className="group absolute inset-0">
-                              <img
-                                src={image}
-                                alt={`Reference ${index + 1}`}
-                                className="absolute inset-0 h-full w-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/55" />
-                              {isActive ? <div className="absolute left-1 top-1 h-2 w-2 rounded-full bg-amber-400" /> : null}
-                              <div className="absolute bottom-1 right-1 bg-black/60 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.18em] text-white/65">
-                                {index + 1}
-                              </div>
-                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                                <button
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    void extractColorsFromImage(index);
-                                  }}
-                                  className="rounded-[4px] border border-white/15 bg-white/20 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
-                                >
-                                  Extract
-                                </button>
-                                <button
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    removeImage(index);
-                                  }}
-                                  className="rounded-[4px] border border-red-300/20 bg-red-500/70 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-white/20">
-                              <span className="text-lg">+</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="1" variant="soft" color="gray" onClick={() => fileInputRef.current?.click()}>
-                      Add images
-                    </Button>
-                    <Button
-                      size="1"
-                      variant="soft"
-                      color="gray"
-                      disabled={!referenceImages[activeImageIndex]}
-                      onClick={() => void extractColorsFromImage(activeImageIndex)}
-                    >
-                      Extract active
-                    </Button>
-                  </div>
-                </section>
-
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                      Typography engine
-                    </label>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      {fontStyle}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                    {FONT_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => setFontStyle(option.id)}
-                        className={cn(
-                          "min-h-[84px] border p-3 text-left transition-all",
-                          fontStyle === option.id
-                            ? "border-white bg-white/10"
-                            : "border-white/10 bg-[#111]"
-                        )}
-                      >
-                        <div
-                          className="text-[1.45rem] font-semibold leading-none text-white"
-                          style={{ fontFamily: option.previewFamily }}
-                        >
-                          {option.name}
-                        </div>
-                        <div className="mt-1 text-[8px] leading-relaxed text-white/35">
-                          {option.detail}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="border border-white/10 bg-[#111] p-5">
-                  <div className="mb-4 flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                      Extracted palette
-                    </label>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                      {paletteSummary.length} tones
-                    </span>
-                  </div>
-                  <div className="space-y-4">
-                    <section className="space-y-4 border-b border-white/8 pb-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                          Image overlay
-                        </label>
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                          {overlayStrength}%
-                        </span>
-                      </div>
-                      <p className="text-[11px] leading-relaxed text-white/40">
-                        This black gradient is applied to a randomized subset of image sections, so not every page gets the same treatment.
-                      </p>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={overlayStrength}
-                        onChange={(event) => setOverlayStrength(Number(event.target.value))}
-                        className="deck-rect-range w-full"
-                      />
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                          Variation
-                        </label>
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/25">
-                          {overlayVariation}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={overlayVariation}
-                        onChange={(event) => setOverlayVariation(Number(event.target.value))}
-                        className="deck-rect-range w-full"
-                      />
-                      <Button
-                        size="1"
-                        variant="soft"
-                        color="gray"
-                        onClick={() => setOverlaySeed((value) => value + 1)}
-                      >
-                        Reroll overlay mix
-                      </Button>
-                    </section>
-
-                    <div className="grid grid-cols-3 gap-x-3 gap-y-2">
-                      {paletteSummary.map(({ key, label, value }) => (
-                        <button
-                          key={String(key)}
-                          className="flex w-full items-center justify-between border-b border-white/8 pb-2 text-left transition-colors hover:border-white/16"
-                          onClick={() => openColorEditor(key, value)}
-                        >
-                          <span className="flex items-center gap-3">
-                            <span
-                              className="h-6 w-6 border border-white/10"
-                              style={{ backgroundColor: value }}
-                            />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/62">
-                              {label}
-                            </span>
-                          </span>
-                          <code className="text-[9px] uppercase text-white/26">{value}</code>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              </div>
-            )}
-
-            {activePanel === "layout" && (
-              <div className="space-y-5">
-                <section className="space-y-3">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                    Layout system
-                  </label>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {LAYOUT_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => setLayoutVariant(option.id)}
-                        className={cn(
-                          "border px-4 py-4 text-left transition-all",
-                          layoutVariant === option.id
-                            ? "border-white/30 bg-white/[0.07]"
-                            : "border-white/10 bg-[#111] hover:border-white/20"
-                        )}
-                      >
-                        <div className="text-sm font-semibold text-white">{option.name}</div>
-                        <div className="mt-1 text-[11px] leading-relaxed text-white/45">
-                          {option.detail}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="space-y-4">
-                  <div className="border border-white/10 bg-[#111] p-4 text-[11px] leading-relaxed text-white/45">
-                    Drag to reorder. Open a section card to adjust its title and copy inline, so layout and content stay together.
-                  </div>
-                  <div className="grid gap-2 xl:grid-cols-2">
-                    {blocks.map((block) => (
-                      <div
-                        key={block.id}
-                        draggable
-                        onDragStart={() => handleDragStart(block.id)}
-                        onDragOver={(event) => handleDragOver(event, block.id)}
-                        onDrop={() => handleDrop(block.id)}
-                        onDragEnd={handleDragEnd}
-                        className={cn(
-                          "border bg-[#111] p-4 transition-all",
-                          draggedBlock === block.id && "opacity-50",
-                          dragOverBlock === block.id
-                            ? "border-amber-300/40 bg-amber-300/5"
-                            : "border-white/10"
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.24em] text-white/35">
-                              {block.type}
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-white">
-                              {block.title}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => toggleBlockVisibility(block.id)}
-                            className={cn(
-                              "rounded-[4px] border px-3 py-1 text-[9px] uppercase tracking-[0.18em]",
-                              block.visible
-                                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                                : "border-white/15 text-white/45"
-                            )}
-                          >
-                            {block.visible ? "Visible" : "Hidden"}
-                          </button>
-                        </div>
-                        <button
-                          onClick={() =>
-                            setExpandedLayoutBlockId((current) =>
-                              current === block.id ? null : block.id
-                            )
-                          }
-                          className="mt-3 w-full border border-white/8 bg-black/20 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.2em] text-white/55 transition-colors hover:border-white/16 hover:text-white"
-                        >
-                          {expandedLayoutBlockId === block.id ? "Hide copy editor" : "Edit copy"}
-                        </button>
-                        {expandedLayoutBlockId === block.id ? (
-                          <div className="mt-3 space-y-3 border-t border-white/8 pt-3">
-                            <input
-                              value={block.title}
-                              onChange={(event) =>
-                                handleBlockUpdate({ ...block, title: event.target.value })
-                              }
-                              className="w-full border-b border-white/10 bg-transparent pb-2 text-sm font-semibold uppercase tracking-tight text-white outline-none"
-                            />
-                            <textarea
-                              value={block.content}
-                              onChange={(event) =>
-                                handleBlockUpdate({ ...block, content: event.target.value })
-                              }
-                              rows={4}
-                              className="w-full resize-none border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-white/65 outline-none"
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </div>
-            )}
-
-            <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-4">
-              <Button
-                size="1"
-                variant="soft"
-                color="gray"
-                onClick={resetToDefaults}
-              >
-                Reset
-              </Button>
-              {hasUnsavedChanges && (
-                <div className="inline-flex items-center border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[10px] uppercase tracking-[0.24em] text-amber-300">
-                  Unsaved
+                  </span>
+                  <span className="font-medium text-[var(--pd-accent)]">
+                    {LAYOUT_OPTIONS.find((o) => o.id === layoutVariant)?.name ??
+                      "Layout A"}
+                  </span>
                 </div>
-              )}
-            </div>
-        </div>
-      </div>
-
-      <main className="bg-[#060606] px-4 py-4 sm:px-6 sm:py-6">
-        <div
-          ref={previewRef}
-          className="mx-auto w-full max-w-[1600px] overflow-hidden border border-white/10 bg-black shadow-[0_24px_90px_rgba(0,0,0,0.48)]"
-        >
-          {visibleBlocks.length === 0 ? (
-            <Card className="m-4 border border-white/10 bg-black/20 p-10 text-center">
-              <Text color="gray">No visible blocks. Enable sections from the Layout panel.</Text>
-            </Card>
-          ) : (
-            visibleBlocks.map((block, index) => (
-              <Box key={block.id} className="slide-block">
-                <DeckSection
-                  block={block}
-                  index={index}
-                  theme="cinematic"
+              ) : null}
+              <div ref={previewRef} className="mx-auto w-full max-w-[620px]">
+                <DeckCanvasPage
+                  title={title}
+                  blocks={blocks}
                   colors={colors}
-                  imageUrl={referenceImages[index % Math.max(referenceImages.length, 1)] ?? null}
                   referenceImages={referenceImages}
-                  imageIndex={index}
+                  selectedBlockId={selectedBlockId}
+                  onSelectBlock={setSelectedBlockId}
                   fontStyle={fontStyle}
                   layoutVariant={layoutVariant}
-                  overlayOpacity={overlayAssignments[index] ? overlayStrengths[index] : 0}
-                  overlayEnabled={overlayAssignments[index]}
-                  overlayDirection={overlayDirections[index]}
-                  isEditing={isEditing}
-                  onUpdate={handleBlockUpdate}
-                  dataGsap={false}
+                  overlayStrength={overlayStrength}
+                  editable={!isPreviewMode}
                 />
-              </Box>
-            ))
-          )}
+              </div>
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
 
       {isPreviewOpen && (
         <div className="fixed inset-0 z-[120] bg-black/95">
@@ -1464,9 +1755,14 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
               <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
                 Live presentation
               </p>
-              <h3 className="mt-1 text-lg font-semibold text-white">{deck.title}</h3>
+              <h3 className="mt-1 text-lg font-semibold text-white">{title}</h3>
             </div>
-            <Button size="1" variant="soft" color="gray" onClick={() => setIsPreviewOpen(false)}>
+            <Button
+              size="1"
+              variant="soft"
+              color="gray"
+              onClick={() => setIsPreviewOpen(false)}
+            >
               Close
             </Button>
           </div>
@@ -1476,18 +1772,29 @@ export function DeckComposer({ deck }: { deck: DeckDetail }) {
             className="h-[calc(100vh-78px)] overflow-y-auto snap-y snap-mandatory"
           >
             {visibleBlocks.map((block, index) => (
-              <div key={`${block.id}-presentation`} className="slide-block snap-start">
+              <div
+                key={`${block.id}-presentation`}
+                className="slide-block snap-start"
+              >
                 <DeckSection
                   block={block}
                   index={index}
                   theme="cinematic"
                   colors={colors}
-                  imageUrl={referenceImages[index % Math.max(referenceImages.length, 1)] ?? null}
+                  imageUrl={
+                    referenceImages[
+                      index % Math.max(referenceImages.length, 1)
+                    ] ?? null
+                  }
                   referenceImages={referenceImages}
                   imageIndex={index}
                   fontStyle={fontStyle}
-                  layoutVariant={layoutVariant}
-                  overlayOpacity={overlayAssignments[index] ? overlayStrengths[index] : 0}
+                  layoutVariant={
+                    block.layout === "B" ? "collage" : layoutVariant
+                  }
+                  overlayOpacity={
+                    overlayAssignments[index] ? overlayStrengths[index] : 0
+                  }
                   overlayEnabled={overlayAssignments[index]}
                   overlayDirection={overlayDirections[index]}
                   isEditing={false}

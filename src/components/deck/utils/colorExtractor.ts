@@ -25,14 +25,6 @@ function getLuminance(hex: string): number {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
-function getSaturation(hex: string): number {
-  const rgb = parseInt(hex.replace('#', ''), 16);
-  const r = (rgb >> 16) & 0xff;
-  const g = (rgb >> 8) & 0xff;
-  const b = (rgb >> 0) & 0xff;
-  return Math.max(r, g, b) - Math.min(r, g, b);
-}
-
 function clampChannel(value: number): number {
   return Math.max(0, Math.min(255, value));
 }
@@ -48,7 +40,19 @@ function mix(hexA: string, hexB: string, amount = 0.5): string {
   return rgbToHex(channels[0], channels[1], channels[2]);
 }
 
-function toPalette(partial: Omit<ColorPalette, 'dark' | 'light'>): ColorPalette {
+function normalizeHex(hex: string): string {
+  let h = hex.trim();
+  if (!h.startsWith("#")) h = `#${h}`;
+  if (h.length === 4 && /^#[0-9a-f]{3}$/i.test(h)) {
+    const r = h[1];
+    const g = h[2];
+    const b = h[3];
+    h = `#${r}${r}${g}${g}${b}${b}`;
+  }
+  return /^#[0-9a-f]{6}$/i.test(h) ? h : "#888888";
+}
+
+function toPalette(partial: Omit<ColorPalette, "dark" | "light">): ColorPalette {
   return {
     ...partial,
     dark: partial.background,
@@ -56,48 +60,34 @@ function toPalette(partial: Omit<ColorPalette, 'dark' | 'light'>): ColorPalette 
   };
 }
 
-export async function extractColors(imageUrl: string): Promise<ColorPalette> {
-  const hexColors = await extractColorsFromImage(imageUrl);
-  if (!hexColors || hexColors.length < 3) {
-    throw new Error('Could not extract enough colors');
+/** Map dominance-ordered dominant hex swatches → full deck palette (5 UI swatches aligned with image mass). */
+export function paletteFromDominantHexes(raw: string[]): ColorPalette {
+  const hexColors = raw.map(normalizeHex).filter((h) => /^#[0-9a-f]{6}$/i.test(h));
+  if (hexColors.length < 3) {
+    throw new Error("paletteFromDominantHexes needs at least 3 colors");
   }
 
-  const sortedByLuminance = [...hexColors].sort((a, b) => getLuminance(a) - getLuminance(b));
-
-  const getMostVibrant = (colors: string[]): string => {
-    let maxSaturation = 0;
-    let vibrant = colors[0];
-
-    colors.forEach((hex) => {
-      const rgb = parseInt(hex.replace('#', ''), 16);
-      const r = (rgb >> 16) & 0xff;
-      const g = (rgb >> 8) & 0xff;
-      const b = (rgb >> 0) & 0xff;
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      const saturation = max === 0 ? 0 : (max - min) / max;
-
-      if (saturation > maxSaturation) {
-        maxSaturation = saturation;
-        vibrant = hex;
-      }
-    });
-
-    return vibrant;
-  };
-
-  const saturated = [...hexColors].sort(
-    (a, b) => getSaturation(b) - getSaturation(a)
+  const sortedByLuminance = [...hexColors].sort(
+    (a, b) => getLuminance(a) - getLuminance(b),
   );
-  const primary = hexColors[0];
-  const secondary = hexColors[1] || adjustBrightness(primary, 20);
-  const accent = getMostVibrant(saturated);
-  const tertiary = saturated[1] || mix(primary, accent, 0.5);
-  const background = adjustBrightness(sortedByLuminance[0], -32);
-  const surface = mix(background, sortedByLuminance[1] || primary, 0.22);
-  const text = adjustBrightness(sortedByLuminance[sortedByLuminance.length - 1], 12);
-  const muted = mix(text, tertiary, 0.35);
-  const border = mix(accent, text, 0.35);
+
+  /** Pad to five dominants — same order Pindeck stores on `images.colors`. */
+  const slots = hexColors.slice(0, 5);
+  while (slots.length < 5) {
+    slots.push(slots[slots.length - 1]);
+  }
+
+  const [primary, secondary, accent, tertiary, surfaceSlot] = slots;
+
+  const background = adjustBrightness(sortedByLuminance[0], -30);
+  const surface = surfaceSlot;
+
+  const text = adjustBrightness(
+    sortedByLuminance[sortedByLuminance.length - 1],
+    14,
+  );
+  const muted = mix(text, accent, 0.32);
+  const border = mix(secondary, text, 0.38);
 
   return toPalette({
     primary,
@@ -110,6 +100,14 @@ export async function extractColors(imageUrl: string): Promise<ColorPalette> {
     muted,
     border,
   });
+}
+
+export async function extractColors(imageUrl: string): Promise<ColorPalette> {
+  const hexColors = await extractColorsFromImage(imageUrl);
+  if (!hexColors || hexColors.length < 3) {
+    throw new Error("Could not extract enough colors");
+  }
+  return paletteFromDominantHexes(hexColors);
 }
 
 export const defaultColors: ColorPalette = {

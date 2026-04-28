@@ -16,11 +16,14 @@ Pindeck is an image curation app with:
 - AI analysis + variation generation pipeline
 
 Current behavior highlights:
+- Unified dark UI (`pd-theme`): Tweaks panel + `pindeck_tweaks` drive accent tokens via `src/lib/pdTheme.ts` (`--pd-accent*`, TMP `--accent*` mirrors); [`SignInForm`](src/SignInForm.tsx) shares the same variables.
 - Discord imports are queued (`pending`) and manually approved/denied.
 - Discord-origin generated children are also queued and keep lineage (`parentImageId`) and `sref`.
 - Upload flow separates pending/processing/draft/active states.
-- Gallery has a view toggle plus Sref-only toggle.
-- Table view has advanced filters, parent navigation, original-only and Sref-only toggles.
+- Sidebar (**Type / Genre / Style** + originals / sref filters) shares filter state with Gallery + Table via [`src/lib/libraryFilters.ts`](src/lib/libraryFilters.ts); aggregations from [`api.images.libraryAggregations`](convex/images.ts).
+- VLM smart analysis fills `group`, `genre`, `shot`, `style` on `images` (see `convex/vision.ts`); Table **Backfill metadata** runs `enqueueCinematicMetadataBackfill` for the signed-in user’s uploads.
+- **pd Gallery** ([`GalleryView`](src/components/pd/GalleryView.tsx)): sidebar filters + shared library state; aggregation Type/Genre/Style UI uses [`LibraryAggregationFilterParts.tsx`](src/components/pd/LibraryAggregationFilterParts.tsx); tiles are image-first (VAR badge for children); hover **like** + **bookmark → board** (same `boards.addImage` flow as legacy [`ImageGrid`](src/components/ImageGrid.tsx)); variation/generate in drawer, not on the card. **Create New Board** (`CreateBoardModal`) uses **pd-theme** fields. **Decks** tab: **`DeckView`** (`src/components/DeckView.tsx`) + **`src/components/deck/*`** (composer/canvas/section) — aligned with **`claude/redesign`**, not `pd/deck`; **library cards**: **16:9 hero** + per-slide **`PinSwatches`** from **`decks.list` `stripPalettes`** (**`images.colors`**, same as table rows). In **DeckComposer**, hero **five swatches** sample **`heroSampleUrl`**; Convex fallback via **`activeHeroDominantHexes`**; Tweaks **`--pd-accent*`** on composer chrome; **`BlockFrame`** no selection outline.
+- Table view has advanced filters, parent navigation, original-only and Sref-only toggles (pd Table is the one in `App.tsx`; legacy Radix `TableView` may differ).
 
 ## Root Structure
 
@@ -42,6 +45,7 @@ Key files:
 - `schema.ts`: tables/indexes (`images`, `profiles`, `importBatches`, boards/decks/storyboards, etc.)
 - `images.ts`: CRUD, ingest HTTP routes, queue/moderation logic, generated-image save, metadata updates
 - `vision.ts`: analysis + variation generation flow and prompt planning
+- `colorExtraction.ts` + `colorExtractionUrls.ts` + `colorExtractionAdmin.ts` / `colorExtractionWrite.ts`: dominant image swatches (`images.colors`) via sharp + [colorPaletteCore](mdc:src/lib/colorPaletteCore.ts); admin mutations require auth (`reExtractAll` / `reExtractForImage`)
 - `discordNotifications.ts`: webhook status events to Discord channel
 - `http.ts`: public HTTP routes (`/ingestExternal`, `/discordQueue`, `/discordModerate`, `/smartAnalyzeImage`)
 - `boards.ts`, `generations.ts`, `decks.ts`, `storyboards.ts`: output/organization features

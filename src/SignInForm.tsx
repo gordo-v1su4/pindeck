@@ -174,13 +174,13 @@ export function SignInForm() {
             <TabsList className="grid h-10 w-full grid-cols-2 rounded-xl bg-white/5 p-1">
               <TabsTrigger
                 value="signIn"
-                className="rounded-lg text-white/60 data-active:bg-sky-500 data-active:text-slate-950"
+                className="rounded-lg text-white/60 data-[state=active]:bg-[var(--pd-accent)] data-[state=active]:text-white"
               >
                 Sign in
               </TabsTrigger>
               <TabsTrigger
                 value="signUp"
-                className="rounded-lg text-white/60 data-active:bg-sky-500 data-active:text-slate-950"
+                className="rounded-lg text-white/60 data-[state=active]:bg-[var(--pd-accent)] data-[state=active]:text-white"
               >
                 Create account
               </TabsTrigger>
@@ -205,7 +205,7 @@ export function SignInForm() {
                   name="email"
                   placeholder="name@example.com"
                   autoComplete="email"
-                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 dark:bg-white/5"
+                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-[var(--pd-accent)] focus-visible:ring-[var(--pd-accent-soft)] dark:bg-white/5"
                   required
                 />
               </Field>
@@ -219,7 +219,7 @@ export function SignInForm() {
                   name="password"
                   placeholder="Password"
                   autoComplete={flow === "signIn" ? "current-password" : "new-password"}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-sky-500 focus-visible:ring-sky-500/20 dark:bg-white/5"
+                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-[var(--pd-accent)] focus-visible:ring-[var(--pd-accent-soft)] dark:bg-white/5"
                   required
                 />
                 {flow === "signUp" && (
@@ -233,7 +233,7 @@ export function SignInForm() {
             <Button
               type="submit"
               size="lg"
-              className="h-11 w-full rounded-xl bg-sky-500 text-base font-semibold text-slate-950 hover:bg-sky-400"
+              className="h-11 w-full rounded-xl bg-[var(--pd-accent)] text-base font-semibold text-[var(--pd-accent-contrast-text)] hover:bg-[var(--pd-accent-hover)] hover:text-[var(--pd-accent-contrast-text)]"
               disabled={submitting || isLoading}
             >
               {submitting ? <Spinner data-icon="inline-start" /> : null}

@@ -26,7 +26,18 @@ const EditableText: React.FC<{
   className?: string;
   multiline?: boolean;
   style?: React.CSSProperties;
-}> = ({ value, onChange, isEditing, className = '', multiline = false, style }) => {
+  /** Focus border for deck slides (sampled `colors.accent`). Otherwise Tweaks `--pd-accent`. */
+  focusAccentHex?: string;
+}> = ({ value, onChange, isEditing, className = '', multiline = false, style, focusAccentHex }) => {
+  const mergedStyle: React.CSSProperties = {
+    ...style,
+    ...(focusAccentHex
+      ? ({ ["--deck-edit-accent" as string]: focusAccentHex } as React.CSSProperties)
+      : {}),
+  };
+  const focusBorderClass = focusAccentHex
+    ? "focus-visible:border-[color:var(--deck-edit-accent)] focus-visible:ring-1 focus-visible:ring-[color:color-mix(in_srgb,var(--deck-edit-accent)_45%,transparent)]"
+    : "focus:border-[color:var(--pd-accent)]/45";
   const [localValue, setLocalValue] = useState(value);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
@@ -68,8 +79,8 @@ const EditableText: React.FC<{
         onChange={(e) => setLocalValue(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        className={`${className} bg-black/20 border border-white/30 rounded px-2 py-1 w-full resize-none focus:outline-none focus:border-amber-500/50 focus:bg-black/30 transition-all`}
-        style={style}
+        className={`${className} bg-black/20 border border-white/30 rounded px-2 py-1 w-full resize-none focus:outline-none ${focusBorderClass} focus:bg-black/30 transition-all`}
+        style={mergedStyle}
         rows={3}
       />
     );
@@ -83,8 +94,8 @@ const EditableText: React.FC<{
       onChange={(e) => setLocalValue(e.target.value)}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className={`${className} bg-black/20 border border-white/30 rounded px-2 py-1 w-full focus:outline-none focus:border-amber-500/50 focus:bg-black/30 transition-all`}
-      style={style}
+      className={`${className} bg-black/20 border border-white/30 rounded px-2 py-1 w-full focus:outline-none ${focusBorderClass} focus:bg-black/30 transition-all`}
+      style={mergedStyle}
     />
   );
 };
@@ -277,6 +288,7 @@ export const HeroBlock: React.FC<BlockProps> = ({ block, colors, referenceImages
           PRESENTATION
         </span>
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.title}
           onChange={(val) => onUpdate({ ...block, title: val })}
           isEditing={isEditing}
@@ -284,6 +296,7 @@ export const HeroBlock: React.FC<BlockProps> = ({ block, colors, referenceImages
           style={{ color: colors.light }}
         />
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -368,6 +381,7 @@ export const LoglineBlock: React.FC<BlockProps> = ({ block, colors, referenceIma
           {block.title}
         </h3>
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -451,6 +465,7 @@ export const StoryBlock: React.FC<BlockProps> = ({ block, colors, referenceImage
           {block.title}
         </h3>
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -543,6 +558,7 @@ export const WorldBlock: React.FC<BlockProps> = ({ block, colors, referenceImage
           {block.title}
         </h3>
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -612,6 +628,7 @@ export const CharacterBlock: React.FC<BlockProps> = ({ block, colors, referenceI
           {block.title}
         </h3>
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -722,6 +739,7 @@ export const ToneBlock: React.FC<BlockProps> = ({ block, colors, referenceImages
         </div>
 
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -812,6 +830,7 @@ export const MotifBlock: React.FC<BlockProps> = ({ block, colors, referenceImage
           {block.title}
         </h3>
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -901,6 +920,7 @@ export const ThemeBlock: React.FC<BlockProps> = ({ block, colors, referenceImage
           )}
         </h3>
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -995,6 +1015,7 @@ export const StakesBlock: React.FC<BlockProps> = ({ block, colors, referenceImag
           {block.title}
         </h3>
         <EditableText
+          focusAccentHex={colors.accent}
           value={block.content}
           onChange={(val) => onUpdate({ ...block, content: val })}
           isEditing={isEditing}
@@ -1069,6 +1090,7 @@ export const ClosingBlock: React.FC<BlockProps> = ({ block, colors, referenceIma
             "
           </span>
           <EditableText
+            focusAccentHex={colors.accent}
             value={block.content}
             onChange={(val) => onUpdate({ ...block, content: val })}
             isEditing={isEditing}

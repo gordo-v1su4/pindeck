@@ -2,6 +2,9 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
+/** Matches `scripts/enforce-production-convex.sh` / README — used when CI has no `.env.local`. */
+const PROD_CONVEX_CLOUD = "https://tremendous-jaguar-953.convex.cloud";
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
@@ -9,12 +12,14 @@ export default defineConfig(({ mode }) => {
   
   // Support both CONVEX_URL (Convex CLI convention) and VITE_CONVEX_URL (Vite convention)
   // Check both .env files (via loadEnv) and process environment variables (for CI/CD)
-  // Priority: VITE_CONVEX_URL > CONVEX_URL, and process.env overrides .env files
-  const convexUrl = 
-    process.env.VITE_CONVEX_URL || 
-    process.env.CONVEX_URL || 
-    env.VITE_CONVEX_URL || 
-    env.CONVEX_URL;
+  // Priority: VITE_CONVEX_URL > CONVEX_URL, and process.env overrides .env files.
+  // Production builds (e.g. Vercel) fall back to prod Convex when unset.
+  const convexUrl =
+    process.env.VITE_CONVEX_URL ||
+    process.env.CONVEX_URL ||
+    env.VITE_CONVEX_URL ||
+    env.CONVEX_URL ||
+    (mode === "production" ? PROD_CONVEX_CLOUD : "");
 
   return {
   plugins: [

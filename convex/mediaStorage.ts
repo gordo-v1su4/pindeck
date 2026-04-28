@@ -3,6 +3,7 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { preferredImageUrlForSampling } from "./colorExtractionUrls";
 
 type NextcloudConfig = {
   baseUrl: string;
@@ -933,7 +934,10 @@ export const finalizeUploadedImage = internalAction({
       await ctx.scheduler.runAfter(
         0,
         (internal as any).colorExtraction.internalExtractAndStoreColors,
-        { imageId: args.imageId, imageUrl: uploaded.derivativeUrls?.large || uploaded.imageUrl }
+        {
+          imageId: args.imageId,
+          imageUrl: preferredImageUrlForSampling(uploaded) ?? uploaded.imageUrl,
+        }
       );
 
       await ctx.scheduler.runAfter(0, (internal as any).vision.internalSmartAnalyzeImage, {

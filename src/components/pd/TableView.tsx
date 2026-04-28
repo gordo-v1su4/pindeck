@@ -1,20 +1,85 @@
-import React, { useState, useMemo } from "react";
-import { useQuery } from "convex/react";
+import React, { useState, useMemo, useCallback } from "react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
+import type { LibraryFilters } from "@/lib/libraryFilters";
+import { applyLibraryFilters } from "@/lib/libraryFilters";
+import { toast } from "sonner";
+
+/** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
+function parseSrefIds(raw: string | undefined): string[] {
+  const s = raw?.trim();
+  if (!s) return [];
+  const matches = s.match(/\d+/g);
+  if (!matches?.length) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const m of matches) {
+    if (seen.has(m)) continue;
+    seen.add(m);
+    out.push(m);
+  }
+  return out;
+}
 
 interface TableViewProps {
   search: string;
   onOpenImage: (img: any) => void;
+  libraryFilter: LibraryFilters;
 }
 
-export function TableView({ search, onOpenImage }: TableViewProps) {
+export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
   const images = useQuery(api.images.list, { limit: 1000 });
+  const reExtractPalettes = useMutation(api.colorExtractionAdmin.reExtractAll);
+  const enqueueMetadataBackfill = useMutation(api.images.enqueueCinematicMetadataBackfill);
+  const [paletteBusy, setPaletteBusy] = useState(false);
+  const [metaBusy, setMetaBusy] = useState(false);
   const [sort, setSort] = useState<{ by: string; dir: "asc" | "desc" }>({ by: "title", dir: "asc" });
+
+  const handleRefreshPalettes = useCallback(async () => {
+    if (
+      !confirm(
+        "Re-sample color swatches for all images (server jobs)? Reload after a minute to see updates."
+      )
+    ) {
+      return;
+    }
+    setPaletteBusy(true);
+    try {
+      const r = await reExtractPalettes({ onlyMissing: false });
+      toast.success(`Scheduled palette extraction for ${r.scheduled} image(s).`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not schedule palette refresh (sign in & deploy Convex).");
+    } finally {
+      setPaletteBusy(false);
+    }
+  }, [reExtractPalettes]);
+
+  const handleBackfillMetadata = useCallback(async () => {
+    if (
+      !confirm(
+        "Schedule AI metadata backfill for your uploads (TYPE, Genre, Shot, Style)? " +
+          "Runs on the server with a few seconds between images. Reload later to see new columns.",
+      )
+    ) {
+      return;
+    }
+    setMetaBusy(true);
+    try {
+      const r = await enqueueMetadataBackfill({ onlyMissing: true });
+      toast.success(`Scheduled metadata analysis for ${r.scheduled} image(s). (${r.skipped} skipped — no URL.)`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not schedule backfill (sign in / deploy Convex).");
+    } finally {
+      setMetaBusy(false);
+    }
+  }, [enqueueMetadataBackfill]);
 
   const filtered = useMemo(() => {
     if (!images) return [];
-    let data = [...images];
+    let data = applyLibraryFilters([...images], libraryFilter);
     if (search) {
       const q = search.toLowerCase();
       data = data.filter((im) =>
@@ -32,16 +97,26 @@ export function TableView({ search, onOpenImage }: TableViewProps) {
       return 0;
     });
     return data;
-  }, [images, search, sort]);
+  }, [images, libraryFilter, search, sort]);
 
   const headerCell = (label: string, key: string, w?: number) => (
     <th
       style={{
-        padding: "7px 8px", textAlign: "left", fontSize: 10,
-        letterSpacing: "0.06em", textTransform: "uppercase",
+        padding: "7px 8px",
+        textAlign: "left",
+        verticalAlign: "bottom",
+        fontSize: 10,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
         color: sort.by === key ? "var(--pd-ink)" : "var(--pd-ink-faint)",
-        fontWeight: 600, fontFamily: "var(--pd-font-mono)", borderBottom: "1px solid var(--pd-line-strong)",
-        background: "var(--pd-bg-1)", position: "sticky", top: 0, cursor: "pointer", width: w,
+        fontWeight: 600,
+        fontFamily: "var(--pd-font-mono)",
+        borderBottom: "1px solid var(--pd-line-strong)",
+        background: "var(--pd-bg-1)",
+        position: "sticky",
+        top: 0,
+        cursor: "pointer",
+        width: w,
       }}
       onClick={() => setSort({ by: key, dir: sort.by === key && sort.dir === "asc" ? "desc" : "asc" })}
     >
@@ -53,32 +128,130 @@ export function TableView({ search, onOpenImage }: TableViewProps) {
     return <div className="pd-fade-in" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--pd-ink-faint)" }}>Loading…</div>;
   }
 
-  const fmtSref = (s: string | undefined) => {
-    if (!s) return "—";
-    const match = s.match(/\d+/);
-    return match ? `--sref ${match[0]}` : "—";
-  };
-
   return (
-    <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: 0, background: "var(--pd-bg)" }}>
-      <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 11.5 }}>
+    <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: 0, background: "var(--pd-bg)", display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 12px",
+          borderBottom: "1px solid var(--pd-line)",
+          background: "var(--pd-bg-1)",
+        }}
+      >
+        <button
+          type="button"
+          disabled={metaBusy}
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleBackfillMetadata();
+          }}
+          className="pd-mono"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            padding: "6px 10px",
+            borderRadius: 4,
+            border: "1px solid var(--pd-line-strong)",
+            background: "rgba(255,255,255,0.04)",
+            color: "var(--pd-ink-dim)",
+            cursor: metaBusy ? "wait" : "pointer",
+            opacity: metaBusy ? 0.6 : 1,
+          }}
+        >
+          {metaBusy ? "Scheduling…" : "Backfill metadata"}
+        </button>
+        <button
+          type="button"
+          disabled={paletteBusy}
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleRefreshPalettes();
+          }}
+          className="pd-mono"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            padding: "6px 10px",
+            borderRadius: 4,
+            border: "1px solid var(--pd-line-strong)",
+            background: "rgba(255,255,255,0.04)",
+            color: "var(--pd-ink-dim)",
+            cursor: paletteBusy ? "wait" : "pointer",
+            opacity: paletteBusy ? 0.6 : 1,
+          }}
+        >
+          {paletteBusy ? "Scheduling…" : "Re-sample palettes"}
+        </button>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 11.5, tableLayout: "fixed" }}>
         <thead>
           <tr>
-            {headerCell("", "_id", 52)}
+            <th
+              aria-label="Sort by id"
+              style={{
+                padding: "7px 6px",
+                textAlign: "left",
+                verticalAlign: "bottom",
+                width: 52,
+                minWidth: 52,
+                maxWidth: 52,
+                fontSize: 10,
+                borderBottom: "1px solid var(--pd-line-strong)",
+                background: "var(--pd-bg-1)",
+                position: "sticky",
+                top: 0,
+                cursor: "pointer",
+              }}
+              onClick={() =>
+                setSort({
+                  by: "_id",
+                  dir: sort.by === "_id" && sort.dir === "asc" ? "desc" : "asc",
+                })
+              }
+            >
+              {"\u00a0"}
+            </th>
             {headerCell("Title", "title")}
             {headerCell("Type", "group", 100)}
             {headerCell("Genre", "genre", 80)}
             {headerCell("Shot", "shot", 90)}
             {headerCell("Style", "style", 90)}
             {headerCell("Tags", "tags")}
-            {headerCell("Palette", "colors", 80)}
-            {headerCell("Sref", "sref", 110)}
+            <th
+              style={{
+                padding: "7px 8px",
+                textAlign: "left",
+                verticalAlign: "bottom",
+                fontSize: 10,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--pd-ink-faint)",
+                fontWeight: 600,
+                fontFamily: "var(--pd-font-mono)",
+                borderBottom: "1px solid var(--pd-line-strong)",
+                background: "var(--pd-bg-1)",
+                position: "sticky",
+                top: 0,
+                width: 104,
+              }}
+            >
+              Palette
+            </th>
+            {headerCell("Sref", "sref", 168)}
             {headerCell("♥", "likes", 44)}
             {headerCell("👁", "views", 56)}
           </tr>
         </thead>
         <tbody>
-          {filtered.map((im, i) => (
+          {filtered.map((im, i) => {
+            const srefIds = parseSrefIds(im.sref);
+            return (
             <tr
               key={im._id}
               onClick={() => onOpenImage(im)}
@@ -94,7 +267,7 @@ export function TableView({ search, onOpenImage }: TableViewProps) {
                   <img src={im.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
               </td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink)", fontWeight: 500 }}>{im.title}</td>
+              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink)", fontWeight: 500, textAlign: "left" }}>{im.title}</td>
               <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }}>{im.group || "—"}</td>
               <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }}>{im.genre || "—"}</td>
               <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }}>{im.shot || "—"}</td>
@@ -107,14 +280,53 @@ export function TableView({ search, onOpenImage }: TableViewProps) {
                   {im.tags?.length > 3 && <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>+{im.tags.length - 3}</span>}
                 </span>
               </td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)" }}>
-                <PinSwatches colors={im.colors?.slice(0, 5) || []} size={10} />
+              <td
+                style={{
+                  padding: "4px 8px",
+                  borderBottom: "1px solid var(--pd-line)",
+                  textAlign: "left",
+                  verticalAlign: "middle",
+                }}
+              >
+                <span style={{ display: "inline-flex", justifyContent: "flex-start", width: "100%" }}>
+                  <PinSwatches pad={5} colors={im.colors ?? []} size={11} gap={3} />
+                </span>
               </td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-mute)", whiteSpace: "nowrap" }} className="pd-mono">{fmtSref(im.sref)}</td>
+              <td
+                style={{
+                  padding: "4px 8px",
+                  borderBottom: "1px solid var(--pd-line)",
+                  verticalAlign: "top",
+                  textAlign: "left",
+                  maxWidth: 220,
+                }}
+              >
+                {srefIds.length > 0 ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      rowGap: 6,
+                      justifyContent: "flex-start",
+                      alignItems: "center",
+                    }}
+                  >
+                    {srefIds.map((id) => (
+                      <PinChip key={`${String(im._id)}-sref-${id}`} mono tone="softBlue">
+                        {id}
+                      </PinChip>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="pd-mono" style={{ color: "var(--pd-ink-faint)" }}>—</span>
+                )}
+              </td>
               <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }} className="pd-mono">{im.likes}</td>
               <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }} className="pd-mono">{im.views}</td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

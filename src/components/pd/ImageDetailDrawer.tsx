@@ -1,5 +1,9 @@
-import React, { useState } from "react";
-import { PinIcon, PinChip, PinBtn, PinSwatches, PinKV } from "@/components/ui/pindeck";
+import React, { useEffect, useState } from "react";
+import { useMutation } from "convex/react";
+import { toast } from "sonner";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { api } from "../../../convex/_generated/api";
+import { PinIcon, PinChip, PinKV } from "@/components/ui/pindeck";
 import type { Tweaks } from "../TweaksPanel";
 
 interface ImageDetailDrawerProps {
@@ -8,8 +12,57 @@ interface ImageDetailDrawerProps {
   tweaks: Tweaks;
 }
 
+const VARIATION_MODES: { id: string; label: string }[] = [
+  { id: "shot-variation", label: "Shot Variation" },
+  { id: "b-roll", label: "B-Roll" },
+  { id: "action-shot", label: "Action Shot" },
+  { id: "style-variation", label: "Style Variation" },
+  { id: "subtle-variation", label: "Subtle Variation" },
+  { id: "coverage", label: "Coverage" },
+];
+
+const SHOT_CHIP_PRESETS: { label: string; detail: string }[] = [
+  { label: "Close-up", detail: "close-up" },
+  { label: "Medium", detail: "medium shot" },
+  { label: "Wide", detail: "wide shot" },
+  { label: "Extreme wide", detail: "extreme wide shot" },
+  { label: "Dutch", detail: "dutch angle" },
+  { label: "OTS", detail: "over-the-shoulder" },
+  { label: "Low angle", detail: "low angle shot" },
+  { label: "Bird's eye", detail: "bird's eye view" },
+];
+
+const ASPECT_OPTIONS: { label: string; value: string }[] = [
+  { label: "2.39", value: "16:9" },
+  { label: "16:9", value: "16:9" },
+  { label: "1:1", value: "1:1" },
+  { label: "9:16", value: "9:16" },
+  { label: "4:3", value: "4:3" },
+];
+
+const COUNT_OPTIONS = [1, 4, 8];
+
 export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerProps) {
   const [tab, setTab] = useState("edit");
+  const generateVariations = useMutation(api.vision.generateVariations);
+  const [genBusy, setGenBusy] = useState(false);
+
+  const [genMode, setGenMode] = useState(image.modificationMode || "shot-variation");
+  const [genDetail, setGenDetail] = useState(image.variationDetail || "");
+  const [genCount, setGenCount] = useState(
+    image.variationCount && image.variationCount > 0 ? image.variationCount : 4,
+  );
+  /** Aspect label picked in UI (“2.39” maps to Falcon `16:9`). */
+  const [aspectLabel, setAspectLabel] = useState("16:9");
+
+  const falAspect = ASPECT_OPTIONS.find((o) => o.label === aspectLabel)?.value ?? "16:9";
+
+  useEffect(() => {
+    setGenMode(image.modificationMode || "shot-variation");
+    setGenDetail(image.variationDetail || "");
+    setGenCount(image.variationCount && image.variationCount > 0 ? image.variationCount : 4);
+    setAspectLabel("16:9");
+  }, [image._id, image.modificationMode, image.variationDetail, image.variationCount]);
 
   const fmtSref = (s: string | undefined) => {
     if (!s) return "—";
@@ -17,15 +70,57 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
     return match ? `--sref ${match[0]}` : "—";
   };
 
+  const dash = (v: string | undefined) => (v?.trim() ? v.trim() : "—");
+
   const tabs = [
     { id: "edit", label: "Edit", icon: "edit" },
     { id: "variations", label: "Variations", icon: "sparkle" },
     { id: "lineage", label: "Lineage", icon: "tree" },
   ];
 
+  const modeTitle = VARIATION_MODES.find((m) => m.id === genMode)?.label ?? "Variation";
+
+  const handleGenerate = async () => {
+    setGenBusy(true);
+    try {
+      await generateVariations({
+        imageId: image._id as Id<"images">,
+        variationCount: genCount,
+        modificationMode: genMode,
+        variationDetail: genDetail.trim() || undefined,
+        aspectRatio: falAspect,
+      });
+      toast.success(`Generating ${genCount} ${genCount === 1 ? "variation" : "variations"}…`);
+    } catch (e) {
+      console.error(e);
+      toast.error(
+        e instanceof Error ? e.message : "Could not start generation (sign in, own the image, deploy Convex).",
+      );
+    } finally {
+      setGenBusy(false);
+    }
+  };
+
+  const chipBase: React.CSSProperties = {
+    padding: "4px 8px",
+    borderRadius: 4,
+    fontSize: 10.5,
+    border: "1px solid var(--pd-line-strong)",
+    background: "transparent",
+    color: "var(--pd-ink-dim)",
+    cursor: "pointer",
+  };
+  const chipSelected: React.CSSProperties = {
+    ...chipBase,
+    border: "1px solid color-mix(in srgb, var(--pd-accent) 40%, var(--pd-line-strong))",
+    background: "var(--pd-accent-soft)",
+    color: "var(--pd-ink)",
+  };
+
   return (
     <aside className="pd-slide-in pd-scroll" style={{
-      width: 440, flexShrink: 0, height: "100%", overflow: "auto",
+      width: 440, flexShrink: 0, minHeight: 0, alignSelf: "stretch",
+      overflow: "auto",
       background: "var(--pd-panel)", borderLeft: "1px solid var(--pd-line)",
       display: "flex", flexDirection: "column", position: "relative",
     }}>
@@ -48,15 +143,69 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
           <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", letterSpacing: "0.04em" }}>
             {image._id} · {image.sref || "—"}
           </div>
+          <div
+            className="pd-mono"
+            style={{
+              fontSize: 9,
+              color: "var(--pd-ink-mute)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginTop: 4,
+            }}
+          >
+            {dash(image.shot)} · {dash(image.style)} · {dash(image.genre)}
+          </div>
         </div>
       </div>
 
       <div style={{ padding: "12px 14px 0" }}>
-        <div style={{ borderRadius: 3, overflow: "hidden", background: "#000", aspectRatio: "16/9", position: "relative" }}>
+        <div
+          className="pd-letterbox"
+          style={
+            {
+              borderRadius: 3,
+              overflow: "hidden",
+              background: "#000",
+              aspectRatio: "16/9",
+              position: "relative",
+              "--pd-lb": tweaks.letterbox ? "14px" : "0px",
+            } as React.CSSProperties
+          }
+        >
           <img src={image.imageUrl} alt={image.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          <div style={{ position: "absolute", bottom: 8, right: 8, display: "flex", gap: 4 }}>
+          <div style={{
+            position: "absolute",
+            bottom: 8,
+            right: 8,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+            justifyContent: "flex-end",
+            maxWidth: "92%",
+          }}>
+            <span className="pd-mono" style={{
+              padding: "2px 5px",
+              fontSize: 9,
+              background: "rgba(0,0,0,0.65)",
+              color: "var(--pd-ink-dim)",
+              borderRadius: 3,
+              border: "1px solid rgba(255,255,255,0.12)",
+            }}>16:9</span>
+            {image.style ? (
+              <span className="pd-mono" style={{
+                padding: "2px 5px",
+                fontSize: 9,
+                background: "rgba(0,0,0,0.65)",
+                color: "var(--pd-ink-dim)",
+                borderRadius: 3,
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}>{image.style}</span>
+            ) : null}
+          </div>
+          <div style={{ position: "absolute", bottom: 8, left: 8, right: "28%", display: "flex", flexWrap: "wrap", gap: 4 }}>
             <PinChip mono variant="outline">{image.category}</PinChip>
-            <PinChip mono variant="outline">{image.group || "—"}</PinChip>
+            <PinChip mono variant="outline">{dash(image.group)}</PinChip>
+            {image.genre ? <PinChip mono variant="outline">{image.genre}</PinChip> : null}
           </div>
         </div>
 
@@ -92,7 +241,7 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
         ))}
       </div>
 
-      <div style={{ padding: "14px" }}>
+      <div style={{ padding: "14px", paddingBottom: 20 }}>
         {tab === "edit" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
@@ -124,15 +273,168 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
             }}>
               <PinKV k="SREF" v={fmtSref(image.sref)} />
               <PinKV k="Category" v={image.category} />
-              <PinKV k="Group" v={image.group || "—"} />
+              <PinKV k="Type" v={dash(image.group)} />
+              <PinKV k="Genre" v={dash(image.genre)} />
+              <PinKV k="Shot" v={dash(image.shot)} />
+              <PinKV k="Style" v={dash(image.style)} />
               <PinKV k="Project" v={image.projectName || "—"} />
               <PinKV k="Source" v={image.source || "—"} />
             </div>
           </div>
         )}
         {tab === "variations" && (
-          <div style={{ color: "var(--pd-ink-faint)", fontSize: 12, textAlign: "center", padding: 24 }}>
-            Variations panel — connect to generation API
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div
+              style={{
+                background: "var(--pd-bg-2)",
+                border: "1px solid var(--pd-line)",
+                borderRadius: 6,
+                padding: "10px 10px 12px",
+              }}
+            >
+              <span className="pd-mono" style={{
+                fontSize: 10, letterSpacing: "0.06em", color: "var(--pd-ink-faint)", display: "block", marginBottom: 8,
+              }}>Mode</span>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                {VARIATION_MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setGenMode(m.id)}
+                    style={{
+                      padding: "10px 6px",
+                      borderRadius: 5,
+                      fontSize: 10.5,
+                      fontWeight: 500,
+                      lineHeight: 1.25,
+                      textAlign: "center",
+                      border: genMode === m.id ? "1px solid color-mix(in srgb, var(--pd-accent) 55%, var(--pd-line-strong))" : "1px solid var(--pd-line-strong)",
+                      background: genMode === m.id ? "var(--pd-accent-soft)" : "rgba(255,255,255,0.02)",
+                      color: genMode === m.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span className="pd-mono" style={{
+                fontSize: 10, letterSpacing: "0.06em", color: "var(--pd-ink-faint)", display: "block", marginBottom: 8,
+              }}>Shot type</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {SHOT_CHIP_PRESETS.map((s) => {
+                  const sel = genDetail.trim().toLowerCase() === s.detail.toLowerCase();
+                  return (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => setGenDetail(s.detail)}
+                      style={sel ? chipSelected : chipBase}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <span className="pd-mono" style={{
+                fontSize: 10, letterSpacing: "0.06em", color: "var(--pd-ink-faint)", display: "block", marginBottom: 8,
+              }}>Aspect</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {ASPECT_OPTIONS.map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    onClick={() => setAspectLabel(a.label)}
+                    style={
+                      aspectLabel === a.label
+                        ? chipSelected
+                        : chipBase
+                    }
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span className="pd-mono" style={{
+                fontSize: 10, letterSpacing: "0.06em", color: "var(--pd-ink-faint)", display: "block", marginBottom: 8,
+              }}>Count</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                {COUNT_OPTIONS.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setGenCount(n)}
+                    style={genCount === n ? chipSelected : chipBase}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span className="pd-mono" style={{
+                fontSize: 10, letterSpacing: "0.06em", color: "var(--pd-ink-faint)", display: "block", marginBottom: 6,
+              }}>Custom detail (optional)</span>
+              <input
+                value={genDetail}
+                onChange={(e) => setGenDetail(e.target.value)}
+                placeholder="Refines prompts for this generation run"
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: 4,
+                  fontSize: 11,
+                  border: "1px solid var(--pd-line-strong)",
+                  background: "rgba(255,255,255,0.03)",
+                  color: "var(--pd-ink)",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{
+              background: "var(--pd-bg-2)",
+              border: "1px solid var(--pd-line)",
+              borderRadius: 6,
+              padding: "8px 10px",
+              fontSize: 10,
+              color: "var(--pd-ink-faint)",
+              lineHeight: 1.45,
+            }}>
+              Uses table metadata (<span className="pd-mono">Type / Genre / Shot / Style / tags</span>) plus the controls
+              above. Backfill gaps from the Table view first when fields read as — .
+            </div>
+
+            <button
+              type="button"
+              disabled={genBusy || genCount < 1}
+              onClick={() => void handleGenerate()}
+              style={{
+                marginTop: 4,
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 5,
+                border: "none",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: genBusy ? "wait" : "pointer",
+                background: genBusy ? "var(--pd-line-strong)" : "var(--pd-accent)",
+                color: "var(--pd-accent-contrast-text, #fff)",
+                opacity: genBusy ? 0.85 : 1,
+              }}
+            >
+              {genBusy ? "Starting…" : `Generate ${modeTitle}`}
+            </button>
           </div>
         )}
         {tab === "lineage" && (

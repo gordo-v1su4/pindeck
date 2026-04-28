@@ -53,17 +53,6 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
     setTweaks(next);
   };
 
-  React.useEffect(() => {
-    document.documentElement.style.setProperty("--pd-accent", tweaks.accent);
-    const soft = tweaks.accent + "24";
-    document.documentElement.style.setProperty("--pd-accent-soft", soft);
-    const f = FONTS.find((x) => x.id === tweaks.typography);
-    if (f) {
-      document.documentElement.style.setProperty("--pd-font-sans", f.css);
-      document.documentElement.style.setProperty("--pd-font-mono", f.mono);
-    }
-  }, [tweaks.accent, tweaks.typography]);
-
   const row = (label: string, children: React.ReactNode) => (
     <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--pd-line)" }}>
       <PinLabel>{label}</PinLabel>

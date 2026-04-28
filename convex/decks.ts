@@ -1,11 +1,29 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 const DECK_TEMPLATE = {
   id: "deck:image-highlight",
   layout: "single-image",
 };
+
+async function imagePreviewUrl(
+  ctx: QueryCtx,
+  imageId: Id<"images">,
+): Promise<string | null> {
+  const image = await ctx.db.get("images", imageId);
+  if (!image) {
+    return null;
+  }
+  return (
+    image.derivativeUrls?.large ||
+    image.derivativeUrls?.medium ||
+    image.previewUrl ||
+    image.imageUrl ||
+    null
+  );
+}
 
 export const listByBoard = query({
   args: { boardId: v.id("collections") },
@@ -32,11 +50,69 @@ export const list = query({
       return [];
     }
 
-    return ctx.db
+    const decks = await ctx.db
       .query("decks")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+
+    const maxStrip = 8;
+
+    return Promise.all(
+      decks.map(async (deck) => {
+        const board = await ctx.db.get("collections", deck.boardId);
+        const slides = [...deck.slides].sort((a, b) => a.order - b.order);
+
+        const stripImageUrls: string[] = [];
+        /** Parallel to `stripImageUrls` — same `images.colors[..5]` as table rows. */
+        const stripPalettes: string[][] = [];
+        const previewSlideTitles: string[] = [];
+
+        const orderedIds: Id<"images">[] =
+          slides.length > 0
+            ? slides.map((s) => s.imageId)
+            : deck.sourceImageIds;
+
+        let idx = 0;
+        while (idx < orderedIds.length && stripImageUrls.length < maxStrip) {
+          const imageId = orderedIds[idx];
+          const image = await ctx.db.get("images", imageId);
+          idx += 1;
+          if (!image) continue;
+
+          const url =
+            image.derivativeUrls?.large ||
+            image.derivativeUrls?.medium ||
+            image.previewUrl ||
+            image.imageUrl ||
+            null;
+          if (!url) {
+            continue;
+          }
+
+          stripImageUrls.push(url);
+          stripPalettes.push(
+            image.colors?.length
+              ? image.colors.slice(0, 5).map((c) => String(c))
+              : [],
+          );
+          if (previewSlideTitles.length < 5 && image.title?.trim()) {
+            previewSlideTitles.push(image.title.trim());
+          }
+        }
+
+        return {
+          ...deck,
+          boardName: board?.name ?? null,
+          /** Ordered stills (library preview hero + thumbs). */
+          stripImageUrls,
+          /** Parallel `stripPalettes[i]` ≡ `images.colors` for slide `stripImageUrls[i]` (table parity). */
+          stripPalettes,
+          /** First few slide image titles — library card subtitle lines. */
+          previewSlideTitles,
+        };
+      }),
+    );
   },
 });
 
@@ -76,6 +152,7 @@ export const getById = query({
                   category: image.category,
                   sref: image.sref,
                   source: image.source,
+                  colors: image.colors,
                 }
               : null,
           };
@@ -119,76 +196,12 @@ export const createFromBoard = mutation({
       boardId: board._id,
       userId,
       title: `${board.name} Deck`,
-      subtitle: "",
-      tag: "DRAFT",
       templateId: DECK_TEMPLATE.id,
-      templateName: "Cinematic Treatment",
-      scrollFx: "parallax",
-      overlay: 0,
-      palette: ["#0a0a0c", "#f5a524", "#b24418", "#e2a17a", "#1a0c08"],
-      fontFamily: "archivo",
-      logline: "",
-      characterName: "",
-      characterBody: "",
-      outroTitle: "THANK YOU",
-      outroEmail: "",
-      blocks: [
-        { id: "title", label: "PROJECT TITLE", on: true, locked: true, kind: "cold-open", variant: "bleed" },
-        { id: "logline", label: "LOGLINE", on: true, locked: false, kind: "logline", variant: "split" },
-        { id: "world", label: "WORLD & CONCEPT", on: true, locked: false, kind: "tone-grid", variant: "3x2" },
-        { id: "character", label: "CHARACTER", on: true, locked: false, kind: "character", variant: "headshot" },
-        { id: "tone", label: "TONE & STYLE", on: true, locked: false, kind: "key-art", variant: "ab" },
-        { id: "motifs", label: "VISUAL MOTIFS", on: true, locked: false, kind: "sequence", variant: "filmstrip" },
-        { id: "story", label: "STORY", on: true, locked: false, kind: "quote", variant: "center" },
-        { id: "themes", label: "THEMES", on: false, locked: false, kind: "quote", variant: "kinetic" },
-        { id: "stakes", label: "STAKES", on: true, locked: false, kind: "references", variant: "rows" },
-        { id: "closing", label: "CLOSING", on: true, locked: false, kind: "outro", variant: "kinetic" },
-      ],
       sourceImageIds: board.imageIds,
       slides,
       createdAt: Date.now(),
-      updatedAt: Date.now(),
     });
 
     return deckId;
-  },
-});
-
-export const updateMeta = mutation({
-  args: {
-    deckId: v.id("decks"),
-    title: v.optional(v.string()),
-    subtitle: v.optional(v.string()),
-    tag: v.optional(v.string()),
-    templateId: v.optional(v.string()),
-    templateName: v.optional(v.string()),
-    scrollFx: v.optional(v.string()),
-    overlay: v.optional(v.number()),
-    palette: v.optional(v.array(v.string())),
-    fontFamily: v.optional(v.string()),
-    logline: v.optional(v.string()),
-    characterName: v.optional(v.string()),
-    characterBody: v.optional(v.string()),
-    outroTitle: v.optional(v.string()),
-    outroEmail: v.optional(v.string()),
-    blocks: v.optional(v.array(v.object({
-      id: v.string(),
-      label: v.string(),
-      on: v.boolean(),
-      locked: v.boolean(),
-      kind: v.string(),
-      variant: v.string(),
-    }))),
-  },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Must be logged in");
-
-    const deck = await ctx.db.get("decks", args.deckId);
-    if (!deck || deck.userId !== userId) throw new Error("Deck not found");
-
-    const { deckId, ...updates } = args;
-    await ctx.db.patch(args.deckId, { ...updates, updatedAt: Date.now() });
-    return args.deckId;
   },
 });
