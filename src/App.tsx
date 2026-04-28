@@ -10,7 +10,6 @@ import { TweaksPanel, DEFAULT_TWEAKS, type Tweaks } from "@/components/pd/Tweaks
 import { GalleryView } from "@/components/pd/GalleryView";
 import { TableView } from "@/components/pd/TableView";
 import { BoardsView } from "@/components/pd/BoardsView";
-import { DecksGallery } from "@/components/pd/deck/DecksGallery";
 import { ImageDetailDrawer } from "@/components/pd/ImageDetailDrawer";
 import type { Id } from "../convex/_generated/dataModel";
 import { applyPindeckTweaksToDocument } from "@/lib/pdTheme";
@@ -18,8 +17,9 @@ import { applyPindeckTweaksToDocument } from "@/lib/pdTheme";
 const ImageUploadForm = lazy(() =>
   import("@/components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
 );
-const DeckComposer = lazy(() =>
-  import("@/components/pd/deck/DeckComposer").then((mod) => ({ default: mod.DeckComposer }))
+/** Decks UI from `claude/redesign` — library strip + composer (see `src/components/DeckView.tsx`). */
+const DeckView = lazy(() =>
+  import("@/components/DeckView").then((mod) => ({ default: mod.DeckView }))
 );
 
 const APP_VIEWS = [
@@ -180,12 +180,13 @@ export default function App() {
               {view === "boards" && (
                 <BoardsView onOpenDeck={openDeck} />
               )}
-              {view === "deck" && !activeDeckId && (
-                <DecksGallery onOpenDeck={openDeck} tweaks={tweaks} />
-              )}
-              {view === "deck" && activeDeckId && (
+              {view === "deck" && (
                 <Suspense fallback={<Placeholder />}>
-                  <DeckComposer deckId={activeDeckId} onBack={() => setActiveDeckId(null)} tweaks={tweaks} />
+                  <DeckView
+                    selectedDeckId={activeDeckId}
+                    onSelectDeck={setActiveDeckId}
+                    onStartFromGallery={() => setView("gallery")}
+                  />
                 </Suspense>
               )}
               {view === "upload" && (

@@ -798,3 +798,109 @@ body {
 
 /* Stage container queries */
 .stage-cq { container-type: inline-size; }
+
+/* ── claude/redesign deck workspace (.creative-*): shared by `src/components/deck/DeckComposer` ── */
+.creative-modal {
+  box-shadow:
+    0 32px 120px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.creative-field,
+.creative-textarea,
+.creative-select {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgb(228 228 231);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.creative-field::placeholder,
+.creative-textarea::placeholder {
+  color: rgb(113 113 122);
+}
+
+.creative-field:focus,
+.creative-field:focus-visible,
+.creative-textarea:focus,
+.creative-textarea:focus-visible,
+.creative-select:focus,
+.creative-select:focus-visible {
+  outline: none;
+  border-color: var(--pd-accent);
+  box-shadow: 0 0 0 3px rgba(36, 87, 214, 0.18);
+}
+
+/* Deck composer Radix Select: value block left, chevron right */
+.deck-composer-select .rt-SelectTrigger {
+  display: flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  column-gap: 0.5rem;
+}
+
+.deck-composer-select .rt-SelectTriggerInner {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0%;
+  align-items: center;
+}
+
+.deck-composer-select .rt-SelectIcon {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.creative-action-accent {
+  border-color: rgba(36, 87, 214, 0.36) !important;
+  background: rgba(36, 87, 214, 0.16) !important;
+  color: var(--pd-accent-ink) !important;
+}
+
+.creative-action-primary {
+  background: var(--pd-accent) !important;
+  color: white !important;
+}
+
+.creative-action-secondary,
+.creative-action-tertiary,
+.creative-icon-button,
+.creative-pill-button,
+.creative-page-button,
+.creative-neutral-badge {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.creative-action-secondary:hover,
+.creative-action-tertiary:hover,
+.creative-icon-button:hover,
+.creative-pill-button:hover,
+.creative-page-button:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: white !important;
+}
+
+.creative-icon-button--active,
+.creative-pill-button--active,
+.creative-accent-badge,
+.creative-code-badge {
+  border-color: rgba(36, 87, 214, 0.36) !important;
+  background: rgba(36, 87, 214, 0.16) !important;
+  color: var(--pd-accent-ink) !important;
+}
+
+.creative-code-badge {
+  font-family: var(--pd-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.creative-progress-copy {
+  color: var(--pd-accent-ink);
+}

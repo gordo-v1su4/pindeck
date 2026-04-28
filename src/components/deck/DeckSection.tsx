@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { CSSProperties, ElementType, ReactNode } from "react";
-import type { BlockData, ColorPalette, FontStyle, LayoutVariant } from "./types";
+import type {
+  BlockData,
+  ColorPalette,
+  FontStyle,
+  LayoutVariant,
+} from "./types";
 import { cn } from "./utils/cn";
 
 type DeckSectionProps = {
@@ -54,7 +59,8 @@ const TYPOGRAPHY_STYLES: Record<
       'font-["Inter",sans-serif] text-[15vw] leading-none tracking-tighter font-thin uppercase',
     heading:
       'font-["Inter",sans-serif] text-[3.5vw] leading-[1.1] font-light tracking-tight',
-    subheading: 'font-["Inter",sans-serif] text-[1.5vw] font-normal tracking-wide',
+    subheading:
+      'font-["Inter",sans-serif] text-[1.5vw] font-normal tracking-wide',
     body: 'font-["Inter",sans-serif] text-[1.1vw] font-light leading-[1.8]',
     label:
       'font-["Inter",sans-serif] text-[0.8vw] uppercase tracking-[0.1em] font-medium',
@@ -66,9 +72,9 @@ const TYPOGRAPHY_STYLES: Record<
       'font-["Playfair_Display",serif] text-[4.5vw] leading-[1] font-bold',
     subheading:
       'font-["Source_Serif_4",serif] text-[1.2vw] uppercase tracking-[0.3em] font-light',
-    body:
-      'font-["Source_Serif_4",serif] text-[1.05vw] font-light leading-[1.8] text-justify',
-    label: 'font-["Playfair_Display",serif] text-[0.9vw] italic font-bold tracking-wide',
+    body: 'font-["Source_Serif_4",serif] text-[1.05vw] font-light leading-[1.8] text-justify',
+    label:
+      'font-["Playfair_Display",serif] text-[0.9vw] italic font-bold tracking-wide',
   },
   brutalist: {
     heroTitle:
@@ -77,8 +83,7 @@ const TYPOGRAPHY_STYLES: Record<
       'font-["Archivo_Black",sans-serif] text-[5vw] leading-[0.9] uppercase font-normal',
     subheading:
       'font-["Archivo",sans-serif] text-[1.8vw] font-bold tracking-tight bg-white text-black px-2',
-    body:
-      'font-["Archivo",sans-serif] text-[1.2vw] font-bold leading-[1.4] tracking-tight uppercase',
+    body: 'font-["Archivo",sans-serif] text-[1.2vw] font-bold leading-[1.4] tracking-tight uppercase',
     label:
       'font-["Archivo_Black",sans-serif] text-[1vw] uppercase font-normal tracking-widest',
   },
@@ -98,8 +103,7 @@ const TYPOGRAPHY_STYLES: Record<
       'font-["IBM_Plex_Sans",sans-serif] text-[4vw] leading-[1] font-bold uppercase tracking-tight',
     subheading:
       'font-["IBM_Plex_Sans",sans-serif] text-[1.1vw] uppercase tracking-[0.4em] font-medium',
-    body:
-      'font-["IBM_Plex_Sans",sans-serif] text-[1vw] font-normal leading-[1.7] opacity-90',
+    body: 'font-["IBM_Plex_Sans",sans-serif] text-[1vw] font-normal leading-[1.7] opacity-90',
     label:
       'font-["IBM_Plex_Sans",sans-serif] text-[0.8vw] uppercase font-bold tracking-[0.2em] border border-white/20 p-2',
   },
@@ -108,9 +112,11 @@ const TYPOGRAPHY_STYLES: Record<
       'font-["Playfair_Display",serif] text-[18vw] leading-[0.9] font-bold tracking-tighter',
     heading:
       'font-["Playfair_Display",serif] text-[4.5vw] leading-[1] font-bold',
-    subheading: 'font-["DM_Sans",sans-serif] text-[1.4vw] font-medium tracking-wide',
+    subheading:
+      'font-["DM_Sans",sans-serif] text-[1.4vw] font-medium tracking-wide',
     body: 'font-["DM_Sans",sans-serif] text-[1.1vw] font-normal leading-[1.7]',
-    label: 'font-["Playfair_Display",serif] text-[0.9vw] font-bold tracking-wide',
+    label:
+      'font-["Playfair_Display",serif] text-[0.9vw] font-bold tracking-wide',
   },
   "ibm-plex": {
     heroTitle:
@@ -119,8 +125,7 @@ const TYPOGRAPHY_STYLES: Record<
       'font-["IBM_Plex_Sans",sans-serif] text-[4vw] leading-[1] font-bold uppercase tracking-tight',
     subheading:
       'font-["IBM_Plex_Sans",sans-serif] text-[1.1vw] uppercase tracking-[0.4em] font-medium',
-    body:
-      'font-["IBM_Plex_Sans",sans-serif] text-[1vw] font-normal leading-[1.7] opacity-90',
+    body: 'font-["IBM_Plex_Sans",sans-serif] text-[1vw] font-normal leading-[1.7] opacity-90',
     label:
       'font-["IBM_Plex_Sans",sans-serif] text-[0.8vw] uppercase font-bold tracking-[0.2em] border border-white/20 p-2',
   },
@@ -129,7 +134,8 @@ const TYPOGRAPHY_STYLES: Record<
       'font-["Geist",sans-serif] text-[16.5vw] leading-none tracking-tighter font-medium uppercase',
     heading:
       'font-["Geist",sans-serif] text-[3.5vw] leading-[1.1] font-medium tracking-tight',
-    subheading: 'font-["Geist",sans-serif] text-[1.4vw] font-normal tracking-wide',
+    subheading:
+      'font-["Geist",sans-serif] text-[1.4vw] font-normal tracking-wide',
     body: 'font-["Geist",sans-serif] text-[1.05vw] font-normal leading-[1.8]',
     label:
       'font-["Geist",sans-serif] text-[0.8vw] uppercase tracking-[0.15em] font-medium',
@@ -233,7 +239,11 @@ function FitText({
   };
 
   return (
-    <div ref={containerRef} className="flex min-w-0 flex-col" style={containerStyle}>
+    <div
+      ref={containerRef}
+      className="flex min-w-0 flex-col"
+      style={containerStyle}
+    >
       <Tag
         ref={(node: HTMLElement | null) => {
           textRef.current = node;
@@ -281,7 +291,7 @@ function normalizeType(block: BlockData) {
 function getBlockSubtitle(block: BlockData, index: number) {
   switch (block.type) {
     case "hero":
-      return "Commercial visual engine";
+      return "Deck opening statement";
     case "logline":
       return "Project logline and central premise overview.";
     case "story":
@@ -299,20 +309,27 @@ function getBlockSubtitle(block: BlockData, index: number) {
     case "stakes":
       return "What failure costs";
     case "closing":
-      return "Pitchcraft studios";
+      return "Pindeck studio";
     default:
       return `Section ${index + 1}`;
   }
 }
 
-function getRotatingImages(referenceImages: string[], imageIndex: number, fallback: string | null) {
+function getRotatingImages(
+  referenceImages: string[],
+  imageIndex: number,
+  fallback: string | null,
+) {
   if (referenceImages.length === 0) {
     return fallback ? [fallback] : [];
   }
 
-  return Array.from({ length: Math.min(4, referenceImages.length) }, (_, offset) => {
-    return referenceImages[(imageIndex + offset) % referenceImages.length];
-  }).filter(Boolean);
+  return Array.from(
+    { length: Math.min(4, referenceImages.length) },
+    (_, offset) => {
+      return referenceImages[(imageIndex + offset) % referenceImages.length];
+    },
+  ).filter(Boolean);
 }
 
 function ImageFrame({
@@ -353,7 +370,11 @@ function ImageFrame({
         <img
           src={src}
           alt={alt}
-          className={cn("h-full w-full object-cover", grayscale && "grayscale", imageClassName)}
+          className={cn(
+            "h-full w-full object-cover",
+            grayscale && "grayscale",
+            imageClassName,
+          )}
         />
       ) : (
         <div className="h-full w-full bg-[#111]" />
@@ -386,7 +407,7 @@ export function DeckSection({
   const blockType = normalizeType(block);
   const supplementalImages = useMemo(
     () => getRotatingImages(referenceImages, imageIndex, imageUrl),
-    [imageIndex, imageUrl, referenceImages]
+    [imageIndex, imageUrl, referenceImages],
   );
   const mainImg = supplementalImages[0] ?? imageUrl ?? "";
   const isDarkAccent = isDarkColor(colors.accent);
@@ -411,7 +432,10 @@ export function DeckSection({
             <div className="relative z-10 flex items-end justify-between px-[6vw] pb-[4vw]">
               <FitText
                 as="h1"
-                className={cn(fonts.heroTitle, "translate-y-[2vw] drop-shadow-2xl")}
+                className={cn(
+                  fonts.heroTitle,
+                  "translate-y-[2vw] drop-shadow-2xl",
+                )}
                 style={{ color: colors.text }}
                 box={{ maxWidth: "42vw", maxHeight: "21vw" }}
               >
@@ -451,7 +475,10 @@ export function DeckSection({
                 >
                   {block.title}
                 </FitText>
-                <div className="mb-[2vw] h-px w-[3vw]" style={{ backgroundColor: colors.tertiary }} />
+                <div
+                  className="mb-[2vw] h-px w-[3vw]"
+                  style={{ backgroundColor: colors.tertiary }}
+                />
                 <FitText
                   as="p"
                   className={fonts.body}
@@ -585,7 +612,10 @@ export function DeckSection({
               >
                 {block.title}
               </FitText>
-              <div className="h-[2px] w-[4vw]" style={{ backgroundColor: colors.accent }} />
+              <div
+                className="h-[2px] w-[4vw]"
+                style={{ backgroundColor: colors.accent }}
+              />
               <FitText
                 as="p"
                 className={fonts.body}
@@ -682,7 +712,10 @@ export function DeckSection({
             >
               "{block.content}"
             </FitText>
-            <div className="mt-[4vw] h-[6vw] w-px" style={{ backgroundColor: colors.tertiary }} />
+            <div
+              className="mt-[4vw] h-[6vw] w-px"
+              style={{ backgroundColor: colors.tertiary }}
+            />
           </div>
         );
       case "final":
@@ -729,10 +762,16 @@ export function DeckSection({
     switch (blockType) {
       case "hero":
         return (
-          <div className="relative flex h-[56.25vw] w-full flex-col p-[2vw]" style={{ backgroundColor: bgColor }}>
+          <div
+            className="relative flex h-[56.25vw] w-full flex-col p-[2vw]"
+            style={{ backgroundColor: bgColor }}
+          >
             <div className="absolute right-[1vw] top-[4vw] bottom-[4vw] flex w-[3vw] items-center justify-center border-l border-white/20">
-              <span className={cn(fonts.label, "-rotate-90 whitespace-nowrap")} style={{ color: colors.muted }}>
-                PITCHCRAFT STUDIOS
+              <span
+                className={cn(fonts.label, "-rotate-90 whitespace-nowrap")}
+                style={{ color: colors.muted }}
+              >
+                PINDECK STUDIO
               </span>
             </div>
             <div className="mb-[2vw] flex-1 overflow-hidden border border-white/10 bg-[#111]">
@@ -761,9 +800,15 @@ export function DeckSection({
       case "text":
       case "split":
         return (
-          <div className="relative grid h-[56.25vw] w-full grid-cols-2 gap-[2vw] p-[3vw]" style={{ backgroundColor: bgColor }}>
+          <div
+            className="relative grid h-[56.25vw] w-full grid-cols-2 gap-[2vw] p-[3vw]"
+            style={{ backgroundColor: bgColor }}
+          >
             <div className="absolute right-[1vw] top-[4vw] bottom-[4vw] flex w-[3vw] items-center justify-center">
-              <span className={cn(fonts.label, "-rotate-90 whitespace-nowrap")} style={{ color: colors.muted }}>
+              <span
+                className={cn(fonts.label, "-rotate-90 whitespace-nowrap")}
+                style={{ color: colors.muted }}
+              >
                 FILM PROPOSAL
               </span>
             </div>
@@ -784,7 +829,11 @@ export function DeckSection({
                   style={{ color: colors.text }}
                   box={{ maxWidth: "26vw", maxHeight: "6vw" }}
                 >
-                  <HighlightText text={block.title} color={colors.accent} textColor={accentText} />
+                  <HighlightText
+                    text={block.title}
+                    color={colors.accent}
+                    textColor={accentText}
+                  />
                 </FitText>
                 <div className={cn(fonts.body, "w-[80%] leading-[2]")}>
                   <HighlightText
@@ -818,10 +867,16 @@ export function DeckSection({
       case "card":
       case "featured":
         return (
-          <div className="relative h-[56.25vw] w-full p-[3vw]" style={{ backgroundColor: bgColor }}>
+          <div
+            className="relative h-[56.25vw] w-full p-[3vw]"
+            style={{ backgroundColor: bgColor }}
+          >
             <div className="absolute left-[1vw] top-[4vw] bottom-[4vw] flex w-[3vw] items-center justify-center">
-              <span className={cn(fonts.label, "-rotate-90 whitespace-nowrap")} style={{ color: colors.muted }}>
-                PITCHCRAFT STUDIOS
+              <span
+                className={cn(fonts.label, "-rotate-90 whitespace-nowrap")}
+                style={{ color: colors.muted }}
+              >
+                PINDECK STUDIO
               </span>
             </div>
             <div className="mx-auto grid h-full w-[90%] grid-cols-[1fr_2fr] gap-[2vw]">
@@ -832,11 +887,18 @@ export function DeckSection({
                   style={{ color: colors.text }}
                   box={{ maxWidth: "24vw", maxHeight: "6vw" }}
                 >
-                  <HighlightText text={block.title} color="rgba(255,255,255,0.9)" textColor="#000" />
+                  <HighlightText
+                    text={block.title}
+                    color="rgba(255,255,255,0.9)"
+                    textColor="#000"
+                  />
                 </FitText>
                 <FitText
                   as="p"
-                  className={cn(fonts.body, "border border-white/10 bg-black/50 p-[1.5vw]")}
+                  className={cn(
+                    fonts.body,
+                    "border border-white/10 bg-black/50 p-[1.5vw]",
+                  )}
                   style={{ color: colors.text }}
                   box={{ maxWidth: "100%", maxHeight: "12vw" }}
                 >
@@ -872,9 +934,15 @@ export function DeckSection({
       case "moodboard":
       case "gallery":
         return (
-          <div className="relative flex h-[56.25vw] w-full flex-col p-[3vw]" style={{ backgroundColor: bgColor }}>
+          <div
+            className="relative flex h-[56.25vw] w-full flex-col p-[3vw]"
+            style={{ backgroundColor: bgColor }}
+          >
             <div className="absolute right-[1vw] top-[4vw] bottom-[4vw] flex w-[3vw] items-center justify-center">
-              <span className={cn(fonts.label, "-rotate-90 whitespace-nowrap")} style={{ color: colors.muted }}>
+              <span
+                className={cn(fonts.label, "-rotate-90 whitespace-nowrap")}
+                style={{ color: colors.muted }}
+              >
                 VISUAL MOOD
               </span>
             </div>
@@ -904,7 +972,11 @@ export function DeckSection({
                   className={cn(fonts.heading, "relative z-10 text-center")}
                   box={{ maxWidth: "20vw", maxHeight: "8vw" }}
                 >
-                  <HighlightText text={block.title} color={colors.accent} textColor={accentText} />
+                  <HighlightText
+                    text={block.title}
+                    color={colors.accent}
+                    textColor={accentText}
+                  />
                 </FitText>
               </div>
               <div className="flex items-center border-[0.2vw] border-white/10 bg-[#111] p-[2vw]">
@@ -937,12 +1009,18 @@ export function DeckSection({
       case "statement":
       case "impact":
         return (
-          <div className="relative flex h-[56.25vw] w-full items-center justify-center p-[3vw]" style={{ backgroundColor: bgColor }}>
+          <div
+            className="relative flex h-[56.25vw] w-full items-center justify-center p-[3vw]"
+            style={{ backgroundColor: bgColor }}
+          >
             <div
               className="w-[80%] border-[0.3vw] bg-[#0a0a0b] p-[4vw]"
               style={{ borderColor: colors.tertiary }}
             >
-              <span className={cn(fonts.label, "mb-[2vw] block")} style={{ color: colors.tertiary }}>
+              <span
+                className={cn(fonts.label, "mb-[2vw] block")}
+                style={{ color: colors.tertiary }}
+              >
                 {block.title}
               </span>
               <FitText
@@ -985,7 +1063,11 @@ export function DeckSection({
                 className={cn(fonts.heading, "mb-[1vw]")}
                 box={{ maxWidth: "56vw", maxHeight: "10vw" }}
               >
-                <HighlightText text={block.content} color={colors.accent} textColor={accentText} />
+                <HighlightText
+                  text={block.content}
+                  color={colors.accent}
+                  textColor={accentText}
+                />
               </FitText>
               <FitText
                 as="p"
