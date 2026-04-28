@@ -123,17 +123,13 @@ function BlockFrame({
   return (
     <section
       className={cn(
-        "slide-block relative aspect-video overflow-hidden bg-black transition-[outline-color,box-shadow]",
+        "slide-block relative aspect-video overflow-hidden bg-black",
         editable && "cursor-pointer",
-        editable && selected
-          ? "outline outline-2 outline-offset-[-2px] outline-[#f5a524]"
-          : editable
-            ? "outline outline-1 outline-offset-[-1px] outline-transparent hover:outline-white/10"
-            : "outline-none",
         className,
       )}
       onClick={editable ? () => onSelect(block.id) : undefined}
       style={{ containerType: "inline-size" }}
+      data-selected={editable && selected ? "true" : undefined}
     >
       {editable ? (
         <div className="pointer-events-none absolute right-4 top-4 z-20 font-mono text-[9px] uppercase tracking-[0.2em] text-white/32">
@@ -186,7 +182,7 @@ export function DeckCanvasPage({
   editable = true,
 }: DeckCanvasPageProps) {
   const fonts = FONT_STACKS[fontStyle] ?? FONT_STACKS.agency;
-  const accent = colors.accent || "#f5a524";
+  const accent = colors.accent || colors.primary || "#b86b40";
   const text = colors.text || "#f5f5f0";
   const muted = colors.muted || "rgba(255,255,255,0.62)";
   const base: CSSProperties = {

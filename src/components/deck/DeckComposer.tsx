@@ -20,7 +20,11 @@ import type {
 } from "./types";
 import { cn } from "./utils/cn";
 import { FIELD_CLASS } from "@/components/ui/actionStyles";
-import { defaultColors, extractColors } from "./utils/colorExtractor";
+import {
+  defaultColors,
+  extractColors,
+  paletteFromDominantHexes,
+} from "./utils/colorExtractor";
 import type { Id } from "../../../convex/_generated/dataModel";
 
 type DeckSlide = {
@@ -36,6 +40,8 @@ type DeckSlide = {
     category: string;
     sref?: string;
     source?: string;
+    /** Dominant palette from `images.colors` (same ordering as extraction). */
+    colors?: string[];
   } | null;
 };
 
@@ -559,6 +565,22 @@ export function DeckComposer({
     setSelectedBlockId("1");
   }, [sourceImages, deck.title, sourceImageTitles]);
 
+  /** URL for palette sampling: active strip cell, else first filled slot */
+  const heroSampleUrl = useMemo(() => {
+    const at = referenceImages[activeImageIndex];
+    if (at) return at;
+    return referenceImages.find(Boolean);
+  }, [referenceImages, activeImageIndex]);
+
+  /** Convex dominants matched to the active strip URL (`imageUrl` equality). */
+  const activeHeroDominantHexes = useMemo((): string[] | null => {
+    const url = referenceImages[activeImageIndex];
+    if (!url) return null;
+    const matched = sourceSlides.find((s) => s.image?.imageUrl === url);
+    const cols = matched?.image?.colors;
+    return cols?.length ? cols.filter(Boolean).map(String) : null;
+  }, [sourceSlides, referenceImages, activeImageIndex]);
+
   useEffect(() => {
     if (document.getElementById("deck-builder-fonts")) return;
     const link = document.createElement("link");
@@ -569,60 +591,109 @@ export function DeckComposer({
   }, []);
 
   useEffect(() => {
-    try {
-      const savedRaw = localStorage.getItem(storageKey);
-      if (!savedRaw) {
-        resetToDeckDefaults();
-        return;
-      }
+    const run = async () => {
+      try {
+        const savedRaw = localStorage.getItem(storageKey);
+        if (!savedRaw) {
+          resetToDeckDefaults();
+          return;
+        }
 
-      const saved = JSON.parse(savedRaw);
-      setReferenceImages(
-        Array.isArray(saved.referenceImages)
-          ? saved.referenceImages.slice(0, 10)
-          : sourceImages.slice(0, 10),
-      );
-      setTitle(typeof saved.title === "string" ? saved.title : deck.title);
-      setActiveImageIndex(
-        typeof saved.activeImageIndex === "number" ? saved.activeImageIndex : 0,
-      );
-      setColors(withAliases(saved.colors));
-      setBlocks(
-        Array.isArray(saved.blocks)
-          ? saved.blocks.map((block: BlockData) =>
-              saved.version === STORAGE_VERSION || block.type !== "theme"
-                ? block
-                : { ...block, visible: false },
-            )
-          : buildDeckBlocks(deck.title, sourceImageTitles),
-      );
-      setStyleVariant(saved.styleVariant ?? "cinematic");
-      setSelectedBlockId(
-        typeof saved.selectedBlockId === "string" ? saved.selectedBlockId : "1",
-      );
-      setFontStyle(saved.fontStyle ?? "agency");
-      setLayoutVariant(saved.layoutVariant ?? "editorial");
-      setScrollFx(saved.scrollFx ?? "parallax");
-      setOverlayStrength(
-        typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58,
-      );
-      setOverlayVariation(
-        typeof saved.overlayVariation === "number"
-          ? saved.overlayVariation
-          : 32,
-      );
-      setOverlaySeed(
-        typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0,
-      );
-    } catch {
-      resetToDeckDefaults();
-    }
+        const saved = JSON.parse(savedRaw);
+        setReferenceImages(
+          Array.isArray(saved.referenceImages)
+            ? saved.referenceImages.slice(0, 10)
+            : sourceImages.slice(0, 10),
+        );
+        setTitle(typeof saved.title === "string" ? saved.title : deck.title);
+        setActiveImageIndex(
+          typeof saved.activeImageIndex === "number"
+            ? saved.activeImageIndex
+            : 0,
+        );
+        /* Colors come from hero `images.colors` or client extraction — not localStorage. */
+        setBlocks(
+          Array.isArray(saved.blocks)
+            ? saved.blocks.map((block: BlockData) =>
+                saved.version === STORAGE_VERSION || block.type !== "theme"
+                  ? block
+                  : { ...block, visible: false },
+              )
+            : buildDeckBlocks(deck.title, sourceImageTitles),
+        );
+        setStyleVariant(saved.styleVariant ?? "cinematic");
+        setSelectedBlockId(
+          typeof saved.selectedBlockId === "string"
+            ? saved.selectedBlockId
+            : "1",
+        );
+        setFontStyle(saved.fontStyle ?? "agency");
+        setLayoutVariant(saved.layoutVariant ?? "editorial");
+        setScrollFx(saved.scrollFx ?? "parallax");
+        setOverlayStrength(
+          typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58,
+        );
+        setOverlayVariation(
+          typeof saved.overlayVariation === "number"
+            ? saved.overlayVariation
+            : 32,
+        );
+        setOverlaySeed(
+          typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0,
+        );
+      } catch {
+        resetToDeckDefaults();
+      }
+    };
+
+    void run();
   }, [
     storageKey,
     resetToDeckDefaults,
     sourceImages,
     sourceImageTitles,
     deck.title,
+  ]);
+
+  /**
+   * Swatches must match the hero still: sample from the image URL first (with blob
+   * fallback if CORS taints the canvas). Convex `images.colors` is only a fallback
+   * so stale DB swatches don’t override a correct client read.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const url = heroSampleUrl;
+      if (url?.startsWith("http") || url?.startsWith("data:")) {
+        try {
+          const extracted = await extractColors(url);
+          if (!cancelled) setColors(withAliases(extracted));
+          return;
+        } catch {
+          /* try Convex palette */
+        }
+      }
+
+      if (activeHeroDominantHexes && activeHeroDominantHexes.length >= 3) {
+        try {
+          const merged = withAliases(
+            paletteFromDominantHexes(activeHeroDominantHexes),
+          );
+          if (!cancelled) setColors(merged);
+        } catch {
+          /* keep preset */
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    deck._id,
+    heroSampleUrl,
+    activeHeroDominantHexes?.join("|") ?? "",
   ]);
 
   useEffect(() => {
@@ -635,7 +706,6 @@ export function DeckComposer({
             title,
             referenceImages,
             activeImageIndex,
-            colors,
             blocks,
             styleVariant,
             fontStyle,
@@ -660,7 +730,6 @@ export function DeckComposer({
     title,
     referenceImages,
     activeImageIndex,
-    colors,
     blocks,
     styleVariant,
     fontStyle,
@@ -819,9 +888,10 @@ export function DeckComposer({
           `Added ${newImages.length} image${newImages.length === 1 ? "" : "s"}`,
         );
 
-        if (newImages[0]) {
+        const sampleNew = newImages[newImages.length - 1];
+        if (sampleNew) {
           try {
-            const extracted = await extractColors(newImages[0]);
+            const extracted = await extractColors(sampleNew);
             setColors(withAliases(extracted));
           } catch {
             // Ignore extraction failure on upload.
@@ -1079,8 +1149,10 @@ export function DeckComposer({
     [visibleBlocks, deck._id, overlaySeed, overlayStrength, overlayVariation],
   );
 
+  const chromeFont = "var(--pd-font-sans)" as const;
+
   return (
-    <div className="relative overflow-hidden border border-white/10 bg-[#050505] text-white shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
+    <div className="deck-scope relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border border-white/10 bg-[#050505] text-white shadow-[0_35px_120px_rgba(0,0,0,0.45)]">
       <input
         ref={fileInputRef}
         type="file"
@@ -1103,12 +1175,13 @@ export function DeckComposer({
         onBlur={() => setEditingColor(null)}
       />
 
-      <div className="flex min-h-[72vh]">
+      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
         <aside
           className={cn(
-            "w-[328px] shrink-0 border-r border-white/8 bg-[#0d0d10] text-white",
-            sidebarOpen ? "flex flex-col" : "hidden lg:flex lg:flex-col",
+            "flex min-h-0 w-[328px] shrink-0 flex-col overflow-hidden border-r border-white/8 bg-[#0d0d10] text-white",
+            sidebarOpen ? "flex" : "hidden lg:flex",
           )}
+          style={{ fontFamily: chromeFont }}
         >
           <div className="border-b-2 border-[var(--pd-green)] px-5 py-4">
             <div className="flex items-start gap-3">
@@ -1136,7 +1209,7 @@ export function DeckComposer({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-6">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6">
             <div className="space-y-8">
               <section className="space-y-3">
                 <div className="flex items-center gap-3 border-b border-white/8 pb-2">
@@ -1182,7 +1255,7 @@ export function DeckComposer({
                           "relative aspect-[4/3] overflow-hidden rounded-[3px] border text-white/30 transition-all",
                           image
                             ? isActive
-                              ? "border-[var(--pd-accent)] shadow-[0_0_0_1px_rgba(36,87,214,0.35)]"
+                              ? "border-[var(--pd-accent)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--pd-accent)_42%,transparent)]"
                               : "border-white/10 hover:border-white/20"
                             : "border-dashed border-white/10 bg-white/[0.02]",
                         )}
@@ -1334,7 +1407,7 @@ export function DeckComposer({
                     })()}
                   </Select.Trigger>
                   <Select.Content
-                    className="z-[200] max-h-[min(70vh,360px)]"
+                    className="deck-composer-select-content z-[200] max-h-[min(70vh,360px)]"
                     position="popper"
                     sideOffset={4}
                     align="start"
@@ -1391,7 +1464,7 @@ export function DeckComposer({
                     </span>
                   </Select.Trigger>
                   <Select.Content
-                    className="z-[200] max-h-[min(70vh,320px)]"
+                    className="deck-composer-select-content z-[200] max-h-[min(70vh,320px)]"
                     position="popper"
                     sideOffset={4}
                     align="start"
@@ -1424,7 +1497,7 @@ export function DeckComposer({
                       type="button"
                       onClick={() => setLayoutVariant(option.id)}
                       className={cn(
-                        "relative w-full rounded-[3px] border px-3 pb-6 pt-2.5 text-left transition-all",
+                        "relative w-full rounded-[3px] border px-3 pb-6 pt-2.5 text-left outline-none ring-0 transition-all focus-visible:border-[var(--pd-accent)] focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--pd-accent)_35%,transparent)]",
                         layoutVariant === option.id
                           ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
                           : "border-white/10 bg-[#111117] text-white/50 hover:text-white",
@@ -1490,9 +1563,9 @@ export function DeckComposer({
                         draggedBlock === block.id && "opacity-50",
                         !block.visible && "opacity-[0.48]",
                         selectedBlockId === block.id
-                          ? "border-[#d4a24b]/55 bg-[#d4a24b]/[0.07]"
+                          ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                           : dragOverBlock === block.id
-                            ? "border-[#c9973a]/35 bg-white/[0.02]"
+                            ? "border-[color:color-mix(in_srgb,var(--pd-accent)_35%,transparent)] bg-white/[0.02]"
                             : "border-white/[0.08] bg-[#0c0c10]",
                       )}
                     >
@@ -1520,7 +1593,7 @@ export function DeckComposer({
                           className={cn(
                             "rounded p-1.5 transition-colors",
                             block.locked
-                              ? "text-[#d4a24b] hover:text-[#e8b55c]"
+                              ? "text-[var(--pd-accent)] hover:text-[var(--pd-accent-ink)]"
                               : "text-zinc-500/90 hover:text-zinc-400/90",
                           )}
                           title={block.locked ? "Unlock block" : "Lock block"}
@@ -1540,7 +1613,7 @@ export function DeckComposer({
                           className={cn(
                             "rounded p-1.5 transition-colors",
                             block.visible
-                              ? "text-[#d4a24b] hover:text-[#e8b55c]"
+                              ? "text-[var(--pd-accent)] hover:text-[var(--pd-accent-ink)]"
                               : "text-zinc-500/50 hover:text-zinc-400/70",
                           )}
                           title={block.visible ? "Hide block" : "Show block"}
@@ -1562,7 +1635,7 @@ export function DeckComposer({
           <div className="border-t border-white/8 px-5 py-4">
             <button
               onClick={() => setIsPreviewOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-[4px] bg-[#f5a524] px-4 py-4 text-[12px] font-bold uppercase tracking-[0.16em] text-black"
+              className="flex w-full items-center justify-center gap-2 rounded-[4px] bg-[var(--pd-accent)] px-4 py-4 text-[12px] font-bold uppercase tracking-[0.16em] text-[var(--pd-accent-contrast-text)] shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)] transition-[filter] hover:brightness-105"
             >
               ▶ Present Live
             </button>
@@ -1584,8 +1657,11 @@ export function DeckComposer({
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="sticky top-0 z-30 border-b border-white/8 bg-[#09090b]/96 px-5 py-4 backdrop-blur-md">
+        <div
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          style={{ fontFamily: chromeFont }}
+        >
+          <div className="sticky top-0 z-30 shrink-0 border-b border-white/8 bg-[#09090b]/96 px-5 py-4 backdrop-blur-md">
             <div className="flex flex-wrap items-center gap-3 text-sm">
               <span className="text-white/48">Deck workspace</span>
               <span className="text-white/18">|</span>
@@ -1599,7 +1675,7 @@ export function DeckComposer({
                 {STYLE_OPTIONS.find((option) => option.id === styleVariant)
                   ?.topLabel || "TREATMENT"}
               </span>
-              <span className="border border-[#f5a524]/45 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#f5a524]">
+              <span className="border border-[var(--pd-accent)]/45 bg-[var(--pd-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--pd-accent)]">
                 FX · {scrollFx.toUpperCase()}
               </span>
               <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
@@ -1607,7 +1683,7 @@ export function DeckComposer({
               </span>
               <div className="flex-1" />
               {hasUnsavedChanges ? (
-                <span className="text-[10px] uppercase tracking-[0.22em] text-amber-300">
+                <span className="text-[10px] uppercase tracking-[0.22em] text-[var(--pd-accent-ink)]">
                   Unsaved
                 </span>
               ) : null}
@@ -1630,14 +1706,14 @@ export function DeckComposer({
               </button>
               <button
                 onClick={() => setIsPreviewOpen(true)}
-                className="rounded-[4px] bg-[#f5a524] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-black"
+                className="rounded-[4px] bg-[var(--pd-accent)] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--pd-accent-contrast-text)] hover:brightness-105"
               >
                 Present
               </button>
             </div>
           </div>
 
-          <main className="flex-1 overflow-y-auto bg-[#050507]">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#050507]">
             <div className="px-6 py-6">
               {selectedBlock && !isPreviewMode ? (
                 <div className="mx-auto mb-3 flex w-full max-w-[620px] flex-wrap items-center justify-between gap-3 border border-white/8 bg-[#0b0b0d] px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-white/45">
@@ -1647,7 +1723,7 @@ export function DeckComposer({
                       {selectedBlock.title}
                     </span>
                   </span>
-                  <span className="text-[#f5a524]">
+                  <span className="font-medium text-[var(--pd-accent)]">
                     {LAYOUT_OPTIONS.find((o) => o.id === layoutVariant)?.name ??
                       "Layout A"}
                   </span>

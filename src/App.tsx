@@ -181,13 +181,15 @@ export default function App() {
                 <BoardsView onOpenDeck={openDeck} />
               )}
               {view === "deck" && (
-                <Suspense fallback={<Placeholder />}>
-                  <DeckView
-                    selectedDeckId={activeDeckId}
-                    onSelectDeck={setActiveDeckId}
-                    onStartFromGallery={() => setView("gallery")}
-                  />
-                </Suspense>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                  <Suspense fallback={<Placeholder />}>
+                    <DeckView
+                      selectedDeckId={activeDeckId}
+                      onSelectDeck={setActiveDeckId}
+                      onStartFromGallery={() => setView("gallery")}
+                    />
+                  </Suspense>
+                </div>
               )}
               {view === "upload" && (
                 <Suspense fallback={<Placeholder />}>

@@ -63,24 +63,53 @@ export const list = query({
         const board = await ctx.db.get("collections", deck.boardId);
         const slides = [...deck.slides].sort((a, b) => a.order - b.order);
 
-        const imageIds: Id<"images">[] =
+        const stripImageUrls: string[] = [];
+        /** Parallel to `stripImageUrls` — same `images.colors[..5]` as table rows. */
+        const stripPalettes: string[][] = [];
+        const previewSlideTitles: string[] = [];
+
+        const orderedIds: Id<"images">[] =
           slides.length > 0
             ? slides.map((s) => s.imageId)
             : deck.sourceImageIds;
 
-        const stripImageUrls: string[] = [];
-        for (const imageId of imageIds.slice(0, maxStrip)) {
-          const url = await imagePreviewUrl(ctx, imageId);
-          if (url) {
-            stripImageUrls.push(url);
+        let idx = 0;
+        while (idx < orderedIds.length && stripImageUrls.length < maxStrip) {
+          const imageId = orderedIds[idx];
+          const image = await ctx.db.get("images", imageId);
+          idx += 1;
+          if (!image) continue;
+
+          const url =
+            image.derivativeUrls?.large ||
+            image.derivativeUrls?.medium ||
+            image.previewUrl ||
+            image.imageUrl ||
+            null;
+          if (!url) {
+            continue;
+          }
+
+          stripImageUrls.push(url);
+          stripPalettes.push(
+            image.colors?.length
+              ? image.colors.slice(0, 5).map((c) => String(c))
+              : [],
+          );
+          if (previewSlideTitles.length < 5 && image.title?.trim()) {
+            previewSlideTitles.push(image.title.trim());
           }
         }
 
         return {
           ...deck,
           boardName: board?.name ?? null,
-          /** Ordered stills in this deck (for library filmstrip). */
+          /** Ordered stills (library preview hero + thumbs). */
           stripImageUrls,
+          /** Parallel `stripPalettes[i]` ≡ `images.colors` for slide `stripImageUrls[i]` (table parity). */
+          stripPalettes,
+          /** First few slide image titles — library card subtitle lines. */
+          previewSlideTitles,
         };
       }),
     );
@@ -123,6 +152,7 @@ export const getById = query({
                   category: image.category,
                   sref: image.sref,
                   source: image.source,
+                  colors: image.colors,
                 }
               : null,
           };

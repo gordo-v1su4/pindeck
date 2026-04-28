@@ -32,6 +32,7 @@ This file reflects the stack currently used by the app. Versions should be valid
 
 ## Dev Tooling
 
+- **MCP servers (Cursor):** Prefer **`npx`** to run packaged MCP binaries (e.g. `chrome-devtools-mcp`). Do **not** use `bunx` for MCP server `command` — it reliably causes breakage; Bun stays the default elsewhere.
 - Bun package manager (`packageManager` in `package.json`)
 - Vite build/dev server
 - TypeScript

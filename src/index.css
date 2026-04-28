@@ -768,7 +768,7 @@ body {
 .deck-scope .block-row { display:flex; align-items:center; gap:8px; padding:7px 9px; border:1px solid var(--pd-line); border-radius:3px; cursor:grab; background: var(--pd-bg-1); transition: all .15s; }
 .deck-scope .block-row:hover { border-color: var(--pd-line-strong); background: var(--pd-bg-2); }
 .deck-scope .block-row.is-off { opacity: .42; }
-.deck-scope .block-row.is-locked { border-color: rgba(245,165,36,0.3); }
+.deck-scope .block-row.is-locked { border-color: color-mix(in srgb, var(--pd-accent) 42%, transparent); }
 
 .deck-scope .slot { aspect-ratio:16/9; background: var(--pd-bg-2); border:1px dashed var(--pd-line-strong); border-radius:2px; display:flex; align-items:center; justify-content:center; color: var(--pd-ink-faint); font-size:16px; cursor:pointer; transition: all .15s; overflow:hidden; position:relative; }
 .deck-scope .slot:hover { border-color: var(--pd-line-hi); background: var(--pd-bg-1); color: var(--pd-ink-mute); }
@@ -831,7 +831,7 @@ body {
 .creative-select:focus-visible {
   outline: none;
   border-color: var(--pd-accent);
-  box-shadow: 0 0 0 3px rgba(36, 87, 214, 0.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pd-accent) 22%, transparent);
 }
 
 /* Deck composer Radix Select: value block left, chevron right */
@@ -855,9 +855,19 @@ body {
   align-self: center;
 }
 
+/* Typography / GSAP dropdowns (portal): Tweaks accent for highlight (not default blue). */
+.deck-composer-select-content .rt-SelectItem[data-highlighted] {
+  background: var(--pd-accent-soft) !important;
+  color: var(--pd-accent-ink) !important;
+  outline: none;
+}
+.deck-composer-select-content .rt-SelectItem[data-state="checked"] {
+  background: color-mix(in srgb, var(--pd-accent-soft) 88%, transparent) !important;
+}
+
 .creative-action-accent {
-  border-color: rgba(36, 87, 214, 0.36) !important;
-  background: rgba(36, 87, 214, 0.16) !important;
+  border-color: color-mix(in srgb, var(--pd-accent) 40%, transparent) !important;
+  background: var(--pd-accent-soft) !important;
   color: var(--pd-accent-ink) !important;
 }
 
@@ -890,8 +900,8 @@ body {
 .creative-pill-button--active,
 .creative-accent-badge,
 .creative-code-badge {
-  border-color: rgba(36, 87, 214, 0.36) !important;
-  background: rgba(36, 87, 214, 0.16) !important;
+  border-color: color-mix(in srgb, var(--pd-accent) 40%, transparent) !important;
+  background: var(--pd-accent-soft) !important;
   color: var(--pd-accent-ink) !important;
 }
 

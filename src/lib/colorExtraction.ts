@@ -1,57 +1,119 @@
 export type { PaletteOptions } from './colorPaletteCore';
 import { extractDominantHexes, rgbToHex as coreRgbToHex } from './colorPaletteCore';
 
-export async function extractColorsFromImage(imageUrl: string): Promise<string[]> {
-  try {
+function extractHexesFromCanvasPixels(
+  imageData: ImageData,
+): string[] {
+  const u8 = new Uint8Array(
+    imageData.data.buffer,
+    imageData.data.byteOffset,
+    imageData.data.byteLength,
+  );
+  return extractDominantHexes(u8, 4, {
+    topN: 5,
+    quantizeLevels: 36,
+    minShare: 0.01,
+    minLabDelta: 19,
+  });
+}
+
+/** Load image into canvas and read pixels. `crossOrigin` undefined = leave default (blob: / data: same-origin). */
+function extractFromImageSrc(
+  src: string,
+  crossOrigin: 'anonymous' | undefined,
+): Promise<string[]> {
+  return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    if (crossOrigin) {
+      img.crossOrigin = crossOrigin;
+    }
 
-    return new Promise((resolve) => {
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-
-          if (!ctx) {
-            resolve([]);
-            return;
-          }
-
-          const maxDimension = 400;
-          const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
-          canvas.width = Math.floor(img.width * scale);
-          canvas.height = Math.floor(img.height * scale);
-
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const u8 = new Uint8Array(
-            imageData.data.buffer,
-            imageData.data.byteOffset,
-            imageData.data.byteLength
-          );
-
-          const hexes = extractDominantHexes(u8, 4, {
-            topN: 5,
-            quantizeLevels: 36,
-            minShare: 0.01,
-            minLabDelta: 19,
-          });
-          resolve(hexes);
-        } catch (error) {
-          console.error('Error processing image:', error);
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
           resolve([]);
+          return;
         }
-      };
-
-      img.onerror = () => {
-        console.error('Error loading image:', imageUrl);
+        const maxDimension = 400;
+        const scale = Math.min(
+          1,
+          maxDimension / Math.max(img.width, img.height),
+        );
+        canvas.width = Math.floor(img.width * scale);
+        canvas.height = Math.floor(img.height * scale);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        resolve(extractHexesFromCanvasPixels(imageData));
+      } catch {
         resolve([]);
-      };
+      }
+    };
 
-      img.src = imageUrl;
-    });
+    img.onerror = () => resolve([]);
+    img.src = src;
+  });
+}
+
+/**
+ * Dominant colors from an image URL. Tries canvas read with CORS; if that yields
+ * too few swatches (tainted canvas / bad CORS), fetches the URL as a blob and
+ * re-samples from a blob: URL (same-origin to the page, no taint).
+ */
+export async function extractColorsFromImage(imageUrl: string): Promise<string[]> {
+  if (!imageUrl.trim()) {
+    return [];
+  }
+
+  try {
+    let hexes: string[] = [];
+
+    if (imageUrl.startsWith("data:") || imageUrl.startsWith("blob:")) {
+      hexes = await extractFromImageSrc(imageUrl, undefined);
+      return hexes;
+    }
+
+    if (imageUrl.startsWith("http")) {
+      hexes = await extractFromImageSrc(imageUrl, "anonymous");
+      if (hexes.length >= 3) {
+        return hexes;
+      }
+
+      try {
+        const res = await fetch(imageUrl, { mode: "cors" });
+        if (res.ok) {
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          try {
+            hexes = await extractFromImageSrc(blobUrl, undefined);
+          } finally {
+            URL.revokeObjectURL(blobUrl);
+          }
+        }
+      } catch {
+        try {
+          const res = await fetch(imageUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            try {
+              hexes = await extractFromImageSrc(blobUrl, undefined);
+            } finally {
+              URL.revokeObjectURL(blobUrl);
+            }
+          }
+        } catch {
+          /* noop */
+        }
+      }
+      return hexes;
+    }
+
+    hexes = await extractFromImageSrc(imageUrl, undefined);
+    return hexes;
   } catch (error) {
-    console.error('Error extracting colors:', error);
+    console.error("Error extracting colors:", error);
     return [];
   }
 }
