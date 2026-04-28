@@ -24,7 +24,7 @@ Rules:
 
 ## 2026-04-28
 
-- **Build / Vercel**: [`enforce-production-convex.sh`](scripts/enforce-production-convex.sh) on **`VERCEL` / `CI`** only requires **`VITE_CONVEX_URL`** + **`VITE_CONVEX_SITE_URL`** (documented in **README** Deploy → Vercel); local `.env.local` still enforces **`CONVEX_DEPLOYMENT`** for dev/CLI.
+- **Build / Vercel**: **`VERCEL` / `CI`** checks default prod **`VITE_*`** URLs when unset; [`vite.config.ts`](vite.config.ts) production **`VITE_CONVEX_URL`** fallback matches [`enforce-production-convex.sh`](scripts/enforce-production-convex.sh).
 - **Convex `decks.list` bugfix**: **`ctx.db.get("images", imageId)`** (was **`get(imageId)`**) so **`stripImageUrls`** / previews populate — library strips were blank.
 - **Deck palette**: Composer prefers hero **`images.colors`** via **`paletteFromDominantHexes`** ([`utils/colorExtractor.ts`](src/components/deck/utils/colorExtractor.ts)); otherwise client **`extractColors`**. **`colors`** no longer persisted in **`localStorage`**. **`getById`** slide images include **`colors`** on the **`DeckSlide`** type.
 - **Decks library strip**: **`convex/decks.list`** returns **`stripPalettes`** (parallel **`images.colors`** slices per **`stripImageUrls`** row — table parity); [`DeckView`](src/components/DeckView.tsx): **aspect-video hero** preview + **`PinSwatches`** per slide; **`previewSlideTitles`** + board line. **+ BLANK** column matches deck card width/row structure.

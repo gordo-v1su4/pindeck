@@ -186,14 +186,9 @@ bun run deploy:convex
 
 Use Vercel for frontend deployment. Pushing to `main` on GitHub triggers the Vercel frontend deploy.
 
-In the Vercel project **Settings → Environment Variables** (Production / Preview as needed), set at least:
+**Vercel builds** do not use `.env.local`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` to **`tremendous-jaguar-953`** when unset, so previews deploy without extra env. Override in **Settings → Environment Variables** if you intentionally point previews at another Convex deployment.
 
-| Variable | Value |
-|---------|--------|
-| `VITE_CONVEX_URL` | `https://tremendous-jaguar-953.convex.cloud` |
-| `VITE_CONVEX_SITE_URL` | `https://tremendous-jaguar-953.convex.site` |
-
-`npm run build` / `bun run build` runs `scripts/enforce-production-convex.sh`. On **Vercel** (`VERCEL=1`) the script only verifies those **`VITE_*`** URLs (no `.env.local` on the build machine). Locally, also keep **`CONVEX_DEPLOYMENT=tremendous-jaguar-953`** in `.env.local` so `dev` / `deploy:convex` match production.
+Locally, keep **`CONVEX_DEPLOYMENT`**, **`VITE_CONVEX_URL`**, and **`VITE_CONVEX_SITE_URL`** in **`.env.local`** so `dev` / `deploy:convex` match production (see `.env.example`).
 
 ## Unified UI / design tokens (Tweaks)
 

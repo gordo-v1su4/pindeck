@@ -32,8 +32,13 @@ is_ci_build() {
 }
 
 if is_ci_build; then
-  vite_urls_match || fail "For CI/Vercel builds, set VITE_CONVEX_URL='$EXPECTED_CLOUD_URL' and VITE_CONVEX_SITE_URL='$EXPECTED_SITE_URL' in the project Environment Variables (see README Deploy → Vercel)."
-  echo "Convex target check passed: production VITE_* (CI — use dashboard env, not .env.local)"
+  # Default empty env to production Convex (same fallback as vite.config.ts) so CI
+  # succeeds without Dashboard secrets; explicit wrong URLs still fail fast.
+  v_url="${VITE_CONVEX_URL:-$EXPECTED_CLOUD_URL}"
+  v_site="${VITE_CONVEX_SITE_URL:-$EXPECTED_SITE_URL}"
+  [[ "$v_url" == "$EXPECTED_CLOUD_URL" ]] || fail "CI VITE_CONVEX_URL must be '$EXPECTED_CLOUD_URL' (got '${VITE_CONVEX_URL:-}'. Clear or fix Vercel env)."
+  [[ "$v_site" == "$EXPECTED_SITE_URL" ]] || fail "CI VITE_CONVEX_SITE_URL must be '$EXPECTED_SITE_URL' (got '${VITE_CONVEX_SITE_URL:-}'. Clear or fix Vercel env)."
+  echo "Convex target check passed: production VITE_* (CI — defaulted if unset)"
   exit 0
 fi
 
