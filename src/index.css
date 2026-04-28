@@ -389,8 +389,9 @@ body {
   color: #ffffff;
 }
 
+/* Match sidebar / claude-redesign: DECK uses Tweaks accent (default #3a7bff), not legacy logo #1f8fe5 */
 .site-brand-word-accent {
-  color: #1f8fe5;
+  color: var(--pd-accent);
 }
 
 .auth-shell {
@@ -438,15 +439,15 @@ body {
   width: 100%;
   min-height: 3.4rem;
   border-radius: 0.8rem !important;
-  background: #1f8fe5 !important;
-  color: white !important;
+  background: var(--pd-accent) !important;
+  color: var(--pd-accent-contrast-text) !important;
   font-size: 0.98rem !important;
   font-weight: 700 !important;
   box-shadow: none;
 }
 
 .auth-switch-link {
-  color: #52a8ff !important;
+  color: var(--pd-accent-ink) !important;
   font-weight: 600 !important;
 }
 
@@ -490,7 +491,7 @@ body {
   min-height: 3.45rem;
   width: 100%;
   border-radius: 0.7rem !important;
-  border: 1px solid rgba(31, 143, 229, 0.5) !important;
+  border: 1px solid color-mix(in srgb, var(--pd-accent) 52%, transparent) !important;
   background: #0c3564 !important;
   color: white !important;
   font-weight: 600 !important;
