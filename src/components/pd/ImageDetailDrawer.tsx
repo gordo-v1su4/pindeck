@@ -25,7 +25,8 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
 
   return (
     <aside className="pd-slide-in pd-scroll" style={{
-      width: 440, flexShrink: 0, height: "100%", overflow: "auto",
+      width: 440, flexShrink: 0, minHeight: 0, alignSelf: "stretch",
+      overflow: "auto",
       background: "var(--pd-panel)", borderLeft: "1px solid var(--pd-line)",
       display: "flex", flexDirection: "column", position: "relative",
     }}>
@@ -52,7 +53,19 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
       </div>
 
       <div style={{ padding: "12px 14px 0" }}>
-        <div style={{ borderRadius: 3, overflow: "hidden", background: "#000", aspectRatio: "16/9", position: "relative" }}>
+        <div
+          className="pd-letterbox"
+          style={
+            {
+              borderRadius: 3,
+              overflow: "hidden",
+              background: "#000",
+              aspectRatio: "16/9",
+              position: "relative",
+              "--pd-lb": tweaks.letterbox ? "14px" : "0px",
+            } as React.CSSProperties
+          }
+        >
           <img src={image.imageUrl} alt={image.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           <div style={{ position: "absolute", bottom: 8, right: 8, display: "flex", gap: 4 }}>
             <PinChip mono variant="outline">{image.category}</PinChip>

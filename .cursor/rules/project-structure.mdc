@@ -16,6 +16,7 @@ Pindeck is an image curation app with:
 - AI analysis + variation generation pipeline
 
 Current behavior highlights:
+- Unified dark UI (`pd-theme`): Tweaks panel + `pindeck_tweaks` drive accent tokens via `src/lib/pdTheme.ts` (`--pd-accent*`, TMP `--accent*` mirrors); [`SignInForm`](src/SignInForm.tsx) shares the same variables.
 - Discord imports are queued (`pending`) and manually approved/denied.
 - Discord-origin generated children are also queued and keep lineage (`parentImageId`) and `sref`.
 - Upload flow separates pending/processing/draft/active states.

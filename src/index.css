@@ -79,6 +79,20 @@
 }
 
 /* ═══════════ Pindeck Design Tokens (TMP Redesign) ═══════════ */
+/*
+ * Dynamic tokens (--pd-accent*, fonts) MUST live on :root only.
+ * applyPindeckTweaksToDocument() sets them on document.documentElement.
+ * If .pd-theme re-declares the same variables, it overrides html and Tweaks never visually apply.
+ */
+:root {
+  --pd-accent: #3a7bff;
+  --pd-accent-ink: #c7ddff;
+  --pd-accent-soft: rgba(58, 123, 255, 0.14);
+  --pd-accent-hover: #2447b8;
+  --pd-accent-contrast-text: #ffffff;
+  --pd-font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --pd-font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+}
 .pd-theme,
 .dark .pd-theme {
   --pd-bg: #08080a;
@@ -86,16 +100,13 @@
   --pd-bg-2: #101014;
   --pd-panel: #0b0b0e;
   --pd-panel-2: #111116;
-  --pd-line: rgba(255,255,255,0.055);
-  --pd-line-strong: rgba(255,255,255,0.09);
-  --pd-line-hi: rgba(255,255,255,0.14);
+  --pd-line: rgba(255, 255, 255, 0.055);
+  --pd-line-strong: rgba(255, 255, 255, 0.09);
+  --pd-line-hi: rgba(255, 255, 255, 0.14);
   --pd-ink: #c9ccd1;
-  --pd-ink-dim: rgba(238,240,242,0.62);
-  --pd-ink-mute: rgba(238,240,242,0.56);
-  --pd-ink-faint: rgba(238,240,242,0.30);
-  --pd-accent: #3a7bff;
-  --pd-accent-ink: #c7ddff;
-  --pd-accent-soft: rgba(58,123,255,0.14);
+  --pd-ink-dim: rgba(238, 240, 242, 0.62);
+  --pd-ink-mute: rgba(238, 240, 242, 0.56);
+  --pd-ink-faint: rgba(238, 240, 242, 0.3);
   --pd-amber: #f5a524;
   --pd-cyan: #22b8cf;
   --pd-magenta: #d946ef;
@@ -103,10 +114,8 @@
   --pd-red: #ef4343;
   --pd-radius: 6px;
   --pd-radius-sm: 4px;
-  --pd-shadow-deep: 0 16px 40px -18px rgba(0,0,0,0.95), 0 2px 0 rgba(255,255,255,0.02) inset;
-  --pd-font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --pd-font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
-  --pd-font-display: 'Archivo Narrow', 'Archivo', 'Geist', sans-serif;
+  --pd-shadow-deep: 0 16px 40px -18px rgba(0, 0, 0, 0.95), 0 2px 0 rgba(255, 255, 255, 0.02) inset;
+  --pd-font-display: "Archivo Narrow", "Archivo", "Geist", sans-serif;
 }
 
 @theme inline {
@@ -662,6 +671,29 @@ body {
 
 .pd-fade-in { animation: pdFadeIn 180ms cubic-bezier(.2,.8,.2,1) both; }
 .pd-slide-in { animation: pdSlideRight 220ms cubic-bezier(.2,.8,.2,1) both; }
+
+/* Letterbox cinema bars (TMP parity) — --pd-lb height per side */
+.pd-letterbox {
+  position: relative;
+}
+.pd-letterbox::before,
+.pd-letterbox::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--pd-lb, 0px);
+  background: #000;
+  z-index: 2;
+  pointer-events: none;
+  transition: height 180ms ease;
+}
+.pd-letterbox::before {
+  top: 0;
+}
+.pd-letterbox::after {
+  bottom: 0;
+}
 
 /* Letterbox */
 .pd-letterbox { position: relative; }

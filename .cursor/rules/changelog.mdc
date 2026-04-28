@@ -22,6 +22,15 @@ Rules:
 - Include follow-ups only when actionable.
 - Prefer one section per day.
 
+## 2026-04-28
+
+- UI fix: accent Tweaks were ignored because `.pd-theme` re-declared `--pd-accent*` and shadowed `document.documentElement`; moved dynamic tokens to `:root`-only defaults + JS overrides ([`src/index.css`](src/index.css)).
+- Env: restored production Convex URLs in `.env.local` (`tremendous-jaguar-953`) so gallery/data load against real backend (was dev deployment from `convex dev --once`).
+- UI: dynamic accent inks (`src/lib/pdTheme.ts`), global Tweaks CSS on `documentElement`, sign-in uses `--pd-accent*` (parity with cloud redesign).
+- Drawer: TMP letterbox overlay + flex stretch fixes for [`ImageDetailDrawer`](src/components/pd/ImageDetailDrawer.tsx).
+- Decks gallery: accent dot meta row, TMP-style hover shadow, subtitles from Convex deck fields [`DecksGallery`](src/components/pd/deck/DecksGallery.tsx).
+- Docs: [`docs/guides/redesign-deck-port-inventory.md`](docs/guides/redesign-deck-port-inventory.md) summarizes `main` vs `claude/redesign` deck stack.
+
 ## 2026-02-12
 
 - Discord ingest: strengthened media URL filtering/deduping and limited imports per trigger to reduce junk/icon ingestion.

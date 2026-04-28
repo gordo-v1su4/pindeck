@@ -186,6 +186,14 @@ bun run deploy:convex
 
 Use Vercel for frontend deployment. Pushing to `main` on GitHub triggers the Vercel frontend deploy. Ensure `VITE_CONVEX_URL` points to production Convex (`.convex.cloud`).
 
+## Unified UI / design tokens (Tweaks)
+
+- Tweaks persisted in `localStorage` (`pindeck_tweaks`) drive **`applyPindeckTweaksToDocument`** in [`src/lib/pdTheme.ts`](src/lib/pdTheme.ts): `--pd-accent`, derived `--pd-accent-ink`, `--pd-accent-soft`, `--pd-accent-hover`, `--pd-accent-contrast-text`, plus TMP-compatible `--accent*` aliases on `document.documentElement`.
+- The static prototype reference lives under [`TMP/`](TMP/) (see [`TMP/HANDOFF.md`](TMP/HANDOFF.md)); larger deck deltas vs [`claude/redesign`](branch) are summarized in [`docs/guides/redesign-deck-port-inventory.md`](docs/guides/redesign-deck-port-inventory.md).
+- Sign-in ([`src/SignInForm.tsx`](src/SignInForm.tsx)) uses the same CSS variables so primary actions match the Tweaks accent (aligned with [`claude/redesign`](branch) semantics).
+
+**Gotcha:** Do not re-declare `--pd-accent`, `--pd-accent-ink`, `--pd-accent-soft`, `--pd-font-*`, etc. on `.pd-theme` — they would override `document.documentElement` and break Tweaks until you move those variables to `:root` defaults only (see [`src/index.css`](src/index.css)).
+
 ## Notes
 
 - Do not use `convex dev` when targeting production.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from "react";
+import React, { useState, useEffect, useLayoutEffect, lazy, Suspense } from "react";
 import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import { SignInForm } from "@/SignInForm";
 import { SignOutButton } from "@/SignOutButton";
@@ -11,6 +11,7 @@ import { BoardsView } from "@/components/pd/BoardsView";
 import { DecksGallery } from "@/components/pd/deck/DecksGallery";
 import { ImageDetailDrawer } from "@/components/pd/ImageDetailDrawer";
 import type { Id } from "../convex/_generated/dataModel";
+import { applyPindeckTweaksToDocument } from "@/lib/pdTheme";
 
 const ImageUploadForm = lazy(() =>
   import("@/components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
@@ -46,6 +47,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("pindeck_tweaks", JSON.stringify(tweaks));
   }, [tweaks]);
+
+  /* useLayoutEffect: avoid one frame where .pd-* accent is wrong before paint */
+  useLayoutEffect(() => {
+    applyPindeckTweaksToDocument({
+      accent: tweaks.accent,
+      typography: tweaks.typography,
+    });
+  }, [tweaks.accent, tweaks.typography]);
 
   useEffect(() => {
     localStorage.setItem("pindeck_view", view);
@@ -106,7 +115,7 @@ export default function App() {
           />
         )}
 
-        <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
+        <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative", alignItems: "stretch" }}>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
             <Unauthenticated>
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
