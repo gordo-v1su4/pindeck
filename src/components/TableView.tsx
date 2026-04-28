@@ -41,6 +41,7 @@ import { EditImageModal } from "./EditImageModal";
 import { GenerateVariationsModal } from "./GenerateVariationsModal";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import clsx from "clsx";
 import {
   compactImageTagClass,
   getPaletteTagStyle,
@@ -48,6 +49,15 @@ import {
   sortColorsDarkToLight,
 } from "../lib/utils";
 import { SmartImage } from "./SmartImage";
+
+declare module "@tanstack/react-table" {
+  interface ColumnMeta {
+    headerClassName?: string;
+    cellClassName?: string;
+    /** Applied to inner Flex wrapping sort label + arrows (e.g. `justify-end w-full`). */
+    headerInnerClassName?: string;
+  }
+}
 
 interface Image {
   _id: Id<"images">;
@@ -81,9 +91,12 @@ export function TableView() {
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [showOnlyOriginals, setShowOnlyOriginals] = useState(false);
   const [showOnlySref, setShowOnlySref] = useState(false);
+  const [paletteBusy, setPaletteBusy] = useState(false);
 
   const compactPillClass =
     "h-6 rounded-sm px-2 text-[11px] font-medium tracking-[0.01em]";
+
+  const reExtractPalettes = useMutation(api.colorExtractionAdmin.reExtractAll);
 
   // Extract unique tags and colors for filters
   const allTags = useMemo(() => {
@@ -140,11 +153,39 @@ export function TableView() {
     }
   }, [generateOutput]);
 
+  const handleRefreshPalettes = useCallback(async () => {
+    if (
+      !confirm(
+        "Re-sample color swatches for all images using the latest algorithm? Scheduled jobs run server-side — refresh this page after ~1 minute."
+      )
+    ) {
+      return;
+    }
+    setPaletteBusy(true);
+    try {
+      const r = await reExtractPalettes({ onlyMissing: false });
+      toast.success(
+        `Scheduled palette extraction for ${r.scheduled} image(s). Reload soon to see updates.`
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error(
+        "Could not schedule palette refresh. Deploy latest Convex backend and ensure you are signed in."
+      );
+    } finally {
+      setPaletteBusy(false);
+    }
+  }, [reExtractPalettes]);
+
   const columns = useMemo<ColumnDef<Image>[]>(
     () => [
       {
         accessorKey: "imageUrl",
         header: "Image",
+        meta: {
+          headerClassName: "w-[72px] min-w-[72px] max-w-[72px]",
+          cellClassName: "w-[72px] min-w-[72px] max-w-[72px] align-top",
+        },
         cell: ({ row }) => (
           <Box className="w-16 h-16 bg-gray-100 rounded overflow-hidden">
             <SmartImage
@@ -162,6 +203,10 @@ export function TableView() {
       {
         accessorKey: "_id",
         header: "ID",
+        meta: {
+          headerClassName: "w-[88px] min-w-[88px] max-w-[88px]",
+          cellClassName: "w-[88px] min-w-[88px] max-w-[88px] align-top",
+        },
         cell: ({ row }) => (
           <Text size="1" color="gray" className="font-mono">
             {row.original._id.slice(-8)}
@@ -172,8 +217,12 @@ export function TableView() {
       {
         accessorKey: "title",
         header: "Title",
+        meta: {
+          headerClassName: "min-w-[120px]",
+          cellClassName: "min-w-[120px] max-w-[220px]",
+        },
         cell: ({ row }) => (
-          <Text size="2" weight="medium">
+          <Text size="2" weight="medium" className="line-clamp-2">
             {row.getValue("title")}
           </Text>
         ),
@@ -181,6 +230,10 @@ export function TableView() {
       {
         accessorKey: "category",
         header: "Category",
+        meta: {
+          headerClassName: "w-[104px]",
+          cellClassName: "w-[104px]",
+        },
         cell: ({ row }) => (
           <Badge variant="soft" color="gray" size="1">
             {row.getValue("category")}
@@ -190,11 +243,17 @@ export function TableView() {
       {
         accessorKey: "tags",
         header: "Tags",
+        meta: {
+          headerClassName:
+            "w-[240px] min-w-[240px] max-w-[280px]",
+          cellClassName:
+            "w-[240px] min-w-[240px] max-w-[280px] align-top [&_.rt-Flex]:max-w-[260px]",
+        },
         cell: ({ row }) => {
           const tags = row.original.tags ?? [];
           const palette = row.original.colors ?? [];
           return (
-            <Flex gap="1" wrap="wrap">
+            <Flex gap="1" wrap="wrap" align="start" className="min-w-0">
               {tags.slice(0, 3).map((tag, index) => (
                 <Badge
                   key={tag}
@@ -222,43 +281,63 @@ export function TableView() {
         enableSorting: false,
       },
       {
+        accessorKey: "colors",
+        header: "Palette",
+        meta: {
+          headerClassName: "w-[124px] min-w-[124px] max-w-[124px]",
+          headerInnerClassName: "justify-end w-full min-w-0 pr-px",
+          cellClassName:
+            "w-[124px] min-w-[124px] max-w-[124px] align-top text-right",
+        },
+        cell: ({ row }) => {
+          const colors = row.original.colors ?? [];
+          if (!colors || colors.length === 0) {
+            return (
+              <Box className="flex w-full min-w-0 justify-end items-center min-h-[18px]">
+                <Text size="1" color="gray" className="tabular-nums">
+                  —
+                </Text>
+              </Box>
+            );
+          }
+          const sortedColors = sortColorsDarkToLight(colors);
+          return (
+            <Box
+              className="flex w-full min-w-0 justify-end"
+              title={sortedColors.join(", ")}
+            >
+              <Box className="inline-flex flex-nowrap gap-0.5 justify-end shrink-0">
+                {sortedColors.map((color, index) => (
+                  <Box
+                    key={index}
+                    className="w-[18px] h-[18px] min-w-[18px] rounded-sm border border-gray-6 shrink-0"
+                    style={getPaletteSwatchStyle(color)}
+                    title={color}
+                  />
+                ))}
+              </Box>
+            </Box>
+          );
+        },
+        enableSorting: false,
+      },
+      {
         accessorKey: "sref",
         header: "Sref",
+        meta: {
+          headerClassName: "w-[140px] min-w-[120px]",
+          cellClassName: "w-[140px] min-w-[120px] align-top",
+        },
         cell: ({ row }) => {
           const sref = row.original.sref;
           return sref ? (
-            <Badge variant="soft" color="blue" size="1">
+            <Badge variant="soft" color="blue" size="1" className="max-w-[132px] truncate inline-block align-top">
               {sref}
             </Badge>
           ) : (
             <Text size="1" color="gray">-</Text>
           );
         },
-      },
-      {
-        accessorKey: "colors",
-        header: "Colors",
-        cell: ({ row }) => {
-          const colors = row.original.colors ?? [];
-          if (!colors || colors.length === 0) {
-            return <Text size="1" color="gray">-</Text>;
-          }
-          // Sort colors dark to light for aesthetic gradient display
-          const sortedColors = sortColorsDarkToLight(colors);
-          return (
-            <Flex gap="1">
-              {sortedColors.map((color, index) => (
-                <Box
-                  key={index}
-                  className="w-4 h-4 rounded border"
-                  style={getPaletteSwatchStyle(color)}
-                  title={color}
-                />
-              ))}
-            </Flex>
-          );
-        },
-        enableSorting: false,
       },
       {
         accessorKey: "parentImageId",
@@ -491,8 +570,8 @@ export function TableView() {
       {/* Search and Filters */}
       <Card>
         <Box className="p-4">
-          <Flex gap="4" align="center" className="mb-4">
-            <Box className="flex-1">
+          <Flex gap="4" align="center" className="mb-4" wrap="wrap">
+            <Box className="flex-1 min-w-[200px]">
               <TextField.Root
                 placeholder="Search all columns..."
                 value={globalFilter}
@@ -504,6 +583,17 @@ export function TableView() {
                 </TextField.Slot>
               </TextField.Root>
             </Box>
+            <Button
+              type="button"
+              variant="soft"
+              color="gray"
+              size="1"
+              disabled={paletteBusy}
+              className={compactPillClass}
+              onClick={() => void handleRefreshPalettes()}
+            >
+              {paletteBusy ? "Scheduling…" : "Re-sample all palettes"}
+            </Button>
             <Text size="2" color="gray">
               {table.getFilteredRowModel().rows.length} of {images.length} images
             </Text>
@@ -634,13 +724,23 @@ export function TableView() {
       {/* Table */}
       <Card>
         <Box className="overflow-x-auto w-full min-w-0">
-          <Table.Root className="w-full">
+          <Table.Root className="w-full min-w-[1100px] table-fixed border-collapse">
             <Table.Header>
               {table.getHeaderGroups().map((headerGroup) => (
                 <Table.Row key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <Table.ColumnHeaderCell key={header.id}>
-                      <Flex align="center" gap="2">
+                    <Table.ColumnHeaderCell
+                      key={header.id}
+                      className={clsx(
+                        "align-top",
+                        header.column.columnDef.meta?.headerClassName
+                      )}
+                    >
+                      <Flex
+                        align="center"
+                        gap="2"
+                        className={header.column.columnDef.meta?.headerInnerClassName}
+                      >
                         <Box
                           className={
                             header.column.getCanSort()
@@ -677,7 +777,13 @@ export function TableView() {
               {table.getRowModel().rows.map((row) => (
                 <Table.Row key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <Table.Cell key={cell.id}>
+                    <Table.Cell
+                      key={cell.id}
+                      className={clsx(
+                        "align-top",
+                        cell.column.columnDef.meta?.cellClassName
+                      )}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </Table.Cell>
                   ))}

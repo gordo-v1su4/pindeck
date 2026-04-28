@@ -24,6 +24,8 @@ Rules:
 
 ## 2026-04-28
 
+- Table (pd): **Palette** column right-aligned + **Re-sample palettes** on [`src/components/pd/TableView.tsx`](src/components/pd/TableView.tsx) (this is the table wired in [`App.tsx`](src/App.tsx)); visual checkpoints in [`docs/browser-snapshots/`](docs/browser-snapshots/) vs reference [`pindeck-754f.vercel.app`](https://pindeck-754f.vercel.app/).
+- Colors: palette extraction is **dominance-first** (pixel share) with **Lab** separation ([`src/lib/colorPaletteCore.ts`](src/lib/colorPaletteCore.ts), [`convex/colorExtraction.ts`](convex/colorExtraction.ts)); sampling URL prefers **`imageUrl`** ([`convex/colorExtractionUrls.ts`](convex/colorExtractionUrls.ts)); legacy Radix [`src/components/TableView.tsx`](src/components/TableView.tsx) also has **Re-sample all palettes**; `reExtractAll` requires auth.
 - UI fix: accent Tweaks were ignored because `.pd-theme` re-declared `--pd-accent*` and shadowed `document.documentElement`; moved dynamic tokens to `:root`-only defaults + JS overrides ([`src/index.css`](src/index.css)).
 - Env: restored production Convex URLs in `.env.local` (`tremendous-jaguar-953`) so gallery/data load against real backend (was dev deployment from `convex dev --once`).
 - UI: dynamic accent inks (`src/lib/pdTheme.ts`), global Tweaks CSS on `documentElement`, sign-in uses `--pd-accent*` (parity with cloud redesign).

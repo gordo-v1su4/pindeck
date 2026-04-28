@@ -38,9 +38,20 @@ function paletteTagStyle(color: string): React.CSSProperties {
   };
 }
 
+/** Table sref IDs: default Pindeck blue `#3a7bff`, subdued to match tinted tag chips (neon, etc.). */
+function softBlueTagStyle(): React.CSSProperties {
+  return {
+    backgroundColor: "rgba(58, 123, 255, 0.075)",
+    color: "rgba(168, 188, 228, 0.78)",
+    borderColor: "rgba(58, 123, 255, 0.14)",
+  };
+}
+
 interface PinChipProps {
   children: React.ReactNode;
   color?: string;
+  /** Muted default blue for sref column — ignores `color`. */
+  tone?: "default" | "softBlue";
   variant?: "solid" | "outline";
   mono?: boolean;
   removable?: boolean;
@@ -52,6 +63,7 @@ interface PinChipProps {
 export function PinChip({
   children,
   color,
+  tone = "default",
   variant = "solid",
   mono = false,
   removable = false,
@@ -59,17 +71,29 @@ export function PinChip({
   onRemove,
   className = "",
 }: PinChipProps) {
-  const computed: React.CSSProperties = color
-    ? paletteTagStyle(color)
-    : {
-        background: "rgba(255,255,255,0.04)",
-        color: "rgba(238,240,242,0.78)",
-        borderColor: "transparent",
-      };
+  let computed: React.CSSProperties =
+    tone === "softBlue"
+      ? softBlueTagStyle()
+      : color
+        ? paletteTagStyle(color)
+        : {
+            background: "rgba(255,255,255,0.04)",
+            color: "rgba(238,240,242,0.78)",
+            borderColor: "transparent",
+          };
 
-  const border = variant === "outline"
-    ? { background: "transparent", borderColor: color ? paletteTagStyle(color).borderColor : "var(--pd-line-strong)" }
-    : {};
+  const border =
+    variant === "outline"
+      ? {
+          background: "transparent",
+          borderColor:
+            tone === "softBlue"
+              ? softBlueTagStyle().borderColor
+              : color
+                ? paletteTagStyle(color).borderColor
+                : "var(--pd-line-strong)",
+        }
+      : {};
 
   return (
     <span

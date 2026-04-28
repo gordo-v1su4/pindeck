@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as boards from "../boards.js";
 import type * as colorExtraction from "../colorExtraction.js";
 import type * as colorExtractionAdmin from "../colorExtractionAdmin.js";
+import type * as colorExtractionUrls from "../colorExtractionUrls.js";
 import type * as colorExtractionWrite from "../colorExtractionWrite.js";
 import type * as debug from "../debug.js";
 import type * as decks from "../decks.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   boards: typeof boards;
   colorExtraction: typeof colorExtraction;
   colorExtractionAdmin: typeof colorExtractionAdmin;
+  colorExtractionUrls: typeof colorExtractionUrls;
   colorExtractionWrite: typeof colorExtractionWrite;
   debug: typeof debug;
   decks: typeof decks;

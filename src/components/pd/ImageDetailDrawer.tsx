@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PinIcon, PinChip, PinBtn, PinSwatches, PinKV } from "@/components/ui/pindeck";
+import { PinIcon, PinChip, PinBtn, PinKV } from "@/components/ui/pindeck";
 import type { Tweaks } from "../TweaksPanel";
 
 interface ImageDetailDrawerProps {

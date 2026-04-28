@@ -3,6 +3,7 @@ import { httpAction, query, mutation, internalMutation, internalQuery } from "./
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
+import { preferredImageUrlForSampling } from "./colorExtractionUrls";
 const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
@@ -719,7 +720,8 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     (internalApi as any).colorExtraction.internalExtractAndStoreColors,
     {
       imageId,
-      imageUrl: persistedImage.derivativeUrls?.large || persistedImage.imageUrl,
+      imageUrl:
+        preferredImageUrlForSampling(persistedImage) ?? persistedImage.imageUrl,
     }
   );
 
@@ -1591,7 +1593,8 @@ export const approveImage = mutation({
         (internalApi as any).colorExtraction.internalExtractAndStoreColors,
         {
           imageId: image._id,
-          imageUrl: image.derivativeUrls?.large || image.imageUrl,
+          imageUrl:
+            preferredImageUrlForSampling(image) ?? image.imageUrl,
         }
       );
     }
@@ -2226,7 +2229,11 @@ export const internalSaveGeneratedImages = internalMutation({
         (internalApi as any).colorExtraction.internalExtractAndStoreColors,
         {
           imageId: childImageId,
-          imageUrl: img.derivativeUrls?.large || img.url,
+          imageUrl:
+            preferredImageUrlForSampling({
+              imageUrl: img.url,
+              derivativeUrls: img.derivativeUrls,
+            }) ?? img.url,
         }
       );
 

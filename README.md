@@ -196,6 +196,7 @@ Use Vercel for frontend deployment. Pushing to `main` on GitHub triggers the Ver
 
 ## Notes
 
+- **Image palette / swatches:** Stored `colors` are **average RGB per quantized cluster** (not lattice corners), Lab-space dedup + warm‑scene magenta/purple suppression (`src/lib/colorPaletteCore.ts`). Server prefers **`imageUrl`** (`convex/colorExtractionUrls.ts`). After changing extraction logic deploy Convex, then Table **“Re-sample palettes”** → wait for scheduled actions → reload.
 - Do not use `convex dev` when targeting production.
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
 - Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.

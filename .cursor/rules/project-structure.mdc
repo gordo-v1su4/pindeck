@@ -43,6 +43,7 @@ Key files:
 - `schema.ts`: tables/indexes (`images`, `profiles`, `importBatches`, boards/decks/storyboards, etc.)
 - `images.ts`: CRUD, ingest HTTP routes, queue/moderation logic, generated-image save, metadata updates
 - `vision.ts`: analysis + variation generation flow and prompt planning
+- `colorExtraction.ts` + `colorExtractionUrls.ts` + `colorExtractionAdmin.ts` / `colorExtractionWrite.ts`: dominant image swatches (`images.colors`) via sharp + [colorPaletteCore](mdc:src/lib/colorPaletteCore.ts); admin mutations require auth (`reExtractAll` / `reExtractForImage`)
 - `discordNotifications.ts`: webhook status events to Discord channel
 - `http.ts`: public HTTP routes (`/ingestExternal`, `/discordQueue`, `/discordModerate`, `/smartAnalyzeImage`)
 - `boards.ts`, `generations.ts`, `decks.ts`, `storyboards.ts`: output/organization features
