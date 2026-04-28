@@ -13,6 +13,13 @@ import { BoardsView } from "@/components/pd/BoardsView";
 import { ImageDetailDrawer } from "@/components/pd/ImageDetailDrawer";
 import type { Id } from "../convex/_generated/dataModel";
 import { applyPindeckTweaksToDocument } from "@/lib/pdTheme";
+import {
+  LibraryAggregationChipWrap,
+  LibraryAggregationFacetChip,
+  LibraryAggregationSectionHeading,
+  LibraryAggregationTypeColumn,
+  LibraryAggregationTypeRowButton,
+} from "@/components/pd/LibraryAggregationFilterParts";
 
 const ImageUploadForm = lazy(() =>
   import("@/components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
@@ -331,22 +338,6 @@ function SidebarLibraryAggregationBody({
 }) {
   const aggregations = useQuery(api.images.libraryAggregations);
 
-  const sectionLabel = (text: string) => (
-    <div
-      className="pd-mono"
-      style={{
-        fontSize: 10,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: "var(--pd-ink-faint)",
-        marginBottom: 8,
-        marginTop: 4,
-      }}
-    >
-      {text}
-    </div>
-  );
-
   return (
     <>
       {aggregations === undefined && (
@@ -354,119 +345,74 @@ function SidebarLibraryAggregationBody({
       )}
       {aggregations !== undefined && aggregations.byGroup.length > 0 && (
         <>
-          {sectionLabel("Type")}
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
+          <LibraryAggregationSectionHeading>Type</LibraryAggregationSectionHeading>
+          <LibraryAggregationTypeColumn>
             {aggregations.byGroup.slice(0, 16).map((row) => {
               const value = row.value;
               const label = value ? value : "Unassigned";
               const selected = libraryFilter.group !== null && libraryFilter.group === value;
               return (
-                <button
+                <LibraryAggregationTypeRowButton
                   key={`g-${value || "empty"}`}
-                  type="button"
-                  onClick={() =>
+                  label={label}
+                  count={row.count}
+                  selected={selected}
+                  onToggle={() =>
                     setLibraryFilter((f) => ({
                       ...f,
                       group: f.group === value ? null : value,
                     }))
                   }
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    padding: "4px 6px",
-                    borderRadius: 4,
-                    border: "1px solid transparent",
-                    background: selected ? "rgba(58,123,255,0.12)" : "transparent",
-                    color: selected ? "var(--pd-ink)" : "var(--pd-ink-dim)",
-                    fontSize: 11.5,
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {label}
-                  </span>
-                  <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", flexShrink: 0 }}>
-                    {row.count}
-                  </span>
-                </button>
+                />
               );
             })}
-          </div>
+          </LibraryAggregationTypeColumn>
         </>
       )}
       {aggregations !== undefined && aggregations.byGenre.length > 0 && (
         <>
-          {sectionLabel("Genre")}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+          <LibraryAggregationSectionHeading>Genre</LibraryAggregationSectionHeading>
+          <LibraryAggregationChipWrap>
             {aggregations.byGenre.slice(0, 16).map((row) => {
               const selected = libraryFilter.genre === row.value;
               return (
-                <button
+                <LibraryAggregationFacetChip
                   key={`genre-${row.value}`}
-                  type="button"
-                  onClick={() =>
+                  label={row.value}
+                  selected={selected}
+                  onToggle={() =>
                     setLibraryFilter((f) => ({
                       ...f,
                       genre: f.genre === row.value ? null : row.value,
                     }))
                   }
-                  style={{
-                    padding: "3px 7px",
-                    borderRadius: 3,
-                    fontSize: 10.5,
-                    border: selected ? "1px solid rgba(58,123,255,0.45)" : "1px solid var(--pd-line-strong)",
-                    background: selected ? "rgba(58,123,255,0.08)" : "transparent",
-                    color: "var(--pd-ink-dim)",
-                    cursor: "pointer",
-                    maxWidth: "100%",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {row.value}
-                </button>
+                />
               );
             })}
-          </div>
+          </LibraryAggregationChipWrap>
         </>
       )}
       {aggregations !== undefined && aggregations.byStyle.length > 0 && (
         <>
-          {sectionLabel("Style / medium")}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+          <LibraryAggregationSectionHeading>Style / medium</LibraryAggregationSectionHeading>
+          <LibraryAggregationChipWrap>
             {aggregations.byStyle.slice(0, 14).map((row) => {
               const selected = libraryFilter.style === row.value;
               return (
-                <button
+                <LibraryAggregationFacetChip
                   key={`style-${row.value}`}
-                  type="button"
-                  onClick={() =>
+                  label={row.value}
+                  selected={selected}
+                  onToggle={() =>
                     setLibraryFilter((f) => ({
                       ...f,
                       style: f.style === row.value ? null : row.value,
                     }))
                   }
-                  style={{
-                    padding: "3px 7px",
-                    borderRadius: 3,
-                    fontSize: 10.5,
-                    border: selected ? "1px solid rgba(58,123,255,0.45)" : "1px solid var(--pd-line-strong)",
-                    background: selected ? "rgba(58,123,255,0.08)" : "transparent",
-                    color: "var(--pd-ink-dim)",
-                    cursor: "pointer",
-                    maxWidth: "100%",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {row.value}
-                </button>
+                />
               );
             })}
-          </div>
+          </LibraryAggregationChipWrap>
         </>
       )}
       <SidebarFilterControls libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
