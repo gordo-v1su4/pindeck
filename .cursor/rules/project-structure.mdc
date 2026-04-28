@@ -20,8 +20,10 @@ Current behavior highlights:
 - Discord imports are queued (`pending`) and manually approved/denied.
 - Discord-origin generated children are also queued and keep lineage (`parentImageId`) and `sref`.
 - Upload flow separates pending/processing/draft/active states.
-- Gallery has a view toggle plus Sref-only toggle.
-- Table view has advanced filters, parent navigation, original-only and Sref-only toggles.
+- Sidebar (**Type / Genre / Style** + originals / sref filters) shares filter state with Gallery + Table via [`src/lib/libraryFilters.ts`](src/lib/libraryFilters.ts); aggregations from [`api.images.libraryAggregations`](convex/images.ts).
+- VLM smart analysis fills `group`, `genre`, `shot`, `style` on `images` (see `convex/vision.ts`); Table **Backfill metadata** runs `enqueueCinematicMetadataBackfill` for the signed-in user’s uploads.
+- **pd Gallery** ([`GalleryView`](src/components/pd/GalleryView.tsx)): sidebar filters + library state; tiles are image-first (VAR badge for children); hover **like** + **bookmark → board** (same `boards.addImage` flow as legacy [`ImageGrid`](src/components/ImageGrid.tsx)); variation/generate in drawer, not on the card. **Create New Board** (`CreateBoardModal`) is a **`Dialog`** with **pd-theme** styling (not Radix Themes form controls).
+- Table view has advanced filters, parent navigation, original-only and Sref-only toggles (pd Table is the one in `App.tsx`; legacy Radix `TableView` may differ).
 
 ## Root Structure
 

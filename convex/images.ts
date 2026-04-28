@@ -243,6 +243,125 @@ export const list = query({
   },
 });
 
+const aggregationEntry = v.object({ value: v.string(), count: v.number() });
+
+/** Counts for sidebar TYPE / GENRE / STYLE (same scope as `list`: active or undefined status). */
+export const libraryAggregations = query({
+  args: {},
+  returns: v.object({
+    total: v.number(),
+    byGroup: v.array(aggregationEntry),
+    byGenre: v.array(aggregationEntry),
+    byStyle: v.array(aggregationEntry),
+  }),
+  handler: async (ctx) => {
+    const all = await ctx.db.query("images").collect();
+    const images = all.filter(
+      (img) => img.status === "active" || img.status === undefined
+    );
+    const bump = (m: Map<string, number>, raw: string | undefined) => {
+      const key = raw?.trim() ? raw.trim() : "";
+      m.set(key, (m.get(key) ?? 0) + 1);
+    };
+    const genres = new Map<string, number>();
+    const styles = new Map<string, number>();
+    const groups = new Map<string, number>();
+
+    for (const img of images) {
+      bump(groups, img.group);
+      if (img.genre?.trim()) {
+        const g = img.genre.trim();
+        genres.set(g, (genres.get(g) ?? 0) + 1);
+      }
+      if (img.style?.trim()) {
+        const s = img.style.trim();
+        styles.set(s, (styles.get(s) ?? 0) + 1);
+      }
+    }
+
+    const sortCounts = (m: Map<string, number>) =>
+      Array.from(m.entries())
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+
+    return {
+      total: images.length,
+      byGroup: sortCounts(groups),
+      byGenre: sortCounts(genres),
+      byStyle: sortCounts(styles),
+    };
+  },
+});
+
+/** Schedule VLM re-analysis for current user's images (fills group, genre, shot, style). */
+export const enqueueCinematicMetadataBackfill = mutation({
+  args: {
+    onlyMissing: v.optional(v.boolean()),
+    staggerMs: v.optional(v.number()),
+    forceAll: v.optional(v.boolean()),
+  },
+  returns: v.object({ scheduled: v.number(), skipped: v.number() }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const stagger = Math.max(500, args.staggerMs ?? 4500);
+    const onlyMissing = args.forceAll !== true && (args.onlyMissing !== false);
+
+    const mine = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .collect();
+
+    const targets = onlyMissing
+      ? mine.filter((img) => {
+          const g = img.genre?.trim();
+          const sh = img.shot?.trim();
+          const sty = img.style?.trim();
+          const grp = img.group?.trim();
+          return !(g && sh && sty && grp);
+        })
+      : mine;
+
+    let delay = 0;
+    let scheduled = 0;
+    let skipped = 0;
+
+    for (const img of targets) {
+      const sourceStorageId = img.storageId;
+      const sourceImageUrl = img.imageUrl;
+      if (!sourceStorageId && !sourceImageUrl) {
+        skipped += 1;
+        continue;
+      }
+
+      await ctx.scheduler.runAfter(delay, internal.vision.internalSmartAnalyzeImage, {
+        storageId: sourceStorageId,
+        imageUrl: sourceImageUrl,
+        imageId: img._id,
+        userId,
+        title: img.title,
+        description: img.description || "",
+        tags: img.tags,
+        category: img.category,
+        source: img.source,
+        sref: img.sref,
+        group: img.group,
+        projectName: img.projectName,
+        moodboardName: img.moodboardName,
+        variationCount: 0,
+        modificationMode: img.modificationMode ?? "shot-variation",
+        variationType: img.variationType,
+        variationDetail: img.variationDetail,
+      });
+      delay += stagger;
+      scheduled += 1;
+    }
+
+    return { scheduled, skipped };
+  },
+});
+
 export const search = query({
   args: {
     searchTerm: v.string(),
@@ -1715,6 +1834,9 @@ export const internalUpdateAnalysis = internalMutation({
     category: v.optional(v.string()),
     aiStatus: v.optional(v.string()),
     group: v.optional(v.string()),
+    genre: v.optional(v.string()),
+    style: v.optional(v.string()),
+    shot: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
     sref: v.optional(v.string()),
@@ -1740,6 +1862,9 @@ export const internalUpdateAnalysis = internalMutation({
     if (args.category) patch.category = args.category;
     if (args.aiStatus) patch.aiStatus = args.aiStatus;
     if (args.group !== undefined) patch.group = args.group;
+    if (args.genre !== undefined) patch.genre = args.genre;
+    if (args.style !== undefined) patch.style = args.style;
+    if (args.shot !== undefined) patch.shot = args.shot;
     if (args.projectName !== undefined) patch.projectName = args.projectName;
     else if (shouldSyncProjectName && args.title) patch.projectName = args.title;
     if (args.moodboardName !== undefined) patch.moodboardName = args.moodboardName;

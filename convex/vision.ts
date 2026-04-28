@@ -96,11 +96,32 @@ const VISION_ANALYSIS_KEYS = [
   "category",
   "visual_style",
   "group",
+  "genre",
+  "shot",
+  "shot_framing",
   "project_name",
   "projectName",
   "moodboard_name",
   "moodboardName",
 ] as const;
+
+function normVisionString(value: string | undefined): string | undefined {
+  const t = value?.trim();
+  return t ? t : undefined;
+}
+
+function canonGenre(value: string | undefined): string | undefined {
+  const x = normVisionString(value);
+  if (!x) return undefined;
+  const key = x.toLowerCase().replace(/\./g, "").replace(/\s+/g, " ").trim();
+  if (key === "documentary" || key === "doc") return "Doc";
+  if (key === "sci fi" || key === "sci-fi" || key === "scifi") return "Sci-Fi";
+  return x;
+}
+
+function canonShot(value: string | undefined): string | undefined {
+  return normVisionString(value);
+}
 
 function extractMessageText(content: unknown): string {
   if (typeof content === "string") return content;
@@ -623,7 +644,18 @@ export const internalSmartAnalyzeImage = internalAction({
     ];
 
     try {
-      const prompt = `Analyze this image. Return JSON with: "title" (short catchy), "description" (concise), "tags" (5-10 specific descriptive tags), "colors" (5 hex codes), "category" (one of: ${categories.join(", ")}), "visual_style" (e.g., '35mm Film', 'CGI'), "group" ("Commercial"/"Film"/"Moodboard"/"Spec Commercial"/"Spec Music Video"/"Music Video"/"TV Series"/"Web Series"/"Video Game Cinematic" or null), "project_name" (if recognizable, else null), "moodboard_name" (if reference image, else null). Return ONLY valid JSON.`;
+      const prompt = `Analyze this image. Return ONLY valid JSON with:
+"title" (short catchy),
+"description" (concise),
+"tags" (5-10 specific descriptive tags),
+"colors" (array of 5 hex codes like #RRGGBB),
+"category" (one of: ${categories.join(", ")}),
+"group" (production TYPE — pick one: Commercial, Film, Music Video, Editorial, Moodboard, Spec Commercial, Spec Music Video, TV Series, Web Series, Video Game Cinematic — or null),
+"genre" (one primary genre: Noir, Sci-Fi, Drama, Horror, Romance, Action, Doc — use Doc for documentary — or null),
+"shot" (one concise cinematography framing label, Title Case — e.g. Over-the-Shoulder, Extreme Wide Shot, Medium Shot, Close-Up, Bird's Eye, Low Angle — best match for framing),
+"visual_style" (capture/medium — one short label like 35mm Film, 16mm, VHS, Digital, Polaroid, Super 8, IMAX, or CGI),
+"project_name" (if recognizable IP/title, else null),
+"moodboard_name" (if this is primarily a reference/moodboard plate, else null).`;
 
       const openai = new OpenAI({
         baseURL: "https://openrouter.ai/api/v1",
@@ -668,6 +700,8 @@ export const internalSmartAnalyzeImage = internalAction({
       let category: string | undefined;
       let visual_style: string | undefined;
       let group: string | undefined;
+      let genre: string | undefined;
+      let shot: string | undefined;
       let project_name: string | undefined;
       let moodboard_name: string | undefined;
 
@@ -683,6 +717,11 @@ export const internalSmartAnalyzeImage = internalAction({
           category = readString(parsed.category);
           visual_style = readString(parsed.visual_style);
           group = readString(parsed.group) || undefined;
+          genre = canonGenre(readString(parsed.genre));
+          shot = canonShot(
+            readString(parsed.shot) ??
+              readString(parsed.shot_framing),
+          );
           project_name =
             readString(parsed.project_name) ||
             readString(parsed.projectName) ||
@@ -700,6 +739,8 @@ export const internalSmartAnalyzeImage = internalAction({
           category = extractQuotedField(cleanContent, "category");
           visual_style = extractQuotedField(cleanContent, "visual_style");
           group = extractQuotedField(cleanContent, "group") || undefined;
+          genre = canonGenre(extractQuotedField(cleanContent, "genre"));
+          shot = canonShot(extractQuotedField(cleanContent, "shot"));
           project_name =
             extractQuotedField(cleanContent, "project_name") ||
             extractQuotedField(cleanContent, "projectName") ||
@@ -721,6 +762,9 @@ export const internalSmartAnalyzeImage = internalAction({
         colors,
         category,
         group,
+        genre,
+        style: normVisionString(visual_style),
+        shot,
         projectName: project_name ?? args.projectName,
         moodboardName: moodboard_name ?? args.moodboardName,
         sref: args.sref,

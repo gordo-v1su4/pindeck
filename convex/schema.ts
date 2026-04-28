@@ -23,6 +23,7 @@ const applicationTables = {
     group: v.optional(v.string()), // e.g., "Commercial", "Film", "Moodboard"
     genre: v.optional(v.string()), // e.g., "Noir", "Sci-Fi", "Drama", "Horror"
     style: v.optional(v.string()), // e.g., "35mm Film", "16mm", "VHS", "Digital"
+    shot: v.optional(v.string()), // e.g., "Medium Shot", "OTS", "Extreme Wide"
     projectName: v.optional(v.string()), // e.g., "Kitty Bite Back" (the actual project/movie/music video name)
     projectOrder: v.optional(v.number()), // order within same projectName (for project-rows drag-and-drop)
     moodboardName: v.optional(v.string()), // e.g., "pink girl smoking" (moodboard/reference name)
@@ -78,6 +79,7 @@ const applicationTables = {
     .index("by_group", ["group"])
     .index("by_genre", ["genre"])
     .index("by_style", ["style"])
+    .index("by_shot", ["shot"])
     .index("by_project_name", ["projectName"])
     .index("by_unique_id", ["uniqueId"])
     .index("by_parent", ["parentImageId"])

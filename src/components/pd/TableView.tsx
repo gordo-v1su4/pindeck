@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
+import type { LibraryFilters } from "@/lib/libraryFilters";
+import { applyLibraryFilters } from "@/lib/libraryFilters";
 import { toast } from "sonner";
 
 /** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
@@ -23,12 +25,15 @@ function parseSrefIds(raw: string | undefined): string[] {
 interface TableViewProps {
   search: string;
   onOpenImage: (img: any) => void;
+  libraryFilter: LibraryFilters;
 }
 
-export function TableView({ search, onOpenImage }: TableViewProps) {
+export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
   const images = useQuery(api.images.list, { limit: 1000 });
   const reExtractPalettes = useMutation(api.colorExtractionAdmin.reExtractAll);
+  const enqueueMetadataBackfill = useMutation(api.images.enqueueCinematicMetadataBackfill);
   const [paletteBusy, setPaletteBusy] = useState(false);
+  const [metaBusy, setMetaBusy] = useState(false);
   const [sort, setSort] = useState<{ by: string; dir: "asc" | "desc" }>({ by: "title", dir: "asc" });
 
   const handleRefreshPalettes = useCallback(async () => {
@@ -51,9 +56,30 @@ export function TableView({ search, onOpenImage }: TableViewProps) {
     }
   }, [reExtractPalettes]);
 
+  const handleBackfillMetadata = useCallback(async () => {
+    if (
+      !confirm(
+        "Schedule AI metadata backfill for your uploads (TYPE, Genre, Shot, Style)? " +
+          "Runs on the server with a few seconds between images. Reload later to see new columns.",
+      )
+    ) {
+      return;
+    }
+    setMetaBusy(true);
+    try {
+      const r = await enqueueMetadataBackfill({ onlyMissing: true });
+      toast.success(`Scheduled metadata analysis for ${r.scheduled} image(s). (${r.skipped} skipped — no URL.)`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not schedule backfill (sign in / deploy Convex).");
+    } finally {
+      setMetaBusy(false);
+    }
+  }, [enqueueMetadataBackfill]);
+
   const filtered = useMemo(() => {
     if (!images) return [];
-    let data = [...images];
+    let data = applyLibraryFilters([...images], libraryFilter);
     if (search) {
       const q = search.toLowerCase();
       data = data.filter((im) =>
@@ -71,7 +97,7 @@ export function TableView({ search, onOpenImage }: TableViewProps) {
       return 0;
     });
     return data;
-  }, [images, search, sort]);
+  }, [images, libraryFilter, search, sort]);
 
   const headerCell = (label: string, key: string, w?: number) => (
     <th
@@ -116,6 +142,29 @@ export function TableView({ search, onOpenImage }: TableViewProps) {
           background: "var(--pd-bg-1)",
         }}
       >
+        <button
+          type="button"
+          disabled={metaBusy}
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleBackfillMetadata();
+          }}
+          className="pd-mono"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            padding: "6px 10px",
+            borderRadius: 4,
+            border: "1px solid var(--pd-line-strong)",
+            background: "rgba(255,255,255,0.04)",
+            color: "var(--pd-ink-dim)",
+            cursor: metaBusy ? "wait" : "pointer",
+            opacity: metaBusy ? 0.6 : 1,
+          }}
+        >
+          {metaBusy ? "Scheduling…" : "Backfill metadata"}
+        </button>
         <button
           type="button"
           disabled={paletteBusy}

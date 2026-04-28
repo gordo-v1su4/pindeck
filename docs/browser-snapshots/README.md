@@ -9,6 +9,7 @@ Captured from **Cursor IDE browser MCP** (`browser_take_screenshot`). Files are 
 | `2026-04-28-local-pindeck-table.png` | **Local baseline:** Table + **Re-sample palettes**, live Convex **`images.colors`** before centroid pipeline fully shipped. |
 | `2026-04-28-local-table-after-centroid-tags.png` | **Local after UI/server code changes:** SREF **`PinChip` tags**, **`PinSwatches`** hex normalization + 5-slot padding; screenshot still shows **legacy stored palette** values until Convex is deployed **and** **Re-sample palettes** completes. |
 | `2026-04-28-reference-vercel-pindeck-754f.png` | **Reference prototype:** **`https://pindeck-754f.vercel.app/`** — TMP / unified-ui static deploy (see [`HANDOFF.md`](../../HANDOFF.md)). |
+| `pindeck-gallery-hover-check.png` | **Local Gallery (vite preview `:4173`):** checkpoint after **[pd]** tile chrome work — smaller like/bookmark (hover/focus), softer **VAR** chip; headless hover may not show controls in a static PNG—verify hover in a real browser. |
 
 **Interpretation checklist (don’t confuse code vs data):**
 

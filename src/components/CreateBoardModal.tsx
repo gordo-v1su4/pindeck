@@ -1,19 +1,43 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Button, TextField, Text, Box, Flex, Badge } from "@radix-ui/themes";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 import { UploadIcon, Cross2Icon } from "@radix-ui/react-icons";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { PinIcon } from "@/components/ui/pindeck";
+
+/** Shared field chrome — matches [`ImageDetailDrawer`](src/components/pd/ImageDetailDrawer.tsx) inputs. */
+const fieldShell: React.CSSProperties = {
+  width: "100%",
+  height: 32,
+  padding: "0 10px",
+  background: "rgba(255,255,255,0.025)",
+  color: "var(--pd-ink)",
+  border: "1px solid var(--pd-line-strong)",
+  borderRadius: 4,
+  fontSize: 12,
+  outline: "none",
+};
+
+const labelUpper: React.CSSProperties = {
+  fontSize: 10,
+  letterSpacing: "0.06em",
+  color: "var(--pd-ink-faint)",
+  textTransform: "uppercase",
+  display: "block",
+  marginBottom: 6,
+  fontFamily: 'var(--pd-font-mono, ui-monospace, monospace)',
+};
 
 interface CreateBoardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  imageId?: Id<"images">; // Optional image to add to the board when created
+  imageId?: Id<"images">;
   setActiveTab: (tab: string) => void;
   incrementBoardVersion: () => void;
-  allowUpload?: boolean; // Whether to show image upload option
+  allowUpload?: boolean;
 }
 
 export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, incrementBoardVersion, allowUpload = false }: CreateBoardModalProps) {
@@ -21,6 +45,8 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
   const addImageToBoard = useMutation(api.boards.addImage);
   const generateUploadUrl = useMutation(api.images.generateUploadUrl);
   const uploadMultiple = useMutation(api.images.uploadMultiple);
+
+  /** Maps to Convex `boards.create`: name (required), description?, isPublic? — see convex/boards.ts */
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -29,7 +55,6 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
   const [uploadProgress, setUploadProgress] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset form when modal closes
   useEffect(() => {
     if (!open) {
       setName("");
@@ -43,52 +68,42 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setSelectedFiles(prev => [...prev, ...files]);
+    setSelectedFiles((prev) => [...prev, ...files]);
   };
 
   const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    const n = name.trim();
+    if (!n) return;
 
-    console.log("Submitting new board...");
     setSubmitting(true);
     try {
-      console.log("Calling createBoard mutation with:", { name, description, isPublic });
       const boardId = await createBoard({
-        name: name.trim(),
+        name: n,
         description: description.trim() || undefined,
         isPublic,
       });
-      console.log("createBoard mutation successful, boardId:", boardId);
 
-      // If imageId is provided, automatically add the image to the new board
       if (imageId) {
-        console.log("imageId found, calling addImageToBoard mutation with:", { boardId, imageId });
         try {
-          await addImageToBoard({
-            boardId,
-            imageId,
-          });
-          console.log("addImageToBoard mutation successful");
-          toast.success(`Board "${name.trim()}" created and image saved!`);
-        } catch (addError: any) {
-          console.error("Failed to add image to board:", addError);
-          if (addError.message?.includes("already in board")) {
-            toast.success(`Board "${name.trim()}" created!`);
+          await addImageToBoard({ boardId, imageId });
+          toast.success(`Board "${n}" created and image saved!`);
+        } catch (addError: unknown) {
+          const msg = addError instanceof Error ? addError.message : "";
+          if (msg.includes("already in board")) {
+            toast.success(`Board "${n}" created!`);
           } else {
-            console.error("Detailed error adding image to board:", addError);
-            toast.success(`Board "${name.trim()}" created, but failed to add image`);
+            toast.success(`Board "${n}" created, but failed to add image`);
           }
         }
       } else if (selectedFiles.length > 0) {
-        // Upload selected files and add to board
         setUploadProgress(`Uploading 0/${selectedFiles.length}...`);
 
-        const uploadPayload: Array<any> = [];
+        const uploadPayload: Array<Record<string, unknown>> = [];
         let stagedCount = 0;
         for (const file of selectedFiles) {
           try {
@@ -126,7 +141,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
         }
 
         const imageIds =
-          uploadPayload.length > 0 ? await uploadMultiple({ uploads: uploadPayload }) : [];
+          uploadPayload.length > 0 ? await uploadMultiple({ uploads: uploadPayload as any }) : [];
 
         let uploadedCount = 0;
         for (const newImageId of imageIds) {
@@ -138,13 +153,11 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
           }
         }
 
-        toast.success(`Board "${name.trim()}" created with ${uploadedCount} images!`);
+        toast.success(`Board "${n}" created with ${uploadedCount} images!`);
       } else {
-        console.log("No imageId or files provided");
         toast.success("Board created successfully!");
       }
 
-      console.log("Resetting form and closing modal");
       setName("");
       setDescription("");
       setIsPublic(false);
@@ -157,124 +170,275 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
       console.error("Failed to create board:", error);
       toast.error("Failed to create board");
     } finally {
-      console.log("Submission process finished");
       setSubmitting(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(95vw,36rem)] max-w-[36rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/80 p-6 text-white supports-backdrop-filter:backdrop-blur-xl">
-        <DialogTitle className="text-xl font-semibold text-white">Create New Board</DialogTitle>
-        <DialogDescription className="mb-5 text-white/65">
-          Create a new board to organize your favorite images.
-        </DialogDescription>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <Box>
-            <Text size="2" weight="medium" className="mb-2 block">
-              Board Name *
-            </Text>
-            <TextField.Root
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., My Inspiration Board"
-              required
-              size="2"
-            />
-          </Box>
-
-          <Box>
-            <Text size="2" weight="medium" className="mb-2 block">
-              Description
-            </Text>
-            <TextField.Root
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description..."
-              size="2"
-            />
-          </Box>
-
-          <Box>
-            <Flex align="center" gap="2">
-              <input
-                type="checkbox"
-                id="isPublic"
-                checked={isPublic}
-                onChange={(e) => setIsPublic(e.target.checked)}
-                className="rounded"
-              />
-              <Text size="2" as="label" htmlFor="isPublic" className="cursor-pointer">
-                Make this board public
-              </Text>
-            </Flex>
-          </Box>
-
-          {/* Image upload section - only shown when allowUpload is true and no existing imageId */}
-          {allowUpload && !imageId && (
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
-                Add Images (optional)
-              </Text>
-              <Box
-                className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                onClick={() => fileInputRef.current?.click()}
+      <DialogContent
+        showCloseButton={false}
+        className={cn(
+          "overflow-hidden !gap-0 !rounded-[var(--pd-radius-sm,6px)] !p-0 !shadow-[var(--pd-shadow-deep)] sm:!max-w-[min(36rem,95vw)]",
+          "!flex !max-h-[min(88vh,900px)] !w-[min(95vw,36rem)] !max-w-[36rem] !flex-col !border",
+        )}
+        style={{
+          borderColor: "var(--pd-line-strong)",
+          background: "var(--pd-panel)",
+          color: "var(--pd-ink)",
+        }}
+      >
+        <div className="pd-theme" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+          <header
+            style={{
+              flexShrink: 0,
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              padding: "14px 16px 12px",
+              borderBottom: "1px solid var(--pd-line)",
+              background: "var(--pd-panel)",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <DialogTitle
+                className="font-semibold tracking-tight"
+                style={{
+                  margin: 0,
+                  fontSize: 14,
+                  color: "var(--pd-ink)",
+                  lineHeight: 1.35,
+                  fontFamily: "var(--pd-font-display, inherit)",
+                }}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <UploadIcon width="24" height="24" className="mx-auto mb-2 text-gray-400" />
-                <Text size="2" color="gray">
-                  Click to select images or drag and drop
-                </Text>
-              </Box>
+                Create New Board
+              </DialogTitle>
+              <DialogDescription style={{ margin: "6px 0 0", fontSize: 12, lineHeight: 1.45, color: "var(--pd-ink-mute)" }}>
+                Create a new board to organize your favorite images.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => onOpenChange(false)}
+              style={{
+                flexShrink: 0,
+                width: 28,
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 4,
+                border: "1px solid var(--pd-line)",
+                background: "transparent",
+                color: "var(--pd-ink-dim)",
+                cursor: "pointer",
+              }}
+            >
+              <PinIcon name="close" size={12} />
+            </button>
+          </header>
 
-              {/* Selected files preview */}
-              {selectedFiles.length > 0 && (
-                <Box className="mt-3">
-                  <Flex gap="2" wrap="wrap">
-                    {selectedFiles.map((file, index) => (
-                      <Badge key={index} variant="soft" color="gray" size="1" className="pr-1">
-                        <Flex align="center" gap="1">
-                          <Text size="1" className="max-w-24 truncate">{file.name}</Text>
-                          <Cross2Icon
-                            className="cursor-pointer hover:text-red-500"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeFile(index);
-                            }}
-                          />
-                        </Flex>
-                      </Badge>
-                    ))}
-                  </Flex>
-                  <Text size="1" color="gray" className="mt-2">
-                    {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
-                  </Text>
-                </Box>
-              )}
+          <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+            <div className="pd-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 16px 12px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label htmlFor="create-board-name" className="pd-mono" style={labelUpper}>
+                    Board Name <span style={{ color: "var(--pd-red)" }}>*</span>
+                  </label>
+                  <input
+                    id="create-board-name"
+                    name="boardName"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g., My Inspiration Board"
+                    autoComplete="off"
+                    style={fieldShell}
+                  />
+                </div>
 
-              {uploadProgress && (
-                <Text size="2" color="blue" className="mt-2">{uploadProgress}</Text>
-              )}
-            </Box>
-          )}
+                <div>
+                  <label htmlFor="create-board-desc" className="pd-mono" style={labelUpper}>
+                    Description
+                  </label>
+                  <textarea
+                    id="create-board-desc"
+                    name="boardDescription"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Optional description…"
+                    rows={3}
+                    style={{
+                      ...fieldShell,
+                      height: "auto",
+                      minHeight: 72,
+                      paddingTop: 8,
+                      paddingBottom: 8,
+                      resize: "vertical",
+                    }}
+                  />
+                </div>
 
-          <Flex gap="3" mt="6" justify="end">
-            <Button type="button" variant="soft" color="gray" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="solid" disabled={submitting || !name.trim()}>
-              {submitting ? (uploadProgress || "Creating...") : "Create Board"}
-            </Button>
-          </Flex>
-        </form>
+                <label
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-start",
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isPublic}
+                    onChange={(e) => setIsPublic(e.target.checked)}
+                    style={{
+                      width: 16,
+                      height: 16,
+                      marginTop: 2,
+                      flexShrink: 0,
+                      cursor: "pointer",
+                      accentColor: "var(--pd-accent)",
+                    }}
+                  />
+                  <span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--pd-ink)" }}>
+                      Make this board public
+                    </span>
+                    <span style={{ display: "block", marginTop: 4, fontSize: 11, color: "var(--pd-ink-faint)", lineHeight: 1.4 }}>
+                      Visible to others when shared; you can change this later.
+                    </span>
+                  </span>
+                </label>
+
+                {allowUpload && !imageId && (
+                  <div>
+                    <span className="pd-mono" style={labelUpper}>
+                      Add Images (optional)
+                    </span>
+                    <button
+                      type="button"
+                      style={{
+                        width: "100%",
+                        cursor: "pointer",
+                        borderRadius: 6,
+                        border: "2px dashed var(--pd-line-strong)",
+                        padding: 16,
+                        textAlign: "center",
+                        background: "transparent",
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <UploadIcon width={22} height={22} style={{ margin: "0 auto 8px", display: "block", color: "var(--pd-ink-mute)" }} />
+                      <span style={{ fontSize: 12, color: "var(--pd-ink-mute)" }}>Click to select images</span>
+                    </button>
+
+                    {selectedFiles.length > 0 && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {selectedFiles.map((file, index) => (
+                            <span
+                              key={`${file.name}-${index}`}
+                              className="pd-mono"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 10,
+                                padding: "4px 8px",
+                                borderRadius: 4,
+                                border: "1px solid var(--pd-line)",
+                                background: "var(--pd-bg-2)",
+                                maxWidth: "100%",
+                              }}
+                            >
+                              <span className="truncate" style={{ maxWidth: 140 }}>{file.name}</span>
+                              <Cross2Icon
+                                width={14}
+                                height={14}
+                                style={{ cursor: "pointer", flexShrink: 0, color: "var(--pd-ink-dim)" }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  removeFile(index);
+                                }}
+                              />
+                            </span>
+                          ))}
+                        </div>
+                        <span style={{ display: "block", marginTop: 8, fontSize: 10, color: "var(--pd-ink-faint)" }}>
+                          {selectedFiles.length} file{selectedFiles.length !== 1 ? "s" : ""} selected
+                        </span>
+                      </div>
+                    )}
+
+                    {uploadProgress ? (
+                      <span style={{ display: "block", marginTop: 10, fontSize: 12, color: "var(--pd-accent-ink)" }}>{uploadProgress}</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <footer
+              style={{
+                flexShrink: 0,
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 10,
+                padding: "14px 16px",
+                borderTop: "1px solid var(--pd-line)",
+                background: "var(--pd-bg-2)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 12,
+                  borderRadius: 4,
+                  border: "1px solid var(--pd-line-strong)",
+                  background: "rgba(255,255,255,0.03)",
+                  color: "var(--pd-ink-dim)",
+                  cursor: "pointer",
+                  minWidth: "5.75rem",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !name.trim()}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  borderRadius: 4,
+                  border: "none",
+                  cursor: submitting || !name.trim() ? "not-allowed" : "pointer",
+                  minWidth: "8.75rem",
+                  background:
+                    submitting || !name.trim() ? "var(--pd-line-strong)" : "var(--pd-accent)",
+                  color: "var(--pd-accent-contrast-text, #fff)",
+                  opacity: submitting || !name.trim() ? 0.75 : 1,
+                }}
+              >
+                {submitting ? (uploadProgress || "Creating…") : "Create Board"}
+              </button>
+            </footer>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

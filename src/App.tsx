@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, lazy, Suspense } from "react";
-import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
+import React, { Component, useState, useEffect, useLayoutEffect, lazy, Suspense } from "react";
+import { AuthLoading, Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
 import { SignInForm } from "@/SignInForm";
 import { SignOutButton } from "@/SignOutButton";
 import { Toaster } from "sonner";
 import { PinIcon, PinHotkey } from "@/components/ui/pindeck";
+import { defaultLibraryFilters, type LibraryFilters } from "@/lib/libraryFilters";
 import { TweaksPanel, DEFAULT_TWEAKS, type Tweaks } from "@/components/pd/TweaksPanel";
 import { GalleryView } from "@/components/pd/GalleryView";
 import { TableView } from "@/components/pd/TableView";
@@ -28,6 +30,15 @@ const APP_VIEWS = [
   { id: "upload", label: "Upload", icon: "upload", hk: "U" },
 ] as const;
 
+type AppViewId = (typeof APP_VIEWS)[number]["id"];
+
+const VALID_VIEW_IDS = new Set<string>(APP_VIEWS.map((v) => v.id));
+
+function sanitizeStoredView(raw: string | null): AppViewId {
+  if (raw && VALID_VIEW_IDS.has(raw)) return raw as AppViewId;
+  return "gallery";
+}
+
 export default function App() {
   const [tweaks, setTweaks] = useState<Tweaks>(() => {
     try {
@@ -38,11 +49,14 @@ export default function App() {
     }
   });
   const [tweaksOpen, setTweaksOpen] = useState(false);
-  const [view, setView] = useState(() => localStorage.getItem("pindeck_view") || "gallery");
+  const [view, setView] = useState<AppViewId>(() =>
+    sanitizeStoredView(localStorage.getItem("pindeck_view")),
+  );
   const [search, setSearch] = useState("");
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
   const [activeDeckId, setActiveDeckId] = useState<Id<"decks"> | null>(null);
-  const { isAuthenticated } = useConvexAuth();
+  const [libraryFilter, setLibraryFilter] = useState<LibraryFilters>(defaultLibraryFilters);
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
 
   useEffect(() => {
     localStorage.setItem("pindeck_tweaks", JSON.stringify(tweaks));
@@ -83,7 +97,8 @@ export default function App() {
     setView("deck");
   };
 
-  const showAppChrome = isAuthenticated;
+  /** While Convex auth is loading, `Authenticated` / `Unauthenticated` render null — show `AuthLoading` instead. */
+  const showAppChrome = isAuthenticated && !authLoading;
 
   return (
     <div
@@ -100,7 +115,12 @@ export default function App() {
       }}
     >
       {showAppChrome && (
-        <Sidebar activeView={view} onView={setView} />
+        <Sidebar
+          activeView={view}
+          onView={(v) => setView(sanitizeStoredView(v))}
+          libraryFilter={libraryFilter}
+          setLibraryFilter={setLibraryFilter}
+        />
       )}
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
@@ -109,14 +129,36 @@ export default function App() {
             search={search}
             setSearch={setSearch}
             view={view}
-            setView={setView}
+            setView={(v) => setView(sanitizeStoredView(v))}
             tweaksOn={tweaksOpen}
             onToggleTweaks={() => setTweaksOpen(!tweaksOpen)}
+            accountActions={<SignOutButton />}
           />
         )}
 
         <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative", alignItems: "stretch" }}>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <AuthLoading>
+              <div
+                className="pd-fade-in"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 0,
+                  color: "var(--pd-ink-faint)",
+                  fontSize: 12,
+                }}
+              >
+                <div style={{ textAlign: "center" }}>
+                  <PinIcon name="film" size={28} stroke={1.2} />
+                  <div className="pd-mono" style={{ marginTop: 12, letterSpacing: "0.06em" }}>
+                    Loading session…
+                  </div>
+                </div>
+              </div>
+            </AuthLoading>
             <Unauthenticated>
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <SignInForm />
@@ -124,10 +166,16 @@ export default function App() {
             </Unauthenticated>
             <Authenticated>
               {view === "gallery" && (
-                <GalleryView search={search} tweaks={tweaks} onOpenImage={setSelectedImage} />
+                <GalleryView
+                  search={search}
+                  tweaks={tweaks}
+                  onOpenImage={setSelectedImage}
+                  libraryFilter={libraryFilter}
+                  onNavigateToBoards={() => setView("boards")}
+                />
               )}
               {view === "table" && (
-                <TableView search={search} onOpenImage={setSelectedImage} />
+                <TableView search={search} onOpenImage={setSelectedImage} libraryFilter={libraryFilter} />
               )}
               {view === "boards" && (
                 <BoardsView onOpenDeck={openDeck} />
@@ -182,7 +230,258 @@ export default function App() {
   );
 }
 
-function Sidebar({ activeView, onView }: { activeView: string; onView: (v: string) => void }) {
+/** When `libraryAggregations` errors (e.g. Convex not redeployed), don't blank the shell. */
+class LibraryAggregationsErrorBoundary extends Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(e: unknown) {
+    console.warn("[Pindeck] libraryAggregations failed — deploy Convex?", e);
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+function SidebarFilterControls({
+  libraryFilter,
+  setLibraryFilter,
+}: {
+  libraryFilter: LibraryFilters;
+  setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
+}) {
+  return (
+    <>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 12,
+          marginBottom: 6,
+        }}
+      >
+        <div
+          className="pd-mono"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--pd-ink-faint)",
+          }}
+        >
+          Filters
+        </div>
+        <button
+          type="button"
+          className="pd-mono"
+          onClick={() => setLibraryFilter(defaultLibraryFilters())}
+          style={{
+            fontSize: 9,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            background: "transparent",
+            border: "none",
+            color: "var(--pd-ink-faint)",
+            cursor: "pointer",
+            padding: "2px 0",
+          }}
+        >
+          Clear
+        </button>
+      </div>
+      <label style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          checked={libraryFilter.originalsOnly}
+          onChange={(e) =>
+            setLibraryFilter((f) => ({ ...f, originalsOnly: e.target.checked }))
+          }
+        />
+        Originals only
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          checked={libraryFilter.hasSref}
+          onChange={(e) =>
+            setLibraryFilter((f) => ({ ...f, hasSref: e.target.checked }))
+          }
+        />
+        Has sref
+      </label>
+    </>
+  );
+}
+
+function SidebarLibraryAggregationBody({
+  libraryFilter,
+  setLibraryFilter,
+}: {
+  libraryFilter: LibraryFilters;
+  setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
+}) {
+  const aggregations = useQuery(api.images.libraryAggregations);
+
+  const sectionLabel = (text: string) => (
+    <div
+      className="pd-mono"
+      style={{
+        fontSize: 10,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "var(--pd-ink-faint)",
+        marginBottom: 8,
+        marginTop: 4,
+      }}
+    >
+      {text}
+    </div>
+  );
+
+  return (
+    <>
+      {aggregations === undefined && (
+        <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>Loading filters…</div>
+      )}
+      {aggregations !== undefined && aggregations.byGroup.length > 0 && (
+        <>
+          {sectionLabel("Type")}
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
+            {aggregations.byGroup.slice(0, 16).map((row) => {
+              const value = row.value;
+              const label = value ? value : "Unassigned";
+              const selected = libraryFilter.group !== null && libraryFilter.group === value;
+              return (
+                <button
+                  key={`g-${value || "empty"}`}
+                  type="button"
+                  onClick={() =>
+                    setLibraryFilter((f) => ({
+                      ...f,
+                      group: f.group === value ? null : value,
+                    }))
+                  }
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    padding: "4px 6px",
+                    borderRadius: 4,
+                    border: "1px solid transparent",
+                    background: selected ? "rgba(58,123,255,0.12)" : "transparent",
+                    color: selected ? "var(--pd-ink)" : "var(--pd-ink-dim)",
+                    fontSize: 11.5,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {label}
+                  </span>
+                  <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", flexShrink: 0 }}>
+                    {row.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {aggregations !== undefined && aggregations.byGenre.length > 0 && (
+        <>
+          {sectionLabel("Genre")}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+            {aggregations.byGenre.slice(0, 16).map((row) => {
+              const selected = libraryFilter.genre === row.value;
+              return (
+                <button
+                  key={`genre-${row.value}`}
+                  type="button"
+                  onClick={() =>
+                    setLibraryFilter((f) => ({
+                      ...f,
+                      genre: f.genre === row.value ? null : row.value,
+                    }))
+                  }
+                  style={{
+                    padding: "3px 7px",
+                    borderRadius: 3,
+                    fontSize: 10.5,
+                    border: selected ? "1px solid rgba(58,123,255,0.45)" : "1px solid var(--pd-line-strong)",
+                    background: selected ? "rgba(58,123,255,0.08)" : "transparent",
+                    color: "var(--pd-ink-dim)",
+                    cursor: "pointer",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {row.value}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {aggregations !== undefined && aggregations.byStyle.length > 0 && (
+        <>
+          {sectionLabel("Style / medium")}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+            {aggregations.byStyle.slice(0, 14).map((row) => {
+              const selected = libraryFilter.style === row.value;
+              return (
+                <button
+                  key={`style-${row.value}`}
+                  type="button"
+                  onClick={() =>
+                    setLibraryFilter((f) => ({
+                      ...f,
+                      style: f.style === row.value ? null : row.value,
+                    }))
+                  }
+                  style={{
+                    padding: "3px 7px",
+                    borderRadius: 3,
+                    fontSize: 10.5,
+                    border: selected ? "1px solid rgba(58,123,255,0.45)" : "1px solid var(--pd-line-strong)",
+                    background: selected ? "rgba(58,123,255,0.08)" : "transparent",
+                    color: "var(--pd-ink-dim)",
+                    cursor: "pointer",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {row.value}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+      <SidebarFilterControls libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
+    </>
+  );
+}
+
+function Sidebar({
+  activeView,
+  onView,
+  libraryFilter,
+  setLibraryFilter,
+}: {
+  activeView: string;
+  onView: (v: string) => void;
+  libraryFilter: LibraryFilters;
+  setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
+}) {
   return (
     <aside style={{
       width: 208, flexShrink: 0, background: "var(--pd-bg-1)",
@@ -218,14 +517,19 @@ function Sidebar({ activeView, onView }: { activeView: string; onView: (v: strin
 
       <div className="pd-scroll" style={{ flex: 1, overflow: "auto", padding: "8px 12px 14px" }}>
         <Authenticated>
-          <div style={{ padding: "8px 4px 4px" }}>
-            <div className="pd-mono" style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--pd-ink-faint)", marginBottom: 8 }}>Filters</div>
-            <label style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
-              <input type="checkbox" /> Originals only
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
-              <input type="checkbox" /> Has sref
-            </label>
+          <div style={{ padding: "4px 4px 4px" }}>
+            <LibraryAggregationsErrorBoundary
+              fallback={
+                <>
+                  <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", marginBottom: 10, lineHeight: 1.45 }}>
+                    Type / genre / style counts need the latest Convex deploy. You can still filter with the options below.
+                  </div>
+                  <SidebarFilterControls libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
+                </>
+              }
+            >
+              <SidebarLibraryAggregationBody libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
+            </LibraryAggregationsErrorBoundary>
           </div>
         </Authenticated>
       </div>
@@ -233,16 +537,15 @@ function Sidebar({ activeView, onView }: { activeView: string; onView: (v: strin
       <div style={{ borderTop: "1px solid var(--pd-line)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 10.5 }}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--pd-green)", boxShadow: "0 0 8px var(--pd-green)" }} />
         <span className="pd-mono" style={{ color: "var(--pd-ink-mute)" }}>convex · live</span>
-        <div style={{ flex: 1 }} />
-        <SignOutButton />
       </div>
     </aside>
   );
 }
 
-function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks }: {
+function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, accountActions }: {
   search: string; setSearch: (s: string) => void; view: string; setView: (v: string) => void;
   tweaksOn: boolean; onToggleTweaks: () => void;
+  accountActions: React.ReactNode;
 }) {
   return (
     <header style={{
@@ -295,6 +598,18 @@ function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks }: 
       }}>
         <PinIcon name="bolt" size={13} />
       </button>
+
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginLeft: 6,
+        paddingLeft: 10,
+        borderLeft: "1px solid var(--pd-line)",
+        flexShrink: 0,
+      }}>
+        {accountActions}
+      </div>
     </header>
   );
 }
