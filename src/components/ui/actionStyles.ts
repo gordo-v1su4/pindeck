@@ -18,7 +18,7 @@ export const ACTION_ICON_BTN = {
 };
 
 export const MODAL_CONTENT_CLASS =
-  "creative-modal max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/88 text-zinc-100 supports-backdrop-filter:backdrop-blur-xl";
+  "pd-glass-dialog creative-modal max-h-[88vh] overflow-y-auto text-zinc-100";
 
 export const MODAL_TITLE_CLASS =
   "creative-modal-title text-[13px] font-semibold tracking-[-0.01em] text-zinc-100";

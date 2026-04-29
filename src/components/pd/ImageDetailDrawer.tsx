@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
-import { PinIcon, PinChip, PinKV } from "@/components/ui/pindeck";
+import { PinIcon, PinChip } from "@/components/ui/pindeck";
 import type { Tweaks } from "../TweaksPanel";
 
 interface ImageDetailDrawerProps {
@@ -22,6 +22,8 @@ const VARIATION_MODES: { id: string; label: string }[] = [
 ];
 
 const SHOT_CHIP_PRESETS: { label: string; detail: string }[] = [
+  { label: "None", detail: "" },
+  { label: "Variation", detail: "variation" },
   { label: "Close-up", detail: "close-up" },
   { label: "Medium", detail: "medium shot" },
   { label: "Wide", detail: "wide shot" },
@@ -42,10 +44,73 @@ const ASPECT_OPTIONS: { label: string; value: string }[] = [
 
 const COUNT_OPTIONS = [1, 4, 8];
 
+type EditDraft = {
+  title: string;
+  description: string;
+  tags: string[];
+  sref: string;
+  category: string;
+  group: string;
+  genre: string;
+  shot: string;
+  style: string;
+  projectName: string;
+  moodboardName: string;
+  source: string;
+  uniqueId: string;
+};
+
+const editDraftFromImage = (image: any): EditDraft => ({
+  title: image.title || "",
+  description: image.description || "",
+  tags: Array.isArray(image.tags) ? image.tags : [],
+  sref: image.sref || "",
+  category: image.category || "",
+  group: image.group || "",
+  genre: image.genre || "",
+  shot: image.shot || "",
+  style: image.style || "",
+  projectName: image.projectName || "",
+  moodboardName: image.moodboardName || "",
+  source: image.source || "",
+  uniqueId: image.uniqueId || "",
+});
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 10,
+  letterSpacing: "0.06em",
+  color: "var(--pd-ink-faint)",
+  textTransform: "uppercase",
+  display: "block",
+  marginBottom: 5,
+  fontWeight: 500,
+};
+
+const fieldStyle: React.CSSProperties = {
+  width: "100%",
+  minHeight: 30,
+  padding: "0 10px",
+  background: "rgba(255,255,255,0.025)",
+  color: "var(--pd-ink)",
+  border: "1px solid var(--pd-line-strong)",
+  borderRadius: 4,
+  fontSize: 12,
+  outline: "none",
+};
+
+const cleanOptional = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
 export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerProps) {
   const [tab, setTab] = useState("edit");
   const generateVariations = useMutation(api.vision.generateVariations);
+  const updateImageMetadata = useMutation(api.images.updateImageMetadata);
   const [genBusy, setGenBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [editDraft, setEditDraft] = useState<EditDraft>(() => editDraftFromImage(image));
 
   const [genMode, setGenMode] = useState(image.modificationMode || "shot-variation");
   const [genDetail, setGenDetail] = useState(image.variationDetail || "");
@@ -62,6 +127,8 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
     setGenDetail(image.variationDetail || "");
     setGenCount(image.variationCount && image.variationCount > 0 ? image.variationCount : 4);
     setAspectLabel("16:9");
+    setEditDraft(editDraftFromImage(image));
+    setTagInput("");
   }, [image._id, image.modificationMode, image.variationDetail, image.variationCount]);
 
   const fmtSref = (s: string | undefined) => {
@@ -71,6 +138,24 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
   };
 
   const dash = (v: string | undefined) => (v?.trim() ? v.trim() : "—");
+
+  const updateEditDraft = (updates: Partial<EditDraft>) => {
+    setEditDraft((current) => ({ ...current, ...updates }));
+  };
+
+  const addEditTag = (rawTag: string) => {
+    const nextTags = rawTag
+      .split(",")
+      .map((tag) => tag.trim().toLowerCase())
+      .filter(Boolean);
+    if (nextTags.length === 0) return;
+    updateEditDraft({ tags: [...new Set([...editDraft.tags, ...nextTags])] });
+    setTagInput("");
+  };
+
+  const removeEditTag = (tag: string) => {
+    updateEditDraft({ tags: editDraft.tags.filter((item) => item !== tag) });
+  };
 
   const tabs = [
     { id: "edit", label: "Edit", icon: "edit" },
@@ -101,6 +186,34 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
     }
   };
 
+  const handleSaveMetadata = async () => {
+    setSaveBusy(true);
+    try {
+      await updateImageMetadata({
+        imageId: image._id as Id<"images">,
+        title: editDraft.title.trim() || "Untitled",
+        description: cleanOptional(editDraft.description),
+        tags: editDraft.tags,
+        category: editDraft.category.trim() || "Uncategorized",
+        sref: cleanOptional(editDraft.sref),
+        group: cleanOptional(editDraft.group),
+        genre: cleanOptional(editDraft.genre),
+        shot: cleanOptional(editDraft.shot),
+        style: cleanOptional(editDraft.style),
+        projectName: cleanOptional(editDraft.projectName),
+        moodboardName: cleanOptional(editDraft.moodboardName),
+        source: cleanOptional(editDraft.source),
+        uniqueId: cleanOptional(editDraft.uniqueId),
+      });
+      toast.success("Image details saved.");
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Could not save image details.");
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
   const chipBase: React.CSSProperties = {
     padding: "4px 8px",
     borderRadius: 4,
@@ -112,9 +225,9 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
   };
   const chipSelected: React.CSSProperties = {
     ...chipBase,
-    border: "1px solid color-mix(in srgb, var(--pd-accent) 40%, var(--pd-line-strong))",
-    background: "var(--pd-accent-soft)",
-    color: "var(--pd-ink)",
+    border: "1px solid rgba(46, 230, 166, 0.36)",
+    background: "rgba(46, 230, 166, 0.12)",
+    color: "#b6f8df",
   };
 
   return (
@@ -245,40 +358,109 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
         {tab === "edit" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <label className="pd-mono" style={{
-                fontSize: 10, letterSpacing: "0.06em", color: "var(--pd-ink-faint)",
-                textTransform: "uppercase", display: "block", marginBottom: 5, fontWeight: 500,
-              }}>Title</label>
-              <input defaultValue={image.title} style={{
-                width: "100%", height: 30, padding: "0 10px",
-                background: "rgba(255,255,255,0.025)", color: "var(--pd-ink)",
-                border: "1px solid var(--pd-line-strong)", borderRadius: 4,
-                fontSize: 12, outline: "none",
-              }} />
+              <label className="pd-mono" style={labelStyle}>Title</label>
+              <input
+                value={editDraft.title}
+                onChange={(e) => updateEditDraft({ title: e.target.value })}
+                style={fieldStyle}
+              />
             </div>
             <div>
-              <label className="pd-mono" style={{
-                fontSize: 10, letterSpacing: "0.06em", color: "var(--pd-ink-faint)",
-                textTransform: "uppercase", display: "block", marginBottom: 5, fontWeight: 500,
-              }}>Tags ({image.tags?.length || 0})</label>
+              <label className="pd-mono" style={labelStyle}>Description</label>
+              <textarea
+                value={editDraft.description}
+                onChange={(e) => updateEditDraft({ description: e.target.value })}
+                rows={3}
+                style={{ ...fieldStyle, minHeight: 70, paddingTop: 8, resize: "vertical" }}
+              />
+            </div>
+            <div>
+              <label className="pd-mono" style={labelStyle}>Tags ({editDraft.tags.length})</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, minHeight: 28, marginBottom: 6 }}>
-                {image.tags?.map((t: string, i: number) => (
-                  <PinChip key={t} color={image.colors?.[i % (image.colors?.length || 1)]} removable>{t}</PinChip>
+                {editDraft.tags.map((t: string, i: number) => (
+                  <PinChip
+                    key={t}
+                    color={image.colors?.[i % (image.colors?.length || 1)]}
+                    removable
+                    onRemove={() => removeEditTag(t)}
+                  >
+                    {t}
+                  </PinChip>
                 ))}
               </div>
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addEditTag(tagInput);
+                  }
+                }}
+                onBlur={() => addEditTag(tagInput)}
+                placeholder="Add tags..."
+                style={fieldStyle}
+              />
             </div>
-            <div style={{
-              background: "var(--pd-bg-2)", border: "1px solid var(--pd-line)",
-              borderRadius: 4, padding: "2px 10px",
-            }}>
-              <PinKV k="SREF" v={fmtSref(image.sref)} />
-              <PinKV k="Category" v={image.category} />
-              <PinKV k="Type" v={dash(image.group)} />
-              <PinKV k="Genre" v={dash(image.genre)} />
-              <PinKV k="Shot" v={dash(image.shot)} />
-              <PinKV k="Style" v={dash(image.style)} />
-              <PinKV k="Project" v={image.projectName || "—"} />
-              <PinKV k="Source" v={image.source || "—"} />
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {[
+                ["Category", "category"],
+                ["Type", "group"],
+                ["Genre", "genre"],
+                ["Shot", "shot"],
+                ["Style", "style"],
+                ["SREF", "sref"],
+                ["Project", "projectName"],
+                ["Moodboard", "moodboardName"],
+                ["Source", "source"],
+                ["Unique ID", "uniqueId"],
+              ].map(([label, key]) => (
+                <div key={key}>
+                  <label className="pd-mono" style={labelStyle}>{label}</label>
+                  <input
+                    value={editDraft[key as keyof EditDraft] as string}
+                    onChange={(e) => updateEditDraft({ [key]: e.target.value } as Partial<EditDraft>)}
+                    style={fieldStyle}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="pd-mono"
+              style={{
+                fontSize: 10,
+                color: "var(--pd-ink-faint)",
+                border: "1px solid var(--pd-line)",
+                borderRadius: 4,
+                padding: "7px 9px",
+                background: "rgba(255,255,255,0.018)",
+              }}
+            >
+              Display SREF: {fmtSref(editDraft.sref)}
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setEditDraft(editDraftFromImage(image))}
+                style={chipBase}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                disabled={saveBusy}
+                onClick={() => void handleSaveMetadata()}
+                style={{
+                  ...chipSelected,
+                  cursor: saveBusy ? "wait" : "pointer",
+                  opacity: saveBusy ? 0.75 : 1,
+                }}
+              >
+                {saveBusy ? "Saving..." : "Save Changes"}
+              </button>
             </div>
           </div>
         )}
@@ -424,12 +606,12 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
                 width: "100%",
                 padding: "12px 14px",
                 borderRadius: 5,
-                border: "none",
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: genBusy ? "wait" : "pointer",
-                background: genBusy ? "var(--pd-line-strong)" : "var(--pd-accent)",
-                color: "var(--pd-accent-contrast-text, #fff)",
+                background: genBusy ? "var(--pd-line-strong)" : "rgba(46, 230, 166, 0.16)",
+                border: "1px solid rgba(46, 230, 166, 0.34)",
+                color: "#d9ffef",
                 opacity: genBusy ? 0.85 : 1,
               }}
             >

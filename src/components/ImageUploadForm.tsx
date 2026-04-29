@@ -51,6 +51,38 @@ interface UploadFile {
   uniqueId?: string;
 }
 
+const VARIATION_MODES: { id: string; label: string }[] = [
+  { id: "shot-variation", label: "Shot Variation" },
+  { id: "b-roll", label: "B-Roll" },
+  { id: "action-shot", label: "Action Shot" },
+  { id: "style-variation", label: "Style Variation" },
+  { id: "subtle-variation", label: "Subtle Variation" },
+  { id: "coverage", label: "Coverage" },
+];
+
+const SHOT_CHIP_PRESETS: { label: string; detail: string }[] = [
+  { label: "None", detail: "" },
+  { label: "Variation", detail: "variation" },
+  { label: "Close-up", detail: "close-up" },
+  { label: "Medium", detail: "medium shot" },
+  { label: "Wide", detail: "wide shot" },
+  { label: "Extreme wide", detail: "extreme wide shot" },
+  { label: "Dutch", detail: "dutch angle" },
+  { label: "OTS", detail: "over-the-shoulder" },
+  { label: "Low angle", detail: "low angle shot" },
+  { label: "Bird's eye", detail: "bird's eye view" },
+];
+
+const ASPECT_OPTIONS: { label: string; value: string }[] = [
+  { label: "16:9", value: "16:9" },
+  { label: "9:16", value: "9:16" },
+  { label: "1:1", value: "1:1" },
+  { label: "4:3", value: "4:3" },
+  { label: "3:4", value: "3:4" },
+];
+
+const COUNT_OPTIONS = [1, 4, 8, 12];
+
 export function ImageUploadForm() {
   const loggedInUser = useQuery(api.auth.loggedInUser);
   const generateUploadUrl = useMutation(api.images.generateUploadUrl);
@@ -129,6 +161,9 @@ export function ImageUploadForm() {
       sref?: string;
       colors?: string[];
       group?: string;
+      genre?: string;
+      style?: string;
+      shot?: string;
       projectName?: string;
       moodboardName?: string;
       uniqueId?: string;
@@ -365,6 +400,7 @@ export function ImageUploadForm() {
       // Clear local files after successful initial upload and scheduling
       files.forEach(file => URL.revokeObjectURL(file.preview));
       setFiles([]);
+      toast.info("Upload queued. Analyzing metadata and sampled colors...");
 
       if (imageIds.length > 0) {
         setVariationTargetImageIds(imageIds);
@@ -448,29 +484,54 @@ export function ImageUploadForm() {
     setVariationModalOpen(true);
   };
 
+  const modeTitle = VARIATION_MODES.find((mode) => mode.id === modificationMode)?.label ?? "Variation";
+  const chipBase: React.CSSProperties = {
+    padding: "5px 8px",
+    borderRadius: 4,
+    fontSize: 11,
+    border: "1px solid var(--pd-line-strong)",
+    background: "rgba(255,255,255,0.02)",
+    color: "var(--pd-ink-dim)",
+    cursor: "pointer",
+  };
+  const chipSelected: React.CSSProperties = {
+    ...chipBase,
+    border: "1px solid rgba(46, 230, 166, 0.36)",
+    background: "rgba(46, 230, 166, 0.12)",
+    color: "#b6f8df",
+  };
+
   return (
     <Box className="space-y-8 max-w-4xl mx-auto w-full">
-      <Flex gap="2" wrap="wrap">
+      <Flex gap="2" wrap="wrap" className="pt-2">
         <Button
-          variant={activeUploadTab === "local" ? "solid" : "soft"}
+          variant="soft"
+          className="pd-action-tab"
+          data-active={activeUploadTab === "local"}
           onClick={() => setActiveUploadTab("local")}
         >
           Local Upload
         </Button>
         <Button
-          variant={activeUploadTab === "discord" ? "solid" : "soft"}
+          variant="soft"
+          className="pd-action-tab"
+          data-active={activeUploadTab === "discord"}
           onClick={() => setActiveUploadTab("discord")}
         >
           Discord
         </Button>
         <Button
-          variant={activeUploadTab === "pinterest" ? "solid" : "soft"}
+          variant="soft"
+          className="pd-action-tab"
+          data-active={activeUploadTab === "pinterest"}
           onClick={() => setActiveUploadTab("pinterest")}
         >
           Pinterest
         </Button>
         <Button
-          variant={activeUploadTab === "automation" ? "solid" : "soft"}
+          variant="soft"
+          className="pd-action-tab"
+          data-active={activeUploadTab === "automation"}
           onClick={() => setActiveUploadTab("automation")}
         >
           Automation
@@ -527,7 +588,7 @@ export function ImageUploadForm() {
                     </Text>
                   </Box>
                   <Flex gap="2" wrap="wrap">
-                    <Badge color="blue" variant="soft">
+                    <Badge color="gray" variant="soft">
                       Pending {discordPendingImages.length}
                     </Badge>
                     <Badge color="amber" variant="soft">
@@ -543,7 +604,7 @@ export function ImageUploadForm() {
                 </Text>
               </Card>
               <Flex align="center" gap="2" className="mb-4">
-                <ImageIcon width="20" height="20" className="text-blue-500" />
+                <ImageIcon width="20" height="20" style={{ color: "var(--pd-green)" }} />
                 <Box>
                   <Heading size="4">Discord Queue</Heading>
                   <Text size="2" color="gray">
@@ -631,14 +692,14 @@ export function ImageUploadForm() {
                 onOpenChange={(open) => { if (!open) setDiscordPreviewImageId(null); }}
               >
                 <Dialog.Content
-                  className="max-w-[90vw] max-h-[90vh] w-max p-0 overflow-hidden"
+                  className="pd-glass-dialog max-h-[90vh] w-max max-w-[90vw] overflow-hidden !p-0"
                   style={{ maxWidth: "min(900px, 90vw)" }}
                 >
                   <Dialog.Title className="sr-only">Preview queued image</Dialog.Title>
                   <Dialog.Description className="sr-only">Enlarged preview of queued Discord import</Dialog.Description>
                   {discordPreviewImage && (
                     <Box className="flex flex-col">
-                      <Box className="relative flex items-center justify-center bg-gray-2 p-2">
+                      <Box className="pd-glass-body relative flex items-center justify-center p-2">
                         <img
                           src={discordPreviewImage.previewUrl || discordPreviewImage.imageUrl}
                           alt={discordPreviewImage.title}
@@ -646,7 +707,7 @@ export function ImageUploadForm() {
                           style={{ maxWidth: "min(860px, 88vw)" }}
                         />
                       </Box>
-                      <Box className="p-3 border-t border-gray-6 bg-gray-2">
+                      <Box className="pd-glass-footer p-3">
                         <Text weight="medium" size="2" className="block">{(discordPreviewImage as any).title}</Text>
                         <Text size="2" color="gray" className="block mt-1 line-clamp-2">{(discordPreviewImage as any).description}</Text>
                       </Box>
@@ -664,133 +725,135 @@ export function ImageUploadForm() {
             setVariationModalOpen(open);
             if (!open) setVariationTargetImageIds([]);
           }}>
-            <Dialog.Content style={{ maxWidth: 520 }}>
-              <Dialog.Title>Generate Variations</Dialog.Title>
-              <Dialog.Description size="2" color="gray">
-                Create AI-generated variations for {variationTargetImageIds.length === 1 ? "this image" : `${variationTargetImageIds.length} uploaded images`}. Choose what kind of variations you want before anything gets generated.
-              </Dialog.Description>
+            <Dialog.Content className="pd-glass-dialog !max-w-[min(95vw,32.5rem)] !p-0">
+              <Box className="pd-glass-header px-5 py-4">
+                <Dialog.Title className="m-0 text-[15px] font-semibold leading-tight text-[var(--pd-ink)]">
+                  Generate Variations
+                </Dialog.Title>
+                <Dialog.Description size="2" className="mt-2 text-[var(--pd-ink-mute)]">
+                  Create AI-generated variations for {variationTargetImageIds.length === 1 ? "this image" : `${variationTargetImageIds.length} uploaded images`}. Choose what kind of variations you want before anything gets generated.
+                </Dialog.Description>
+              </Box>
 
-          <Flex direction="column" gap="4" className="mt-4">
-            {/* Variation Type */}
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
-                Variation Type
-              </Text>
-              <Select.Root
-                value={modificationMode}
-                onValueChange={setModificationMode}
-              >
-                <Select.Trigger className="w-full" />
-                <Select.Content>
-                  <Select.Group>
-                    <Select.Label>Camera & Framing</Select.Label>
-                    <Select.Item value="shot-variation">
-                      Shot Variation — Different angles of same subjects
-                    </Select.Item>
-                    <Select.Item value="action-shot">
-                      Action Shot — Dynamic, motion-based framing
-                    </Select.Item>
-                    <Select.Item value="coverage">
-                      Coverage — Cinematic scene coverage mix
-                    </Select.Item>
-                  </Select.Group>
-                  <Select.Separator />
-                  <Select.Group>
-                    <Select.Label>Environment</Select.Label>
-                    <Select.Item value="b-roll">
-                      B-Roll — Same location, NO people (establishing shots)
-                    </Select.Item>
-                  </Select.Group>
-                  <Select.Separator />
-                  <Select.Group>
-                    <Select.Label>Style & Mood</Select.Label>
-                    <Select.Item value="style-variation">
-                      Style Variation — Different color grade/mood
-                    </Select.Item>
-                    <Select.Item value="subtle-variation">
-                      Subtle Variation — Minor pose/expression changes
-                    </Select.Item>
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
-            </Box>
+              <Box className="pd-glass-body px-5 py-4">
+                <Flex direction="column" gap="4">
+                  <Box
+                    style={{
+                      background: "rgba(255,255,255,0.018)",
+                      border: "1px solid var(--pd-line)",
+                      borderRadius: 6,
+                      padding: "10px 10px 12px",
+                    }}
+                  >
+                    <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">
+                      Mode
+                    </Text>
+                    <Box className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {VARIATION_MODES.map((mode) => (
+                        <button
+                          key={mode.id}
+                          type="button"
+                          onClick={() => setModificationMode(mode.id)}
+                          style={modificationMode === mode.id ? chipSelected : chipBase}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
+                    </Box>
+                  </Box>
 
-            {/* Aspect Ratio */}
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
-                Aspect Ratio
-              </Text>
-              <Select.Root value={aspectRatio} onValueChange={setAspectRatio}>
-                <Select.Trigger className="w-full" />
-                <Select.Content>
-                  <Select.Item value="16:9">16:9 (horizontal)</Select.Item>
-                  <Select.Item value="9:16">9:16 (vertical)</Select.Item>
-                  <Select.Item value="1:1">1:1 (square)</Select.Item>
-                  <Select.Item value="4:3">4:3</Select.Item>
-                  <Select.Item value="3:4">3:4</Select.Item>
-                </Select.Content>
-              </Select.Root>
-            </Box>
+                  <Box>
+                    <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">
+                      Shot type
+                    </Text>
+                    <Flex gap="2" wrap="wrap">
+                      {SHOT_CHIP_PRESETS.map((shot) => {
+                        const selected = variationDetail.trim().toLowerCase() === shot.detail.toLowerCase();
+                        return (
+                          <button
+                            key={shot.label}
+                            type="button"
+                            onClick={() => setVariationDetail(shot.detail)}
+                            style={selected ? chipSelected : chipBase}
+                          >
+                            {shot.label}
+                          </button>
+                        );
+                      })}
+                    </Flex>
+                  </Box>
 
-            {/* Variation Count */}
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
-                How Many? (1-12)
-              </Text>
-              <TextField.Root
-                type="number"
-                min={1}
-                max={12}
-                value={variationCount.toString()}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  if (!Number.isNaN(val)) {
-                    setVariationCount(Math.min(Math.max(val, 1), 12));
-                  }
-                }}
-                size="2"
-              />
-            </Box>
+                  <Box>
+                    <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">
+                      Aspect
+                    </Text>
+                    <Flex gap="2" wrap="wrap">
+                      {ASPECT_OPTIONS.map((aspect) => (
+                        <button
+                          key={aspect.label}
+                          type="button"
+                          onClick={() => setAspectRatio(aspect.value)}
+                          style={aspectRatio === aspect.value ? chipSelected : chipBase}
+                        >
+                          {aspect.label}
+                        </button>
+                      ))}
+                    </Flex>
+                  </Box>
 
-            {/* Custom Detail */}
-            <Box>
-              <Text size="2" weight="medium" className="mb-2 block">
-                Custom Direction (optional)
-              </Text>
-              <TextField.Root
-                value={variationDetail}
-                onChange={(e) => setVariationDetail(e.target.value)}
-                placeholder={
-                  modificationMode === "shot-variation" ? "e.g., close-up on hands, wide shot" :
-                  modificationMode === "b-roll" ? "e.g., exterior of building, sunset sky" :
-                  modificationMode === "action-shot" ? "e.g., mid-jump, running motion blur" :
-                  modificationMode === "style-variation" ? "e.g., 35mm film grain, neon cyberpunk" :
-                  "e.g., slight smile, different hand position"
-                }
-                size="2"
-              />
-              <Text size="1" color="gray" className="mt-1">
-                Leave blank for automatic random variations
-              </Text>
-            </Box>
-          </Flex>
+                  <Box>
+                    <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">
+                      Count
+                    </Text>
+                    <Flex gap="2" wrap="wrap">
+                      {COUNT_OPTIONS.map((count) => (
+                        <button
+                          key={count}
+                          type="button"
+                          onClick={() => setVariationCount(count)}
+                          style={variationCount === count ? chipSelected : chipBase}
+                        >
+                          {count}
+                        </button>
+                      ))}
+                    </Flex>
+                  </Box>
 
-          <Flex justify="end" gap="3" className="mt-6">
-            <Button
-              variant="soft"
-              color="gray"
-              onClick={() => setVariationModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="teal"
-              onClick={() => void handleGenerateVariations()}
-            >
-              <MagicWandIcon /> Generate {variationCount} Variation{variationCount !== 1 ? "s" : ""}
-            </Button>
-          </Flex>
-        </Dialog.Content>
+                  <Box>
+                    <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">
+                      Custom detail (optional)
+                    </Text>
+                    <TextField.Root
+                      value={variationDetail}
+                      onChange={(e) => setVariationDetail(e.target.value)}
+                      placeholder="Refines prompts for this generation run"
+                      size="2"
+                    />
+                    <Text size="1" className="mt-1 text-[var(--pd-ink-faint)]">
+                      None is the default; add a shot type only when you want to steer framing.
+                    </Text>
+                  </Box>
+                </Flex>
+              </Box>
+
+              <Flex justify="end" gap="3" className="pd-glass-footer px-5 py-4">
+                <Button
+                  variant="soft"
+                  color="gray"
+                  className="pd-action-secondary"
+                  onClick={() => setVariationModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="soft"
+                  className="pd-action-primary"
+                  onClick={() => void handleGenerateVariations()}
+                >
+                  <MagicWandIcon /> Generate {variationCount} {modeTitle}
+                </Button>
+              </Flex>
+            </Dialog.Content>
       </Dialog.Root>
 
       <Box>
@@ -805,11 +868,14 @@ export function ImageUploadForm() {
         className={`
           relative overflow-hidden transition-all duration-200 ease-in-out border border-gray-6
           ${dragActive
-            ? 'bg-blue-3 ring-2 ring-blue-9 ring-offset-2'
+            ? 'ring-2 ring-[color-mix(in_srgb,var(--pd-green)_38%,transparent)] ring-offset-2 ring-offset-black'
             : 'bg-gray-2 hover:bg-gray-3'
           }
         `}
-        style={{ minHeight: '150px' }}
+        style={{
+          minHeight: '150px',
+          background: dragActive ? "rgba(46,230,166,0.055)" : undefined,
+        }}
       >
         <input
           type="file"
@@ -878,7 +944,7 @@ export function ImageUploadForm() {
                           size="1"
                         >
                           <TextField.Slot>
-                            <MagicWandIcon className="text-teal-400" />
+                            <MagicWandIcon style={{ color: "var(--pd-green)" }} />
                           </TextField.Slot>
                         </TextField.Root>
                       </Box>
@@ -1021,12 +1087,13 @@ export function ImageUploadForm() {
           </Grid>
 
           <Flex justify="end" gap="3" className="pt-4 border-t border-gray-6">
-            <Button
-              variant="soft"
-              color="gray"
-              onClick={() => {
-                files.forEach(file => URL.revokeObjectURL(file.preview));
-                setFiles([]);
+              <Button
+                variant="soft"
+                color="gray"
+                className="pd-action-secondary"
+                onClick={() => {
+                  files.forEach(file => URL.revokeObjectURL(file.preview));
+                  setFiles([]);
               }}
             >
               Cancel
@@ -1035,6 +1102,8 @@ export function ImageUploadForm() {
               onClick={() => void handleSubmit()}
               disabled={uploading || files.length === 0}
               size="2"
+              variant="soft"
+              className="pd-action-primary"
             >
               {uploading ? (
                 <Flex align="center" gap="2">
@@ -1059,7 +1128,7 @@ export function ImageUploadForm() {
               <Box>
                 <Heading size="4">AI Analysis in Progress</Heading>
                 <Text size="2" color="gray">
-                  Generating variations...
+                  Sampling colors and generating metadata...
                 </Text>
               </Box>
             </Flex>
@@ -1129,7 +1198,8 @@ export function ImageUploadForm() {
                     <Button
                       size="1"
                       variant="soft"
-                      color="blue"
+                      color="gray"
+                      className="pd-action-secondary"
                       onClick={(e) => {
                         e.stopPropagation();
                         void rerunSmartAnalysisMutation({
@@ -1168,7 +1238,7 @@ export function ImageUploadForm() {
         <Box className="mt-8 animate-in fade-in">
           <Separator size="4" className="mb-6" />
           <Flex align="center" gap="2" className="mb-4">
-            <MagicWandIcon width="20" height="20" className="text-teal-500" />
+            <MagicWandIcon width="20" height="20" style={{ color: "var(--pd-green)" }} />
             <Box>
               <Heading size="4">AI Suggestions</Heading>
               <Text size="2" color="gray">
@@ -1242,7 +1312,8 @@ export function ImageUploadForm() {
               onClick={() => void handleFinalizeUploads()}
               size="2"
               color="green"
-              className="shadow-sm"
+              variant="soft"
+              className="pd-action-primary shadow-sm"
             >
               Finalize All
             </Button>
@@ -1278,7 +1349,7 @@ export function ImageUploadForm() {
                           size="1"
                         >
                           <TextField.Slot>
-                            <MagicWandIcon className="text-teal-400" />
+                            <MagicWandIcon style={{ color: "var(--pd-green)" }} />
                           </TextField.Slot>
                         </TextField.Root>
                       </Box>
@@ -1452,11 +1523,10 @@ export function ImageUploadForm() {
                     {image.aiStatus === "completed" && (
                       <Flex gap="2" className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                         <Button
-                          color="teal"
                           variant="soft"
                           size="1"
                           onClick={() => openVariationModal(image._id)}
-                          className="flex-1"
+                          className="pd-action-primary flex-1"
                         >
                           <MagicWandIcon /> Generate Variations
                         </Button>
@@ -1464,8 +1534,8 @@ export function ImageUploadForm() {
                     )}
                     {image.aiStatus === "processing" && (
                       <Flex align="center" gap="2" className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <Box className="w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                        <Text size="1" color="gray">Generating variations...</Text>
+                        <Box className="w-3 h-3 border-2 border-[var(--pd-green)] border-t-transparent rounded-full animate-spin" />
+                        <Text size="1" color="gray">Analyzing metadata and sampled colors...</Text>
                       </Flex>
                     )}
                   </Box>

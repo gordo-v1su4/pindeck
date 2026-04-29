@@ -2201,6 +2201,9 @@ export const updateImageMetadata = mutation({
     sref: v.optional(v.string()),
     colors: v.optional(v.array(v.string())),
     group: v.optional(v.string()),
+    genre: v.optional(v.string()),
+    style: v.optional(v.string()),
+    shot: v.optional(v.string()),
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
     uniqueId: v.optional(v.string()),
@@ -2227,6 +2230,9 @@ export const updateImageMetadata = mutation({
     if (args.sref !== undefined) patch.sref = args.sref;
     if (args.colors !== undefined) patch.colors = args.colors;
     if (args.group !== undefined) patch.group = args.group;
+    if (args.genre !== undefined) patch.genre = args.genre;
+    if (args.style !== undefined) patch.style = args.style;
+    if (args.shot !== undefined) patch.shot = args.shot;
     if (args.projectName !== undefined) patch.projectName = args.projectName;
     if (args.moodboardName !== undefined) patch.moodboardName = args.moodboardName;
     if (args.uniqueId !== undefined) patch.uniqueId = args.uniqueId;

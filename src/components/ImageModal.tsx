@@ -117,7 +117,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
       <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="pindeck-image-modal w-[min(95vw,520px)] max-w-[520px] max-h-[88vh] gap-0 overflow-y-auto rounded-[10px] border border-white/8 bg-[#111111]/96 p-0 text-[14px] text-white shadow-[0_24px_64px_rgba(0,0,0,0.58)]"
+          className="pindeck-image-modal w-[min(95vw,520px)] max-w-[520px] max-h-[88vh] gap-0 overflow-y-auto p-0 text-[14px] text-white"
         >
           <DialogTitle className="sr-only">{displayTitle}</DialogTitle>
           <DialogDescription className="sr-only">Image details</DialogDescription>

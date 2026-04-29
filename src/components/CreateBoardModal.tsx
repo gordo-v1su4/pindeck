@@ -184,7 +184,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
         )}
         style={{
           borderColor: "var(--pd-line-strong)",
-          background: "var(--pd-panel)",
+          background: "var(--pd-glass-bg)",
           color: "var(--pd-ink)",
         }}
       >
@@ -197,7 +197,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
               alignItems: "flex-start",
               padding: "14px 16px 12px",
               borderBottom: "1px solid var(--pd-line)",
-              background: "var(--pd-panel)",
+              background: "var(--pd-glass-header)",
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -208,7 +208,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
                   fontSize: 14,
                   color: "var(--pd-ink)",
                   lineHeight: 1.35,
-                  fontFamily: "var(--pd-font-display, inherit)",
+                  fontFamily: "var(--pd-font-sans, inherit)",
                 }}
               >
                 Create New Board
@@ -398,7 +398,7 @@ export function CreateBoardModal({ open, onOpenChange, imageId, setActiveTab, in
                 gap: 10,
                 padding: "14px 16px",
                 borderTop: "1px solid var(--pd-line)",
-                background: "var(--pd-bg-2)",
+                background: "var(--pd-glass-footer)",
               }}
             >
               <button

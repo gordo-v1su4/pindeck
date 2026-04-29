@@ -54,7 +54,7 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
   };
 
   const row = (label: string, children: React.ReactNode) => (
-    <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--pd-line)" }}>
+    <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--pd-glass-line)" }}>
       <PinLabel>{label}</PinLabel>
       {children}
     </div>
@@ -67,19 +67,15 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
         top: 52,
         right: 12,
         width: 280,
-        background: "var(--pd-panel-2)",
-        border: "1px solid var(--pd-line-strong)",
-        borderRadius: 6,
-        boxShadow: "var(--pd-shadow-deep)",
         zIndex: 50,
         overflow: "hidden",
       }}
-      className="pd-fade-in"
+      className="pd-glass-panel pd-fade-in"
     >
       <div
+        className="pd-glass-header"
         style={{
           padding: "10px 12px",
-          borderBottom: "1px solid var(--pd-line-strong)",
           display: "flex",
           alignItems: "center",
           gap: 6,
@@ -97,6 +93,8 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
             alignItems: "center",
             justifyContent: "center",
             color: "var(--pd-ink-mute)",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.03)",
           }}
         >
           <PinIcon name="close" size={11} />

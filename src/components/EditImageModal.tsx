@@ -122,8 +122,8 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(94vw,36rem)] max-w-[36rem] max-h-[88vh] overflow-y-auto border-white/10 bg-neutral-950/92 p-0 text-white supports-backdrop-filter:backdrop-blur-xl">
-        <div className="border-b border-white/8 px-6 py-5">
+      <DialogContent className="w-[min(94vw,36rem)] max-w-[36rem] max-h-[88vh] overflow-y-auto p-0 text-white">
+        <div className="pd-glass-header px-6 py-5">
           <DialogTitle className="text-[28px] font-semibold tracking-[-0.03em] text-white">
             Edit Image
           </DialogTitle>
@@ -285,7 +285,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-white/8 px-6 py-4">
+          <div className="pd-glass-footer flex justify-end gap-2 px-6 py-4">
             <Button
               type="button"
               variant="outline"

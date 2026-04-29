@@ -1,11 +1,36 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { Button, TextField, Text, Flex, Box, Select } from "@radix-ui/themes";
+import { Button, TextField, Text, Flex, Box } from "@radix-ui/themes";
 import { MagicWandIcon } from "@radix-ui/react-icons";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+
+const VARIATION_MODES: { id: string; label: string }[] = [
+  { id: "shot-variation", label: "Shot Variation" },
+  { id: "b-roll", label: "B-Roll" },
+  { id: "action-shot", label: "Action Shot" },
+  { id: "style-variation", label: "Style Variation" },
+  { id: "subtle-variation", label: "Subtle Variation" },
+  { id: "coverage", label: "Coverage" },
+];
+
+const SHOT_CHIP_PRESETS: { label: string; detail: string }[] = [
+  { label: "None", detail: "" },
+  { label: "Variation", detail: "variation" },
+  { label: "Close-up", detail: "close-up" },
+  { label: "Medium", detail: "medium shot" },
+  { label: "Wide", detail: "wide shot" },
+  { label: "Extreme wide", detail: "extreme wide shot" },
+  { label: "Dutch", detail: "dutch angle" },
+  { label: "OTS", detail: "over-the-shoulder" },
+  { label: "Low angle", detail: "low angle shot" },
+  { label: "Bird's eye", detail: "bird's eye view" },
+];
+
+const ASPECT_OPTIONS = ["16:9", "9:16", "1:1", "4:3", "3:4"];
+const COUNT_OPTIONS = [1, 4, 8, 12];
 
 interface GenerateVariationsModalProps {
   imageId: Id<"images">;
@@ -19,6 +44,22 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
   const [modificationMode, setModificationMode] = useState("shot-variation");
   const [variationDetail, setVariationDetail] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
+  const modeTitle = VARIATION_MODES.find((mode) => mode.id === modificationMode)?.label ?? "Variation";
+  const chipBase: CSSProperties = {
+    padding: "5px 8px",
+    borderRadius: 4,
+    fontSize: 11,
+    border: "1px solid var(--pd-line-strong)",
+    background: "rgba(255,255,255,0.02)",
+    color: "var(--pd-ink-dim)",
+    cursor: "pointer",
+  };
+  const chipSelected: CSSProperties = {
+    ...chipBase,
+    border: "1px solid rgba(46, 230, 166, 0.36)",
+    background: "rgba(46, 230, 166, 0.12)",
+    color: "#b6f8df",
+  };
 
   const handleGenerate = async () => {
     if (variationCount < 1) return;
@@ -43,71 +84,98 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(95vw,28rem)] max-w-[28rem] border-white/10 bg-neutral-950/80 p-6 text-white supports-backdrop-filter:backdrop-blur-xl">
-        <DialogTitle className="text-xl font-semibold text-white">Generate Variations</DialogTitle>
-        <DialogDescription className="text-white/65">
-          Create AI-generated variations of this image.
-        </DialogDescription>
+      <DialogContent className="w-[min(95vw,32.5rem)] max-w-[32.5rem] !gap-0 !p-0 text-white">
+        <Box className="pd-glass-header px-5 py-4">
+          <DialogTitle className="m-0 text-[15px] font-semibold leading-tight text-[var(--pd-ink)]">
+            Generate Variations
+          </DialogTitle>
+          <DialogDescription className="mt-2 text-[13px] leading-5 text-[var(--pd-ink-mute)]">
+            Create AI-generated variations of this image.
+          </DialogDescription>
+        </Box>
 
-        <Flex direction="column" gap="3" className="mt-4">
-          <Box>
-            <Text size="2" weight="medium" className="mb-1 block">Type</Text>
-            <Select.Root value={modificationMode} onValueChange={setModificationMode}>
-              <Select.Trigger className="w-full" />
-              <Select.Content>
-                <Select.Item value="shot-variation">Shot variation</Select.Item>
-                <Select.Item value="b-roll">B-Roll</Select.Item>
-                <Select.Item value="action-shot">Action shot</Select.Item>
-                <Select.Item value="style-variation">Style variation</Select.Item>
-                <Select.Item value="subtle-variation">Subtle variation</Select.Item>
-                <Select.Item value="coverage">Coverage</Select.Item>
-              </Select.Content>
-            </Select.Root>
+        <Flex direction="column" gap="4" className="pd-glass-body px-5 py-4">
+          <Box style={{ background: "rgba(255,255,255,0.018)", border: "1px solid var(--pd-line)", borderRadius: 6, padding: "10px 10px 12px" }}>
+            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Mode</Text>
+            <Box className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {VARIATION_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setModificationMode(mode.id)}
+                  style={modificationMode === mode.id ? chipSelected : chipBase}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </Box>
           </Box>
+
           <Box>
-            <Text size="2" weight="medium" className="mb-1 block">Aspect ratio</Text>
-            <Select.Root value={aspectRatio} onValueChange={setAspectRatio}>
-              <Select.Trigger className="w-full" />
-              <Select.Content>
-                <Select.Item value="16:9">16:9 (horizontal)</Select.Item>
-                <Select.Item value="9:16">9:16 (vertical)</Select.Item>
-                <Select.Item value="1:1">1:1</Select.Item>
-                <Select.Item value="4:3">4:3</Select.Item>
-                <Select.Item value="3:4">3:4</Select.Item>
-              </Select.Content>
-            </Select.Root>
+            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Shot type</Text>
+            <Flex gap="2" wrap="wrap">
+              {SHOT_CHIP_PRESETS.map((shot) => (
+                <button
+                  key={shot.label}
+                  type="button"
+                  onClick={() => setVariationDetail(shot.detail)}
+                  style={variationDetail.trim().toLowerCase() === shot.detail.toLowerCase() ? chipSelected : chipBase}
+                >
+                  {shot.label}
+                </button>
+              ))}
+            </Flex>
           </Box>
+
           <Box>
-            <Text size="2" weight="medium" className="mb-1 block">Count (1–12)</Text>
-            <TextField.Root
-              type="number"
-              min={1}
-              max={12}
-              value={variationCount.toString()}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                if (!Number.isNaN(val)) setVariationCount(Math.min(Math.max(val, 1), 12));
-              }}
-              size="2"
-            />
+            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Aspect</Text>
+            <Flex gap="2" wrap="wrap">
+              {ASPECT_OPTIONS.map((aspect) => (
+                <button
+                  key={aspect}
+                  type="button"
+                  onClick={() => setAspectRatio(aspect)}
+                  style={aspectRatio === aspect ? chipSelected : chipBase}
+                >
+                  {aspect}
+                </button>
+              ))}
+            </Flex>
           </Box>
+
           <Box>
-            <Text size="2" weight="medium" className="mb-1 block">Detail (optional)</Text>
+            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Count</Text>
+            <Flex gap="2" wrap="wrap">
+              {COUNT_OPTIONS.map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => setVariationCount(count)}
+                  style={variationCount === count ? chipSelected : chipBase}
+                >
+                  {count}
+                </button>
+              ))}
+            </Flex>
+          </Box>
+
+          <Box>
+            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Custom detail (optional)</Text>
             <TextField.Root
               value={variationDetail}
               onChange={(e) => setVariationDetail(e.target.value)}
-              placeholder="e.g., wide shot, neon mood"
+              placeholder="Refines prompts for this generation run"
               size="2"
             />
           </Box>
         </Flex>
 
-        <Flex justify="end" gap="2" className="mt-4">
-          <Button variant="soft" color="gray" onClick={() => onOpenChange(false)}>
+        <Flex justify="end" gap="2" className="pd-glass-footer px-5 py-4">
+          <Button variant="soft" color="gray" className="pd-action-secondary" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button color="teal" onClick={() => void handleGenerate()}>
-            <MagicWandIcon /> Generate {variationCount}
+          <Button variant="soft" className="pd-action-primary" onClick={() => void handleGenerate()}>
+            <MagicWandIcon /> Generate {variationCount} {modeTitle}
           </Button>
         </Flex>
       </DialogContent>

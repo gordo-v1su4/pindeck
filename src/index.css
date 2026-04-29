@@ -92,6 +92,22 @@
   --pd-accent-contrast-text: #ffffff;
   --pd-font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
   --pd-font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+  --pd-ink: #c9ccd1;
+  --pd-ink-dim: rgba(238, 240, 242, 0.62);
+  --pd-ink-mute: rgba(238, 240, 242, 0.56);
+  --pd-ink-faint: rgba(238, 240, 242, 0.3);
+  --pd-glass-bg: rgba(10, 10, 14, 0.78);
+  --pd-glass-bg-strong: rgba(10, 10, 14, 0.9);
+  --pd-glass-header: rgba(10, 10, 14, 0.84);
+  --pd-glass-footer: rgba(14, 14, 18, 0.82);
+  --pd-glass-field: rgba(255, 255, 255, 0.035);
+  --pd-glass-line: rgba(255, 255, 255, 0.09);
+  --pd-glass-line-hi: rgba(255, 255, 255, 0.15);
+  --pd-glass-shadow: 0 24px 80px -28px rgba(0, 0, 0, 0.95), 0 2px 0 rgba(255, 255, 255, 0.025) inset;
+  --pd-glass-radius: 6px;
+  --pd-glass-blur: 22px;
+  --pd-glass-overlay: rgba(0, 0, 0, 0.48);
+  --pd-glass-overlay-blur: 4px;
 }
 .pd-theme,
 .dark .pd-theme {
@@ -529,18 +545,60 @@ body {
   aspect-ratio: 16 / 9;
 }
 
-/* Radix UI - Remove rounded corners globally for consistent sharp style */
-[data-radix-popper-content-wrapper] [role="menu"],
-.rt-DropdownMenuContent,
-.rt-SelectContent,
-.rt-PopoverContent {
-  border-radius: 4px !important;
-}
-
 /* Radix buttons - consistent styling */
 .rt-Button,
 .rt-IconButton {
   border-radius: 4px !important;
+}
+
+.pd-action-tab,
+.pd-action-secondary,
+.pd-action-primary,
+.pd-action-danger {
+  border: 1px solid var(--pd-line-strong) !important;
+  border-radius: 4px !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  color: var(--pd-ink-dim) !important;
+  box-shadow: none !important;
+}
+
+.pd-action-tab:hover,
+.pd-action-secondary:hover,
+.pd-action-primary:hover,
+.pd-action-danger:hover {
+  border-color: var(--pd-line-hi) !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  color: var(--pd-ink) !important;
+}
+
+.pd-action-tab[data-active="true"] {
+  border-color: rgba(46, 230, 166, 0.36) !important;
+  background: rgba(46, 230, 166, 0.12) !important;
+  color: #b6f8df !important;
+}
+
+.pd-action-primary {
+  border-color: rgba(46, 230, 166, 0.28) !important;
+  background: rgba(46, 230, 166, 0.13) !important;
+  color: #b6f8df !important;
+}
+
+.pd-action-primary:hover {
+  border-color: rgba(46, 230, 166, 0.42) !important;
+  background: rgba(46, 230, 166, 0.19) !important;
+  color: #d9ffef !important;
+}
+
+.pd-action-danger {
+  border-color: rgba(239, 67, 67, 0.26) !important;
+  background: rgba(239, 67, 67, 0.1) !important;
+  color: rgba(255, 190, 190, 0.92) !important;
+}
+
+.pd-action-danger:hover {
+  border-color: rgba(239, 67, 67, 0.42) !important;
+  background: rgba(239, 67, 67, 0.15) !important;
+  color: #ffd7d7 !important;
 }
 
 /* Radix badges - slight rounding */
@@ -548,23 +606,92 @@ body {
   border-radius: 3px !important;
 }
 
-/* Dropdown menu items - inherit accent color style like search bar */
-/* Default uses the theme's accent (blue) */
-.rt-DropdownMenuContent .rt-DropdownMenuItem[data-highlighted] {
-  background-color: var(--accent-a3) !important;
-  color: var(--accent-a11) !important;
+/* Unified fogged-glass overlays: dialogs, menus, selects, popovers. */
+.pd-glass-panel,
+.pd-glass-dialog,
+.rt-BaseDialogContent,
+.rt-BaseMenuContent,
+.rt-DropdownMenuContent,
+.rt-SelectContent,
+.rt-PopoverContent {
+  border: 1px solid var(--pd-glass-line) !important;
+  border-radius: var(--pd-glass-radius) !important;
+  background: var(--pd-glass-bg) !important;
+  background-color: var(--pd-glass-bg) !important;
+  color: var(--pd-ink, #c9ccd1) !important;
+  box-shadow: var(--pd-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(var(--pd-glass-blur)) saturate(1.25) !important;
+  backdrop-filter: blur(var(--pd-glass-blur)) saturate(1.25) !important;
 }
 
-/* Teal dropdown variant - for Generate menus */
-.rt-DropdownMenuContent.dropdown-teal .rt-DropdownMenuItem[data-highlighted] {
-  background-color: var(--teal-a3) !important;
-  color: var(--teal-a11) !important;
+.pd-glass-scrim {
+  background: var(--pd-glass-overlay) !important;
+  -webkit-backdrop-filter: blur(var(--pd-glass-overlay-blur)) !important;
+  backdrop-filter: blur(var(--pd-glass-overlay-blur)) !important;
 }
 
-/* Select items - same soft accent style */
-.rt-SelectContent .rt-SelectItem[data-highlighted] {
-  background-color: var(--accent-a3) !important;
-  color: var(--accent-a11) !important;
+.rt-BaseDialogOverlay::before {
+  background-color: var(--pd-glass-overlay) !important;
+  -webkit-backdrop-filter: blur(var(--pd-glass-overlay-blur)) !important;
+  backdrop-filter: blur(var(--pd-glass-overlay-blur)) !important;
+}
+
+.pd-glass-header {
+  border-bottom: 1px solid var(--pd-glass-line);
+  background: var(--pd-glass-header);
+}
+
+.pd-glass-body {
+  background: linear-gradient(180deg, rgba(255,255,255,0.012), rgba(255,255,255,0));
+}
+
+.pd-glass-footer {
+  border-top: 1px solid var(--pd-glass-line);
+  background: var(--pd-glass-footer);
+}
+
+.pd-glass-field,
+.pd-glass-dialog :where(.rt-TextFieldRoot, .rt-SelectTrigger),
+.rt-BaseDialogContent :where(.rt-TextFieldRoot, .rt-SelectTrigger) {
+  border: 1px solid var(--pd-glass-line) !important;
+  background: var(--pd-glass-field) !important;
+  color: var(--pd-ink, #c9ccd1) !important;
+  box-shadow: none !important;
+}
+
+.pd-glass-field:focus,
+.pd-glass-field:focus-visible,
+.pd-glass-dialog :where(.rt-TextFieldRoot:focus-within, .rt-SelectTrigger:focus-visible),
+.rt-BaseDialogContent :where(.rt-TextFieldRoot:focus-within, .rt-SelectTrigger:focus-visible) {
+  outline: none !important;
+  border-color: var(--pd-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pd-accent) 20%, transparent) !important;
+}
+
+.rt-BaseMenuItem,
+.rt-SelectItem {
+  color: var(--pd-ink-dim, rgba(238, 240, 242, 0.62)) !important;
+}
+
+.rt-BaseMenuLabel,
+.rt-SelectLabel {
+  color: var(--pd-ink-faint, rgba(238, 240, 242, 0.3)) !important;
+  font-family: var(--pd-font-mono, ui-monospace, monospace) !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+.rt-BaseMenuSeparator,
+.rt-SelectSeparator {
+  background-color: var(--pd-glass-line) !important;
+}
+
+.rt-BaseMenuContent :where(.rt-BaseMenuItem[data-highlighted]),
+.rt-BaseMenuContent :where(.rt-BaseMenuSubTrigger[data-state='open']),
+.rt-SelectContent :where(.rt-SelectItem[data-highlighted]),
+.rt-SelectContent :where(.rt-SelectItem[data-state='checked']) {
+  background-color: var(--pd-accent-soft) !important;
+  color: var(--pd-accent-ink) !important;
 }
 
 @theme inline {
