@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EXPECTED_DEPLOYMENT="tremendous-jaguar-953"
-EXPECTED_CLOUD_URL="https://tremendous-jaguar-953.convex.cloud"
-EXPECTED_SITE_URL="https://tremendous-jaguar-953.convex.site"
+EXPECTED_CLOUD_URL="https://convex.serving.cloud"
+EXPECTED_SITE_URL="https://convex-site.serving.cloud"
+EXPECTED_SELF_HOSTED_URL="https://convex.serving.cloud"
 
 env_file=".env.local"
 if [[ -f "$env_file" ]]; then
@@ -19,6 +19,12 @@ fail() {
 vite_urls_match() {
   [[ "${VITE_CONVEX_URL:-}" == "$EXPECTED_CLOUD_URL" ]] || return 1
   [[ "${VITE_CONVEX_SITE_URL:-}" == "$EXPECTED_SITE_URL" ]] || return 1
+  return 0
+}
+
+self_hosted_target_present() {
+  [[ "${CONVEX_SELF_HOSTED_URL:-}" == "$EXPECTED_SELF_HOSTED_URL" ]] || return 1
+  [[ -n "${CONVEX_SELF_HOSTED_ADMIN_KEY:-}" ]] || return 1
   return 0
 }
 
@@ -42,7 +48,8 @@ if is_ci_build; then
   exit 0
 fi
 
-[[ "${CONVEX_DEPLOYMENT:-}" == "$EXPECTED_DEPLOYMENT" ]] || fail "CONVEX_DEPLOYMENT must be '$EXPECTED_DEPLOYMENT'."
+[[ -z "${CONVEX_DEPLOYMENT:-}" ]] || fail "CONVEX_DEPLOYMENT must be unset when targeting self-hosted Convex."
+self_hosted_target_present || fail "CONVEX_SELF_HOSTED_URL must be '$EXPECTED_SELF_HOSTED_URL' and CONVEX_SELF_HOSTED_ADMIN_KEY must be set."
 vite_urls_match || fail "VITE_CONVEX_URL must be '$EXPECTED_CLOUD_URL' and VITE_CONVEX_SITE_URL must be '$EXPECTED_SITE_URL'."
 
-echo "Convex target check passed: production ($EXPECTED_DEPLOYMENT)"
+echo "Convex target check passed: self-hosted production ($EXPECTED_SELF_HOSTED_URL)"

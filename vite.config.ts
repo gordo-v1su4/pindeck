@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 /** Matches `scripts/enforce-production-convex.sh` / README — used when CI has no `.env.local`. */
-const PROD_CONVEX_CLOUD = "https://tremendous-jaguar-953.convex.cloud";
+const PROD_CONVEX_CLOUD = "https://convex.serving.cloud";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
