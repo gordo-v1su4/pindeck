@@ -9,15 +9,28 @@ const {
   PORT = 4545,
   MEDIA_GATEWAY_TOKEN,
   NEXTCLOUD_URL,
-  NEXTCLOUD_USERNAME,
-  NEXTCLOUD_PASSWORD,
+  NEXTCLOUD_WEBDAV_BASE_URL,
+  NEXTCLOUD_USERNAME: NEXTCLOUD_USERNAME_RAW,
+  NEXTCLOUD_WEBDAV_USER,
+  NEXTCLOUD_PASSWORD: NEXTCLOUD_PASSWORD_RAW,
+  NEXTCLOUD_WEBDAV_APP_PASSWORD,
   NEXTCLOUD_BASE_FOLDER = "/Pindeck",
 } = process.env;
+
+const deriveNextcloudBaseUrl = (value) => {
+  if (!value) return "";
+  const remotePhpIndex = value.indexOf("/remote.php/");
+  return (remotePhpIndex >= 0 ? value.slice(0, remotePhpIndex) : value).replace(/\/$/, "");
+};
+
+const NEXTCLOUD_RESOLVED_URL = NEXTCLOUD_URL || deriveNextcloudBaseUrl(NEXTCLOUD_WEBDAV_BASE_URL);
+const NEXTCLOUD_RESOLVED_USERNAME = NEXTCLOUD_WEBDAV_USER || NEXTCLOUD_USERNAME_RAW;
+const NEXTCLOUD_RESOLVED_PASSWORD = NEXTCLOUD_WEBDAV_APP_PASSWORD || NEXTCLOUD_PASSWORD_RAW;
 
 if (!MEDIA_GATEWAY_TOKEN) {
   console.warn("MEDIA_GATEWAY_TOKEN is not set");
 }
-if (!NEXTCLOUD_URL || !NEXTCLOUD_USERNAME || !NEXTCLOUD_PASSWORD) {
+if (!NEXTCLOUD_RESOLVED_URL || !NEXTCLOUD_RESOLVED_USERNAME || !NEXTCLOUD_RESOLVED_PASSWORD) {
   console.warn("Nextcloud credentials are not fully set");
 }
 
@@ -38,18 +51,29 @@ const requireAuth = (req, res, next) => {
 };
 
 const toWebdavUrl = (path) => {
-  const base = NEXTCLOUD_URL?.replace(/\/$/, "") || "";
-  return `${base}/remote.php/dav/files/${encodeURIComponent(NEXTCLOUD_USERNAME)}/${path.replace(/^\//, "")}`;
+  const base = NEXTCLOUD_RESOLVED_URL?.replace(/\/$/, "") || "";
+  return `${base}/remote.php/dav/files/${encodeURIComponent(NEXTCLOUD_RESOLVED_USERNAME)}/${path.replace(/^\//, "")}`;
 };
 
 const toOcsUrl = () => {
-  const base = NEXTCLOUD_URL?.replace(/\/$/, "") || "";
+  const base = NEXTCLOUD_RESOLVED_URL?.replace(/\/$/, "") || "";
   return `${base}/ocs/v2.php/apps/files_sharing/api/v1/shares`;
 };
 
 const authHeaders = () => ({
-  Authorization: "Basic " + Buffer.from(`${NEXTCLOUD_USERNAME}:${NEXTCLOUD_PASSWORD}`).toString("base64"),
+  Authorization: "Basic " + Buffer.from(`${NEXTCLOUD_RESOLVED_USERNAME}:${NEXTCLOUD_RESOLVED_PASSWORD}`).toString("base64"),
 });
+
+const folderExists = async (path) => {
+  const res = await fetch(toWebdavUrl(path), {
+    method: "PROPFIND",
+    headers: {
+      ...authHeaders(),
+      Depth: "0",
+    },
+  });
+  return [200, 207].includes(res.status);
+};
 
 const ensureFolder = async (folderPath) => {
   const parts = folderPath.replace(/^\//, "").split("/").filter(Boolean);
@@ -61,7 +85,10 @@ const ensureFolder = async (folderPath) => {
       method: "MKCOL",
       headers: authHeaders(),
     });
-    if (![201, 405, 301, 403].includes(res.status)) {
+    if (![201, 405, 301, 401, 403].includes(res.status)) {
+      if (res.status === 401 && await folderExists(current)) {
+        continue;
+      }
       // 405 means already exists
       const text = await res.text().catch(() => "");
       console.warn("MKCOL failed", res.status, text);

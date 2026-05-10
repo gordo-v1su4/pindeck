@@ -30,12 +30,12 @@ type UploadedImage = {
   previewUrl: string;
   storagePath: string;
   previewStoragePath: string;
-  derivativeUrls: {
+  derivativeUrls?: {
     small: string;
     medium: string;
     large: string;
   };
-  derivativeStoragePaths: {
+  derivativeStoragePaths?: {
     small: string;
     medium: string;
     large: string;
@@ -570,6 +570,27 @@ const DERIVATIVE_DIMENSIONS = {
   large: { width: 1920, height: 1080 },
 } as const;
 
+const uploadedImageReturnValidator = v.object({
+  imageUrl: v.string(),
+  previewUrl: v.string(),
+  storagePath: v.string(),
+  previewStoragePath: v.string(),
+  derivativeUrls: v.optional(
+    v.object({
+      small: v.string(),
+      medium: v.string(),
+      large: v.string(),
+    })
+  ),
+  derivativeStoragePaths: v.optional(
+    v.object({
+      small: v.string(),
+      medium: v.string(),
+      large: v.string(),
+    })
+  ),
+});
+
 async function buildPreview(
   buffer: Buffer,
   fallbackContentType: string,
@@ -731,9 +752,12 @@ async function persistImageBuffer(args: {
   const resolvedPreviewPath = previewUpload.storagePath;
 
   if (!sharpAvailable) {
-    throw new Error(
-      "Image derivatives could not be generated. Media gateway is unavailable and Sharp is not usable in this runtime."
-    );
+    return {
+      imageUrl,
+      previewUrl,
+      storagePath: resolvedOriginalPath,
+      previewStoragePath: resolvedPreviewPath,
+    };
   }
 
   const derivativePaths = {
@@ -792,22 +816,7 @@ export const persistExternalImageFromUrl = internalAction({
     sourceUrl: v.string(),
     title: v.optional(v.string()),
   },
-  returns: v.object({
-    imageUrl: v.string(),
-    previewUrl: v.string(),
-    storagePath: v.string(),
-    previewStoragePath: v.string(),
-    derivativeUrls: v.object({
-      small: v.string(),
-      medium: v.string(),
-      large: v.string(),
-    }),
-    derivativeStoragePaths: v.object({
-      small: v.string(),
-      medium: v.string(),
-      large: v.string(),
-    }),
-  }),
+  returns: uploadedImageReturnValidator,
   handler: async (_ctx, args) => {
     const source = await fetchImageAsBuffer(args.sourceUrl);
     return await persistImageBuffer({
@@ -831,16 +840,20 @@ export const persistGeneratedImageFromUrl = internalAction({
       previewUrl: v.string(),
       storagePath: v.string(),
       previewStoragePath: v.string(),
-      derivativeUrls: v.object({
-        small: v.string(),
-        medium: v.string(),
-        large: v.string(),
-      }),
-      derivativeStoragePaths: v.object({
-        small: v.string(),
-        medium: v.string(),
-        large: v.string(),
-      }),
+      derivativeUrls: v.optional(
+        v.object({
+          small: v.string(),
+          medium: v.string(),
+          large: v.string(),
+        })
+      ),
+      derivativeStoragePaths: v.optional(
+        v.object({
+          small: v.string(),
+          medium: v.string(),
+          large: v.string(),
+        })
+      ),
     }),
     v.object({
       ok: v.literal(false),
@@ -1118,22 +1131,7 @@ export const reprocessStoredImagePaths = internalAction({
     storagePath: v.string(),
     title: v.optional(v.string()),
   },
-  returns: v.object({
-    imageUrl: v.string(),
-    previewUrl: v.string(),
-    storagePath: v.string(),
-    previewStoragePath: v.string(),
-    derivativeUrls: v.object({
-      small: v.string(),
-      medium: v.string(),
-      large: v.string(),
-    }),
-    derivativeStoragePaths: v.object({
-      small: v.string(),
-      medium: v.string(),
-      large: v.string(),
-    }),
-  }),
+  returns: uploadedImageReturnValidator,
   handler: async (_ctx, args) => {
     const config = getNextcloudConfig();
     const source = await fetchPrivateNextcloudFile(config, args.storagePath);

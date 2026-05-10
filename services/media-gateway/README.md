@@ -16,6 +16,9 @@ If docs or implementation diverge, treat the separate repo as source of truth fo
 - `NEXTCLOUD_URL`
 - `NEXTCLOUD_USERNAME`
 - `NEXTCLOUD_PASSWORD`
+- `NEXTCLOUD_WEBDAV_BASE_URL`
+- `NEXTCLOUD_WEBDAV_USER`
+- `NEXTCLOUD_WEBDAV_APP_PASSWORD` (preferred over `NEXTCLOUD_PASSWORD`)
 - `NEXTCLOUD_BASE_FOLDER` (default: `/Pindeck`)
 - `PORT` (default: `4545`)
 
