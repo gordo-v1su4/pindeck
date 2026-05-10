@@ -4,7 +4,7 @@ AI-powered image gallery + generation app using React, Convex, OpenRouter, and f
 
 ## Production Local Workflow (No Dev Server)
 
-This repo is configured to run locally against your **production Convex deployment**.
+This repo is configured to run locally against the **self-hosted production Convex deployment**.
 
 1. Install dependencies:
 ```bash
@@ -16,9 +16,10 @@ bun install
 cp .env.example .env.local
 ```
 
-3. Set production Convex URL in `.env.local`:
+3. Set self-hosted production Convex URLs in `.env.local`:
 ```bash
-VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud
+VITE_CONVEX_URL=https://convex.serving.cloud
+VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud
 ```
 
 4. Build production bundle:
@@ -35,9 +36,10 @@ bun run serve
 
 ## Current Production Deployments
 
-- Convex production deployment: `tremendous-jaguar-953`
-- Convex client URL: `https://tremendous-jaguar-953.convex.cloud`
-- Convex HTTP/actions URL: `https://tremendous-jaguar-953.convex.site`
+- Convex production deployment: **self-hosted only**
+- Convex client URL: `https://convex.serving.cloud`
+- Convex HTTP/actions URL: `https://convex-site.serving.cloud`
+- Legacy Convex Cloud deployment `tremendous-jaguar-953` is retired and must not be used for deploys or frontend env.
 - Discord bot + media gateway deployment source: separate repo `~/Documents/Github/discord-bot`
 
 ## Required Environment Variables
@@ -63,14 +65,17 @@ Set in Convex Project Settings:
 ### Local / Vercel Frontend
 
 Set for frontend build/runtime:
-- `VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud`
+- `VITE_CONVEX_URL=https://convex.serving.cloud`
+- `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud`
 
-Optional (if needed by tooling/integrations):
-- `VITE_CONVEX_SITE_URL=https://tremendous-jaguar-953.convex.site`
+For Convex function deploys:
+- `CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud`
+- `CONVEX_SELF_HOSTED_ADMIN_KEY=<self-hosted admin key>`
+- Do **not** set `CONVEX_DEPLOYMENT` for Pindeck production.
 
 ## Scripts
 
-- `bun run check:prod-target` - Verify local env is pinned to `tremendous-jaguar-953`
+- `bun run check:prod-target` - Verify local env is pinned to self-hosted production Convex
 - `bun run build` - Production build (`vite build`)
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
 - `bun run deploy:convex` - Deploy Convex functions
@@ -182,13 +187,23 @@ Notes:
 bun run deploy:convex
 ```
 
+This requires `.env.local` or the shell environment to include:
+
+```bash
+CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud
+CONVEX_SELF_HOSTED_ADMIN_KEY=...
+```
+
+Do **not** use `CONVEX_DEPLOYMENT=tremendous-jaguar-953`; that is the retired Convex Cloud deployment.
+No Convex MCP is configured or required for production deploys; use the direct self-hosted Convex CLI target above.
+
 ### Vercel
 
 Use Vercel for frontend deployment. Pushing to `main` on GitHub triggers the Vercel frontend deploy.
 
-**Vercel builds** do not use `.env.local`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` to **`tremendous-jaguar-953`** when unset, so previews deploy without extra env. Override in **Settings → Environment Variables** if you intentionally point previews at another Convex deployment.
+**Vercel builds** do not use `.env.local`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` to **`https://convex.serving.cloud`** when unset, so previews deploy without extra env. Set `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud` when code needs the HTTP/actions URL.
 
-Locally, keep **`CONVEX_DEPLOYMENT`**, **`VITE_CONVEX_URL`**, and **`VITE_CONVEX_SITE_URL`** in **`.env.local`** so `dev` / `deploy:convex` match production (see `.env.example`).
+Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_HOSTED_URL`**, and **`CONVEX_SELF_HOSTED_ADMIN_KEY`** in **`.env.local`** so `dev` / `deploy:convex` match production (see `.env.example`). Keep **`CONVEX_DEPLOYMENT` unset**.
 
 ## Unified UI / design tokens (Tweaks)
 
@@ -202,10 +217,10 @@ Locally, keep **`CONVEX_DEPLOYMENT`**, **`VITE_CONVEX_URL`**, and **`VITE_CONVEX
 
 - **pd Gallery tiles** ([`src/components/pd/GalleryView.tsx`](src/components/pd/GalleryView.tsx)): image-first cards with a **VAR** badge for generated children; **heart** + **bookmark** are **top-right only** (no second like indicator). Like uses optimistic UI; filled **red** heart / **blue** filled bookmark when the image is on a board. Variation generation stays in the image drawer, not on the tile overlay.
 - **Create New Board** (bookmark → Create board, [`src/components/CreateBoardModal.tsx`](src/components/CreateBoardModal.tsx)): **`Dialog`** with **`.pd-theme`** + same field chrome as the image drawer (`var(--pd-line-strong)`, `--pd-accent` primary); **`boards.create`** args remain **name**, **description**, **isPublic**. Image **variation** generation stays on **`vision.generateVariations`** in the drawer (`ImageDetailDrawer`), not this modal.
-- **Decks** ([`src/components/DeckView.tsx`](src/components/DeckView.tsx), [`src/components/deck/`](src/components/deck/)): Matches **`claude/redesign`** — sideways deck library strip, **`DeckComposer`** + **`DeckCanvasPage`**. **`convex/decks.list`** returns **`stripImageUrls`** + **`stripPalettes`** (**`images.colors[..5]`** per slide, same metadata as the **Table** `PinSwatches` column). Library cards use a **16:9 hero** still for the first slide and a **filmstrip** row for extras, each with **`PinSwatches`**. **Tweaks** **`--pd-accent*`** apply to **composer chrome**; composer **left swatches** client-sample the **active** strip image (Convex fallback by **`imageUrl`**). **`DeckCanvasPage`** slide frames have **no selection outline**; **editable-text** focus uses **`colors.accent`**. Deck **color state** is not persisted in **`localStorage`**. Deploy **`bun run deploy:convex`** after **`decks.list`** changes.
-- **Image palette / swatches:** Stored `colors` are **average RGB per quantized cluster** (not lattice corners), Lab-space dedup + warm‑scene magenta/purple suppression (`src/lib/colorPaletteCore.ts`). Server prefers **`imageUrl`** (`convex/colorExtractionUrls.ts`). After changing extraction logic deploy Convex, then Table **“Re-sample palettes”** → wait for scheduled actions → reload.
-- **Cinematic metadata (TYPE / Genre / Shot / Style):** VLM analysis (`convex/vision.ts`) writes `group`, `genre`, `shot`, and `style` on `images`. Table **“Backfill metadata”** schedules re-analysis for **your** uploads (staggered). Sidebar filter chips use `libraryAggregations` + shared client filters (`src/lib/libraryFilters.ts`).
+- **Decks** ([`src/components/DeckView.tsx`](src/components/DeckView.tsx), [`src/components/deck/`](src/components/deck/)): Matches **`claude/redesign`** — sideways deck library strip, **`DeckComposer`** + **`DeckCanvasPage`**. **`convex/decks.list`** returns **`stripImageUrls`** + **`stripPalettes`** (**`images.colors[..5]`** per slide, same metadata as the **Table** `PinSwatches` column). Library cards use a **16:9 hero** still for the first slide and a **filmstrip** row for extras, each with **`PinSwatches`**. **Tweaks** **`--pd-accent*`** apply to **composer chrome**; composer **left swatches** client-sample the **active** strip image (Convex fallback by **`imageUrl`**). **`DeckCanvasPage`** slide frames have **no selection outline**; **editable-text** focus uses **`colors.accent`**. Deck **color state** is not persisted in **`localStorage`**. Deploy self-hosted Convex after **`decks.list`** changes.
+- **Image palette / swatches:** Stored `colors` are **average RGB per quantized cluster** (not lattice corners), Lab-space dedup + warm-scene magenta/purple suppression (`src/lib/colorPaletteCore.ts`). Server prefers **`imageUrl`** (`convex/colorExtractionUrls.ts`). After changing extraction logic deploy self-hosted Convex, then Table **“Refresh metadata”** / **“Refresh selected”** → wait for scheduled actions → reload.
+- **Cinematic metadata (TYPE / Genre / Shot / Style):** VLM analysis (`convex/vision.ts`) writes `group`, `genre`, `shot`, and `style` on `images`. Table **“Refresh metadata”** schedules metadata and color refresh for **your** uploads; when rows are selected, **“Refresh selected”** only schedules the selected images. Sidebar filter chips use `libraryAggregations` + shared client filters (`src/lib/libraryFilters.ts`).
 - Do not use `convex dev` when targeting production.
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
 - Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.
-- `dev`, `build`, `serve`, `lint`, and `deploy:convex` enforce production Convex targets (`tremendous-jaguar-953`) and fail fast otherwise.
+- `dev`, `build`, `serve`, `lint`, and `deploy:convex` enforce self-hosted production Convex targets (`https://convex.serving.cloud`) and fail fast otherwise.

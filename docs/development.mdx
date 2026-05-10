@@ -10,7 +10,7 @@ Set up the Pindeck development environment on your machine.
 ## Prerequisites
 
 - [Bun](https://bun.sh) runtime
-- A Convex account with the `tremendous-jaguar-953` deployment
+- Access to the self-hosted Pindeck Convex deployment
 - Google or GitHub OAuth app credentials
 
 ## Setup
@@ -29,10 +29,11 @@ bun install
 cp .env.example .env.local
 ```
 
-Set the production Convex URL in `.env.local`:
+Set the self-hosted production Convex URLs in `.env.local`:
 
 ```bash
-VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud
+VITE_CONVEX_URL=https://convex.serving.cloud
+VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud
 ```
 
 ### 3. Build and serve
@@ -54,8 +55,10 @@ Do not use `convex dev` when targeting production. The build scripts enforce the
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VITE_CONVEX_URL` | Yes | Convex client URL (`*.convex.cloud`) |
-| `VITE_CONVEX_SITE_URL` | No | Convex HTTP/actions URL (`*.convex.site`) |
+| `VITE_CONVEX_URL` | Yes | Self-hosted Convex client URL (`https://convex.serving.cloud`) |
+| `VITE_CONVEX_SITE_URL` | Yes | Self-hosted Convex HTTP/actions URL (`https://convex-site.serving.cloud`) |
+| `CONVEX_SELF_HOSTED_URL` | Deploy only | Self-hosted Convex deploy target (`https://convex.serving.cloud`) |
+| `CONVEX_SELF_HOSTED_ADMIN_KEY` | Deploy only | Admin key required by `bun run deploy:convex` |
 
 ### Convex Dashboard (backend)
 
@@ -87,6 +90,10 @@ Set these in the Convex Project Settings:
 
 ## Production deployments
 
-- **Convex**: `tremendous-jaguar-953`
+- **Convex**: self-hosted at `https://convex.serving.cloud`
 - **Frontend**: Vercel (ensure `VITE_CONVEX_URL` is set)
 - **Discord bot**: Hosted separately — see [Discord bot guide](/guides/discord-bot)
+
+<Warning>
+Do not use `CONVEX_DEPLOYMENT=tremendous-jaguar-953`. That was the old Convex Cloud deployment and is no longer the Pindeck production backend.
+</Warning>

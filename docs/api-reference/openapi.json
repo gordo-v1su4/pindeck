@@ -10,8 +10,8 @@
   },
   "servers": [
     {
-      "url": "https://tremendous-jaguar-953.convex.site",
-      "description": "Production Convex deployment"
+      "url": "https://convex-site.serving.cloud",
+      "description": "Self-hosted production Convex HTTP actions"
     }
   ],
   "components": {

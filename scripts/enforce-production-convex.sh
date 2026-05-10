@@ -29,7 +29,8 @@ self_hosted_target_present() {
 }
 
 # Vercel/GitHub Actions do not have .env.local. The client bundle only needs
-# VITE_CONVEX_* at build time — CONVEX_DEPLOYMENT is for local Convex CLI discipline.
+# VITE_CONVEX_* at build time. Pindeck production is self-hosted, so
+# CONVEX_DEPLOYMENT must remain unset; deploy with CONVEX_SELF_HOSTED_*.
 is_ci_build() {
   [[ "${VERCEL:-}" == "1" ]] ||
     [[ "${CI:-}" == "true" ]] ||

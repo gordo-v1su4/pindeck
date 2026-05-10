@@ -9,10 +9,10 @@ Pindeck is a full-stack image gallery and creative asset management platform bui
 | Layer | Technologies |
 |-------|-------------|
 | **Frontend** | React 19, TypeScript 5.7, Vite 6, Tailwind CSS 4, Radix UI Themes, TanStack Table |
-| **Backend** | Convex (real-time BaaS), Convex Auth (Password + Anonymous) |
+| **Backend** | Self-hosted Convex (real-time BaaS), Convex Auth (Password + Anonymous) |
 | **AI** | OpenRouter VLM (default: Qwen3 VL 8B), fal.ai Nano Banana Pro |
 | **Integrations** | Discord.js bot, NextCloud (WebDAV), Pinterest (planned) |
-| **Deployment** | Vercel (frontend), Convex Cloud (backend), Bun (runtime) |
+| **Deployment** | Vercel (frontend), self-hosted Convex at `convex.serving.cloud` (backend), Bun (runtime) |
 
 ---
 

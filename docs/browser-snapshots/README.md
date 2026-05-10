@@ -14,7 +14,7 @@ Captured from **Cursor IDE browser MCP** (`browser_take_screenshot`). Files are 
 **Interpretation checklist (don’t confuse code vs data):**
 
 1. **`src/lib/colorPaletteCore.ts`** averages real pixels per cluster (centroids) and drops fringe purple/magenta in warm scenes — runs only when **`internalExtractAndStoreColors`** runs (upload, ingest paths, **Re-sample palettes** button).
-2. Until you **`bun run deploy:convex`** and enqueue re-samples, **`images.colors` in Convex is old** → UI can still paint purple from stale rows.
+2. Until you deploy self-hosted Convex with **`bun run deploy:convex`** and enqueue refresh jobs, **`images.colors` in Convex is old** → UI can still paint purple from stale rows.
 3. Compare shell vs **`pindeck-754f`** for TMP-only features (aggregator filters, dummy gallery content), not Convex-backed palette accuracy.
 
 **Compare:** Same shell (Pindeck sidebar, views, Tweaks/footer) vs **754f** richer filter chips/counts/topbar chrome; alignment with 754f is tracked in HANDOFF gaps.
