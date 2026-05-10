@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -46,6 +46,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
   const [refreshStatus, setRefreshStatus] = useState<{
     tone: "working" | "success" | "error";
     copy: string;
+    imageIds?: Id<"images">[];
   } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<Id<"images">>>(new Set());
@@ -65,13 +66,20 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         forceAll: ids.length > 0,
         imageIds: ids.length ? ids : undefined,
       });
-      const copy =
-        r.metadataScheduled === 0 && r.paletteScheduled === 0
-          ? ids.length
+      if (r.metadataScheduled === 0 && r.paletteScheduled === 0) {
+        setRefreshStatus({
+          tone: "success",
+          copy: ids.length
             ? "No eligible images found for this account. Sign in as the image owner to generate metadata and palettes."
-            : "No uploads with missing metadata or palettes were found."
-          : `Queued ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}. ${r.skipped ? `${r.skipped} skipped.` : "Reload after the jobs finish to see updated fields."}`;
-      setRefreshStatus({ tone: "success", copy });
+            : "No uploads with missing metadata or palettes were found.",
+        });
+      } else {
+        setRefreshStatus({
+          tone: "working",
+          copy: `Processing ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}...`,
+          imageIds: ids.length ? ids : undefined,
+        });
+      }
     } catch (e) {
       console.error(e);
       setRefreshStatus({
@@ -133,6 +141,31 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
   }, [filteredIds]);
 
   const selectedArray = useCallback(() => Array.from(selectedIds), [selectedIds]);
+
+  useEffect(() => {
+    if (!refreshStatus || refreshStatus.tone !== "working" || !refreshStatus.imageIds?.length || !images) return;
+    const targets = refreshStatus.imageIds
+      .map((id) => images.find((image) => image._id === id))
+      .filter(Boolean);
+    if (targets.length !== refreshStatus.imageIds.length) return;
+    const pending = targets.filter((image: any) => image.aiStatus === "processing");
+    const missingPalette = targets.filter((image: any) => !image.colors?.length);
+    if (pending.length === 0 && missingPalette.length === 0) {
+      setRefreshStatus({
+        tone: "success",
+        copy: `Metadata and palettes updated for ${targets.length} selected image${targets.length === 1 ? "" : "s"}.`,
+      });
+    } else {
+      setRefreshStatus((current) => {
+        if (!current || current.tone !== "working") return current;
+        const pieces = [];
+        if (pending.length) pieces.push(`${pending.length} metadata running`);
+        if (missingPalette.length) pieces.push(`${missingPalette.length} palette pending`);
+        const copy = pieces.length ? `Processing: ${pieces.join(", ")}...` : "Finishing metadata and palette updates...";
+        return current.copy === copy ? current : { ...current, copy };
+      });
+    }
+  }, [images, refreshStatus]);
 
   const handleCreateBoard = useCallback(async () => {
     const ids = selectedArray();

@@ -383,7 +383,7 @@ export const enqueueMetadataRefresh = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const stagger = Math.max(500, args.staggerMs ?? 4500);
+    const stagger = Math.max(0, args.staggerMs ?? 0);
     const onlyMissing = args.forceAll !== true && (args.onlyMissing !== false);
 
     const mine = args.imageIds
@@ -429,6 +429,7 @@ export const enqueueMetadataRefresh = mutation({
         continue;
       }
 
+      await ctx.db.patch(img._id, { aiStatus: "processing" });
       await ctx.scheduler.runAfter(delay, internal.vision.internalSmartAnalyzeImage, {
         storageId: sourceStorageId,
         imageUrl: sourceImageUrl,
