@@ -177,6 +177,39 @@ export const create = mutation({
   },
 });
 
+export const createFromImages = mutation({
+  args: {
+    imageIds: v.array(v.id("images")),
+    name: v.optional(v.string()),
+  },
+  returns: v.id("collections"),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to create boards");
+    }
+
+    const imageIds: Array<typeof args.imageIds[number]> = [];
+    for (const imageId of args.imageIds) {
+      const image = await ctx.db.get(imageId);
+      if (!image || image.uploadedBy !== userId) continue;
+      if (!imageIds.includes(imageId)) imageIds.push(imageId);
+    }
+
+    if (imageIds.length === 0) {
+      throw new Error("Select at least one image you own.");
+    }
+
+    return await ctx.db.insert("collections", {
+      name: args.name?.trim() || `Selection ${new Date().toLocaleDateString("en-US")}`,
+      description: "Created from a table selection.",
+      userId,
+      isPublic: false,
+      imageIds,
+    });
+  },
+});
+
 export const addImage = mutation({
   args: {
     boardId: v.id("collections"),

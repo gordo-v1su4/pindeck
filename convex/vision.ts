@@ -650,7 +650,7 @@ export const internalSmartAnalyzeImage = internalAction({
 "tags" (5-10 specific descriptive tags),
 "colors" (array of 5 hex codes like #RRGGBB),
 "category" (one of: ${categories.join(", ")}),
-"group" (production TYPE — pick one: Commercial, Film, Music Video, Editorial, Moodboard, Spec Commercial, Spec Music Video, TV Series, Web Series, Video Game Cinematic — or null),
+"group" (production TYPE — pick one: Commercial, Film, Music Video, Editorial, Moodboard, TV Series, Web Series, Video Game Cinematic — or null),
 "genre" (one primary genre: Noir, Sci-Fi, Drama, Horror, Romance, Action, Doc — use Doc for documentary — or null),
 "shot" (one concise cinematography framing label, Title Case — e.g. Over-the-Shoulder, Extreme Wide Shot, Medium Shot, Close-Up, Bird's Eye, Low Angle — best match for framing),
 "visual_style" (capture/medium — one short label like 35mm Film, 16mm, VHS, Digital, Polaroid, Super 8, IMAX, or CGI),

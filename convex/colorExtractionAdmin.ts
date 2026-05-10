@@ -11,6 +11,7 @@ import { preferredImageUrlForSampling } from "./colorExtractionUrls";
 export const reExtractAll = mutation({
   args: {
     onlyMissing: v.optional(v.boolean()),
+    imageIds: v.optional(v.array(v.id("images"))),
   },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args) => {
@@ -19,9 +20,14 @@ export const reExtractAll = mutation({
       throw new Error("Sign in to refresh image palettes.");
     }
 
-    const all = await ctx.db.query("images").collect();
+    const all = args.imageIds
+      ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id)))).filter(
+          (img): img is NonNullable<typeof img> => Boolean(img)
+        )
+      : await ctx.db.query("images").collect();
     let scheduled = 0;
     for (const img of all) {
+      if (img.uploadedBy !== userId) continue;
       if (args.onlyMissing && img.colors && img.colors.length > 0) continue;
       const url = preferredImageUrlForSampling(img);
       if (!url) continue;

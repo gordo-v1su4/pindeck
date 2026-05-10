@@ -273,5 +273,15 @@ export function extractDominantHexes(
     usedHex.add(rgbToHex(next.rgb[0], next.rgb[1], next.rgb[2]));
   }
 
+  while (picked.length < topN) {
+    const next = scored.find((c) => {
+      const hx = rgbToHex(c.rgb[0], c.rgb[1], c.rgb[2]);
+      return !usedHex.has(hx);
+    });
+    if (!next) break;
+    picked.push(next);
+    usedHex.add(rgbToHex(next.rgb[0], next.rgb[1], next.rgb[2]));
+  }
+
   return picked.slice(0, topN).map((p) => rgbToHex(p.rgb[0], p.rgb[1], p.rgb[2]));
 }

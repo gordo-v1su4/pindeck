@@ -299,6 +299,7 @@ export const enqueueCinematicMetadataBackfill = mutation({
     onlyMissing: v.optional(v.boolean()),
     staggerMs: v.optional(v.number()),
     forceAll: v.optional(v.boolean()),
+    imageIds: v.optional(v.array(v.id("images"))),
   },
   returns: v.object({ scheduled: v.number(), skipped: v.number() }),
   handler: async (ctx, args) => {
@@ -308,10 +309,13 @@ export const enqueueCinematicMetadataBackfill = mutation({
     const stagger = Math.max(500, args.staggerMs ?? 4500);
     const onlyMissing = args.forceAll !== true && (args.onlyMissing !== false);
 
-    const mine = await ctx.db
-      .query("images")
-      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
-      .collect();
+    const mine = args.imageIds
+      ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
+          .filter((img): img is NonNullable<typeof img> => Boolean(img) && img.uploadedBy === userId)
+      : await ctx.db
+          .query("images")
+          .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+          .collect();
 
     const targets = onlyMissing
       ? mine.filter((img) => {
@@ -1376,7 +1380,7 @@ export const incrementViews = mutation({
 
 // Broad type (e.g. Type): Commercial, Film, Moodboard, etc.
 export const GROUPS = [
-  "Commercial", "Film", "Moodboard", "Spec Commercial", "Spec Music Video",
+  "Commercial", "Film", "Moodboard",
   "Music Video", "TV Series", "Web Series", "Video Game Cinematic",
 ] as const;
 
@@ -1470,7 +1474,7 @@ export const uploadMultiple = mutation({
           category: upload.category,
           source: upload.source,
           sref: upload.sref,
-          colors: [],
+          colors: upload.colors ?? [],
           group: upload.group,
           projectName: upload.projectName,
           moodboardName: upload.moodboardName,
@@ -1821,6 +1825,31 @@ export const remove = mutation({
     await ctx.db.delete("images", args.id);
 
     return { success: true };
+  },
+});
+
+export const removeMany = mutation({
+  args: { ids: v.array(v.id("images")) },
+  returns: v.object({ removed: v.number() }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    let removed = 0;
+    for (const id of args.ids) {
+      const image = await ctx.db.get(id);
+      if (!image || image.uploadedBy !== userId) continue;
+      if (image.storageId) {
+        await ctx.storage.delete(image.storageId);
+      }
+      await scheduleNextcloudCleanup(ctx, image);
+      await ctx.db.delete("images", id);
+      removed += 1;
+    }
+
+    return { removed };
   },
 });
 

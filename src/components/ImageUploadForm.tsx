@@ -8,6 +8,7 @@ import {
   getPaletteSwatchStyle,
   sortColorsDarkToLight,
 } from "../lib/utils";
+import { extractColorsFromImage } from "../lib/colorExtraction";
 import {
   Card,
   Text,
@@ -49,6 +50,7 @@ interface UploadFile {
   projectName?: string;
   moodboardName?: string;
   uniqueId?: string;
+  colorStatus?: "pending" | "ready" | "failed";
 }
 
 const VARIATION_MODES: { id: string; label: string }[] = [
@@ -133,6 +135,7 @@ export function ImageUploadForm() {
   const [modificationMode, setModificationMode] = useState("shot-variation");
   const [variationDetail, setVariationDetail] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
+  const hasPendingColorSampling = files.some((file) => file.colorStatus === "pending");
 
   useEffect(() => {
     void clearMyStaleProcessingImagesMutation({ olderThanHours: 18 }).catch((error) => {
@@ -205,9 +208,24 @@ export function ImageUploadForm() {
       projectName: undefined,
       moodboardName: undefined,
       uniqueId: undefined,
+      colorStatus: "pending",
     }));
 
     setFiles(prev => [...prev, ...newUploadFiles]);
+
+    void Promise.all(
+      newUploadFiles.map(async (uploadFile) => {
+        const colors = await extractColorsFromImage(uploadFile.preview);
+        setFiles(prev => prev.map((file) => {
+          if (file.id !== uploadFile.id) return file;
+          return {
+            ...file,
+            colors,
+            colorStatus: colors.length > 0 ? "ready" : "failed",
+          };
+        }));
+      })
+    );
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -342,6 +360,10 @@ export function ImageUploadForm() {
       toast.error("Please select at least one image");
       return;
     }
+    if (hasPendingColorSampling) {
+      toast.info("Still sampling image colors. Upload will be ready in a moment.");
+      return;
+    }
 
     setUploading(true);
     try {
@@ -360,16 +382,10 @@ export function ImageUploadForm() {
 
         const { storageId } = await response.json();
 
-        // Auto-generate title from projectName + moodboardName if provided
+        // Auto-generate title from projectName if provided
         let generatedTitle = file.title;
-        if (!generatedTitle && (file.projectName || file.moodboardName)) {
-          if (file.projectName && file.moodboardName) {
-            generatedTitle = `${file.projectName} - ${file.moodboardName}`;
-          } else if (file.projectName) {
-            generatedTitle = file.projectName;
-          } else if (file.moodboardName) {
-            generatedTitle = file.moodboardName;
-          }
+        if (!generatedTitle && file.projectName) {
+          generatedTitle = file.projectName;
         }
         
         // Generate uniqueId if not provided
@@ -384,6 +400,7 @@ export function ImageUploadForm() {
           category: file.category,
           source: file.source || undefined,
           sref: file.sref || undefined,
+          colors: file.colors,
           group: file.group || undefined,
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
@@ -489,16 +506,16 @@ export function ImageUploadForm() {
     padding: "5px 8px",
     borderRadius: 4,
     fontSize: 11,
-    border: "1px solid var(--pd-line-strong)",
-    background: "rgba(255,255,255,0.02)",
+    border: "0",
+    outline: "none",
+    background: "rgba(255,255,255,0.025)",
     color: "var(--pd-ink-dim)",
     cursor: "pointer",
   };
   const chipSelected: React.CSSProperties = {
     ...chipBase,
-    border: "1px solid rgba(46, 230, 166, 0.36)",
-    background: "rgba(46, 230, 166, 0.12)",
-    color: "#b6f8df",
+    background: "var(--pd-accent-soft)",
+    color: "var(--pd-accent-ink)",
   };
 
   return (
@@ -739,10 +756,10 @@ export function ImageUploadForm() {
                 <Flex direction="column" gap="4">
                   <Box
                     style={{
-                      background: "rgba(255,255,255,0.018)",
-                      border: "1px solid var(--pd-line)",
-                      borderRadius: 6,
-                      padding: "10px 10px 12px",
+                      background: "transparent",
+                      border: 0,
+                      borderRadius: 0,
+                      padding: 0,
                     }}
                   >
                     <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">
@@ -1003,14 +1020,6 @@ export function ImageUploadForm() {
                       size="1"
                     />
 
-                    {/* Moodboard Name */}
-                    <TextField.Root
-                      value={file.moodboardName || ""}
-                      onChange={(e) => updateFile(file.id, { moodboardName: e.target.value || undefined })}
-                      placeholder="Moodboard Name (e.g., pink girl smoking)"
-                      size="1"
-                    />
-
                     {/* Unique ID */}
                     <TextField.Root
                       value={file.uniqueId || ""}
@@ -1041,11 +1050,17 @@ export function ImageUploadForm() {
                         {sortColorsDarkToLight(file.colors || []).map((color) => (
                           <Box
                             key={color}
-                            className="w-4 h-4 rounded-full border"
+                            className="w-4 h-4 rounded-[3px] border"
                             style={getPaletteSwatchStyle(color)}
                             title={color}
                           />
                         ))}
+                        {file.colorStatus === "pending" && (
+                          <Flex align="center" gap="1">
+                            <Box className="w-3 h-3 border-2 border-[var(--pd-green)] border-t-transparent rounded-full animate-spin" />
+                            <Text size="1" color="gray">Sampling colors...</Text>
+                          </Flex>
+                        )}
                       </Flex>
 
                       <Flex gap="1" wrap="wrap" className="mb-2">
@@ -1100,7 +1115,7 @@ export function ImageUploadForm() {
             </Button>
             <Button
               onClick={() => void handleSubmit()}
-              disabled={uploading || files.length === 0}
+              disabled={uploading || files.length === 0 || hasPendingColorSampling}
               size="2"
               variant="soft"
               className="pd-action-primary"
@@ -1109,6 +1124,11 @@ export function ImageUploadForm() {
                 <Flex align="center" gap="2">
                   <Box className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   Uploading...
+                </Flex>
+              ) : hasPendingColorSampling ? (
+                <Flex align="center" gap="2">
+                  <Box className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Sampling colors...
                 </Flex>
               ) : (
                 `Upload ${files.length} Image${files.length > 1 ? 's' : ''}`
@@ -1410,14 +1430,6 @@ export function ImageUploadForm() {
                       size="1"
                     />
 
-                    {/* Moodboard Name */}
-                    <TextField.Root
-                      value={image.moodboardName || ""}
-                      onChange={(e) => void updateImageMetadata(image._id, { moodboardName: e.target.value || undefined })}
-                      placeholder="Moodboard Name (e.g., pink girl smoking)"
-                      size="1"
-                    />
-
                     {/* Unique ID */}
                     <TextField.Root
                       value={image.uniqueId || ""}
@@ -1448,7 +1460,7 @@ export function ImageUploadForm() {
                         {image.colors && sortColorsDarkToLight(image.colors).map((color) => (
                           <Box
                             key={color}
-                            className="w-3 h-3 rounded-full border"
+                            className="w-3 h-3 rounded-[3px] border"
                             style={getPaletteSwatchStyle(color)}
                             title={color}
                           />

@@ -205,3 +205,53 @@ export const createFromBoard = mutation({
     return deckId;
   },
 });
+
+export const createFromImages = mutation({
+  args: {
+    imageIds: v.array(v.id("images")),
+    title: v.optional(v.string()),
+  },
+  returns: v.id("decks"),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to create decks");
+    }
+
+    const imageIds: Array<typeof args.imageIds[number]> = [];
+    for (const imageId of args.imageIds) {
+      const image = await ctx.db.get(imageId);
+      if (!image || image.uploadedBy !== userId) continue;
+      if (!imageIds.includes(imageId)) imageIds.push(imageId);
+    }
+
+    if (imageIds.length === 0) {
+      throw new Error("Select at least one image you own.");
+    }
+
+    const name = args.title?.trim() || `Selection ${new Date().toLocaleDateString("en-US")}`;
+    const boardId = await ctx.db.insert("collections", {
+      name,
+      description: "Created from a table selection for deck generation.",
+      userId,
+      isPublic: false,
+      imageIds,
+    });
+
+    const slides = imageIds.map((imageId, index) => ({
+      imageId,
+      layout: DECK_TEMPLATE.layout,
+      order: index + 1,
+    }));
+
+    return await ctx.db.insert("decks", {
+      boardId,
+      userId,
+      title: `${name} Deck`,
+      templateId: DECK_TEMPLATE.id,
+      sourceImageIds: imageIds,
+      slides,
+      createdAt: Date.now(),
+    });
+  },
+});

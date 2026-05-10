@@ -49,16 +49,16 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
     padding: "5px 8px",
     borderRadius: 4,
     fontSize: 11,
-    border: "1px solid var(--pd-line-strong)",
-    background: "rgba(255,255,255,0.02)",
+    border: "0",
+    outline: "none",
+    background: "rgba(255,255,255,0.025)",
     color: "var(--pd-ink-dim)",
     cursor: "pointer",
   };
   const chipSelected: CSSProperties = {
     ...chipBase,
-    border: "1px solid rgba(46, 230, 166, 0.36)",
-    background: "rgba(46, 230, 166, 0.12)",
-    color: "#b6f8df",
+    background: "var(--pd-accent-soft)",
+    color: "var(--pd-accent-ink)",
   };
 
   const handleGenerate = async () => {
@@ -95,7 +95,7 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
         </Box>
 
         <Flex direction="column" gap="4" className="pd-glass-body px-5 py-4">
-          <Box style={{ background: "rgba(255,255,255,0.018)", border: "1px solid var(--pd-line)", borderRadius: 6, padding: "10px 10px 12px" }}>
+          <Box style={{ background: "transparent", border: 0, borderRadius: 0, padding: 0 }}>
             <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Mode</Text>
             <Box className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {VARIATION_MODES.map((mode) => (
