@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { httpAction, query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import { httpAction, query, mutation, internalMutation, internalQuery, internalAction } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -421,66 +421,121 @@ export const enqueueMetadataRefresh = mutation({
           .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
           .collect();
 
-    const metadataTargets = onlyMissing
-      ? mine.filter((img) => {
-          const g = img.genre?.trim();
-          const sh = img.shot?.trim();
-          const sty = img.style?.trim();
-          const grp = img.group?.trim();
-          return !(g && sh && sty && grp);
-        })
-      : mine;
+    const refreshPlan = mine
+      .map((img) => {
+        const g = img.genre?.trim();
+        const sh = img.shot?.trim();
+        const sty = img.style?.trim();
+        const grp = img.group?.trim();
+        const metadataMissing = !(g && sh && sty && grp);
+        const paletteMissing = !img.colors?.length;
+        return {
+          img,
+          metadataMissing,
+          paletteMissing,
+          runMetadata: args.forceAll === true || metadataMissing,
+          forcePalette: paletteMissing,
+        };
+      })
+      .filter((plan) => !onlyMissing || plan.metadataMissing || plan.paletteMissing);
 
     let delay = 0;
     let metadataScheduled = 0;
     let paletteScheduled = 0;
     let skipped = 0;
 
-    for (const img of mine) {
+    for (const plan of refreshPlan) {
+      const { img } = plan;
       const paletteUrl = preferredImageUrlForSampling(img);
-      if (paletteUrl) {
-        await ctx.scheduler.runAfter(
-          0,
-          (internal as any).colorExtraction.internalExtractAndStoreColors,
-          { imageId: img._id, imageUrl: paletteUrl }
-        );
-        paletteScheduled += 1;
-      }
-    }
-
-    for (const img of metadataTargets) {
       const sourceStorageId = img.storageId;
       const sourceImageUrl = img.imageUrl;
-      if (!sourceStorageId && !sourceImageUrl) {
+      if (!paletteUrl || (!sourceStorageId && !sourceImageUrl)) {
         skipped += 1;
         continue;
       }
 
       await ctx.db.patch(img._id, { aiStatus: "processing" });
-      await ctx.scheduler.runAfter(delay, internal.vision.internalSmartAnalyzeImage, {
-        storageId: sourceStorageId,
-        imageUrl: sourceImageUrl,
+      await ctx.scheduler.runAfter(delay, (internal as any).images.internalRefreshMetadataAfterPalette, {
         imageId: img._id,
         userId,
-        title: img.title,
-        description: img.description || "",
-        tags: img.tags,
-        category: img.category,
-        source: img.source,
-        sref: img.sref,
-        group: img.group,
-        projectName: img.projectName,
-        moodboardName: img.moodboardName,
-        variationCount: 0,
-        modificationMode: img.modificationMode ?? "shot-variation",
-        variationType: img.variationType,
-        variationDetail: img.variationDetail,
+        paletteUrl,
+        forcePalette: plan.forcePalette,
+        runMetadata: plan.runMetadata,
       });
       delay += stagger;
-      metadataScheduled += 1;
+      paletteScheduled += 1;
+      if (plan.runMetadata) metadataScheduled += 1;
     }
 
     return { metadataScheduled, paletteScheduled, skipped };
+  },
+});
+
+export const internalRefreshMetadataAfterPalette = internalAction({
+  args: {
+    imageId: v.id("images"),
+    userId: v.id("users"),
+    paletteUrl: v.string(),
+    forcePalette: v.optional(v.boolean()),
+    runMetadata: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    paletteOk: v.boolean(),
+    metadataRan: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const image = await ctx.runQuery((internal as any).images.internalGetMetadataRefreshPayload, {
+      imageId: args.imageId,
+      userId: args.userId,
+    });
+    if (!image) return { paletteOk: false, metadataRan: false };
+
+    let paletteOk = Boolean(image.colors?.length) && args.forcePalette !== true;
+    if (!paletteOk) {
+      const palette = await ctx.runAction(
+        (internal as any).colorExtraction.internalExtractAndStoreColors,
+        { imageId: args.imageId, imageUrl: args.paletteUrl }
+      );
+      paletteOk = Boolean(palette?.ok && palette.colors?.length);
+    }
+
+    if (!paletteOk) {
+      await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "failed",
+      });
+      return { paletteOk: false, metadataRan: false };
+    }
+
+    if (args.runMetadata === false) {
+      await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "completed",
+      });
+      return { paletteOk: true, metadataRan: false };
+    }
+
+    await ctx.runAction((internal as any).vision.internalSmartAnalyzeImage, {
+      storageId: image.storageId,
+      imageUrl: image.imageUrl,
+      imageId: image._id,
+      userId: args.userId,
+      title: image.title,
+      description: image.description || "",
+      tags: image.tags,
+      category: image.category,
+      source: image.source,
+      sref: image.sref,
+      group: image.group,
+      projectName: image.projectName,
+      moodboardName: image.moodboardName,
+      variationCount: 0,
+      modificationMode: image.modificationMode ?? "shot-variation",
+      variationType: image.variationType,
+      variationDetail: image.variationDetail,
+    });
+
+    return { paletteOk: true, metadataRan: true };
   },
 });
 
@@ -2194,6 +2249,36 @@ export const internalListBackfillCandidates = internalQuery({
       derivativeStoragePaths: image.derivativeStoragePaths,
       nextcloudPersistStatus: image.nextcloudPersistStatus,
     }));
+  },
+});
+
+export const internalGetMetadataRefreshPayload = internalQuery({
+  args: {
+    imageId: v.id("images"),
+    userId: v.id("users"),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const image = await ctx.db.get(args.imageId);
+    if (!image || image.uploadedBy !== args.userId) return null;
+    return {
+      _id: image._id,
+      storageId: image.storageId,
+      imageUrl: image.imageUrl,
+      title: image.title,
+      description: image.description,
+      tags: image.tags,
+      category: image.category,
+      source: image.source,
+      sref: image.sref,
+      group: image.group,
+      projectName: image.projectName,
+      moodboardName: image.moodboardName,
+      modificationMode: image.modificationMode,
+      variationType: image.variationType,
+      variationDetail: image.variationDetail,
+      colors: image.colors,
+    };
   },
 });
 

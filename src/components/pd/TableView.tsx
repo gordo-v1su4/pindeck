@@ -5,6 +5,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
+import { extractColorsFromImage } from "@/lib/colorExtraction";
 import { toast } from "sonner";
 
 /** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
@@ -38,7 +39,7 @@ interface TableViewProps {
 export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
   const images = useQuery(api.images.list, { limit: 1000 });
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
-  const reExtractPaletteForImage = useMutation(api.colorExtractionAdmin.reExtractForImage);
+  const updateImageMetadata = useMutation(api.images.updateImageMetadata);
   const removeMany = useMutation(api.images.removeMany);
   const createBoardFromImages = useMutation(api.boards.createFromImages);
   const createDeckFromImages = useMutation(api.decks.createFromImages);
@@ -71,32 +72,30 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
             .filter(Boolean)
         : [];
       const missingPaletteBefore = selectedImages.filter((image: any) => !image.colors?.length).length;
-      const paletteSchedules = selectedImages.length
-        ? await Promise.all(
-            selectedImages.map(async (image: any) => {
-              try {
-                const result = await reExtractPaletteForImage({ imageId: image._id });
-                return { imageId: image._id, scheduled: result.scheduled };
-              } catch (error) {
-                console.error("Could not schedule palette resample", error);
-                return { imageId: image._id, scheduled: false };
-              }
+      if (selectedImages.length) {
+        await Promise.all(
+          selectedImages
+            .filter((image: any) => !image.colors?.length && image.imageUrl)
+            .map(async (image: any) => {
+              const colors = await extractColorsFromImage(image.imageUrl);
+              if (colors.length < 3) return;
+              await updateImageMetadata({ imageId: image._id, colors });
             })
-          )
-        : [];
-      const paletteScheduled = paletteSchedules.filter((result) => result.scheduled).length;
+        );
+      }
 
       const r = await enqueueMetadataRefresh({
         onlyMissing: ids.length === 0,
         forceAll: ids.length > 0,
         imageIds: ids.length ? ids : undefined,
       });
+      const paletteScheduled = r.paletteScheduled;
 
       if (ids.length) {
         if (paletteScheduled > 0 || r.metadataScheduled > 0) {
           setRefreshStatus({
             tone: "working",
-            copy: `Processing: ${paletteScheduled} palette${paletteScheduled === 1 ? "" : "s"} on the server${r.metadataScheduled ? `, ${r.metadataScheduled} metadata job${r.metadataScheduled === 1 ? "" : "s"}` : ""}...`,
+            copy: `Processing: ${paletteScheduled} palette-first job${paletteScheduled === 1 ? "" : "s"} on the server...`,
             imageIds: ids,
             startedAt: Date.now(),
           });
@@ -131,7 +130,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     } finally {
       setRefreshBusy(false);
     }
-  }, [enqueueMetadataRefresh, images, reExtractPaletteForImage, selectedIds]);
+  }, [enqueueMetadataRefresh, images, selectedIds, updateImageMetadata]);
 
   const filtered = useMemo(() => {
     if (!images) return [];
@@ -220,7 +219,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
       setRefreshStatus((current) => {
         if (!current || current.tone !== "working") return current;
         const pieces = [];
-        if (pending.length) pieces.push(`${pending.length} metadata running`);
+        if (pending.length) pieces.push(`${pending.length} palette-first job${pending.length === 1 ? "" : "s"} running`);
         if (missingPalette.length) pieces.push(`${missingPalette.length} palette pending`);
         const copy = pieces.length ? `Processing: ${pieces.join(", ")}...` : "Finishing metadata and palette updates...";
         return current.copy === copy ? current : { ...current, copy };

@@ -82,6 +82,10 @@ function fileToAnalysisDataUrl(previewUrl: string): Promise<string> {
   });
 }
 
+function createUploadUniqueId(): string {
+  return `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 const VARIATION_MODES: { id: string; label: string }[] = [
   { id: "shot-variation", label: "Shot Variation" },
   { id: "b-roll", label: "B-Roll" },
@@ -139,6 +143,7 @@ export function ImageUploadForm() {
   const localPendingImages = (pendingImages || []).filter((img) => img.sourceType !== "discord");
   const discordPendingImages = (pendingImages || []).filter((img) => img.sourceType === "discord");
   const localDraftImages = draftImages || [];
+  const supportingGroups = (groups || []).filter((group) => group.toLowerCase() !== "film");
   const discordDraftImages = (draftImages || []).filter((img) => img.sourceType === "discord");
   const discordProcessingImages = (processingImages || []).filter((img) => img.sourceType === "discord");
   const discordQueueLoaded =
@@ -238,7 +243,7 @@ export function ImageUploadForm() {
       group: undefined,
       projectName: undefined,
       moodboardName: undefined,
-      uniqueId: undefined,
+      uniqueId: createUploadUniqueId(),
       colorStatus: "pending",
       metadataStatus: "pending",
     }));
@@ -270,9 +275,10 @@ export function ImageUploadForm() {
           });
           setFiles(prev => prev.map((file) => {
             if (file.id !== uploadFile.id) return file;
+            const resolvedTitle = file.title || metadata.title || uploadFile.file.name;
             return {
               ...file,
-              title: file.title || metadata.title || file.title,
+              title: resolvedTitle,
               description: file.description || metadata.description || file.description,
               tags: file.tags.length ? file.tags : metadata.tags || [],
               category: metadata.category || file.category,
@@ -281,8 +287,9 @@ export function ImageUploadForm() {
               genre: file.genre || metadata.genre || undefined,
               style: file.style || metadata.style || undefined,
               shot: file.shot || metadata.shot || undefined,
-              projectName: file.projectName || metadata.projectName || undefined,
+              projectName: file.projectName || metadata.projectName || resolvedTitle,
               moodboardName: file.moodboardName || metadata.moodboardName || undefined,
+              uniqueId: file.uniqueId || metadata.uniqueId || createUploadUniqueId(),
               metadataStatus: "ready",
               metadataError: undefined,
             };
@@ -460,19 +467,14 @@ export function ImageUploadForm() {
 
         const { storageId } = await response.json();
 
-        // Auto-generate title from projectName if provided
-        let generatedTitle = file.title;
-        if (!generatedTitle && file.projectName) {
-          generatedTitle = file.projectName;
-        }
-        
-        // Generate uniqueId if not provided
-        const uniqueId = file.uniqueId || `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const generatedTitle = file.title || file.projectName || file.file.name;
+        const projectName = file.projectName || generatedTitle;
+        const uniqueId = file.uniqueId || createUploadUniqueId();
 
         return {
           storageId,
           originalFileName: file.file.name,
-          title: generatedTitle || file.file.name,
+          title: generatedTitle,
           description: file.description || undefined,
           tags: file.tags,
           category: file.category,
@@ -483,7 +485,7 @@ export function ImageUploadForm() {
           genre: file.genre || undefined,
           style: file.style || undefined,
           shot: file.shot || undefined,
-          projectName: file.projectName || undefined,
+          projectName,
           moodboardName: file.moodboardName || undefined,
           uniqueId: uniqueId,
           // Uploads should not silently auto-generate variations.
@@ -1068,7 +1070,7 @@ export function ImageUploadForm() {
                         value={file.category}
                         onValueChange={(value) => updateFile(file.id, { category: value })}
                       >
-                        <Select.Trigger placeholder="Select category" />
+                        <Select.Trigger size="1" placeholder="Select category" />
                         <Select.Content>
                           {(categories || []).map((category) => (
                             <Select.Item key={category} value={category}>
@@ -1084,10 +1086,10 @@ export function ImageUploadForm() {
                       value={file.group ? file.group : "none"}
                       onValueChange={(value) => updateFile(file.id, { group: value === "none" ? undefined : value })}
                     >
-                      <Select.Trigger placeholder="Type (Commercial, Film, etc.)" />
+                      <Select.Trigger size="1" placeholder="Supporting type" />
                       <Select.Content>
                         <Select.Item value="none">None</Select.Item>
-                        {(groups || []).map((g) => (
+                        {supportingGroups.map((g) => (
                           <Select.Item key={g} value={g}>{g}</Select.Item>
                         ))}
                       </Select.Content>
@@ -1097,7 +1099,7 @@ export function ImageUploadForm() {
                     <TextField.Root
                       value={file.projectName || ""}
                       onChange={(e) => updateFile(file.id, { projectName: e.target.value || undefined })}
-                      placeholder="Project Name (e.g., Kitty Bite Back)"
+                      placeholder="Project Name"
                       size="1"
                     />
 
@@ -1105,7 +1107,7 @@ export function ImageUploadForm() {
                     <TextField.Root
                       value={file.uniqueId || ""}
                       onChange={(e) => updateFile(file.id, { uniqueId: e.target.value || undefined })}
-                      placeholder="Unique ID (auto-generated if blank)"
+                      placeholder="Unique ID"
                       size="1"
                     />
 
@@ -1502,7 +1504,7 @@ export function ImageUploadForm() {
                         value={image.category}
                         onValueChange={(value) => void updateImageMetadata(image._id, { category: value })}
                       >
-                        <Select.Trigger placeholder="Select category" />
+                        <Select.Trigger size="1" placeholder="Select category" />
                         <Select.Content>
                           {(categories || []).map((category) => (
                             <Select.Item key={category} value={category}>
@@ -1518,10 +1520,10 @@ export function ImageUploadForm() {
                       value={image.group ? image.group : "none"}
                       onValueChange={(value) => void updateImageMetadata(image._id, { group: value === "none" ? undefined : value })}
                     >
-                      <Select.Trigger placeholder="Group (e.g., Commercial, Film, Music Video)" />
+                      <Select.Trigger size="1" placeholder="Supporting type" />
                       <Select.Content>
                         <Select.Item value="none">None</Select.Item>
-                        {(groups || []).map((group) => (
+                        {supportingGroups.map((group) => (
                           <Select.Item key={group} value={group}>
                             {group}
                           </Select.Item>

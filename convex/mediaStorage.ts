@@ -1141,9 +1141,19 @@ export const publishStoredImagePaths = internalAction({
     ),
   },
   returns: v.object({
+    bucket: v.optional(v.string()),
     imageUrl: v.string(),
     previewUrl: v.optional(v.string()),
+    storagePath: v.optional(v.string()),
+    previewStoragePath: v.optional(v.string()),
     derivativeUrls: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      })
+    ),
+    derivativeStoragePaths: v.optional(
       v.object({
         small: v.string(),
         medium: v.string(),
@@ -1156,15 +1166,12 @@ export const publishStoredImagePaths = internalAction({
     const mediaGateway = getMediaGatewayConfig();
     const publicShare = getNextcloudPublicShareConfig(config);
 
-    const publishPath = async (relativePath: string): Promise<string> => {
-      if (publicShare) {
-        return buildSharedFolderPublicUrl(publicShare, relativePath);
-      }
-
-      try {
-        return await createPublicShareUrl(config, relativePath);
-      } catch (error) {
-        if (!mediaGateway) throw error;
+    const publishPath = async (relativePath: string): Promise<{
+      publicUrl: string;
+      storagePath?: string;
+      bucket?: string;
+    }> => {
+      if (mediaGateway) {
         const privateFile = await fetchPrivateNextcloudFile(config, relativePath);
         const uploaded = await uploadViaMediaGateway({
           gateway: mediaGateway,
@@ -1172,26 +1179,64 @@ export const publishStoredImagePaths = internalAction({
           contentType: privateFile.contentType,
           data: privateFile.data,
         });
-        return uploaded.publicUrl;
+        return {
+          publicUrl: uploaded.publicUrl,
+          storagePath: uploaded.path,
+          bucket: mediaGateway.bucket,
+        };
+      }
+
+      if (publicShare) {
+        return {
+          publicUrl: buildSharedFolderPublicUrl(publicShare, relativePath),
+          storagePath: relativePath,
+        };
+      }
+
+      try {
+        return {
+          publicUrl: await createPublicShareUrl(config, relativePath),
+          storagePath: relativePath,
+        };
+      } catch (error) {
+        throw error;
       }
     };
 
-    const imageUrl = await publishPath(args.storagePath);
-    const previewUrl = args.previewStoragePath
+    const image = await publishPath(args.storagePath);
+    const preview = args.previewStoragePath
       ? await publishPath(args.previewStoragePath)
       : undefined;
-    const derivativeUrls = args.derivativeStoragePaths
-      ? {
-          small: await publishPath(args.derivativeStoragePaths.small),
-          medium: await publishPath(args.derivativeStoragePaths.medium),
-          large: await publishPath(args.derivativeStoragePaths.large),
-        }
+    const small = args.derivativeStoragePaths?.small
+      ? await publishPath(args.derivativeStoragePaths.small)
+      : undefined;
+    const medium = args.derivativeStoragePaths?.medium
+      ? await publishPath(args.derivativeStoragePaths.medium)
+      : undefined;
+    const large = args.derivativeStoragePaths?.large
+      ? await publishPath(args.derivativeStoragePaths.large)
       : undefined;
 
     return {
-      imageUrl,
-      previewUrl,
-      derivativeUrls,
+      bucket: image.bucket,
+      imageUrl: image.publicUrl,
+      previewUrl: preview?.publicUrl,
+      storagePath: image.storagePath,
+      previewStoragePath: preview?.storagePath,
+      derivativeUrls: small && medium && large
+        ? {
+            small: small.publicUrl,
+            medium: medium.publicUrl,
+            large: large.publicUrl,
+          }
+        : undefined,
+      derivativeStoragePaths: small && medium && large
+        ? {
+            small: small.storagePath ?? args.derivativeStoragePaths!.small,
+            medium: medium.storagePath ?? args.derivativeStoragePaths!.medium,
+            large: large.storagePath ?? args.derivativeStoragePaths!.large,
+          }
+        : undefined,
     };
   },
 });
