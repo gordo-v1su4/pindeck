@@ -502,7 +502,7 @@ export function ImageUploadForm() {
   };
 
   return (
-    <Box className="space-y-8 max-w-4xl mx-auto w-full">
+    <Box className="space-y-7 max-w-4xl mx-auto w-full font-[var(--pd-font-sans)]">
       <Flex gap="2" wrap="wrap" className="pt-2">
         <Button
           variant="soft"
@@ -1496,6 +1496,16 @@ export function ImageUploadForm() {
                         <Text size="1" color="gray">
                           Check Convex logs for the exact failure. This can be caused by AI provider config or downstream media persistence errors.
                         </Text>
+                        {image.nextcloudPersistError && (
+                          <Box className="space-y-1 rounded border border-amber-500/30 bg-amber-500/10 p-2">
+                            <Text size="1" weight="medium" style={{ color: "#f6c453" }}>
+                              Media persistence warning
+                            </Text>
+                            <Text size="1" color="gray">
+                              {image.nextcloudPersistError}
+                            </Text>
+                          </Box>
+                        )}
                         <Button
                           color="orange"
                           variant="soft"
@@ -1516,6 +1526,16 @@ export function ImageUploadForm() {
                         >
                           <MagicWandIcon /> Re-run AI Analysis
                         </Button>
+                      </Box>
+                    )}
+                    {image.aiStatus !== "failed" && image.nextcloudPersistError && (
+                      <Box className="space-y-1 rounded border border-amber-500/30 bg-amber-500/10 p-2">
+                        <Text size="1" weight="medium" style={{ color: "#f6c453" }}>
+                          Media persistence warning
+                        </Text>
+                        <Text size="1" color="gray">
+                          {image.nextcloudPersistError}
+                        </Text>
                       </Box>
                     )}
 

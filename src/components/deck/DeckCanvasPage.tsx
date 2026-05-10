@@ -183,8 +183,8 @@ export function DeckCanvasPage({
 }: DeckCanvasPageProps) {
   const fonts = FONT_STACKS[fontStyle] ?? FONT_STACKS.agency;
   const accent = colors.accent || colors.primary || "#b86b40";
-  const text = colors.text || "#f5f5f0";
-  const muted = colors.muted || "rgba(255,255,255,0.62)";
+  const text = colors.text || "#ebe7de";
+  const muted = colors.muted || "rgba(255,255,255,0.56)";
   const base: CSSProperties = {
     backgroundColor: colors.background || "#050506",
     color: text,
@@ -247,7 +247,7 @@ export function DeckCanvasPage({
                     PINDECK / {title || "Untitled deck"}
                   </div>
                   <h1
-                    className="max-w-[82%] text-balance font-black uppercase leading-[0.86] tracking-[-0.07em]"
+                    className="max-w-[82%] text-balance font-black uppercase leading-[0.86] tracking-[-0.07em] text-white/90"
                     style={{
                       fontFamily: fonts.display,
                       fontSize: compactTitle
@@ -258,7 +258,7 @@ export function DeckCanvasPage({
                     {displayTitle}
                   </h1>
                   <p
-                    className="mt-4 max-w-[58cqw] text-[clamp(0.65rem,1.45cqw,0.95rem)] italic leading-relaxed text-white/70"
+                    className="mt-4 max-w-[58cqw] text-[clamp(0.65rem,1.45cqw,0.95rem)] italic leading-relaxed text-white/62"
                     style={{ fontFamily: fonts.serif }}
                   >
                     {block.content}

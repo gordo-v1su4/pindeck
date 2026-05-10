@@ -266,6 +266,8 @@ export function SignInForm() {
               <GlobeIcon data-icon="inline-start" />
               Google
             </Button>
+          </div>
+          <div className="flex flex-col gap-3">
             <Button
               type="button"
               variant="ghost"

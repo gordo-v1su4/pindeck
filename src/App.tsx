@@ -5,7 +5,7 @@ import { SignInForm } from "@/SignInForm";
 import { SignOutButton } from "@/SignOutButton";
 import { Toaster } from "sonner";
 import { PinIcon, PinHotkey } from "@/components/ui/pindeck";
-import { defaultLibraryFilters, type LibraryFilters } from "@/lib/libraryFilters";
+import { defaultLibraryFilters, normalizeLibraryGroup, type LibraryFilters } from "@/lib/libraryFilters";
 import { TweaksPanel, DEFAULT_TWEAKS, type Tweaks } from "@/components/pd/TweaksPanel";
 import { GalleryView } from "@/components/pd/GalleryView";
 import { TableView } from "@/components/pd/TableView";
@@ -305,7 +305,7 @@ function SidebarFilterControls({
           Clear
         </button>
       </div>
-      <label style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+      <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
         <input
           type="checkbox"
           checked={libraryFilter.originalsOnly}
@@ -313,9 +313,10 @@ function SidebarFilterControls({
             setLibraryFilter((f) => ({ ...f, originalsOnly: e.target.checked }))
           }
         />
+        <span className="pd-filter-checkbox-box" aria-hidden="true" />
         Originals only
       </label>
-      <label style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+      <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
         <input
           type="checkbox"
           checked={libraryFilter.hasSref}
@@ -323,6 +324,7 @@ function SidebarFilterControls({
             setLibraryFilter((f) => ({ ...f, hasSref: e.target.checked }))
           }
         />
+        <span className="pd-filter-checkbox-box" aria-hidden="true" />
         Has sref
       </label>
     </>
@@ -337,17 +339,30 @@ function SidebarLibraryAggregationBody({
   setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
 }) {
   const aggregations = useQuery(api.images.libraryAggregations);
+  const groupRows = React.useMemo(() => {
+    if (!aggregations) return [];
+    const counts = new Map<string, number>();
+    for (const row of aggregations.byGroup) {
+      const value = normalizeLibraryGroup(row.value);
+      counts.set(value, (counts.get(value) ?? 0) + row.count);
+    }
+    return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) => {
+      if (a.value === "") return 1;
+      if (b.value === "") return -1;
+      return b.count - a.count || a.value.localeCompare(b.value);
+    });
+  }, [aggregations]);
 
   return (
     <>
       {aggregations === undefined && (
         <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>Loading filters…</div>
       )}
-      {aggregations !== undefined && aggregations.byGroup.length > 0 && (
+      {aggregations !== undefined && groupRows.length > 0 && (
         <>
           <LibraryAggregationSectionHeading>Type</LibraryAggregationSectionHeading>
           <LibraryAggregationTypeColumn>
-            {aggregations.byGroup.slice(0, 16).map((row) => {
+            {groupRows.slice(0, 16).map((row) => {
               const value = row.value;
               const label = value ? value : "Unassigned";
               const selected = libraryFilter.group !== null && libraryFilter.group === value;
@@ -437,7 +452,7 @@ function Sidebar({
       borderRight: "1px solid var(--pd-line)", display: "flex", flexDirection: "column",
       height: "100%", position: "relative", overflow: "hidden",
     }}>
-      <div style={{ padding: "14px 14px 10px", borderBottom: "1px solid var(--pd-line)", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ height: 44, padding: "0 14px", borderBottom: "1px solid var(--pd-line)", display: "flex", alignItems: "center", gap: 8, boxSizing: "border-box" }}>
         <div style={{
           width: 22, height: 22, borderRadius: 4, background: "#000",
           border: "1px solid var(--pd-line-hi)", display: "flex", alignItems: "center", justifyContent: "center",
@@ -542,8 +557,10 @@ function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, ac
       <button onClick={onToggleTweaks} title="Tweaks" style={{
         width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
         borderRadius: 4, border: "1px solid var(--pd-line)",
+        borderColor: tweaksOn ? "color-mix(in srgb, var(--pd-accent) 42%, transparent)" : "var(--pd-line)",
         background: tweaksOn ? "var(--pd-accent-soft)" : "transparent",
         color: tweaksOn ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+        boxShadow: tweaksOn ? "0 0 0 1px color-mix(in srgb, var(--pd-accent) 18%, transparent) inset" : "none",
       }}>
         <PinIcon name="bolt" size={13} />
       </button>

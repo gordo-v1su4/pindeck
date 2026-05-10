@@ -19,6 +19,18 @@ export function defaultLibraryFilters(): LibraryFilters {
   };
 }
 
+export function normalizeLibraryGroup(value?: string): string {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "";
+  const key = raw.toLowerCase().replace(/[\s_-]+/g, " ");
+  if (key === "spec commercial") return "Commercial";
+  if (key === "commercial") return "Commercial";
+  if (key === "film") return "Film";
+  if (key === "video game cinematic") return "Video Game Cinematic";
+  if (key === "music video") return "Music Video";
+  return raw;
+}
+
 export function applyLibraryFilters<T extends {
   group?: string;
   genre?: string;
@@ -28,7 +40,7 @@ export function applyLibraryFilters<T extends {
 }>(images: T[], f: LibraryFilters): T[] {
   return images.filter((im) => {
     if (f.group !== null) {
-      const g = im.group?.trim() ?? "";
+      const g = normalizeLibraryGroup(im.group);
       if (f.group === "") {
         if (g) return false;
       } else if (g !== f.group) return false;

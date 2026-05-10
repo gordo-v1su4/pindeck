@@ -2,11 +2,9 @@ import { lazy, Suspense } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/deck/utils/cn";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { PinSwatches } from "@/components/ui/pindeck";
 
 const DeckComposer = lazy(() =>
   import("./deck/DeckComposer").then((mod) => ({ default: mod.DeckComposer })),
@@ -102,28 +100,26 @@ export function DeckView({
   }
 
   if (!selectedDeckId) {
-    const start = onStartFromGallery ?? (() => {});
-    return (
-      <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#050507] text-white">
-        <div className="shrink-0 border-b border-white/[0.06] px-4 pb-4 pt-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-[1.75rem] font-semibold leading-none tracking-[-0.02em]">
+      const start = onStartFromGallery ?? (() => {});
+      const visibleDecks = decks.filter((deck, index, allDecks) => {
+        const signature = `${deck.boardId ?? "blank"}:${deck.title ?? ""}:${deck.slides.map((slide) => slide.imageId).join("|")}`;
+        return allDecks.findIndex((candidate) => {
+          const candidateSignature = `${candidate.boardId ?? "blank"}:${candidate.title ?? ""}:${candidate.slides.map((slide) => slide.imageId).join("|")}`;
+          return candidateSignature === signature;
+        }) === index;
+      });
+      return (
+        <div className="pd-scroll pd-fade-in relative flex min-h-0 w-full flex-1 flex-col overflow-auto bg-[#050507] text-white" style={{ padding: 16 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14 }}>
+              <h1 style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, lineHeight: 1.2 }}>
                 Decks
               </h1>
-              <p className="mt-3 text-[9px] font-medium uppercase leading-relaxed tracking-[0.32em] text-white/32">
-                {decks.length} saved · scroll sideways · open a strip to edit
+              <p className="pd-mono text-[11px] text-[var(--pd-ink-faint)]">
+                {visibleDecks.length} saved
               </p>
-            </div>
-            {loggedInUser?.isAnonymous ? (
-              <Badge className="border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-amber-300 hover:bg-amber-400/10">
-                Guest
-              </Badge>
-            ) : null}
           </div>
-        </div>
-        {decks.length === 0 ? (
-          <p className="shrink-0 px-4 pt-2 text-[11px] leading-relaxed text-zinc-500">
+        {visibleDecks.length === 0 ? (
+          <p className="shrink-0 pt-2 text-[11px] leading-relaxed text-zinc-500">
             {loggedInUser?.isAnonymous ? (
               <>
                 Guest sessions don&apos;t keep saved decks. Sign in to sync, or
@@ -139,15 +135,11 @@ export function DeckView({
           </p>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 py-5 [scrollbar-width:thin]">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden py-1 [scrollbar-width:thin]">
           <div className="flex h-[min(78vh,820px)] min-h-[320px] snap-x snap-mandatory gap-3 pb-1">
-            {decks.map((item) => {
+            {visibleDecks.map((item) => {
               const count = item.slides.length;
               const strip = item.stripImageUrls ?? [];
-              const stripPalettes: string[][] =
-                "stripPalettes" in item && Array.isArray(item.stripPalettes)
-                  ? (item.stripPalettes as string[][])
-                  : [];
               const slideTitles =
                 "previewSlideTitles" in item &&
                 Array.isArray(item.previewSlideTitles)
@@ -204,14 +196,6 @@ export function DeckView({
                             aria-hidden
                           />
                           <div className="absolute inset-x-0 bottom-0 z-[2] space-y-1.5 px-2 pb-2 pt-12">
-                            {stripPalettes[0]?.length ? (
-                              <PinSwatches
-                                pad={5}
-                                colors={stripPalettes[0]}
-                                size={9}
-                                gap={3}
-                              />
-                            ) : null}
                             <p className="text-[8.5px] font-semibold uppercase leading-snug tracking-[0.1em] text-white/92 line-clamp-2">
                               {slideTitles[0] ?? item.title ?? "Untitled deck"}
                             </p>
@@ -227,7 +211,6 @@ export function DeckView({
                           <div className="grid min-h-0 flex-1 auto-cols-fr grid-flow-col gap-px border-t border-white/[0.06]">
                             {strip.slice(1).map((src, j) => {
                               const i = j + 1;
-                              const palette = stripPalettes[i] ?? [];
                               return (
                                 <div
                                   key={`${item._id}-s-${i}`}
@@ -241,23 +224,6 @@ export function DeckView({
                                       loading="lazy"
                                       decoding="async"
                                     />
-                                  </div>
-                                  <div className="flex shrink-0 justify-center border-t border-white/[0.05] bg-black/55 py-1">
-                                    {palette.length > 0 ? (
-                                      <PinSwatches
-                                        pad={5}
-                                        colors={palette}
-                                        size={7}
-                                        gap={2}
-                                      />
-                                    ) : (
-                                      <span
-                                        className="text-[6px] font-mono uppercase tracking-[0.16em] text-zinc-600"
-                                        aria-hidden
-                                      >
-                                        —
-                                      </span>
-                                    )}
                                   </div>
                                 </div>
                               );

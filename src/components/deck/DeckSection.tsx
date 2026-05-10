@@ -361,7 +361,7 @@ function ImageFrame({
         : overlayDirection === "right"
           ? `linear-gradient(to right, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)}) 0%, rgba(0,0,0,0) 68%)`
           : overlayDirection === "radial"
-            ? `radial-gradient(circle at center, rgba(0,0,0,0) 22%, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)}) 100%)`
+            ? `linear-gradient(135deg, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.38)}) 0%, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.9)}) 100%)`
             : `linear-gradient(to bottom, rgba(0,0,0,${Math.min((overlayOpacity ?? 0) / 100, 0.92)}) 0%, rgba(0,0,0,0) 68%)`;
 
   return (

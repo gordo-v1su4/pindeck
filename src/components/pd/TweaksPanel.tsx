@@ -14,7 +14,7 @@ export interface Tweaks {
 
 export const DEFAULT_TWEAKS: Tweaks = {
   accent: "#3a7bff",
-  density: "comfortable",
+  density: "cozy",
   cardStyle: "bordered",
   typography: "archivo",
   hover: "lift",
@@ -126,22 +126,28 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
       {row(
         "Density",
         <div style={{ display: "flex", gap: 4 }}>
-          {(["dense", "cozy", "comfortable"] as const).map((d) => (
+          {(
+            [
+              { id: "dense", label: "dense" },
+              { id: "cozy", label: "cozy" },
+              { id: "comfortable", label: "airy" },
+            ] as const
+          ).map((d) => (
             <button
-              key={d}
-              onClick={() => set("density", d)}
+              key={d.id}
+              onClick={() => set("density", d.id)}
               style={{
                 flex: 1,
                 padding: "5px 0",
                 borderRadius: 3,
                 fontSize: 11,
                 border: "1px solid",
-                borderColor: tweaks.density === d ? "var(--pd-accent)" : "var(--pd-line-strong)",
-                background: tweaks.density === d ? "var(--pd-accent-soft)" : "transparent",
-                color: tweaks.density === d ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+                borderColor: tweaks.density === d.id ? "transparent" : "var(--pd-line-strong)",
+                background: tweaks.density === d.id ? "var(--pd-accent-soft)" : "transparent",
+                color: tweaks.density === d.id ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
               }}
             >
-              {d}
+              {d.label}
             </button>
           ))}
         </div>
@@ -165,7 +171,7 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
                 fontSize: 11,
                 border: "1px solid",
                 borderColor:
-                  tweaks.cardStyle === c.id ? "var(--pd-accent)" : "var(--pd-line-strong)",
+                  tweaks.cardStyle === c.id ? "transparent" : "var(--pd-line-strong)",
                 background: tweaks.cardStyle === c.id ? "var(--pd-accent-soft)" : "transparent",
                 color: tweaks.cardStyle === c.id ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
               }}
@@ -190,7 +196,7 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
                 textAlign: "left",
                 border: "1px solid",
                 borderColor:
-                  tweaks.typography === f.id ? "var(--pd-accent)" : "var(--pd-line-strong)",
+                  tweaks.typography === f.id ? "transparent" : "var(--pd-line-strong)",
                 background: tweaks.typography === f.id ? "var(--pd-accent-soft)" : "transparent",
                 color: tweaks.typography === f.id ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
                 fontFamily: f.css,
@@ -214,7 +220,7 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
                 borderRadius: 3,
                 fontSize: 11,
                 border: "1px solid",
-                borderColor: tweaks.hover === h ? "var(--pd-accent)" : "var(--pd-line-strong)",
+                borderColor: tweaks.hover === h ? "transparent" : "var(--pd-line-strong)",
                 background: tweaks.hover === h ? "var(--pd-accent-soft)" : "transparent",
                 color: tweaks.hover === h ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
               }}
@@ -225,45 +231,6 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
         </div>
       )}
 
-      {row(
-        "Cinema",
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              fontSize: 11.5,
-              color: "var(--pd-ink-dim)",
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={tweaks.letterbox}
-              onChange={(e) => set("letterbox", e.target.checked)}
-            />
-            Letterbox cards
-          </label>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              fontSize: 11.5,
-              color: "var(--pd-ink-dim)",
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={tweaks.grain}
-              onChange={(e) => set("grain", e.target.checked)}
-            />
-            Film grain
-          </label>
-        </div>
-      )}
     </div>
   );
 }

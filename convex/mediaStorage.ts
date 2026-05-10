@@ -963,10 +963,51 @@ export const finalizeUploadedImage = internalAction({
         imageId: args.imageId,
         error: error?.message || "Failed to finalize upload",
       });
-      await ctx.runMutation((internal as any).images.internalSetAiStatus, {
-        imageId: args.imageId,
-        status: "failed",
-      });
+      try {
+        const fallbackUrl = await ctx.storage.getUrl(args.storageId);
+        if (!fallbackUrl) {
+          throw new Error("Could not resolve temporary Convex storage URL for fallback analysis");
+        }
+
+        // Keep the upload workflow moving even if Nextcloud/media gateway persistence fails.
+        // The source file is already in Convex storage, so analysis and color sampling can still
+        // complete and populate the draft card while the persistence error is surfaced separately.
+        await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+          imageId: args.imageId,
+          status: "processing",
+        });
+
+        await ctx.scheduler.runAfter(
+          0,
+          (internal as any).colorExtraction.internalExtractAndStoreColors,
+          {
+            imageId: args.imageId,
+            imageUrl: fallbackUrl,
+          }
+        );
+
+        await ctx.scheduler.runAfter(0, (internal as any).vision.internalSmartAnalyzeImage, {
+          imageId: args.imageId,
+          userId: args.userId,
+          imageUrl: fallbackUrl,
+          title: args.title,
+          description: args.description,
+          tags: args.tags,
+          category: args.category,
+          source: args.source,
+          sref: args.sref,
+          group: args.group,
+          projectName: args.projectName,
+          moodboardName: args.moodboardName,
+          variationCount: Math.max(0, Math.min(args.variationCount ?? 2, 12)),
+        });
+      } catch (fallbackError: any) {
+        console.error("Failed to schedule fallback analysis after Nextcloud persist error", fallbackError);
+        await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+          imageId: args.imageId,
+          status: "failed",
+        });
+      }
       return {
         ok: false,
         error: error?.message || "Failed to finalize upload",

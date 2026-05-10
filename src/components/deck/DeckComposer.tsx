@@ -1125,7 +1125,7 @@ export function DeckComposer({
                 ? "right"
                 : "bottom";
 
-        const options = ["bottom", "top", "left", "right", "radial"] as const;
+        const options = ["bottom", "top", "left", "right"] as const;
         const score =
           hashString(
             `${deck._id}:${block.id}:gradient:${index}:${overlaySeed}`,
@@ -1183,7 +1183,7 @@ export function DeckComposer({
           )}
           style={{ fontFamily: chromeFont }}
         >
-          <div className="border-b-2 border-[var(--pd-green)] px-5 py-4">
+          <div className="border-b border-white/8 px-5 py-4">
             <div className="flex items-start gap-3">
               <button
                 type="button"
@@ -1338,26 +1338,62 @@ export function DeckComposer({
 
               <section className="space-y-3">
                 <div className="flex items-center justify-between border-b border-white/8 pb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/30">
                     Overlay
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/48">
                     {overlayStrength}%
                   </span>
                 </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={overlayStrength}
-                  onChange={(event) =>
-                    setOverlayStrength(Number(event.target.value))
-                  }
-                  className="deck-rect-range w-full"
-                />
-                <div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-white/28">
-                  <span>Show image</span>
-                  <span>Dark</span>
+                <div className="rounded-[4px] border border-white/10 bg-[#111117] px-3 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                  <div className="space-y-3">
+                    <div>
+                      <div className="mb-2 flex items-center justify-between text-[9px] font-semibold uppercase tracking-[0.18em] text-white/42">
+                        <span>Amount</span>
+                        <span>{overlayStrength}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={overlayStrength}
+                        onChange={(event) =>
+                          setOverlayStrength(Number(event.target.value))
+                        }
+                        className="deck-rect-range w-full"
+                        style={{
+                          background: `linear-gradient(90deg, var(--pd-accent) 0%, var(--pd-accent) ${overlayStrength}%, rgba(255,255,255,0.09) ${overlayStrength}%, rgba(255,255,255,0.09) 100%)`,
+                        }}
+                      />
+                      <div className="mt-2 flex justify-between text-[9px] uppercase tracking-[0.18em] text-white/25">
+                        <span>Show image</span>
+                        <span>Dark wash</span>
+                      </div>
+                    </div>
+                    <div className="border-t border-white/8 pt-3">
+                      <div className="mb-2 flex items-center justify-between text-[9px] font-semibold uppercase tracking-[0.18em] text-white/42">
+                        <span>Variation</span>
+                        <span>{overlayVariation}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={overlayVariation}
+                        onChange={(event) =>
+                          setOverlayVariation(Number(event.target.value))
+                        }
+                        className="deck-rect-range w-full"
+                        style={{
+                          background: `linear-gradient(90deg, var(--pd-accent) 0%, var(--pd-accent) ${overlayVariation}%, rgba(255,255,255,0.09) ${overlayVariation}%, rgba(255,255,255,0.09) 100%)`,
+                        }}
+                      />
+                      <div className="mt-2 flex justify-between text-[9px] uppercase tracking-[0.18em] text-white/25">
+                        <span>Consistent</span>
+                        <span>Mixed gradients</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </section>
 
@@ -1395,10 +1431,10 @@ export function DeckComposer({
                             {option.preview}
                           </div>
                           <div className="min-w-0 flex-1 text-left leading-tight">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-200/92">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-200/86">
                               {option.name}
                             </div>
-                            <div className="mt-0.5 truncate text-[9px] text-white/45">
+                            <div className="mt-0.5 truncate text-[9px] text-white/38">
                               {option.detail}
                             </div>
                           </div>
@@ -1458,7 +1494,7 @@ export function DeckComposer({
                     )}
                     aria-label="GSAP scroll effect"
                   >
-                    <span className="block min-w-0 flex-1 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
+                    <span className="block min-w-0 flex-1 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-white/82">
                       {SCROLL_FX_OPTIONS.find((o) => o.id === scrollFx)?.label ??
                         scrollFx.toUpperCase()}
                     </span>
@@ -1490,17 +1526,17 @@ export function DeckComposer({
                 <div className="border-b border-white/8 pb-2 text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
                   Layout
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5">
                   {LAYOUT_OPTIONS.map((option) => (
                     <button
                       key={option.id}
                       type="button"
                       onClick={() => setLayoutVariant(option.id)}
                       className={cn(
-                        "relative w-full rounded-[3px] border px-3 pb-6 pt-2.5 text-left outline-none ring-0 transition-all focus-visible:border-[var(--pd-accent)] focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--pd-accent)_35%,transparent)]",
+                        "relative w-full rounded-[3px] border px-3 pb-4 pt-2.5 text-left outline-none ring-0 transition-all focus-visible:border-[color:color-mix(in_srgb,var(--pd-accent)_35%,transparent)] focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--pd-accent)_25%,transparent)]",
                         layoutVariant === option.id
-                          ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)]"
-                          : "border-white/10 bg-[#111117] text-white/50 hover:text-white",
+                          ? "border-[color:color-mix(in_srgb,var(--pd-accent)_18%,transparent)] bg-[var(--pd-accent-soft)] text-[var(--pd-accent-ink)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                          : "border-white/10 bg-[#111117] text-white/50 hover:border-white/14 hover:text-white/80",
                       )}
                     >
                       <span
@@ -1508,7 +1544,7 @@ export function DeckComposer({
                           "block text-[11px] font-semibold uppercase tracking-[0.12em]",
                           layoutVariant === option.id
                             ? "text-[var(--pd-accent-ink)]"
-                            : "text-white/78",
+                            : "text-white/72",
                         )}
                       >
                         {option.name}
@@ -1518,7 +1554,7 @@ export function DeckComposer({
                           "mt-1.5 w-full pr-6 text-[9px] leading-snug",
                           layoutVariant === option.id
                             ? "text-[var(--pd-accent-ink)]/75"
-                            : "text-white/40",
+                            : "text-white/35",
                         )}
                       >
                         {option.detail}
@@ -1559,13 +1595,13 @@ export function DeckComposer({
                       onDrop={() => handleDrop(block.id)}
                       onDragEnd={handleDragEnd}
                       className={cn(
-                        "flex cursor-grab select-none items-center gap-2.5 rounded-[4px] border px-2.5 py-2.5 transition-[border-color,background-color,opacity,box-shadow] active:cursor-grabbing",
+                        "flex cursor-grab select-none items-center gap-2.5 rounded-[4px] border px-2.5 py-2.5 transition-[border-color,background-color,opacity,box-shadow,transform] active:cursor-grabbing",
                         draggedBlock === block.id && "opacity-50",
                         !block.visible && "opacity-[0.48]",
                         selectedBlockId === block.id
-                          ? "border-[var(--pd-accent)] bg-[var(--pd-accent-soft)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                          ? "border-[color:color-mix(in_srgb,var(--pd-accent)_15%,transparent)] bg-[var(--pd-accent-soft)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
                           : dragOverBlock === block.id
-                            ? "border-[color:color-mix(in_srgb,var(--pd-accent)_35%,transparent)] bg-white/[0.02]"
+                            ? "border-[color:color-mix(in_srgb,var(--pd-accent)_22%,transparent)] bg-white/[0.02] translate-y-[-1px]"
                             : "border-white/[0.08] bg-[#0c0c10]",
                       )}
                     >
@@ -1577,7 +1613,7 @@ export function DeckComposer({
                       </span>
                       <span
                         className={cn(
-                          "min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200/85",
+                          "min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200/78",
                           !block.visible && "text-zinc-500/90",
                         )}
                       >
@@ -1663,22 +1699,22 @@ export function DeckComposer({
         >
           <div className="sticky top-0 z-30 shrink-0 border-b border-white/8 bg-[#09090b]/96 px-5 py-4 backdrop-blur-md">
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="text-white/48">Deck workspace</span>
+              <span className="text-white/42">Deck workspace</span>
               <span className="text-white/18">|</span>
-              <span className="text-[10px] uppercase tracking-[0.28em] text-white/35">
+              <span className="text-[10px] uppercase tracking-[0.28em] text-white/28">
                 DECK /
               </span>
-              <span className="text-[1.05rem] font-semibold text-white">
+              <span className="text-[1.05rem] font-semibold text-white/88">
                 {title}
               </span>
-              <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
+              <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/62">
                 {STYLE_OPTIONS.find((option) => option.id === styleVariant)
                   ?.topLabel || "TREATMENT"}
               </span>
               <span className="border border-[var(--pd-accent)]/45 bg-[var(--pd-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--pd-accent)]">
                 FX · {scrollFx.toUpperCase()}
               </span>
-              <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
+              <span className="border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/62">
                 {visibleBlocks.length} BLOCKS
               </span>
               <div className="flex-1" />

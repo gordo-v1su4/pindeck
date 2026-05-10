@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { LibraryFilters } from "@/lib/libraryFilters";
-import { applyLibraryFilters } from "@/lib/libraryFilters";
+import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
 import { toast } from "sonner";
 
 /** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
@@ -21,6 +21,12 @@ function parseSrefIds(raw: string | undefined): string[] {
   }
   return out;
 }
+
+const oneLineCell: React.CSSProperties = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
 
 interface TableViewProps {
   search: string;
@@ -217,12 +223,12 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
             >
               {"\u00a0"}
             </th>
-            {headerCell("Title", "title")}
-            {headerCell("Type", "group", 100)}
-            {headerCell("Genre", "genre", 80)}
-            {headerCell("Shot", "shot", 90)}
-            {headerCell("Style", "style", 90)}
-            {headerCell("Tags", "tags")}
+            {headerCell("Title", "title", 520)}
+            {headerCell("Type", "group", 150)}
+            {headerCell("Genre", "genre", 90)}
+            {headerCell("Shot", "shot", 150)}
+            {headerCell("Style", "style", 96)}
+            {headerCell("Tags", "tags", 210)}
             <th
               style={{
                 padding: "7px 8px",
@@ -243,14 +249,16 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
             >
               Palette
             </th>
-            {headerCell("Sref", "sref", 168)}
-            {headerCell("♥", "likes", 44)}
-            {headerCell("👁", "views", 56)}
+            {headerCell("Sref", "sref", 260)}
+            {headerCell("♥", "likes", 38)}
+            {headerCell("👁", "views", 46)}
           </tr>
         </thead>
         <tbody>
           {filtered.map((im, i) => {
             const srefIds = parseSrefIds(im.sref);
+            const visibleSrefIds = srefIds.slice(0, 3);
+            const hiddenSrefCount = Math.max(0, srefIds.length - visibleSrefIds.length);
             return (
             <tr
               key={im._id}
@@ -267,13 +275,29 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
                   <img src={im.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
               </td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink)", fontWeight: 500, textAlign: "left" }}>{im.title}</td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }}>{im.group || "—"}</td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }}>{im.genre || "—"}</td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }}>{im.shot || "—"}</td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }}>{im.style || "—"}</td>
-              <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--pd-line)" }}>
-                <span style={{ display: "inline-flex", gap: 3, flexWrap: "wrap" }}>
+              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink)", fontWeight: 500, textAlign: "left", ...oneLineCell }}>{im.title}</td>
+              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }}>{normalizeLibraryGroup(im.group) || "—"}</td>
+              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }}>{im.genre || "—"}</td>
+              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }}>{im.shot || "—"}</td>
+              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }}>{im.style || "—"}</td>
+              <td
+                style={{
+                  padding: "4px 8px",
+                  borderBottom: "1px solid var(--pd-line)",
+                  maxWidth: 210,
+                  verticalAlign: "top",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    gap: 3,
+                    flexWrap: "nowrap",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    alignItems: "center",
+                  }}
+                >
                   {im.tags?.slice(0, 3).map((t: string, ti: number) => (
                     <PinChip key={t} color={im.colors?.[ti % (im.colors?.length || 1)]}>{t}</PinChip>
                   ))}
@@ -298,25 +322,31 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
                   borderBottom: "1px solid var(--pd-line)",
                   verticalAlign: "top",
                   textAlign: "left",
-                  maxWidth: 220,
+                  maxWidth: 260,
                 }}
               >
                 {srefIds.length > 0 ? (
                   <span
                     style={{
                       display: "inline-flex",
-                      flexWrap: "wrap",
-                      gap: 8,
-                      rowGap: 6,
+                      flexWrap: "nowrap",
+                      gap: 6,
                       justifyContent: "flex-start",
                       alignItems: "center",
+                      maxWidth: "100%",
+                      overflow: "hidden",
                     }}
                   >
-                    {srefIds.map((id) => (
+                    {visibleSrefIds.map((id) => (
                       <PinChip key={`${String(im._id)}-sref-${id}`} mono tone="softBlue">
                         {id}
                       </PinChip>
                     ))}
+                    {hiddenSrefCount > 0 ? (
+                      <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
+                        +{hiddenSrefCount}
+                      </span>
+                    ) : null}
                   </span>
                 ) : (
                   <span className="pd-mono" style={{ color: "var(--pd-ink-faint)" }}>—</span>

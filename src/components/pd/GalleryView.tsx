@@ -106,8 +106,12 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, onNavi
     return rows;
   }, [images, search, libraryFilter]);
 
-  const cols = tweaks.density === "dense" ? 5 : 4;
-  const gap = tweaks.density === "dense" ? 6 : 10;
+  const densityLayout = {
+    dense: { cols: 6, gap: 5 },
+    cozy: { cols: 5, gap: 6 },
+    comfortable: { cols: 4, gap: 10 },
+  } as const;
+  const { cols, gap } = densityLayout[tweaks.density];
 
   const hoverClass = {
     lift: "pd-card-lift",
@@ -204,116 +208,118 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, onNavi
                   animationDelay: `${i * 18}ms`,
                 }}
               >
-                {tweaks.cardStyle === "filmstrip" && (
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "0 10px 6px", fontSize: 9 }} className="pd-mono">
-                    <span style={{ color: "var(--pd-ink-mute)" }}>◯ {String(i + 1).padStart(3, "0")}</span>
-                    <span style={{ color: "var(--pd-ink-faint)" }}>{img.sref || "—"}</span>
-                  </div>
-                )}
-                <div style={{ position: "relative", aspectRatio: "16/9", background: "#000", overflow: "hidden" }}>
-                  <SmartImage image={img} variant="card" alt={img.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <div className="pd-flip-inner" style={{ height: "100%" }}>
+                  {tweaks.cardStyle === "filmstrip" && (
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "0 10px 6px", fontSize: 9 }} className="pd-mono">
+                      <span style={{ color: "var(--pd-ink-mute)" }}>◯ {String(i + 1).padStart(3, "0")}</span>
+                      <span style={{ color: "var(--pd-ink-faint)" }}>{img.sref || "—"}</span>
+                    </div>
+                  )}
+                  <div style={{ position: "relative", aspectRatio: "16/9", background: "#000", overflow: "hidden" }}>
+                    <SmartImage image={img} variant="card" alt={img.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
 
-                  <div style={{ position: "absolute", top: 6, left: 6, display: "flex", gap: 4, alignItems: "center", zIndex: 2, maxWidth: "calc(100% - 88px)" }}>
-                    {isAi && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 3,
-                        padding: "2px 5px", borderRadius: 2, fontSize: 9, fontWeight: 600,
-                        background: VAR_BADGE_BG,
-                        color: "var(--pd-accent-ink)",
-                        border: `1px solid ${VAR_BADGE_BORDER}`,
-                        letterSpacing: "0.04em",
-                        opacity: 0.88,
-                      }} className="pd-mono">
-                        <PinIcon name="sparkle" size={8} stroke={2.2} /> VAR
-                      </span>
-                    )}
-                  </div>
-
-                  <Flex
-                    gap="6px"
-                    align="center"
-                    className={
-                      bookmarkMenuFor === img._id
-                        ? "absolute right-2 top-2 z-20 opacity-100 pointer-events-auto transition-opacity duration-200"
-                        : "absolute right-2 top-2 z-20 opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
-                    }
-                  >
-                    <ActionIconButton label={liked ? "Unlike" : "Like"} onClick={(e) => void handleLike(img, e)}>
-                      {liked ? (
-                        <HeartFilledIcon width={ICON_SIZE} height={ICON_SIZE} color={HEART_FILL} />
-                      ) : (
-                        <HeartIcon width={ICON_SIZE} height={ICON_SIZE} color={HEART_OUTLINE} />
+                    <div style={{ position: "absolute", top: 6, left: 6, display: "flex", gap: 4, alignItems: "center", zIndex: 2, maxWidth: "calc(100% - 88px)" }}>
+                      {isAi && (
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", gap: 3,
+                          padding: "2px 5px", borderRadius: 2, fontSize: 9, fontWeight: 600,
+                          background: VAR_BADGE_BG,
+                          color: "var(--pd-accent-ink)",
+                          border: `1px solid ${VAR_BADGE_BORDER}`,
+                          letterSpacing: "0.04em",
+                          opacity: 0.88,
+                        }} className="pd-mono">
+                          <PinIcon name="sparkle" size={8} stroke={2.2} /> VAR
+                        </span>
                       )}
-                    </ActionIconButton>
+                    </div>
 
-                    <DropdownMenu.Root onOpenChange={(open) => setBookmarkMenuFor(open ? img._id : null)}>
-                      <DropdownMenu.Trigger asChild>
-                        <button
-                          type="button"
-                          aria-label="Save to board"
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center justify-center rounded transition-transform active:scale-95"
-                          style={{
-                            width: ICON_BTN,
-                            height: ICON_BTN,
-                            border: "none",
-                            cursor: "pointer",
-                            background: ACTION_BG,
-                            backdropFilter: "blur(8px)",
-                            boxShadow: "0 1px 8px rgba(0,0,0,0.35)",
-                          }}
-                        >
-                          {savedToBoard ? (
-                            <BookmarkFilledIcon width={ICON_SIZE} height={ICON_SIZE} color={BOOKMARK_SAVED} />
-                          ) : (
-                            <BookmarkIcon width={ICON_SIZE} height={ICON_SIZE} color={BOOKMARK_OUTLINE} />
-                          )}
-                        </button>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Content size="2" onClick={(e) => e.stopPropagation()}>
-                        {boards && boards.length > 0 ? (
-                          <>
-                            {boards.map((board) => {
-                              const onThisBoard = board.imageIds.includes(img._id);
-                              return (
-                                <DropdownMenu.Item
-                                  key={board._id}
-                                  style={onThisBoard ? { background: BOARD_ITEM_ACTIVE_BG } : undefined}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    void handleQuickSave(board._id, img._id);
-                                  }}
-                                >
-                                  {board.name}
-                                </DropdownMenu.Item>
-                              );
-                            })}
-                            <DropdownMenu.Separator />
-                          </>
+                    <Flex
+                      gap="6px"
+                      align="center"
+                      className={
+                        bookmarkMenuFor === img._id
+                          ? "absolute right-2 top-2 z-20 opacity-100 pointer-events-auto transition-opacity duration-200"
+                          : "absolute right-2 top-2 z-20 opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                      }
+                    >
+                      <ActionIconButton label={liked ? "Unlike" : "Like"} onClick={(e) => void handleLike(img, e)}>
+                        {liked ? (
+                          <HeartFilledIcon width={ICON_SIZE} height={ICON_SIZE} color={HEART_FILL} />
                         ) : (
-                          <DropdownMenu.Item disabled>No boards yet</DropdownMenu.Item>
+                          <HeartIcon width={ICON_SIZE} height={ICON_SIZE} color={HEART_OUTLINE} />
                         )}
-                        <DropdownMenu.Item
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCreateBoardImageId(img._id);
-                            setCreateBoardModalOpen(true);
-                          }}
-                        >
-                          <Flex align="center" gap="2">
-                            <PlusIcon width="14" height="14" /> Create board
-                          </Flex>
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Root>
-                  </Flex>
+                      </ActionIconButton>
 
-                  <div
-                    className="pointer-events-none absolute inset-0 z-[1] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                    style={{
-                      background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.45))",
-                    }}
-                  />
+                      <DropdownMenu.Root onOpenChange={(open) => setBookmarkMenuFor(open ? img._id : null)}>
+                        <DropdownMenu.Trigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Save to board"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center justify-center rounded transition-transform active:scale-95"
+                            style={{
+                              width: ICON_BTN,
+                              height: ICON_BTN,
+                              border: "none",
+                              cursor: "pointer",
+                              background: ACTION_BG,
+                              backdropFilter: "blur(8px)",
+                              boxShadow: "0 1px 8px rgba(0,0,0,0.35)",
+                            }}
+                          >
+                            {savedToBoard ? (
+                              <BookmarkFilledIcon width={ICON_SIZE} height={ICON_SIZE} color={BOOKMARK_SAVED} />
+                            ) : (
+                              <BookmarkIcon width={ICON_SIZE} height={ICON_SIZE} color={BOOKMARK_OUTLINE} />
+                            )}
+                          </button>
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Content size="2" onClick={(e) => e.stopPropagation()}>
+                          {boards && boards.length > 0 ? (
+                            <>
+                              {boards.map((board) => {
+                                const onThisBoard = board.imageIds.includes(img._id);
+                                return (
+                                  <DropdownMenu.Item
+                                    key={board._id}
+                                    style={onThisBoard ? { background: BOARD_ITEM_ACTIVE_BG } : undefined}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void handleQuickSave(board._id, img._id);
+                                    }}
+                                  >
+                                    {board.name}
+                                  </DropdownMenu.Item>
+                                );
+                              })}
+                              <DropdownMenu.Separator />
+                            </>
+                          ) : (
+                            <DropdownMenu.Item disabled>No boards yet</DropdownMenu.Item>
+                          )}
+                          <DropdownMenu.Item
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreateBoardImageId(img._id);
+                              setCreateBoardModalOpen(true);
+                            }}
+                          >
+                            <Flex align="center" gap="2">
+                              <PlusIcon width="14" height="14" /> Create board
+                            </Flex>
+                          </DropdownMenu.Item>
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Root>
+                    </Flex>
+
+                    <div
+                      className="pointer-events-none absolute inset-0 z-[1] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                      style={{
+                        background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.45))",
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             );

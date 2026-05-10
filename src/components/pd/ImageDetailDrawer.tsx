@@ -78,7 +78,7 @@ const editDraftFromImage = (image: any): EditDraft => ({
 
 const labelStyle: React.CSSProperties = {
   fontSize: 10,
-  letterSpacing: "0.06em",
+  letterSpacing: "0.14em",
   color: "var(--pd-ink-faint)",
   textTransform: "uppercase",
   display: "block",
@@ -88,12 +88,13 @@ const labelStyle: React.CSSProperties = {
 
 const fieldStyle: React.CSSProperties = {
   width: "100%",
-  minHeight: 30,
-  padding: "0 10px",
-  background: "rgba(255,255,255,0.025)",
+  minHeight: 28,
+  padding: "0 0 5px",
+  background: "transparent",
   color: "var(--pd-ink)",
-  border: "1px solid var(--pd-line-strong)",
-  borderRadius: 4,
+  border: "0",
+  borderBottom: "1px solid var(--pd-line)",
+  borderRadius: 0,
   fontSize: 12,
   outline: "none",
 };
@@ -218,16 +219,16 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
     padding: "4px 8px",
     borderRadius: 4,
     fontSize: 10.5,
-    border: "1px solid var(--pd-line-strong)",
-    background: "transparent",
+    border: "1px solid transparent",
+    background: "rgba(255,255,255,0.025)",
     color: "var(--pd-ink-dim)",
     cursor: "pointer",
   };
   const chipSelected: React.CSSProperties = {
     ...chipBase,
-    border: "1px solid rgba(46, 230, 166, 0.36)",
-    background: "rgba(46, 230, 166, 0.12)",
-    color: "#b6f8df",
+    border: "1px solid transparent",
+    background: "var(--pd-accent-soft)",
+    color: "var(--pd-accent-ink)",
   };
 
   return (
@@ -403,7 +404,17 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                columnGap: 18,
+                rowGap: 12,
+                padding: "10px 0 2px",
+                borderTop: "1px solid var(--pd-line)",
+                borderBottom: "1px solid var(--pd-line)",
+              }}
+            >
               {[
                 ["Category", "category"],
                 ["Type", "group"],
@@ -416,7 +427,7 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
                 ["Source", "source"],
                 ["Unique ID", "uniqueId"],
               ].map(([label, key]) => (
-                <div key={key}>
+                <div key={key} style={{ minWidth: 0 }}>
                   <label className="pd-mono" style={labelStyle}>{label}</label>
                   <input
                     value={editDraft[key as keyof EditDraft] as string}
@@ -432,10 +443,10 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
               style={{
                 fontSize: 10,
                 color: "var(--pd-ink-faint)",
-                border: "1px solid var(--pd-line)",
-                borderRadius: 4,
-                padding: "7px 9px",
-                background: "rgba(255,255,255,0.018)",
+                border: "0",
+                borderBottom: "1px solid var(--pd-line)",
+                padding: "4px 0 8px",
+                background: "transparent",
               }}
             >
               Display SREF: {fmtSref(editDraft.sref)}
@@ -468,8 +479,8 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div
               style={{
-                background: "var(--pd-bg-2)",
-                border: "1px solid var(--pd-line)",
+                background: "rgba(255,255,255,0.018)",
+                border: "1px solid transparent",
                 borderRadius: 6,
                 padding: "10px 10px 12px",
               }}
@@ -484,15 +495,15 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
                     type="button"
                     onClick={() => setGenMode(m.id)}
                     style={{
-                      padding: "10px 6px",
+                      padding: "8px 6px",
                       borderRadius: 5,
                       fontSize: 10.5,
                       fontWeight: 500,
                       lineHeight: 1.25,
                       textAlign: "center",
-                      border: genMode === m.id ? "1px solid color-mix(in srgb, var(--pd-accent) 55%, var(--pd-line-strong))" : "1px solid var(--pd-line-strong)",
-                      background: genMode === m.id ? "var(--pd-accent-soft)" : "rgba(255,255,255,0.02)",
-                      color: genMode === m.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
+                      border: "1px solid transparent",
+                      background: genMode === m.id ? "var(--pd-accent-soft)" : "rgba(255,255,255,0.025)",
+                      color: genMode === m.id ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
                       cursor: "pointer",
                     }}
                   >
@@ -609,9 +620,9 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: genBusy ? "wait" : "pointer",
-                background: genBusy ? "var(--pd-line-strong)" : "rgba(46, 230, 166, 0.16)",
-                border: "1px solid rgba(46, 230, 166, 0.34)",
-                color: "#d9ffef",
+                background: genBusy ? "var(--pd-line-strong)" : "var(--pd-accent-soft)",
+                border: "1px solid transparent",
+                color: "var(--pd-accent-ink)",
                 opacity: genBusy ? 0.85 : 1,
               }}
             >
