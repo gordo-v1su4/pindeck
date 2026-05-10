@@ -746,7 +746,11 @@ export const previewUploadMetadata = action({
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
   }),
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
     const result = await analyzeImageUrlWithOpenRouter(args.imageDataUrl, args.description);
     return {
       ...result,

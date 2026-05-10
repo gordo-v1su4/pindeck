@@ -58,15 +58,27 @@ interface UploadFile {
   metadataError?: string;
 }
 
-function fileToDataUrl(file: File): Promise<string> {
+function fileToAnalysisDataUrl(previewUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Could not read image for metadata analysis."));
+    const image = new Image();
+    image.onload = () => {
+      const maxDimension = 1024;
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Could not prepare image for metadata analysis."));
+        return;
+      }
+      context.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
     };
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read image for metadata analysis."));
-    reader.readAsDataURL(file);
+    image.onerror = () => reject(new Error("Could not prepare image for metadata analysis."));
+    image.src = previewUrl;
   });
 }
 
@@ -250,7 +262,7 @@ export function ImageUploadForm() {
     void Promise.all(
       newUploadFiles.map(async (uploadFile) => {
         try {
-          const imageDataUrl = await fileToDataUrl(uploadFile.file);
+          const imageDataUrl = await fileToAnalysisDataUrl(uploadFile.preview);
           const metadata = await previewUploadMetadata({
             imageDataUrl,
             fileName: uploadFile.file.name,
