@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useAction, useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
@@ -40,6 +40,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
   const images = useQuery(api.images.list, { limit: 1000 });
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
   const updateImageMetadata = useMutation(api.images.updateImageMetadata);
+  const extractColorsForUrl = useAction(api.colorExtraction.extractColorsForUrl);
   const removeMany = useMutation(api.images.removeMany);
   const createBoardFromImages = useMutation(api.boards.createFromImages);
   const createDeckFromImages = useMutation(api.decks.createFromImages);
@@ -90,7 +91,11 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
           const paletteResults = await Promise.all(
             selectedImages.map(async (image: any) => {
               const sampleUrl = image.imageUrl || image.derivativeUrls?.large || image.previewUrl;
-              const colors = sampleUrl ? await extractColorsFromImage(sampleUrl) : [];
+              let colors = sampleUrl ? await extractColorsFromImage(sampleUrl) : [];
+              if (sampleUrl && colors.length === 0) {
+                const serverResult = await extractColorsForUrl({ imageUrl: sampleUrl });
+                colors = serverResult.colors;
+              }
               if (colors.length) {
                 await updateImageMetadata({ imageId: image._id, colors });
               }
@@ -117,7 +122,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     } finally {
       setRefreshBusy(false);
     }
-  }, [enqueueMetadataRefresh, images, selectedIds, updateImageMetadata]);
+  }, [enqueueMetadataRefresh, extractColorsForUrl, images, selectedIds, updateImageMetadata]);
 
   const filtered = useMemo(() => {
     if (!images) return [];
