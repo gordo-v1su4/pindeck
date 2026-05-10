@@ -309,17 +309,14 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
                 e.stopPropagation();
                 void action.onClick();
               }}
-              className="pd-mono"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 10.5,
-                letterSpacing: 0,
-                textTransform: "none",
                 padding: "4px 8px",
                 borderRadius: 4,
-                border: action.danger ? "1px solid rgba(239,67,67,0.28)" : "1px solid var(--pd-line-strong)",
+                border: action.danger ? "1px solid rgba(239,67,67,0.28)" : action.primary ? "1px solid transparent" : "1px solid transparent",
                 background: action.danger
                   ? "rgba(239,67,67,0.1)"
                   : action.primary
