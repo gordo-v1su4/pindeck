@@ -366,6 +366,96 @@ export const enqueueCinematicMetadataBackfill = mutation({
   },
 });
 
+/** Schedule one refresh pass for image metadata and sampled palettes. */
+export const enqueueMetadataRefresh = mutation({
+  args: {
+    onlyMissing: v.optional(v.boolean()),
+    staggerMs: v.optional(v.number()),
+    forceAll: v.optional(v.boolean()),
+    imageIds: v.optional(v.array(v.id("images"))),
+  },
+  returns: v.object({
+    metadataScheduled: v.number(),
+    paletteScheduled: v.number(),
+    skipped: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const stagger = Math.max(500, args.staggerMs ?? 4500);
+    const onlyMissing = args.forceAll !== true && (args.onlyMissing !== false);
+
+    const mine = args.imageIds
+      ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
+          .filter((img): img is NonNullable<typeof img> => Boolean(img) && img.uploadedBy === userId)
+      : await ctx.db
+          .query("images")
+          .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+          .collect();
+
+    const metadataTargets = onlyMissing
+      ? mine.filter((img) => {
+          const g = img.genre?.trim();
+          const sh = img.shot?.trim();
+          const sty = img.style?.trim();
+          const grp = img.group?.trim();
+          return !(g && sh && sty && grp);
+        })
+      : mine;
+
+    let delay = 0;
+    let metadataScheduled = 0;
+    let paletteScheduled = 0;
+    let skipped = 0;
+
+    for (const img of mine) {
+      const paletteUrl = preferredImageUrlForSampling(img);
+      if (paletteUrl) {
+        await ctx.scheduler.runAfter(
+          0,
+          (internal as any).colorExtraction.internalExtractAndStoreColors,
+          { imageId: img._id, imageUrl: paletteUrl }
+        );
+        paletteScheduled += 1;
+      }
+    }
+
+    for (const img of metadataTargets) {
+      const sourceStorageId = img.storageId;
+      const sourceImageUrl = img.imageUrl;
+      if (!sourceStorageId && !sourceImageUrl) {
+        skipped += 1;
+        continue;
+      }
+
+      await ctx.scheduler.runAfter(delay, internal.vision.internalSmartAnalyzeImage, {
+        storageId: sourceStorageId,
+        imageUrl: sourceImageUrl,
+        imageId: img._id,
+        userId,
+        title: img.title,
+        description: img.description || "",
+        tags: img.tags,
+        category: img.category,
+        source: img.source,
+        sref: img.sref,
+        group: img.group,
+        projectName: img.projectName,
+        moodboardName: img.moodboardName,
+        variationCount: 0,
+        modificationMode: img.modificationMode ?? "shot-variation",
+        variationType: img.variationType,
+        variationDetail: img.variationDetail,
+      });
+      delay += stagger;
+      metadataScheduled += 1;
+    }
+
+    return { metadataScheduled, paletteScheduled, skipped };
+  },
+});
+
 export const search = query({
   args: {
     searchTerm: v.string(),

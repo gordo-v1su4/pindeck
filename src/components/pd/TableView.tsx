@@ -37,64 +37,42 @@ interface TableViewProps {
 
 export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
   const images = useQuery(api.images.list, { limit: 1000 });
-  const reExtractPalettes = useMutation(api.colorExtractionAdmin.reExtractAll);
-  const enqueueMetadataBackfill = useMutation(api.images.enqueueCinematicMetadataBackfill);
+  const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
   const removeMany = useMutation(api.images.removeMany);
   const createBoardFromImages = useMutation(api.boards.createFromImages);
   const createDeckFromImages = useMutation(api.decks.createFromImages);
-  const [paletteBusy, setPaletteBusy] = useState(false);
-  const [metaBusy, setMetaBusy] = useState(false);
+  const [refreshBusy, setRefreshBusy] = useState(false);
   const [selectionBusy, setSelectionBusy] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<Id<"images">>>(new Set());
   const [sort, setSort] = useState<{ by: string; dir: "asc" | "desc" }>({ by: "title", dir: "asc" });
 
-  const handleRefreshPalettes = useCallback(async () => {
-    const ids = Array.from(selectedIds);
-    const targetCopy = ids.length > 0 ? `${ids.length} selected image(s)` : "all images";
-    if (
-      !confirm(
-        `Re-sample color swatches for ${targetCopy} (server jobs)? Reload after a minute to see updates.`
-      )
-    ) {
-      return;
-    }
-    setPaletteBusy(true);
-    try {
-      const r = await reExtractPalettes({ onlyMissing: false, imageIds: ids.length ? ids : undefined });
-      toast.success(`Scheduled palette extraction for ${r.scheduled} image(s).`);
-    } catch (e) {
-      console.error(e);
-      toast.error("Could not schedule palette refresh (sign in & deploy Convex).");
-    } finally {
-      setPaletteBusy(false);
-    }
-  }, [reExtractPalettes, selectedIds]);
-
-  const handleBackfillMetadata = useCallback(async () => {
+  const handleRefreshMetadata = useCallback(async () => {
     const ids = Array.from(selectedIds);
     const targetCopy = ids.length > 0 ? `${ids.length} selected image(s)` : "your uploads";
     if (
       !confirm(
-        `Schedule AI metadata backfill for ${targetCopy} (TYPE, Genre, Shot, Style)? ` +
-          "Runs on the server with a few seconds between images. Reload later to see new columns.",
+        `Refresh metadata and sampled palettes for ${targetCopy}? ` +
+          "This updates description, tags, type, genre, shot, style, and colors.",
       )
     ) {
       return;
     }
-    setMetaBusy(true);
+    setRefreshBusy(true);
     try {
-      const r = await enqueueMetadataBackfill({
+      const r = await enqueueMetadataRefresh({
         onlyMissing: true,
         imageIds: ids.length ? ids : undefined,
       });
-      toast.success(`Scheduled metadata analysis for ${r.scheduled} image(s). (${r.skipped} skipped — no URL.)`);
+      toast.success(
+        `Scheduled ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job(s). (${r.skipped} skipped.)`
+      );
     } catch (e) {
       console.error(e);
-      toast.error("Could not schedule backfill (sign in / deploy Convex).");
+      toast.error("Could not schedule refresh (sign in / deploy Convex).");
     } finally {
-      setMetaBusy(false);
+      setRefreshBusy(false);
     }
-  }, [enqueueMetadataBackfill, selectedIds]);
+  }, [enqueueMetadataRefresh, selectedIds]);
 
   const filtered = useMemo(() => {
     if (!images) return [];
@@ -243,8 +221,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {[
-            { label: metaBusy ? "Scheduling…" : selectedCount ? "Backfill selected" : "Backfill metadata", onClick: handleBackfillMetadata, disabled: metaBusy },
-            { label: paletteBusy ? "Scheduling…" : selectedCount ? "Re-sample selected" : "Re-sample palettes", onClick: handleRefreshPalettes, disabled: paletteBusy },
+            { label: refreshBusy ? "Scheduling…" : selectedCount ? "Refresh selected" : "Refresh metadata", onClick: handleRefreshMetadata, disabled: refreshBusy },
             { label: "New board", onClick: handleCreateBoard, disabled: selectedCount === 0 || selectionBusy },
             { label: "New deck", onClick: handleCreateDeck, disabled: selectedCount === 0 || selectionBusy },
             { label: "Delete selection", onClick: handleDeleteSelection, disabled: selectedCount === 0 || selectionBusy, danger: true },
