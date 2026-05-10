@@ -245,8 +245,8 @@ function deriveIngestEndpoint() {
 
     try {
       const url = new URL(base);
-      if (url.hostname.endsWith(".convex.cloud")) {
-        url.hostname = url.hostname.replace(".convex.cloud", ".convex.site");
+      if (url.hostname === "convex.serving.cloud") {
+        url.hostname = "convex-site.serving.cloud";
       }
       return `${url.toString().replace(/\/$/, "")}/ingestExternal`;
     } catch {

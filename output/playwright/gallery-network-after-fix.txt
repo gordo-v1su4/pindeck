@@ -36,7 +36,7 @@
 [GET] http://localhost:3000/src/lib/utils.ts => [200] OK
 [GET] http://localhost:3000/node_modules/.vite/deps/clsx.js?v=63d595d8 => [200] OK
 [GET] http://localhost:3000/node_modules/.vite/deps/tailwind-merge.js?v=1c3f959f => [200] OK
-[POST] https://tremendous-jaguar-953.convex.cloud/api/action => [200] 
+[POST] https://convex.serving.cloud/api/action => [200]
 [GET] https://cloud.v1su4.dev/s/zZ72WrXxMsmBNX2/download => [303] 
 [GET] https://cloud.v1su4.dev/public.php/dav/files/f688ac173dfb020/2026/03_13/preview/emerald-veil-mmoljrty-6p1xwv-preview.png => [200] 
 [GET] https://cloud.v1su4.dev/s/8AJGBwD7pCCf5yw/download => [303] 
@@ -57,4 +57,4 @@
 [GET] https://cloud.v1su4.dev/public.php/dav/files/AyndzCK3RCYsg3M/?accept=zip => [200] 
 [GET] https://cloud.v1su4.dev/public.php/dav/files/q95MEwj8sqyfbeW/?accept=zip => [200] 
 [GET] https://cloud.v1su4.dev/public.php/dav/files/8AJGBwD7pCCf5yw/?accept=zip => [200] 
-[GET] https://cloud.v1su4.dev/public.php/dav/files/WERojcqTASbwsC9/?accept=zip => [200] 
+[GET] https://cloud.v1su4.dev/public.php/dav/files/WERojcqTASbwsC9/?accept=zip => [200]

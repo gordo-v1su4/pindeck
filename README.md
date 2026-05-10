@@ -39,7 +39,7 @@ bun run serve
 - Convex production deployment: **self-hosted only**
 - Convex client URL: `https://convex.serving.cloud`
 - Convex HTTP/actions URL: `https://convex-site.serving.cloud`
-- Legacy Convex Cloud deployment `tremendous-jaguar-953` is retired and must not be used for deploys or frontend env.
+- Legacy Convex Cloud deployments have been removed/deleted and must not be used for deploys or frontend env.
 - Discord bot + media gateway deployment source: separate repo `~/Documents/Github/discord-bot`
 
 ## Required Environment Variables
@@ -194,7 +194,7 @@ CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud
 CONVEX_SELF_HOSTED_ADMIN_KEY=...
 ```
 
-Do **not** use `CONVEX_DEPLOYMENT=tremendous-jaguar-953`; that is the retired Convex Cloud deployment.
+Do **not** set `CONVEX_DEPLOYMENT`; the old Convex Cloud project has been deleted and Pindeck production uses the self-hosted Convex target above.
 No Convex MCP is configured or required for production deploys; use the direct self-hosted Convex CLI target above.
 
 ### Vercel

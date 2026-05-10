@@ -20,13 +20,13 @@ console.log("🌐 Convex URL:", convexUrl);
 if (convexUrl.endsWith('.convex.site')) {
   console.warn(
     '⚠️ Warning: URL ends with .convex.site (used for HTTP Actions). ' +
-    'For production deployments, use a URL ending with .convex.cloud. ' +
-    'Get your production deployment URL from: https://dashboard.convex.dev → Your Project → Settings → Deployment URL'
+    'For Pindeck production, use the self-hosted client URL: https://convex.serving.cloud'
   );
 }
 
 // Create Convex client with skipConvexDeploymentUrlCheck if needed
-// Note: This is a workaround - the proper solution is to use a .convex.cloud URL
+// Pindeck production is self-hosted at https://convex.serving.cloud. The skip
+// only handles accidental HTTP/action URLs so the warning above is visible.
 const convex = new ConvexReactClient(convexUrl as string, {
   skipConvexDeploymentUrlCheck: convexUrl.endsWith('.convex.site'),
 });
