@@ -23,9 +23,12 @@ type MediaGatewayConfig = {
   url: string;
   token: string;
   userId: string;
+  bucket: string;
+  uploadPrefix: string;
 };
 
 type UploadedImage = {
+  bucket?: string;
   imageUrl: string;
   previewUrl: string;
   storagePath: string;
@@ -134,9 +137,22 @@ function getNextcloudUploadShareToken(): string {
 function getMediaGatewayConfig(): MediaGatewayConfig | null {
   const url = process.env.MEDIA_GATEWAY_URL;
   const token = process.env.MEDIA_GATEWAY_TOKEN;
-  const userId = process.env.NEXTCLOUD_WEBDAV_USER;
+  const userId =
+    process.env.MEDIA_GATEWAY_USER_ID ||
+    process.env.PINDECK_MEDIA_USER_ID ||
+    "pindeck";
+  const bucket = process.env.MEDIA_GATEWAY_BUCKET || "pindeck";
+  const configuredPrefix =
+    process.env.MEDIA_GATEWAY_UPLOAD_PREFIX ||
+    process.env.NEXTCLOUD_UPLOAD_PREFIX ||
+    "media-uploads";
+  const normalizedPrefix = normalizePath(configuredPrefix);
+  const uploadPrefix =
+    bucket === "pindeck" && normalizedPrefix.startsWith("pindeck/")
+      ? normalizedPrefix.slice("pindeck/".length)
+      : normalizedPrefix;
 
-  if (!url || !token || !userId) {
+  if (!url || !token) {
     return null;
   }
 
@@ -144,6 +160,8 @@ function getMediaGatewayConfig(): MediaGatewayConfig | null {
     url: trimTrailingSlash(url),
     token,
     userId,
+    bucket,
+    uploadPrefix: uploadPrefix || "media-uploads",
   };
 }
 
@@ -425,6 +443,7 @@ async function processImageViaMediaGateway(args: {
   formData.append("folder", args.directory);
   formData.append("basename", args.fileBase);
   formData.append("originalExt", args.originalExt);
+  formData.append("bucket", args.gateway.bucket);
   if (args.title) {
     formData.append("title", args.title);
   }
@@ -468,6 +487,7 @@ async function processImageViaMediaGateway(args: {
   }
 
   return {
+    bucket: parsed.bucket || args.gateway.bucket,
     imageUrl: parsed.imageUrl,
     previewUrl: parsed.previewUrl,
     storagePath: normalizePath(parsed.storagePath),
@@ -571,6 +591,7 @@ const DERIVATIVE_DIMENSIONS = {
 } as const;
 
 const uploadedImageReturnValidator = v.object({
+  bucket: v.optional(v.string()),
   imageUrl: v.string(),
   previewUrl: v.string(),
   storagePath: v.string(),
@@ -673,7 +694,6 @@ async function persistImageBuffer(args: {
   contentType?: string;
   title?: string;
 }): Promise<UploadedImage> {
-  const config = getNextcloudConfig();
   const mediaGateway = getMediaGatewayConfig();
   const now = new Date();
   const year = String(now.getUTCFullYear());
@@ -686,10 +706,8 @@ async function persistImageBuffer(args: {
   const nonce = Math.random().toString(36).slice(2, 8);
   const fileBase = `${baseName}-${Date.now().toString(36)}-${nonce}`;
 
-  const directory = normalizePath(`${config.uploadPrefix}/${year}/${monthDay}`);
-  const originalPath = `${directory}/original/${fileBase}.${originalExt}`;
-
   if (mediaGateway) {
+    const directory = normalizePath(`${mediaGateway.uploadPrefix}/${year}/${monthDay}`);
     return await processImageViaMediaGateway({
       gateway: mediaGateway,
       directory,
@@ -700,6 +718,10 @@ async function persistImageBuffer(args: {
       data: args.fileBuffer,
     });
   }
+
+  const config = getNextcloudConfig();
+  const directory = normalizePath(`${config.uploadPrefix}/${year}/${monthDay}`);
+  const originalPath = `${directory}/original/${fileBase}.${originalExt}`;
 
   const preview = await buildPreview(
     args.fileBuffer,
@@ -836,6 +858,7 @@ export const persistGeneratedImageFromUrl = internalAction({
   returns: v.union(
     v.object({
       ok: v.literal(true),
+      bucket: v.optional(v.string()),
       imageUrl: v.string(),
       previewUrl: v.string(),
       storagePath: v.string(),
@@ -931,6 +954,8 @@ export const finalizeUploadedImage = internalAction({
         imageId: args.imageId,
         imageUrl: uploaded.imageUrl,
         previewUrl: uploaded.previewUrl,
+        storageProvider: uploaded.bucket ? "rustfs" : "nextcloud",
+        storageBucket: uploaded.bucket,
         storagePath: uploaded.storagePath,
         previewStoragePath: uploaded.previewStoragePath,
         derivativeUrls: uploaded.derivativeUrls,
@@ -971,7 +996,7 @@ export const finalizeUploadedImage = internalAction({
 
       return { ok: true, imageUrl: uploaded.imageUrl } as const;
     } catch (error: any) {
-      console.error("Failed to finalize upload in Nextcloud", error);
+      console.error("Failed to finalize upload in durable media storage", error);
       await ctx.runMutation((internal as any).images.internalMarkNextcloudPersistFailed, {
         imageId: args.imageId,
         error: error?.message || "Failed to finalize upload",
@@ -1055,6 +1080,51 @@ export const cleanupNextcloudPaths = internalAction({
     }
 
     return { deleted, failed };
+  },
+});
+
+export const cleanupRustfsObjects = internalAction({
+  args: {
+    bucket: v.string(),
+    paths: v.array(v.string()),
+  },
+  returns: v.object({
+    deleted: v.number(),
+    failed: v.number(),
+  }),
+  handler: async (_ctx, args) => {
+    const gateway = getMediaGatewayConfig();
+    if (!gateway) {
+      return { deleted: 0, failed: args.paths.length };
+    }
+
+    const uniquePaths = [...new Set(args.paths.map((p) => normalizePath(p)).filter(Boolean))];
+    if (uniquePaths.length === 0) {
+      return { deleted: 0, failed: 0 };
+    }
+
+    const response = await fetch(`${gateway.url}/delete`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${gateway.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bucket: args.bucket || gateway.bucket,
+        objectKeys: uniquePaths,
+      }),
+    });
+
+    const body = await readBodyTextSafe(response);
+    if (!response.ok) {
+      throw new Error(`RustFS delete failed (${response.status}): ${body.slice(0, 300)}`);
+    }
+
+    const parsed = JSON.parse(body) as { deleted?: number; failed?: number };
+    return {
+      deleted: Number(parsed.deleted || 0),
+      failed: Number(parsed.failed || 0),
+    };
   },
 });
 

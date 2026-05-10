@@ -8,6 +8,7 @@ const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
 const CANONICAL_NEXTCLOUD_PUBLIC_TOKEN = "afc53c40a68aade";
+const RUSTFS_PUBLIC_HOST = "s3.v1su4.dev";
 
 /**
  * Reject paths that contain traversal sequences or absolute path components.
@@ -35,9 +36,32 @@ function collectNextcloudPaths(image: Partial<Doc<"images">>): string[] {
   );
 }
 
-async function scheduleNextcloudCleanup(ctx: any, image: any) {
+function storageProviderFromPayload(args: {
+  storageProvider?: "convex" | "nextcloud" | "rustfs";
+  storageBucket?: string;
+  imageUrl?: string;
+  storagePath?: string;
+}) {
+  if (args.storageProvider) return args.storageProvider;
+  if (args.storageBucket || parseUrlHost(args.imageUrl) === RUSTFS_PUBLIC_HOST) return "rustfs";
+  if (args.storagePath) return "nextcloud";
+  return undefined;
+}
+
+async function scheduleStorageCleanup(ctx: any, image: any) {
   const paths = collectNextcloudPaths(image);
   if (paths.length === 0) return;
+  if (image.storageProvider === "rustfs" || image.storageBucket) {
+    try {
+      await ctx.scheduler.runAfter(0, internalApi.mediaStorage.cleanupRustfsObjects, {
+        bucket: image.storageBucket || "pindeck",
+        paths,
+      });
+    } catch (error) {
+      console.warn("Failed to schedule RustFS cleanup", error);
+    }
+    return;
+  }
   try {
     await ctx.scheduler.runAfter(0, internalApi.mediaStorage.cleanupNextcloudPaths, {
       paths,
@@ -95,6 +119,10 @@ function isCanonicalCloudUrl(rawUrl: unknown): boolean {
   }
 }
 
+function isRustfsUrl(rawUrl: unknown): boolean {
+  return parseUrlHost(rawUrl) === RUSTFS_PUBLIC_HOST;
+}
+
 function looksLikeHttpUrl(rawUrl: unknown): rawUrl is string {
   const value = String(rawUrl ?? "").trim();
   return value.startsWith("http://") || value.startsWith("https://");
@@ -104,7 +132,6 @@ function pickBackfillSourceUrl(image: any): string | undefined {
   const candidates = [image?.imageUrl, image?.previewUrl, image?.sourceUrl];
   for (const candidate of candidates) {
     if (!looksLikeHttpUrl(candidate)) continue;
-    if (isCloudHostedUrl(candidate)) continue;
     return candidate;
   }
   return undefined;
@@ -599,6 +626,10 @@ export const createExternal = mutation({
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
+    storageProvider: v.optional(
+      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
+    ),
+    storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
     derivativeUrls: v.optional(
       v.object({
@@ -660,6 +691,7 @@ export const createExternal = mutation({
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
     const isDiscordImport = args.sourceType === "discord";
+    const storageProvider = storageProviderFromPayload(args);
     const projectName = args.sourceType === "ai" ? undefined : title;
 
     const imageId = await ctx.db.insert("images", {
@@ -678,12 +710,14 @@ export const createExternal = mutation({
       status: isDiscordImport ? "pending" : "active",
       aiStatus: isDiscordImport ? "queued" : "processing",
       uploadedAt: Date.now(),
-      storageProvider: args.storagePath ? "nextcloud" : undefined,
+      storageProvider,
+      storageBucket: args.storageBucket,
       storagePath: args.storagePath,
       previewStoragePath: args.previewStoragePath,
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
+      storagePersistStatus: args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
       sourceType: args.sourceType,
       sourceUrl: args.sourceUrl,
@@ -738,6 +772,10 @@ export const ingestExternal = internalMutation({
     source: v.optional(v.string()),
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
+    storageProvider: v.optional(
+      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
+    ),
+    storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
     derivativeUrls: v.optional(
       v.object({
@@ -786,6 +824,7 @@ export const ingestExternal = internalMutation({
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
     const isDiscordImport = args.sourceType === "discord";
+    const storageProvider = storageProviderFromPayload(args);
     const projectName = args.sourceType === "ai" ? undefined : title;
 
     const imageId = await ctx.db.insert("images", {
@@ -804,12 +843,14 @@ export const ingestExternal = internalMutation({
       status: isDiscordImport ? "pending" : "active",
       aiStatus: isDiscordImport ? "queued" : "processing",
       uploadedAt: Date.now(),
-      storageProvider: args.storagePath ? "nextcloud" : undefined,
+      storageProvider,
+      storageBucket: args.storageBucket,
       storagePath: args.storagePath,
       previewStoragePath: args.previewStoragePath,
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
+      storagePersistStatus: args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
       sourceType: args.sourceType,
       sourceUrl: args.sourceUrl,
@@ -918,6 +959,8 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     source: body.source,
     sref: body.sref,
     storagePath: persistedImage.storagePath,
+    storageProvider: persistedImage.bucket ? "rustfs" : "nextcloud",
+    storageBucket: persistedImage.bucket,
     previewStoragePath: persistedImage.previewStoragePath,
     derivativeUrls: persistedImage.derivativeUrls,
     derivativeStoragePaths: persistedImage.derivativeStoragePaths,
@@ -959,10 +1002,14 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
   const body = await request.json().catch(() => ({}));
   const limit = Math.max(1, Math.min(Number(body?.limit ?? 200), 1000));
   const dryRun = Boolean(body?.dryRun);
-  const refreshVariants = Boolean(body?.refreshVariants);
-  const images = await ctx.runQuery((internal as any).images.internalListBackfillCandidates, {
-    limit,
-  });
+    const refreshVariants = Boolean(body?.refreshVariants);
+    const imageIds = Array.isArray(body?.imageIds)
+      ? body.imageIds.filter((id: unknown): id is string => typeof id === "string")
+      : undefined;
+    const images = await ctx.runQuery((internal as any).images.internalListBackfillCandidates, {
+      limit,
+      imageIds,
+    });
 
   let migrated = 0;
   let failed = 0;
@@ -983,19 +1030,17 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
         image.imageUrl === image.derivativeUrls?.medium ||
         image.imageUrl === image.derivativeUrls?.large);
 
-    const alreadyCloud = image.storagePath
-      ? isCanonicalCloudUrl(image.imageUrl) &&
-        (!image.previewUrl || isCanonicalCloudUrl(image.previewUrl))
-      : isCloudHostedUrl(image.imageUrl) &&
-        (!image.previewUrl || isCloudHostedUrl(image.previewUrl));
+    const alreadyRustfs =
+      image.storageProvider === "rustfs" ||
+      (isRustfsUrl(image.imageUrl) && (!image.previewUrl || isRustfsUrl(image.previewUrl)));
 
-    if (alreadyCloud && !(refreshVariants && variantsNeedRefresh)) {
+    if (alreadyRustfs && !(refreshVariants && variantsNeedRefresh)) {
       skipped += 1;
       if (results.length < 50) {
         results.push({
           imageId: image._id,
           title: image.title,
-          status: "already-cloud",
+          status: "already-rustfs",
         });
       }
       continue;
@@ -1041,6 +1086,8 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
           imageId: image._id,
           imageUrl: published.imageUrl,
           previewUrl: published.previewUrl,
+          storageProvider: published.bucket ? "rustfs" : undefined,
+          storageBucket: published.bucket,
           storagePath: published.storagePath ?? image.storagePath,
           previewStoragePath: published.previewStoragePath ?? image.previewStoragePath,
           derivativeUrls: published.derivativeUrls,
@@ -1060,6 +1107,8 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
           imageId: image._id,
           imageUrl: persisted.imageUrl,
           previewUrl: persisted.previewUrl,
+          storageProvider: persisted.bucket ? "rustfs" : undefined,
+          storageBucket: persisted.bucket,
           storagePath: persisted.storagePath,
           previewStoragePath: persisted.previewStoragePath,
           derivativeUrls: persisted.derivativeUrls,
@@ -1248,7 +1297,7 @@ export const internalModerateDiscordImage = internalMutation({
       if (image.storageId) {
         await ctx.storage.delete(image.storageId);
       }
-      await scheduleNextcloudCleanup(ctx, image);
+      await scheduleStorageCleanup(ctx, image);
       await ctx.db.delete(args.imageId);
       return { ok: true, message: "Image rejected and deleted." };
     }
@@ -1584,6 +1633,7 @@ export const uploadMultiple = mutation({
           sourceType: "upload",
           storageProvider: "convex",
           nextcloudPersistStatus: "pending",
+          storagePersistStatus: "pending",
           uploadedAt: Date.now(),
         });
 
@@ -1723,6 +1773,7 @@ export const getPendingImages = query({
 export const backfillGenerationsFromAiImages = mutation({
   args: {
     limit: v.optional(v.number()),
+    imageIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -1888,7 +1939,7 @@ export const rejectImage = mutation({
     if (image.storageId) {
       await ctx.storage.delete(image.storageId);
     }
-    await scheduleNextcloudCleanup(ctx, image);
+    await scheduleStorageCleanup(ctx, image);
     await ctx.db.delete("images", args.imageId);
     return null;
   },
@@ -1916,7 +1967,7 @@ export const remove = mutation({
     if (image.storageId) {
       await ctx.storage.delete(image.storageId);
     }
-    await scheduleNextcloudCleanup(ctx, image);
+    await scheduleStorageCleanup(ctx, image);
 
     // Delete the image record
     await ctx.db.delete("images", args.id);
@@ -1941,7 +1992,7 @@ export const removeMany = mutation({
       if (image.storageId) {
         await ctx.storage.delete(image.storageId);
       }
-      await scheduleNextcloudCleanup(ctx, image);
+      await scheduleStorageCleanup(ctx, image);
       await ctx.db.delete("images", id);
       removed += 1;
     }
@@ -2019,6 +2070,10 @@ export const internalApplyNextcloudUpload = internalMutation({
     imageId: v.id("images"),
     imageUrl: v.string(),
     previewUrl: v.optional(v.string()),
+    storageProvider: v.optional(
+      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
+    ),
+    storageBucket: v.optional(v.string()),
     storagePath: v.string(),
     previewStoragePath: v.optional(v.string()),
     derivativeUrls: v.optional(
@@ -2038,16 +2093,29 @@ export const internalApplyNextcloudUpload = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const previous = await ctx.db.get(args.imageId);
+    const storageProvider = storageProviderFromPayload(args);
     await ctx.db.patch("images", args.imageId, {
       imageUrl: args.imageUrl,
       previewUrl: args.previewUrl,
-      storageProvider: "nextcloud",
+      storageProvider,
+      storageBucket: args.storageBucket,
       storagePath: args.storagePath,
       previewStoragePath: args.previewStoragePath,
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       nextcloudPersistStatus: "succeeded",
       nextcloudPersistError: undefined,
+      storagePersistStatus: "succeeded",
+      storagePersistError: undefined,
+      storageMigration: previous
+        ? {
+            fromProvider: previous.storageProvider,
+            fromImageUrl: previous.imageUrl,
+            fromPreviewUrl: previous.previewUrl,
+            migratedAt: Date.now(),
+          }
+        : undefined,
       storageId: undefined,
     });
     return null;
@@ -2064,6 +2132,8 @@ export const internalMarkNextcloudPersistFailed = internalMutation({
     await ctx.db.patch("images", args.imageId, {
       nextcloudPersistStatus: "failed",
       nextcloudPersistError: args.error,
+      storagePersistStatus: "failed",
+      storagePersistError: args.error,
       storageProvider: "convex",
     });
     return null;
@@ -2080,6 +2150,8 @@ export const internalRecordNextcloudBackfillFailure = internalMutation({
     await ctx.db.patch("images", args.imageId, {
       nextcloudPersistStatus: "failed",
       nextcloudPersistError: args.error,
+      storagePersistStatus: "failed",
+      storagePersistError: args.error,
     });
     return null;
   },
@@ -2088,11 +2160,24 @@ export const internalRecordNextcloudBackfillFailure = internalMutation({
 export const internalListBackfillCandidates = internalQuery({
   args: {
     limit: v.optional(v.number()),
+    imageIds: v.optional(v.array(v.string())),
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = Math.max(1, Math.min(args.limit ?? 200, 1000));
-    const images = await ctx.db.query("images").order("desc").take(limit);
+    const selectedImages: any[] = [];
+    for (const rawId of args.imageIds ?? []) {
+      try {
+        const image = await ctx.db.get(rawId as any);
+        if (image) selectedImages.push(image);
+      } catch {
+        // Ignore malformed ids in operator-triggered backfills.
+      }
+    }
+    const images =
+      selectedImages.length > 0
+        ? selectedImages.slice(0, limit)
+        : await ctx.db.query("images").order("desc").take(limit);
     return images.map((image) => ({
       _id: image._id,
       title: image.title,
@@ -2103,6 +2188,7 @@ export const internalListBackfillCandidates = internalQuery({
       sourceUrl: image.sourceUrl,
       sourceType: image.sourceType,
       storageProvider: image.storageProvider,
+      storageBucket: image.storageBucket,
       storagePath: image.storagePath,
       previewStoragePath: image.previewStoragePath,
       derivativeStoragePaths: image.derivativeStoragePaths,
@@ -2418,6 +2504,10 @@ export const internalSaveGeneratedImages = internalMutation({
       sourceUrl: v.optional(v.string()),
       previewUrl: v.optional(v.string()),
       storagePath: v.optional(v.string()),
+      storageProvider: v.optional(
+        v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
+      ),
+      storageBucket: v.optional(v.string()),
       previewStoragePath: v.optional(v.string()),
       derivativeUrls: v.optional(
         v.object({
@@ -2451,12 +2541,19 @@ export const internalSaveGeneratedImages = internalMutation({
         description: originalImage.description || img.description, // Inherit parent's full description
         imageUrl: img.url,
         previewUrl: img.previewUrl,
-        storageProvider: img.storagePath ? "nextcloud" : undefined,
+        storageProvider: storageProviderFromPayload({
+          storageProvider: img.storageProvider,
+          storageBucket: img.storageBucket,
+          imageUrl: img.url,
+          storagePath: img.storagePath,
+        }),
+        storageBucket: img.storageBucket,
         storagePath: img.storagePath,
         previewStoragePath: img.previewStoragePath,
         derivativeUrls: img.derivativeUrls,
         derivativeStoragePaths: img.derivativeStoragePaths,
         nextcloudPersistStatus: img.storagePath ? "succeeded" : "failed",
+        storagePersistStatus: img.storagePath ? "succeeded" : "failed",
         // Inherit metadata from original (which might have been updated by analysis)
         category: originalImage.category,
         tags: [...originalImage.tags, "generated", "variation"],

@@ -30,8 +30,9 @@ const applicationTables = {
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
     modificationMode: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"))
+      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
     ),
+    storageBucket: v.optional(v.string()),
     storagePath: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
     derivativeUrls: v.optional(
@@ -52,6 +53,18 @@ const applicationTables = {
       v.union(v.literal("pending"), v.literal("succeeded"), v.literal("failed"))
     ),
     nextcloudPersistError: v.optional(v.string()),
+    storagePersistStatus: v.optional(
+      v.union(v.literal("pending"), v.literal("succeeded"), v.literal("failed"))
+    ),
+    storagePersistError: v.optional(v.string()),
+    storageMigration: v.optional(
+      v.object({
+        fromProvider: v.optional(v.string()),
+        fromImageUrl: v.optional(v.string()),
+        fromPreviewUrl: v.optional(v.string()),
+        migratedAt: v.number(),
+      })
+    ),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
       v.union(

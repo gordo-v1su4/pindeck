@@ -54,10 +54,13 @@ Set in Convex Project Settings:
 - `FAL_KEY`
 - `INGEST_API_KEY` (for Discord ingest)
 - `DISCORD_STATUS_WEBHOOK_URL` (optional Discord status updates)
-- `NEXTCLOUD_WEBDAV_BASE_URL`
-- `NEXTCLOUD_WEBDAV_USER`
-- `NEXTCLOUD_WEBDAV_APP_PASSWORD`
-- `NEXTCLOUD_UPLOAD_PREFIX` (default: `pindeck/media-uploads`)
+- `MEDIA_GATEWAY_URL=https://media.v1su4.dev`
+- `MEDIA_GATEWAY_TOKEN`
+- `MEDIA_GATEWAY_BUCKET=pindeck`
+- `MEDIA_GATEWAY_USER_ID=pindeck`
+- `MEDIA_GATEWAY_UPLOAD_PREFIX=media-uploads`
+- `PINDECK_STORAGE_PROVIDER=rustfs`
+- `NEXTCLOUD_*` values are legacy fallback only during migration.
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` (for Google OAuth)
 - `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` (for GitHub OAuth)
 - `SITE_URL` (public app URL for OAuth redirect/callback)
@@ -80,27 +83,32 @@ For Convex function deploys:
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
 - `bun run deploy:convex` - Deploy Convex functions
 
-## Media Upload Pipeline (Convex -> Nextcloud)
+## Media Upload Pipeline (Convex -> RustFS)
 
-- Uploads first land in Convex storage, then `convex/mediaStorage.finalizeUploadedImage` persists to Nextcloud.
-- Nextcloud target path format is:
-  - `pindeck/media-uploads/YYYY/MM_DD/original/<file>`
-  - `pindeck/media-uploads/YYYY/MM_DD/preview/<file>-preview.<ext>`
-  - `pindeck/media-uploads/YYYY/MM_DD/low/<file>-w320.webp`
-  - `pindeck/media-uploads/YYYY/MM_DD/high/<file>-w768.webp` (+ `w1280`)
-- Directory creation is explicit via WebDAV `MKCOL` before `PUT`.
+- Uploads first land in Convex storage, then `convex/mediaStorage.finalizeUploadedImage` persists to the RustFS media API.
+- Durable assets live in the `pindeck` bucket and read publicly from `https://s3.v1su4.dev/pindeck/...`.
+- RustFS object key format is:
+  - `media-uploads/YYYY/MM_DD/original/<file>`
+  - `media-uploads/YYYY/MM_DD/preview/<file>-preview.<ext>`
+  - `media-uploads/YYYY/MM_DD/low/<file>-w320.<ext>`
+  - `media-uploads/YYYY/MM_DD/high/<file>-w1280.<ext>` / `w1920.<ext>`
+- Convex and Vercel never receive direct S3 credentials; all writes and deletes go through `MEDIA_GATEWAY_URL`.
 
 ### Image record tracking fields
 
 Each image now carries persistence status for observability:
+- `storageProvider`: `convex` | `nextcloud` | `rustfs`
+- `storageBucket`: bucket name for RustFS-backed assets
+- `storagePersistStatus`: `pending` | `succeeded` | `failed`
+- `storagePersistError`: generic storage error when persist failed
 - `nextcloudPersistStatus`: `pending` | `succeeded` | `failed`
 - `nextcloudPersistError`: error message when persist failed
 - `derivativeUrls`: `{ small, medium, large }` (when available)
 - `derivativeStoragePaths`: `{ small, medium, large }` (when available)
 
-### Nextcloud public delivery
+### Legacy Nextcloud public delivery
 
-Pindeck now supports two ways to turn stored Nextcloud files into browser-safe URLs:
+Nextcloud support remains only as a migration fallback for older rows. New durable writes should use RustFS.
 
 1. Preferred: share the upload root folder once in Nextcloud and set:
    - `NEXTCLOUD_PUBLIC_SHARE_TOKEN`
@@ -115,18 +123,18 @@ The shared-folder model is the closest match to "Nextcloud as a bucket":
   `public.php/dav/files/<token>/...` paths.
 - Gallery, boards, deck, and table all continue to read the same `images.imageUrl` / `previewUrl` fields.
 
-### Backfill Convex-only uploads
+### Backfill legacy uploads
 
-Use the mutation below to reschedule persistence for uploads still in Convex storage:
+Use the operator HTTP action to migrate existing Convex/Nextcloud rows into RustFS:
 
 ```bash
-bunx convex run images:backfillNextcloudFailedUploads '{"limit":50}'
+curl -X POST "$VITE_CONVEX_SITE_URL/backfillNextcloud" \
+  -H "Authorization: Bearer $INGEST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"limit":50,"dryRun":true}'
 ```
 
-The mutation targets authenticated user uploads where:
-- `sourceType = "upload"`
-- `storageProvider = "convex"`
-- `storageId` is still present
+Set `dryRun` to `false` after reviewing the result list.
 
 ## Discord Bot (Ingest + Status)
 

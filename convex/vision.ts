@@ -648,6 +648,8 @@ export const internalGenerateRelatedImages = internalAction({
           sourceUrl: validUrls[i],
           previewUrl: persisted.previewUrl,
           storagePath: persisted.storagePath,
+          storageProvider: persisted.bucket ? ("rustfs" as const) : ("nextcloud" as const),
+          storageBucket: persisted.bucket,
           previewStoragePath: persisted.previewStoragePath,
           derivativeUrls: persisted.derivativeUrls,
           derivativeStoragePaths: persisted.derivativeStoragePaths,
