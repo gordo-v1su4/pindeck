@@ -5,6 +5,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
+import { extractColorsFromImage } from "@/lib/colorExtraction";
 import { toast } from "sonner";
 
 /** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
@@ -38,6 +39,7 @@ interface TableViewProps {
 export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
   const images = useQuery(api.images.list, { limit: 1000 });
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
+  const updateImageMetadata = useMutation(api.images.updateImageMetadata);
   const removeMany = useMutation(api.images.removeMany);
   const createBoardFromImages = useMutation(api.boards.createFromImages);
   const createDeckFromImages = useMutation(api.decks.createFromImages);
@@ -76,9 +78,34 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
       } else {
         setRefreshStatus({
           tone: "working",
-          copy: `Processing ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}...`,
+          copy: ids.length
+            ? `Sampling palettes now; metadata ${r.metadataScheduled ? "is running" : "is already filled"}...`
+            : `Processing ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}...`,
           imageIds: ids.length ? ids : undefined,
         });
+        if (ids.length && images) {
+          const selectedImages = ids
+            .map((id) => images.find((image) => image._id === id))
+            .filter(Boolean);
+          const paletteResults = await Promise.all(
+            selectedImages.map(async (image: any) => {
+              const sampleUrl = image.imageUrl || image.derivativeUrls?.large || image.previewUrl;
+              const colors = sampleUrl ? await extractColorsFromImage(sampleUrl) : [];
+              if (colors.length) {
+                await updateImageMetadata({ imageId: image._id, colors });
+              }
+              return { imageId: image._id, colors };
+            })
+          );
+          const updated = paletteResults.filter((result) => result.colors.length > 0).length;
+          setRefreshStatus({
+            tone: updated === selectedImages.length ? "success" : "error",
+            copy:
+              updated === selectedImages.length
+                ? `Palette updated for ${updated} selected image${updated === 1 ? "" : "s"}. Metadata will fill in as the analysis finishes.`
+                : `Palette sampling finished for ${updated}/${selectedImages.length} selected image${selectedImages.length === 1 ? "" : "s"}. Some image URLs could not be sampled.`,
+          });
+        }
       }
     } catch (e) {
       console.error(e);
@@ -90,7 +117,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     } finally {
       setRefreshBusy(false);
     }
-  }, [enqueueMetadataRefresh, selectedIds]);
+  }, [enqueueMetadataRefresh, images, selectedIds, updateImageMetadata]);
 
   const filtered = useMemo(() => {
     if (!images) return [];
