@@ -2,11 +2,10 @@
 
 // Server-side: sharp → RGB buffer → shared dominance-first palette (see src/lib/colorPaletteCore.ts).
 
-import { action, internalAction } from "./_generated/server";
+import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { extractDominantHexes } from "../src/lib/colorPaletteCore";
-import { getAuthUserId } from "@convex-dev/auth/server";
 
 const MAX_RESAMPLE = 160; // Slightly finer than 128 for stable warm clusters
 
@@ -48,40 +47,6 @@ export async function extractColorsFromBuffer(buffer: Buffer): Promise<string[]>
     minLabDelta: 19,
   });
 }
-
-export const extractColorsForUrl = action({
-  args: {
-    imageUrl: v.string(),
-  },
-  returns: v.object({
-    ok: v.boolean(),
-    colors: v.array(v.string()),
-    error: v.optional(v.string()),
-  }),
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
-
-    try {
-      const buffer = await fetchBuffer(args.imageUrl);
-      const colors = await extractColorsFromBuffer(buffer);
-      return {
-        ok: colors.length > 0,
-        colors,
-        error: colors.length > 0 ? undefined : "No colors extracted",
-      };
-    } catch (error) {
-      console.warn("[colorExtraction] public extraction failed", error);
-      return {
-        ok: false,
-        colors: [],
-        error: error instanceof Error ? error.message : "Color extraction failed",
-      };
-    }
-  },
-});
 
 /**
  * Extract colors for a single image and patch the row.

@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { useAction, useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
-import { extractColorsFromImage } from "@/lib/colorExtraction";
 import { toast } from "sonner";
 
 /** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
@@ -39,8 +38,7 @@ interface TableViewProps {
 export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
   const images = useQuery(api.images.list, { limit: 1000 });
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
-  const updateImageMetadata = useMutation(api.images.updateImageMetadata);
-  const extractColorsForUrl = useAction(api.colorExtraction.extractColorsForUrl);
+  const reExtractPaletteForImage = useMutation(api.colorExtractionAdmin.reExtractForImage);
   const removeMany = useMutation(api.images.removeMany);
   const createBoardFromImages = useMutation(api.boards.createFromImages);
   const createDeckFromImages = useMutation(api.decks.createFromImages);
@@ -88,28 +86,25 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
           const selectedImages = ids
             .map((id) => images.find((image) => image._id === id))
             .filter(Boolean);
-          const paletteResults = await Promise.all(
+          const paletteSchedules = await Promise.all(
             selectedImages.map(async (image: any) => {
-              const sampleUrl = image.imageUrl || image.derivativeUrls?.large || image.previewUrl;
-              let colors = sampleUrl ? await extractColorsFromImage(sampleUrl) : [];
-              if (sampleUrl && colors.length === 0) {
-                const serverResult = await extractColorsForUrl({ imageUrl: sampleUrl });
-                colors = serverResult.colors;
-              }
-              if (colors.length) {
-                await updateImageMetadata({ imageId: image._id, colors });
-              }
-              return { imageId: image._id, colors };
+              const result = await reExtractPaletteForImage({ imageId: image._id });
+              return { imageId: image._id, scheduled: result.scheduled };
             })
           );
-          const updated = paletteResults.filter((result) => result.colors.length > 0).length;
-          setRefreshStatus({
-            tone: updated === selectedImages.length ? "success" : "error",
-            copy:
-              updated === selectedImages.length
-                ? `Palette updated for ${updated} selected image${updated === 1 ? "" : "s"}. Metadata will fill in as the analysis finishes.`
-                : `Palette sampling finished for ${updated}/${selectedImages.length} selected image${selectedImages.length === 1 ? "" : "s"}. Some image URLs could not be sampled.`,
-          });
+          const scheduled = paletteSchedules.filter((result) => result.scheduled).length;
+          setRefreshStatus(
+            scheduled
+              ? {
+                  tone: "working",
+                  copy: `Sampling ${scheduled} palette${scheduled === 1 ? "" : "s"} on the server; metadata ${r.metadataScheduled ? "is running" : "is already filled"}...`,
+                  imageIds: ids,
+                }
+              : {
+                  tone: "error",
+                  copy: `Could not start palette sampling for the selected image${selectedImages.length === 1 ? "" : "s"}.`,
+                },
+          );
         }
       }
     } catch (e) {
@@ -122,7 +117,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     } finally {
       setRefreshBusy(false);
     }
-  }, [enqueueMetadataRefresh, extractColorsForUrl, images, selectedIds, updateImageMetadata]);
+  }, [enqueueMetadataRefresh, images, reExtractPaletteForImage, selectedIds]);
 
   const filtered = useMemo(() => {
     if (!images) return [];
