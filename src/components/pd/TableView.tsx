@@ -48,6 +48,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     tone: "working" | "success" | "error";
     copy: string;
     imageIds?: Id<"images">[];
+    startedAt?: number;
   } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<Id<"images">>>(new Set());
@@ -60,52 +61,65 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     setRefreshStatus({
       tone: "working",
       copy: `Generating metadata and sampled palettes for ${targetCopy}...`,
+      imageIds: ids.length ? ids : undefined,
+      startedAt: Date.now(),
     });
     try {
+      const selectedImages = ids.length && images
+        ? ids
+            .map((id) => images.find((image) => image._id === id))
+            .filter(Boolean)
+        : [];
+      const missingPaletteBefore = selectedImages.filter((image: any) => !image.colors?.length).length;
+      const paletteSchedules = selectedImages.length
+        ? await Promise.all(
+            selectedImages.map(async (image: any) => {
+              try {
+                const result = await reExtractPaletteForImage({ imageId: image._id });
+                return { imageId: image._id, scheduled: result.scheduled };
+              } catch (error) {
+                console.error("Could not schedule palette resample", error);
+                return { imageId: image._id, scheduled: false };
+              }
+            })
+          )
+        : [];
+      const paletteScheduled = paletteSchedules.filter((result) => result.scheduled).length;
+
       const r = await enqueueMetadataRefresh({
         onlyMissing: ids.length === 0,
         forceAll: ids.length > 0,
         imageIds: ids.length ? ids : undefined,
       });
-      if (r.metadataScheduled === 0 && r.paletteScheduled === 0) {
+
+      if (ids.length) {
+        if (paletteScheduled > 0 || r.metadataScheduled > 0) {
+          setRefreshStatus({
+            tone: "working",
+            copy: `Processing: ${paletteScheduled} palette${paletteScheduled === 1 ? "" : "s"} on the server${r.metadataScheduled ? `, ${r.metadataScheduled} metadata job${r.metadataScheduled === 1 ? "" : "s"}` : ""}...`,
+            imageIds: ids,
+            startedAt: Date.now(),
+          });
+        } else {
+          setRefreshStatus({
+            tone: missingPaletteBefore ? "error" : "success",
+            copy: missingPaletteBefore
+              ? `Could not start palette sampling for ${missingPaletteBefore} selected image${missingPaletteBefore === 1 ? "" : "s"}.`
+              : `Selected image${selectedImages.length === 1 ? "" : "s"} already have metadata and palettes.`,
+          });
+        }
+      } else if (r.metadataScheduled === 0 && r.paletteScheduled === 0) {
         setRefreshStatus({
           tone: "success",
-          copy: ids.length
-            ? "No eligible images found for this account. Sign in as the image owner to generate metadata and palettes."
-            : "No uploads with missing metadata or palettes were found.",
+          copy: "No uploads with missing metadata or palettes were found.",
         });
       } else {
         setRefreshStatus({
           tone: "working",
-          copy: ids.length
-            ? `Sampling palettes now; metadata ${r.metadataScheduled ? "is running" : "is already filled"}...`
-            : `Processing ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}...`,
+          copy: `Processing ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}...`,
           imageIds: ids.length ? ids : undefined,
+          startedAt: Date.now(),
         });
-        if (ids.length && images) {
-          const selectedImages = ids
-            .map((id) => images.find((image) => image._id === id))
-            .filter(Boolean);
-          const paletteSchedules = await Promise.all(
-            selectedImages.map(async (image: any) => {
-              const result = await reExtractPaletteForImage({ imageId: image._id });
-              return { imageId: image._id, scheduled: result.scheduled };
-            })
-          );
-          const scheduled = paletteSchedules.filter((result) => result.scheduled).length;
-          setRefreshStatus(
-            scheduled
-              ? {
-                  tone: "working",
-                  copy: `Sampling ${scheduled} palette${scheduled === 1 ? "" : "s"} on the server; metadata ${r.metadataScheduled ? "is running" : "is already filled"}...`,
-                  imageIds: ids,
-                }
-              : {
-                  tone: "error",
-                  copy: `Could not start palette sampling for the selected image${selectedImages.length === 1 ? "" : "s"}.`,
-                },
-          );
-        }
       }
     } catch (e) {
       console.error(e);
@@ -183,6 +197,26 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         copy: `Metadata and palettes updated for ${targets.length} selected image${targets.length === 1 ? "" : "s"}.`,
       });
     } else {
+      const elapsed = refreshStatus.startedAt ? Date.now() - refreshStatus.startedAt : 0;
+      if (elapsed > 30000 && pending.length === 0 && missingPalette.length > 0) {
+        setRefreshStatus({
+          tone: "error",
+          copy: `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}. The server job was queued but did not write colors back.`,
+        });
+        return;
+      }
+      let timeoutId: number | undefined;
+      if (refreshStatus.startedAt && pending.length === 0 && missingPalette.length > 0) {
+        timeoutId = window.setTimeout(() => {
+          setRefreshStatus((current) => {
+            if (!current || current.tone !== "working") return current;
+            return {
+              tone: "error",
+              copy: `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}. The server job was queued but did not write colors back.`,
+            };
+          });
+        }, Math.max(0, 30000 - elapsed));
+      }
       setRefreshStatus((current) => {
         if (!current || current.tone !== "working") return current;
         const pieces = [];
@@ -191,6 +225,9 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         const copy = pieces.length ? `Processing: ${pieces.join(", ")}...` : "Finishing metadata and palette updates...";
         return current.copy === copy ? current : { ...current, copy };
       });
+      return () => {
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      };
     }
   }, [images, refreshStatus]);
 
