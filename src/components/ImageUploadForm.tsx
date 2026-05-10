@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import {
@@ -47,10 +47,27 @@ interface UploadFile {
   sref: string;
   colors: string[];
   group?: string;
+  genre?: string;
+  style?: string;
+  shot?: string;
   projectName?: string;
   moodboardName?: string;
   uniqueId?: string;
   colorStatus?: "pending" | "ready" | "failed";
+  metadataStatus?: "pending" | "ready" | "failed";
+  metadataError?: string;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Could not read image for metadata analysis."));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read image for metadata analysis."));
+    reader.readAsDataURL(file);
+  });
 }
 
 const VARIATION_MODES: { id: string; label: string }[] = [
@@ -103,6 +120,7 @@ export function ImageUploadForm() {
   const updateImageMetadataMutation = useMutation(api.images.updateImageMetadata);
   const rerunSmartAnalysisMutation = useMutation(api.vision.rerunSmartAnalysis);
   const generateVariationsMutation = useMutation(api.vision.generateVariations);
+  const previewUploadMetadata = useAction((api as any).vision.previewUploadMetadata);
   const setAiStatusMutation = useMutation(api.images.setAiStatus);
   const clearMyStaleProcessingImagesMutation = useMutation(api.images.clearMyStaleProcessingImages);
 
@@ -136,6 +154,7 @@ export function ImageUploadForm() {
   const [variationDetail, setVariationDetail] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const hasPendingColorSampling = files.some((file) => file.colorStatus === "pending");
+  const hasPendingMetadataAnalysis = files.some((file) => file.metadataStatus === "pending");
 
   useEffect(() => {
     void clearMyStaleProcessingImagesMutation({ olderThanHours: 18 }).catch((error) => {
@@ -209,6 +228,7 @@ export function ImageUploadForm() {
       moodboardName: undefined,
       uniqueId: undefined,
       colorStatus: "pending",
+      metadataStatus: "pending",
     }));
 
     setFiles(prev => [...prev, ...newUploadFiles]);
@@ -224,6 +244,48 @@ export function ImageUploadForm() {
             colorStatus: colors.length > 0 ? "ready" : "failed",
           };
         }));
+      })
+    );
+
+    void Promise.all(
+      newUploadFiles.map(async (uploadFile) => {
+        try {
+          const imageDataUrl = await fileToDataUrl(uploadFile.file);
+          const metadata = await previewUploadMetadata({
+            imageDataUrl,
+            fileName: uploadFile.file.name,
+            description: uploadFile.description || undefined,
+          });
+          setFiles(prev => prev.map((file) => {
+            if (file.id !== uploadFile.id) return file;
+            return {
+              ...file,
+              title: file.title || metadata.title || file.title,
+              description: file.description || metadata.description || file.description,
+              tags: file.tags.length ? file.tags : metadata.tags || [],
+              category: metadata.category || file.category,
+              colors: file.colors.length ? file.colors : metadata.colors || [],
+              group: file.group || metadata.group || undefined,
+              genre: file.genre || metadata.genre || undefined,
+              style: file.style || metadata.style || undefined,
+              shot: file.shot || metadata.shot || undefined,
+              projectName: file.projectName || metadata.projectName || undefined,
+              moodboardName: file.moodboardName || metadata.moodboardName || undefined,
+              metadataStatus: "ready",
+              metadataError: undefined,
+            };
+          }));
+        } catch (error) {
+          console.error("Pre-upload metadata analysis failed:", error);
+          setFiles(prev => prev.map((file) => {
+            if (file.id !== uploadFile.id) return file;
+            return {
+              ...file,
+              metadataStatus: "failed",
+              metadataError: error instanceof Error ? error.message : "AI metadata failed.",
+            };
+          }));
+        }
       })
     );
   };
@@ -364,6 +426,10 @@ export function ImageUploadForm() {
       toast.info("Still sampling image colors. Upload will be ready in a moment.");
       return;
     }
+    if (hasPendingMetadataAnalysis) {
+      toast.info("Still generating metadata. Upload will be ready in a moment.");
+      return;
+    }
 
     setUploading(true);
     try {
@@ -402,6 +468,9 @@ export function ImageUploadForm() {
           sref: file.sref || undefined,
           colors: file.colors,
           group: file.group || undefined,
+          genre: file.genre || undefined,
+          style: file.style || undefined,
+          shot: file.shot || undefined,
           projectName: file.projectName || undefined,
           moodboardName: file.moodboardName || undefined,
           uniqueId: uniqueId,
@@ -1063,6 +1132,27 @@ export function ImageUploadForm() {
                         )}
                       </Flex>
 
+                      <Flex align="center" gap="2" className="mb-2 min-h-5">
+                        {file.metadataStatus === "pending" && (
+                          <>
+                            <Box className="w-3 h-3 border-2 border-[var(--pd-accent)] border-t-transparent rounded-full animate-spin" />
+                            <Text size="1" color="gray">Generating metadata before upload...</Text>
+                          </>
+                        )}
+                        {file.metadataStatus === "ready" && (
+                          <>
+                            <CheckIcon color="var(--pd-green)" />
+                            <Text size="1" color="gray">Metadata ready</Text>
+                          </>
+                        )}
+                        {file.metadataStatus === "failed" && (
+                          <>
+                            <Badge color="red" variant="soft" size="1">AI metadata failed</Badge>
+                            <Text size="1" color="gray">{file.metadataError || "You can still upload and retry after."}</Text>
+                          </>
+                        )}
+                      </Flex>
+
                       <Flex gap="1" wrap="wrap" className="mb-2">
                         {file.tags.map((tag, index) => (
                           <Badge
@@ -1115,7 +1205,7 @@ export function ImageUploadForm() {
             </Button>
             <Button
               onClick={() => void handleSubmit()}
-              disabled={uploading || files.length === 0 || hasPendingColorSampling}
+              disabled={uploading || files.length === 0 || hasPendingColorSampling || hasPendingMetadataAnalysis}
               size="2"
               variant="soft"
               className="pd-action-primary"
@@ -1129,6 +1219,11 @@ export function ImageUploadForm() {
                 <Flex align="center" gap="2">
                   <Box className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   Sampling colors...
+                </Flex>
+              ) : hasPendingMetadataAnalysis ? (
+                <Flex align="center" gap="2">
+                  <Box className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Generating metadata...
                 </Flex>
               ) : (
                 `Upload ${files.length} Image${files.length > 1 ? 's' : ''}`

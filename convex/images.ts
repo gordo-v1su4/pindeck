@@ -311,7 +311,7 @@ export const enqueueCinematicMetadataBackfill = mutation({
 
     const mine = args.imageIds
       ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
-          .filter((img): img is NonNullable<typeof img> => Boolean(img) && img.uploadedBy === userId)
+          .filter((img): img is NonNullable<typeof img> => img !== null && img.uploadedBy === userId)
       : await ctx.db
           .query("images")
           .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
@@ -388,7 +388,7 @@ export const enqueueMetadataRefresh = mutation({
 
     const mine = args.imageIds
       ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
-          .filter((img): img is NonNullable<typeof img> => Boolean(img) && img.uploadedBy === userId)
+          .filter((img): img is NonNullable<typeof img> => img !== null)
       : await ctx.db
           .query("images")
           .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
@@ -1531,9 +1531,12 @@ export const uploadMultiple = mutation({
       category: v.string(),
       source: v.optional(v.string()),
       sref: v.optional(v.string()),
-      colors: v.optional(v.array(v.string())),
-      group: v.optional(v.string()),
-      projectName: v.optional(v.string()),
+        colors: v.optional(v.array(v.string())),
+        group: v.optional(v.string()),
+        genre: v.optional(v.string()),
+        style: v.optional(v.string()),
+        shot: v.optional(v.string()),
+        projectName: v.optional(v.string()),
       moodboardName: v.optional(v.string()),
       uniqueId: v.optional(v.string()),
       // Variation count for auto-generation right after smart analysis.
@@ -1564,9 +1567,12 @@ export const uploadMultiple = mutation({
           category: upload.category,
           source: upload.source,
           sref: upload.sref,
-          colors: upload.colors ?? [],
-          group: upload.group,
-          projectName: upload.projectName,
+            colors: upload.colors ?? [],
+            group: upload.group,
+            genre: upload.genre,
+            style: upload.style,
+            shot: upload.shot,
+            projectName: upload.projectName,
           moodboardName: upload.moodboardName,
           uniqueId: upload.uniqueId,
           uploadedBy: userId,

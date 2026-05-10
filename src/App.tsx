@@ -235,7 +235,21 @@ export default function App() {
         )}
       </div>
 
-      <Toaster theme="dark" />
+      <Toaster
+        theme="dark"
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: "rgba(11, 11, 14, 0.88)",
+            border: "1px solid var(--pd-line-strong)",
+            color: "var(--pd-ink)",
+            borderRadius: "6px",
+            boxShadow: "0 18px 60px rgba(0,0,0,0.42)",
+            backdropFilter: "blur(10px) saturate(1.12)",
+            fontSize: "12px",
+          },
+        }}
+      />
     </div>
   );
 }

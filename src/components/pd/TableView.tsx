@@ -43,31 +43,41 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
   const createDeckFromImages = useMutation(api.decks.createFromImages);
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [selectionBusy, setSelectionBusy] = useState(false);
+  const [refreshStatus, setRefreshStatus] = useState<{
+    tone: "working" | "success" | "error";
+    copy: string;
+  } | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<Id<"images">>>(new Set());
   const [sort, setSort] = useState<{ by: string; dir: "asc" | "desc" }>({ by: "title", dir: "asc" });
 
   const handleRefreshMetadata = useCallback(async () => {
     const ids = Array.from(selectedIds);
-    const targetCopy = ids.length > 0 ? `${ids.length} selected image(s)` : "your uploads";
-    if (
-      !confirm(
-        `Refresh metadata and sampled palettes for ${targetCopy}? ` +
-          "This updates description, tags, type, genre, shot, style, and colors.",
-      )
-    ) {
-      return;
-    }
+    const targetCopy = ids.length > 0 ? `${ids.length} selected image${ids.length === 1 ? "" : "s"}` : "uploads with missing metadata";
     setRefreshBusy(true);
+    setRefreshStatus({
+      tone: "working",
+      copy: `Generating metadata and sampled palettes for ${targetCopy}...`,
+    });
     try {
       const r = await enqueueMetadataRefresh({
-        onlyMissing: true,
+        onlyMissing: ids.length === 0,
+        forceAll: ids.length > 0,
         imageIds: ids.length ? ids : undefined,
       });
-      toast.success(
-        `Scheduled ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job(s). (${r.skipped} skipped.)`
-      );
+      const copy =
+        r.metadataScheduled === 0 && r.paletteScheduled === 0
+          ? ids.length
+            ? "No eligible images found for this account. Sign in as the image owner to generate metadata and palettes."
+            : "No uploads with missing metadata or palettes were found."
+          : `Queued ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}. ${r.skipped ? `${r.skipped} skipped.` : "Reload after the jobs finish to see updated fields."}`;
+      setRefreshStatus({ tone: "success", copy });
     } catch (e) {
       console.error(e);
+      setRefreshStatus({
+        tone: "error",
+        copy: "Could not queue metadata generation. Check sign-in and Convex deploy status.",
+      });
       toast.error("Could not schedule refresh (sign in / deploy Convex).");
     } finally {
       setRefreshBusy(false);
@@ -159,11 +169,11 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
   const handleDeleteSelection = useCallback(async () => {
     const ids = selectedArray();
     if (ids.length === 0) return;
-    if (!confirm(`Delete ${ids.length} selected image(s)? This cannot be undone.`)) return;
     setSelectionBusy(true);
     try {
       const r = await removeMany({ ids });
       setSelectedIds(new Set());
+      setDeleteConfirmOpen(false);
       toast.success(`Deleted ${r.removed} image(s).`);
     } catch (e) {
       console.error(e);
@@ -221,10 +231,10 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {[
-            { label: refreshBusy ? "Scheduling…" : selectedCount ? "Refresh selected" : "Refresh metadata", onClick: handleRefreshMetadata, disabled: refreshBusy },
-            { label: "New board", onClick: handleCreateBoard, disabled: selectedCount === 0 || selectionBusy },
-            { label: "New deck", onClick: handleCreateDeck, disabled: selectedCount === 0 || selectionBusy },
-            { label: "Delete selection", onClick: handleDeleteSelection, disabled: selectedCount === 0 || selectionBusy, danger: true },
+            { label: refreshBusy ? "Generating..." : "Generate Metadata & Palette", onClick: handleRefreshMetadata, disabled: refreshBusy, primary: true },
+            { label: "New Board", onClick: handleCreateBoard, disabled: selectedCount === 0 || selectionBusy },
+            { label: "New Deck", onClick: handleCreateDeck, disabled: selectedCount === 0 || selectionBusy },
+            { label: "Delete Selection", onClick: () => setDeleteConfirmOpen(true), disabled: selectedCount === 0 || selectionBusy, danger: true },
           ].map((action) => (
             <button
               key={action.label}
@@ -236,14 +246,25 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
               }}
               className="pd-mono"
               style={{
-                fontSize: 10,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                padding: "6px 10px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 10.5,
+                letterSpacing: 0,
+                textTransform: "none",
+                padding: "4px 8px",
                 borderRadius: 4,
                 border: action.danger ? "1px solid rgba(239,67,67,0.28)" : "1px solid var(--pd-line-strong)",
-                background: action.danger ? "rgba(239,67,67,0.1)" : "rgba(255,255,255,0.04)",
-                color: action.danger ? "rgba(255,190,190,0.9)" : "var(--pd-ink-dim)",
+                background: action.danger
+                  ? "rgba(239,67,67,0.1)"
+                  : action.primary
+                    ? "var(--pd-accent-soft)"
+                    : "rgba(255,255,255,0.025)",
+                color: action.danger
+                  ? "rgba(255,190,190,0.9)"
+                  : action.primary
+                    ? "var(--pd-accent-ink)"
+                    : "var(--pd-ink-dim)",
                 cursor: action.disabled ? "not-allowed" : "pointer",
                 opacity: action.disabled ? 0.45 : 1,
               }}
@@ -253,6 +274,47 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
           ))}
         </div>
       </div>
+      {(refreshStatus || deleteConfirmOpen) && (
+        <div
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 12px",
+            borderBottom: "1px solid var(--pd-line)",
+            background: deleteConfirmOpen
+              ? "rgba(239,67,67,0.08)"
+              : refreshStatus?.tone === "error"
+                ? "rgba(239,67,67,0.08)"
+                : "color-mix(in srgb, var(--pd-accent) 8%, transparent)",
+            color: refreshStatus?.tone === "error" ? "rgba(255,190,190,0.94)" : "var(--pd-ink-dim)",
+          }}
+        >
+          <span className="pd-mono" style={{ fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pd-ink-faint)" }}>
+            {deleteConfirmOpen ? "Confirm delete" : refreshStatus?.tone === "working" ? "Working" : refreshStatus?.tone === "error" ? "Issue" : "Queued"}
+          </span>
+          <span style={{ flex: 1, fontSize: 12 }}>
+            {deleteConfirmOpen
+              ? `Delete ${selectedCount} selected image${selectedCount === 1 ? "" : "s"}? This cannot be undone.`
+              : refreshStatus?.copy}
+          </span>
+          {deleteConfirmOpen ? (
+            <>
+              <button type="button" className="pd-mono" onClick={() => setDeleteConfirmOpen(false)} style={{ fontSize: 10, color: "var(--pd-ink-dim)", padding: "5px 8px" }}>
+                Cancel
+              </button>
+              <button type="button" className="pd-mono" disabled={selectionBusy} onClick={() => void handleDeleteSelection()} style={{ fontSize: 10, color: "rgba(255,210,210,0.95)", background: "rgba(239,67,67,0.16)", border: "1px solid rgba(239,67,67,0.3)", borderRadius: 4, padding: "5px 8px" }}>
+                {selectionBusy ? "Deleting..." : "Delete"}
+              </button>
+            </>
+          ) : (
+            <button type="button" aria-label="Dismiss metadata status" onClick={() => setRefreshStatus(null)} style={{ color: "var(--pd-ink-faint)", padding: "4px 6px" }}>
+              ×
+            </button>
+          )}
+        </div>
+      )}
       <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 11.5, tableLayout: "fixed" }}>
         <thead>
           <tr>

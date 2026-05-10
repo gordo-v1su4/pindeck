@@ -1,4 +1,4 @@
-import { httpAction, internalAction, mutation, query } from "./_generated/server";
+import { action, httpAction, internalAction, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { fal } from "@fal-ai/client";
@@ -291,6 +291,140 @@ function extractBracketField(text: string, key: string): unknown[] | undefined {
 
   const parsed = parseJsonCandidate(match[1]);
   return Array.isArray(parsed) ? parsed : undefined;
+}
+
+type VisionMetadataResult = {
+  title?: string;
+  description?: string;
+  tags: string[];
+  colors: string[];
+  category?: string;
+  group?: string;
+  genre?: string;
+  style?: string;
+  shot?: string;
+  projectName?: string;
+  moodboardName?: string;
+};
+
+const VISION_CATEGORIES = [
+  "Abstract", "Architecture", "Art", "Blockbuster Film", "Character Design",
+  "Cinematic", "Commercial", "Design", "Environment", "Fashion", "Film",
+  "Gaming", "Headshot", "Indy Film", "Illustration", "Interior", "Landscape",
+  "Photography", "Sci-Fi", "Streetwear", "Technology", "Texture", "UI/UX", "Vintage"
+];
+
+function visionPrompt() {
+  return `Analyze this image. Return ONLY valid JSON with:
+"title" (short catchy),
+"description" (concise),
+"tags" (5-10 specific descriptive tags),
+"colors" (array of 5 hex codes like #RRGGBB),
+"category" (one of: ${VISION_CATEGORIES.join(", ")}),
+"group" (production TYPE — pick one: Commercial, Film, Music Video, Editorial, Moodboard, TV Series, Web Series, Video Game Cinematic — or null),
+"genre" (one primary genre: Noir, Sci-Fi, Drama, Horror, Romance, Action, Doc — use Doc for documentary — or null),
+"shot" (one concise cinematography framing label, Title Case — e.g. Over-the-Shoulder, Extreme Wide Shot, Medium Shot, Close-Up, Bird's Eye, Low Angle — best match for framing),
+"visual_style" (capture/medium — one short label like 35mm Film, 16mm, VHS, Digital, Polaroid, Super 8, IMAX, or CGI),
+"project_name" (if recognizable IP/title, else null),
+"moodboard_name" (if this is primarily a reference/moodboard plate, else null).`;
+}
+
+function parseVisionMetadata(rawContent: string, fallbackDescription?: string): VisionMetadataResult {
+  let title: string | undefined;
+  let description = fallbackDescription?.trim() || "";
+  let tags: string[] = [];
+  let colors: string[] = [];
+  let category: string | undefined;
+  let visual_style: string | undefined;
+  let group: string | undefined;
+  let genre: string | undefined;
+  let shot: string | undefined;
+  let project_name: string | undefined;
+  let moodboard_name: string | undefined;
+
+  const cleanContent = stripMarkdownFences(rawContent);
+  const parsed = findVisionAnalysisObject(cleanContent);
+
+  if (parsed) {
+    title = readString(parsed.title);
+    description = readString(parsed.description) || description;
+    tags = readStringArray(parsed.tags);
+    colors = readHexColors(parsed.colors);
+    category = readString(parsed.category);
+    visual_style = readString(parsed.visual_style);
+    group = readString(parsed.group) || undefined;
+    genre = canonGenre(readString(parsed.genre));
+    shot = canonShot(readString(parsed.shot) ?? readString(parsed.shot_framing));
+    project_name = readString(parsed.project_name) || readString(parsed.projectName) || undefined;
+    moodboard_name = readString(parsed.moodboard_name) || readString(parsed.moodboardName) || undefined;
+  } else {
+    title = extractQuotedField(cleanContent, "title");
+    description = extractQuotedField(cleanContent, "description") || description;
+    tags = readStringArray(extractBracketField(cleanContent, "tags"));
+    colors = readHexColors(extractBracketField(cleanContent, "colors"));
+    category = extractQuotedField(cleanContent, "category");
+    visual_style = extractQuotedField(cleanContent, "visual_style");
+    group = extractQuotedField(cleanContent, "group") || undefined;
+    genre = canonGenre(extractQuotedField(cleanContent, "genre"));
+    shot = canonShot(extractQuotedField(cleanContent, "shot"));
+    project_name = extractQuotedField(cleanContent, "project_name") || extractQuotedField(cleanContent, "projectName") || undefined;
+    moodboard_name = extractQuotedField(cleanContent, "moodboard_name") || extractQuotedField(cleanContent, "moodboardName") || undefined;
+  }
+
+  return {
+    title,
+    description,
+    tags,
+    colors,
+    category,
+    group,
+    genre,
+    style: normVisionString(visual_style),
+    shot,
+    projectName: project_name,
+    moodboardName: moodboard_name,
+  };
+}
+
+async function analyzeImageUrlWithOpenRouter(imageUrl: string, fallbackDescription?: string) {
+  const openRouterKey = process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
+  if (!openRouterKey) throw new Error("OPENROUTER_API_KEY not set");
+
+  const vlmModel = process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
+  const openai = new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: openRouterKey,
+    defaultHeaders: {
+      "HTTP-Referer": process.env.CONVEX_SITE_URL || "http://localhost:3000",
+      "X-Title": "Visuals Image Gallery",
+    },
+  });
+
+  const providerOptions: any = {};
+  if (process.env.OPENROUTER_PROVIDER_SORT) {
+    providerOptions.provider = {
+      sort: process.env.OPENROUTER_PROVIDER_SORT as "price" | "throughput" | "latency",
+    };
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: vlmModel,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: visionPrompt() },
+          { type: "image_url", image_url: { url: imageUrl } },
+        ],
+      },
+    ],
+    ...providerOptions,
+  });
+
+  const rawContent = extractMessageText(completion.choices[0]?.message?.content);
+  if (!rawContent) throw new Error("No content in response");
+  console.log(`VLM Analysis (${vlmModel}):`, rawContent);
+  return parseVisionMetadata(rawContent, fallbackDescription);
 }
 
 function buildVariationPromptPlan({
@@ -590,6 +724,34 @@ export const generateVariations = mutation({
     });
 
     return { success: true };
+  },
+});
+
+export const previewUploadMetadata = action({
+  args: {
+    imageDataUrl: v.string(),
+    fileName: v.string(),
+    description: v.optional(v.string()),
+  },
+  returns: v.object({
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    tags: v.array(v.string()),
+    colors: v.array(v.string()),
+    category: v.optional(v.string()),
+    group: v.optional(v.string()),
+    genre: v.optional(v.string()),
+    style: v.optional(v.string()),
+    shot: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+    moodboardName: v.optional(v.string()),
+  }),
+  handler: async (_ctx, args) => {
+    const result = await analyzeImageUrlWithOpenRouter(args.imageDataUrl, args.description);
+    return {
+      ...result,
+      title: result.title || args.fileName,
+    };
   },
 });
 

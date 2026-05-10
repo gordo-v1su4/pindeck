@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
-import { PinIcon, PinChip } from "@/components/ui/pindeck";
+import { PinIcon, PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { Tweaks } from "../TweaksPanel";
 
 interface ImageDetailDrawerProps {
@@ -82,14 +82,14 @@ const labelStyle: React.CSSProperties = {
   color: "var(--pd-ink-faint)",
   textTransform: "uppercase",
   display: "block",
-  marginBottom: 5,
+  marginBottom: 3,
   fontWeight: 500,
 };
 
 const fieldStyle: React.CSSProperties = {
   width: "100%",
-  minHeight: 28,
-  padding: "0 0 5px",
+  minHeight: 24,
+  padding: "0 0 3px",
   background: "transparent",
   color: "var(--pd-ink)",
   border: "0",
@@ -108,8 +108,11 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
   const [tab, setTab] = useState("edit");
   const generateVariations = useMutation(api.vision.generateVariations);
   const updateImageMetadata = useMutation(api.images.updateImageMetadata);
+  const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
   const [genBusy, setGenBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [metadataBusy, setMetadataBusy] = useState(false);
+  const [metadataStatus, setMetadataStatus] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [editDraft, setEditDraft] = useState<EditDraft>(() => editDraftFromImage(image));
 
@@ -224,6 +227,30 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
     color: "var(--pd-ink-dim)",
     cursor: "pointer",
   };
+
+  const handleGenerateMetadata = async () => {
+    setMetadataBusy(true);
+    setMetadataStatus("Generating metadata and sampled palette...");
+    try {
+      const r = await enqueueMetadataRefresh({
+        imageIds: [image._id as Id<"images">],
+        onlyMissing: false,
+        forceAll: true,
+        staggerMs: 500,
+      });
+      setMetadataStatus(
+        r.metadataScheduled === 0 && r.paletteScheduled === 0
+          ? "No eligible image found for this account. Sign in as the image owner to generate metadata and palettes."
+          : `Queued ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}. Reload after processing to see updated fields.`,
+      );
+    } catch (e) {
+      console.error(e);
+      setMetadataStatus("Could not queue metadata generation. Check sign-in and Convex deploy status.");
+      toast.error(e instanceof Error ? e.message : "Could not queue metadata generation.");
+    } finally {
+      setMetadataBusy(false);
+    }
+  };
   const chipSelected: React.CSSProperties = {
     ...chipBase,
     border: "1px solid transparent",
@@ -235,13 +262,14 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
     <aside className="pd-slide-in pd-scroll" style={{
       width: 440, flexShrink: 0, minHeight: 0, alignSelf: "stretch",
       overflow: "auto",
-      background: "var(--pd-panel)", borderLeft: "1px solid var(--pd-line)",
+      background: "rgba(11, 11, 14, 0.82)", borderLeft: "1px solid var(--pd-line)",
+      backdropFilter: "blur(10px) saturate(1.12)",
       display: "flex", flexDirection: "column", position: "relative",
     }}>
       <div style={{
         padding: "12px 14px 10px", borderBottom: "1px solid var(--pd-line)",
         display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0,
-        background: "var(--pd-panel)", zIndex: 2,
+        background: "rgba(11, 11, 14, 0.9)", backdropFilter: "blur(10px) saturate(1.12)", zIndex: 2,
       }}>
         <button onClick={onClose} style={{
           width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
@@ -323,15 +351,27 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
           </div>
         </div>
 
-        <div style={{ marginTop: 10, display: "flex", gap: 0, borderRadius: 3, overflow: "hidden", height: 18 }}>
-          {image.colors?.map((c: string, i: number) => (
-            <div key={i} style={{ flex: 1, background: c, position: "relative" }} title={c}>
-              <span className="pd-mono" style={{
-                position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
-                fontSize: 9, color: "var(--pd-ink-faint)", marginTop: 3, whiteSpace: "nowrap",
-              }}>{c.toUpperCase().slice(1, 4)}</span>
+        <div style={{ marginTop: 10 }}>
+          <div className="pd-mono" style={{ ...labelStyle, marginBottom: 6 }}>Palette</div>
+          {image.colors?.length ? (
+            <div style={{ display: "flex", gap: 0, borderRadius: 3, overflow: "hidden", height: 18 }}>
+              {image.colors.map((c: string, i: number) => (
+                <div key={i} style={{ flex: 1, background: c, position: "relative" }} title={c}>
+                  <span className="pd-mono" style={{
+                    position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
+                    fontSize: 9, color: "var(--pd-ink-faint)", marginTop: 3, whiteSpace: "nowrap",
+                  }}>{c.toUpperCase().slice(1, 4)}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 20 }}>
+              <PinSwatches pad={5} colors={[]} size={12} gap={4} />
+              <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
+                No sampled colors yet
+              </span>
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 14, padding: "16px 0 10px", fontSize: 11, color: "var(--pd-ink-mute)" }}>
@@ -357,7 +397,7 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
 
       <div style={{ padding: "14px", paddingBottom: 20 }}>
         {tab === "edit" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             <div>
               <label className="pd-mono" style={labelStyle}>Title</label>
               <input
@@ -371,13 +411,13 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
               <textarea
                 value={editDraft.description}
                 onChange={(e) => updateEditDraft({ description: e.target.value })}
-                rows={3}
-                style={{ ...fieldStyle, minHeight: 70, paddingTop: 8, resize: "vertical" }}
+                rows={2}
+                style={{ ...fieldStyle, minHeight: 52, paddingTop: 5, resize: "vertical" }}
               />
             </div>
             <div>
               <label className="pd-mono" style={labelStyle}>Tags ({editDraft.tags.length})</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, minHeight: 28, marginBottom: 6 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, minHeight: 24, marginBottom: 4 }}>
                 {editDraft.tags.map((t: string, i: number) => (
                   <PinChip
                     key={t}
@@ -409,8 +449,8 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
                 columnGap: 18,
-                rowGap: 12,
-                padding: "10px 0 2px",
+                rowGap: 8,
+                padding: "8px 0 2px",
                 borderTop: "1px solid var(--pd-line)",
                 borderBottom: "1px solid var(--pd-line)",
               }}
@@ -445,11 +485,50 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
                 color: "var(--pd-ink-faint)",
                 border: "0",
                 borderBottom: "1px solid var(--pd-line)",
-                padding: "4px 0 8px",
+                padding: "2px 0 7px",
                 background: "transparent",
               }}
             >
               Display SREF: {fmtSref(editDraft.sref)}
+            </div>
+
+            <div
+              style={{
+                border: "1px solid var(--pd-line)",
+                background: "rgba(255,255,255,0.025)",
+                borderRadius: 5,
+                padding: "8px 10px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 7,
+              }}
+            >
+              <div>
+                <div className="pd-mono" style={{ fontSize: 10, letterSpacing: "0.08em", color: "var(--pd-ink-faint)", textTransform: "uppercase", marginBottom: 4 }}>
+                  AI metadata
+                </div>
+                <div style={{ fontSize: 11, color: "var(--pd-ink-mute)", lineHeight: 1.35 }}>
+                  Generate tags, type, genre, shot, style, SREF hints, and sampled colors.
+                </div>
+              </div>
+              {metadataStatus ? (
+                <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", lineHeight: 1.45 }}>
+                  {metadataStatus}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                disabled={metadataBusy}
+                onClick={() => void handleGenerateMetadata()}
+                style={{
+                  ...chipSelected,
+                  alignSelf: "flex-start",
+                  cursor: metadataBusy ? "wait" : "pointer",
+                  opacity: metadataBusy ? 0.75 : 1,
+                }}
+              >
+                {metadataBusy ? "Generating..." : "Generate Metadata & Palette"}
+              </button>
             </div>
 
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
