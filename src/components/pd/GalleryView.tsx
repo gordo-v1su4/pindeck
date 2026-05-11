@@ -6,6 +6,7 @@ import { SmartImage } from "@/components/SmartImage";
 import type { Tweaks } from "./TweaksPanel";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters } from "@/lib/libraryFilters";
+import { downloadImage } from "@/lib/imageDownload";
 import {
   HeartIcon,
   HeartFilledIcon,
@@ -249,6 +250,19 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, onNavi
                         ) : (
                           <HeartIcon width={ICON_SIZE} height={ICON_SIZE} color={HEART_OUTLINE} />
                         )}
+                      </ActionIconButton>
+
+                      <ActionIconButton
+                        label="Download high-res"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (downloadImage(img)) toast.success("Started high-res download.");
+                          else toast.error("No downloadable image URL found.");
+                        }}
+                      >
+                        <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.88)", fontSize: 13, lineHeight: 1 }}>
+                          ↓
+                        </span>
                       </ActionIconButton>
 
                       <DropdownMenu.Root onOpenChange={(open) => setBookmarkMenuFor(open ? img._id : null)}>

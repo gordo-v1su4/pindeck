@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
 import { PinIcon, PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { Tweaks } from "../TweaksPanel";
+import { downloadImage } from "@/lib/imageDownload";
 
 interface ImageDetailDrawerProps {
   image: any;
   onClose: () => void;
   tweaks: Tweaks;
+  onOpenImage?: (img: any) => void;
 }
 
 const VARIATION_MODES: { id: string; label: string }[] = [
@@ -104,11 +106,12 @@ const cleanOptional = (value: string) => {
   return trimmed ? trimmed : undefined;
 };
 
-export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerProps) {
+export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: ImageDetailDrawerProps) {
   const [tab, setTab] = useState("edit");
   const generateVariations = useMutation(api.vision.generateVariations);
   const updateImageMetadata = useMutation(api.images.updateImageMetadata);
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
+  const lineage = useQuery((api as any).images.getLineage, { imageId: image._id as Id<"images"> });
   const [genBusy, setGenBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [metadataBusy, setMetadataBusy] = useState(false);
@@ -258,6 +261,46 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
     color: "var(--pd-accent-ink)",
   };
 
+  const lineageCard = (item: any, label: string) => (
+    <button
+      key={item._id}
+      type="button"
+      className="pd-fade-in"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "72px 1fr",
+        gap: 10,
+        width: "100%",
+        textAlign: "left",
+        padding: 8,
+        borderRadius: 5,
+        border: "1px solid var(--pd-line)",
+        background: "rgba(255,255,255,0.022)",
+        color: "var(--pd-ink-dim)",
+      }}
+      onClick={() => {
+        onOpenImage?.(item);
+      }}
+    >
+      <img
+        src={item.derivativeUrls?.small || item.previewUrl || item.imageUrl}
+        alt={item.title}
+        style={{ width: 72, height: 44, borderRadius: 3, objectFit: "cover", background: "#000" }}
+      />
+      <span style={{ minWidth: 0 }}>
+        <span className="pd-mono" style={{ display: "block", fontSize: 9, letterSpacing: "0.08em", color: "var(--pd-ink-faint)", textTransform: "uppercase", marginBottom: 4 }}>
+          {label}
+        </span>
+        <span style={{ display: "block", fontSize: 12, color: "var(--pd-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {item.title || "Untitled"}
+        </span>
+        <span className="pd-mono" style={{ display: "block", marginTop: 5, fontSize: 9, color: "var(--pd-ink-faint)" }}>
+          {item.colors?.length ? `${item.colors.length} sampled colors` : "palette pending"}
+        </span>
+      </span>
+    </button>
+  );
+
   return (
     <aside className="pd-slide-in pd-scroll" style={{
       width: 440, flexShrink: 0, minHeight: 0, alignSelf: "stretch",
@@ -298,6 +341,26 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
             {dash(image.shot)} · {dash(image.style)} · {dash(image.genre)}
           </div>
         </div>
+        <button
+          type="button"
+          className="pd-mono"
+          onClick={() => {
+            if (downloadImage(image)) toast.success("Started high-res download.");
+            else toast.error("No downloadable image URL found.");
+          }}
+          style={{
+            alignSelf: "flex-start",
+            padding: "5px 7px",
+            borderRadius: 4,
+            border: "1px solid var(--pd-line)",
+            background: "rgba(255,255,255,0.025)",
+            color: "var(--pd-ink-dim)",
+            fontSize: 10,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Download
+        </button>
       </div>
 
       <div style={{ padding: "12px 14px 0" }}>
@@ -710,8 +773,52 @@ export function ImageDetailDrawer({ image, onClose, tweaks }: ImageDetailDrawerP
           </div>
         )}
         {tab === "lineage" && (
-          <div style={{ color: "var(--pd-ink-faint)", fontSize: 12, textAlign: "center", padding: 24 }}>
-            Lineage tree — show parent/child relationships
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div
+              style={{
+                border: "1px solid var(--pd-line)",
+                background: "rgba(255,255,255,0.018)",
+                borderRadius: 6,
+                padding: "9px 10px",
+                fontSize: 11,
+                color: "var(--pd-ink-mute)",
+                lineHeight: 1.45,
+              }}
+            >
+              Generated children inherit the parent metadata as a starting point, then queue their own palette and metadata analysis so visual changes can diverge cleanly.
+            </div>
+
+            {lineage === undefined ? (
+              <div className="pd-mono" style={{ color: "var(--pd-ink-faint)", fontSize: 10, padding: "10px 0" }}>
+                Loading lineage...
+              </div>
+            ) : (
+              <>
+                <div>
+                  <div className="pd-mono" style={{ ...labelStyle, marginBottom: 7 }}>Parent</div>
+                  {lineage.parent ? (
+                    lineageCard(lineage.parent, "Parent image")
+                  ) : (
+                    <div className="pd-mono" style={{ color: "var(--pd-ink-faint)", fontSize: 10 }}>
+                      This image is an original/root image.
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="pd-mono" style={{ ...labelStyle, marginBottom: 7 }}>Children ({lineage.children.length})</div>
+                  {lineage.children.length ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      {lineage.children.map((child: any) => lineageCard(child, "Generated child"))}
+                    </div>
+                  ) : (
+                    <div className="pd-mono" style={{ color: "var(--pd-ink-faint)", fontSize: 10 }}>
+                      No generated children yet.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

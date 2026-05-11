@@ -223,7 +223,12 @@ export default function App() {
           </div>
 
           {selectedImage && (
-            <ImageDetailDrawer image={selectedImage} onClose={() => setSelectedImage(null)} tweaks={tweaks} />
+            <ImageDetailDrawer
+              image={selectedImage}
+              onClose={() => setSelectedImage(null)}
+              tweaks={tweaks}
+              onOpenImage={setSelectedImage}
+            />
           )}
         </div>
 

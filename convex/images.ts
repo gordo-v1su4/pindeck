@@ -71,6 +71,74 @@ async function scheduleStorageCleanup(ctx: any, image: any) {
   }
 }
 
+async function cleanupImageReferences(ctx: any, image: Doc<"images">) {
+  const userId = image.uploadedBy;
+
+  const boards = await ctx.db
+    .query("collections")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+  for (const board of boards) {
+    if (!board.imageIds.some((id: any) => id === image._id)) continue;
+    await ctx.db.patch(board._id, {
+      imageIds: board.imageIds.filter((id: any) => id !== image._id),
+    });
+  }
+
+  const decks = await ctx.db
+    .query("decks")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+  for (const deck of decks) {
+    const sourceImageIds = deck.sourceImageIds.filter((id: any) => id !== image._id);
+    const slides = deck.slides
+      .filter((slide: any) => slide.imageId !== image._id)
+      .map((slide: any, index: number) => ({ ...slide, order: index + 1 }));
+    if (sourceImageIds.length === deck.sourceImageIds.length && slides.length === deck.slides.length) {
+      continue;
+    }
+    await ctx.db.patch(deck._id, {
+      sourceImageIds,
+      slides,
+      updatedAt: Date.now(),
+    });
+  }
+
+  const likes = await ctx.db
+    .query("likes")
+    .withIndex("by_image", (q: any) => q.eq("imageId", image._id))
+    .collect();
+  for (const like of likes) {
+    await ctx.db.delete(like._id);
+  }
+
+  const generations = await ctx.db
+    .query("generations")
+    .withIndex("by_image", (q: any) => q.eq("imageId", image._id))
+    .collect();
+  for (const generation of generations) {
+    await ctx.db.delete(generation._id);
+  }
+}
+
+async function deleteImageRecord(ctx: any, image: Doc<"images">) {
+  await cleanupImageReferences(ctx, image);
+
+  if (image.storageId) {
+    try {
+      await ctx.storage.delete(image.storageId);
+    } catch (error) {
+      console.warn("Convex storage delete failed; deleting image row anyway", {
+        imageId: image._id,
+        error,
+      });
+    }
+  }
+
+  await scheduleStorageCleanup(ctx, image);
+  await ctx.db.delete("images", image._id);
+}
+
 function readBearerToken(request: Request) {
   const authHeader = request.headers.get("authorization");
   return authHeader?.startsWith("Bearer ")
@@ -1991,11 +2059,7 @@ export const rejectImage = mutation({
       }
     }
 
-    if (image.storageId) {
-      await ctx.storage.delete(image.storageId);
-    }
-    await scheduleStorageCleanup(ctx, image);
-    await ctx.db.delete("images", args.imageId);
+    await deleteImageRecord(ctx, image);
     return null;
   },
 });
@@ -2018,14 +2082,7 @@ export const remove = mutation({
       throw new Error("Not authorized to delete this image");
     }
 
-    // Delete the image from storage if it exists
-    if (image.storageId) {
-      await ctx.storage.delete(image.storageId);
-    }
-    await scheduleStorageCleanup(ctx, image);
-
-    // Delete the image record
-    await ctx.db.delete("images", args.id);
+    await deleteImageRecord(ctx, image);
 
     return { success: true };
   },
@@ -2033,7 +2090,7 @@ export const remove = mutation({
 
 export const removeMany = mutation({
   args: { ids: v.array(v.id("images")) },
-  returns: v.object({ removed: v.number() }),
+  returns: v.object({ removed: v.number(), skipped: v.number() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -2041,18 +2098,48 @@ export const removeMany = mutation({
     }
 
     let removed = 0;
+    let skipped = 0;
     for (const id of args.ids) {
       const image = await ctx.db.get(id);
-      if (!image || image.uploadedBy !== userId) continue;
-      if (image.storageId) {
-        await ctx.storage.delete(image.storageId);
+      if (!image || image.uploadedBy !== userId) {
+        skipped += 1;
+        continue;
       }
-      await scheduleStorageCleanup(ctx, image);
-      await ctx.db.delete("images", id);
+      await deleteImageRecord(ctx, image);
       removed += 1;
     }
 
-    return { removed };
+    return { removed, skipped };
+  },
+});
+
+export const getLineage = query({
+  args: { imageId: v.id("images") },
+  returns: v.object({
+    parent: v.union(v.null(), v.any()),
+    children: v.array(v.any()),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { parent: null, children: [] };
+    }
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image || image.uploadedBy !== userId) {
+      return { parent: null, children: [] };
+    }
+
+    const parent = image.parentImageId ? await ctx.db.get(image.parentImageId) : null;
+    const children = await ctx.db
+      .query("images")
+      .withIndex("by_parent", (q) => q.eq("parentImageId", args.imageId))
+      .collect();
+
+    return {
+      parent: parent && parent.uploadedBy === userId ? parent : null,
+      children: children.filter((child) => child.uploadedBy === userId),
+    };
   },
 });
 
@@ -2642,7 +2729,7 @@ export const internalSaveGeneratedImages = internalMutation({
         // Inherit metadata from original (which might have been updated by analysis)
         category: originalImage.category,
         tags: [...originalImage.tags, "generated", "variation"],
-        colors: [],
+        colors: originalImage.colors?.length ? originalImage.colors : [],
         uploadedBy: originalImage.uploadedBy,
         likes: 0,
         views: 0,
@@ -2659,20 +2746,24 @@ export const internalSaveGeneratedImages = internalMutation({
         // Carry sref from root/parent so child variations preserve the same reference lineage
         sref: originalImage.sref || root?.sref,
         parentImageId: args.originalImageId, // Link back to parent image (lineage tracking)
-        status: "pending",
+        status: discordLineage ? "pending" : "active",
+        aiStatus: "processing",
         uploadedAt: Date.now(),
       });
 
       await ctx.scheduler.runAfter(
         0,
-        (internalApi as any).colorExtraction.internalExtractAndStoreColors,
+        internalApi.images.internalRefreshMetadataAfterPalette,
         {
           imageId: childImageId,
-          imageUrl:
+          userId: originalImage.uploadedBy,
+          paletteUrl:
             preferredImageUrlForSampling({
               imageUrl: img.url,
               derivativeUrls: img.derivativeUrls,
             }) ?? img.url,
+          forcePalette: true,
+          runMetadata: true,
         }
       );
 

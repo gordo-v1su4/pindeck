@@ -5,6 +5,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
+import { downloadImages } from "@/lib/imageDownload";
 import { toast } from "sonner";
 
 /** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
@@ -263,7 +264,12 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
       const r = await removeMany({ ids });
       setSelectedIds(new Set());
       setDeleteConfirmOpen(false);
-      toast.success(`Deleted ${r.removed} image(s).`);
+      if (r.removed > 0) {
+        toast.success(`Deleted ${r.removed} image(s).`);
+      }
+      if (r.skipped > 0) {
+        toast.warning(`${r.skipped} image(s) were skipped because they were missing or not owned by this account.`);
+      }
     } catch (e) {
       console.error(e);
       toast.error("Could not delete selection.");
@@ -271,6 +277,20 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
       setSelectionBusy(false);
     }
   }, [removeMany, selectedArray]);
+
+  const handleDownloadSelection = useCallback(() => {
+    const ids = selectedArray();
+    if (!images || ids.length === 0) return;
+    const selectedImages = ids
+      .map((id) => images.find((image) => image._id === id))
+      .filter(Boolean);
+    const queued = downloadImages(selectedImages as any[]);
+    if (queued === 0) {
+      toast.error("No downloadable image URL found for the selected rows.");
+    } else {
+      toast.success(`Started ${queued} high-res download${queued === 1 ? "" : "s"}.`);
+    }
+  }, [images, selectedArray]);
 
   const headerCell = (label: string, key: string, w?: number) => (
     <th
@@ -321,6 +341,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {[
             { label: refreshBusy ? "Generating..." : "Generate Metadata & Palette", onClick: handleRefreshMetadata, disabled: refreshBusy, primary: true },
+            { label: "Download Hi-Res", onClick: handleDownloadSelection, disabled: selectedCount === 0 || selectionBusy },
             { label: "New Board", onClick: handleCreateBoard, disabled: selectedCount === 0 || selectionBusy },
             { label: "New Deck", onClick: handleCreateDeck, disabled: selectedCount === 0 || selectionBusy },
             { label: "Delete Selection", onClick: () => setDeleteConfirmOpen(true), disabled: selectedCount === 0 || selectionBusy, danger: true },

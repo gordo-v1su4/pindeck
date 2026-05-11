@@ -56,6 +56,7 @@ export const reExtractForImage = mutation({
 
     const img = await ctx.db.get("images", args.imageId);
     if (!img) return { scheduled: false };
+    if (img.uploadedBy !== userId) return { scheduled: false };
     const url = preferredImageUrlForSampling(img);
     if (!url) return { scheduled: false };
     await ctx.scheduler.runAfter(
