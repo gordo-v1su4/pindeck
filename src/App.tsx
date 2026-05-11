@@ -556,6 +556,7 @@ function Sidebar({
                   <button
                     key={mode.id}
                     type="button"
+                    className="pd-sidebar-display-row"
                     onClick={() => setGalleryDisplayMode(mode.id)}
                     style={{
                       display: "flex",
@@ -564,8 +565,8 @@ function Sidebar({
                       width: "100%",
                       padding: "6px 7px",
                       borderRadius: 4,
-                      border: selected ? "1px solid transparent" : "1px solid var(--pd-line)",
-                      background: selected ? "var(--pd-accent-soft)" : "rgba(255,255,255,0.018)",
+                      border: "0",
+                      background: selected ? "rgba(255,255,255,0.05)" : "transparent",
                       color: selected ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
                       fontSize: 11.5,
                       textAlign: "left",

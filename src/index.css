@@ -379,6 +379,17 @@ body {
   cursor: not-allowed;
 }
 
+.pd-sidebar-display-row {
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.pd-sidebar-display-row:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--pd-ink) !important;
+}
+
 .auth-panel {
   width: 100%;
   overflow: hidden;
