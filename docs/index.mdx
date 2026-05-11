@@ -15,7 +15,7 @@ Pindeck is an AI-powered image gallery and generation platform built for creativ
 - **Create decks** — Build slide presentations directly from your image collections
 - **Generate AI variations** — Use fal.ai and OpenRouter VLM to create shot-type and style variations of your images
 - **Integrate with Discord** — Ingest images from Discord channels with emoji triggers and moderation queues
-- **Store on Nextcloud** — Automatic media pipeline from Convex to Nextcloud via WebDAV with public sharing
+- **Store on RustFS** — Automatic media pipeline from Convex to the RustFS-backed media API with public object URLs
 
 ## Architecture overview
 
@@ -26,7 +26,7 @@ Pindeck uses a modern stack:
 | Frontend | React + Vite |
 | Backend | Convex (real-time database, HTTP actions, file storage) |
 | AI generation | fal.ai (image generation), OpenRouter (VLM analysis) |
-| Storage | Nextcloud (WebDAV persistent storage) |
+| Storage | RustFS object storage via media API |
 | Deployment | Vercel (frontend), Convex Cloud (backend) |
 
 ## Next steps

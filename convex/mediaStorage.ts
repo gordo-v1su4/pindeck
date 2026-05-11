@@ -135,8 +135,8 @@ function getNextcloudUploadShareToken(): string {
 }
 
 function getMediaGatewayConfig(): MediaGatewayConfig | null {
-  const url = process.env.MEDIA_GATEWAY_URL;
-  const token = process.env.MEDIA_GATEWAY_TOKEN;
+  const url = process.env.MEDIA_GATEWAY_URL || process.env.RUSTFS_MEDIA_API_URL;
+  const token = process.env.MEDIA_GATEWAY_TOKEN || process.env.MEDIA_API_TOKEN;
   const userId =
     process.env.MEDIA_GATEWAY_USER_ID ||
     process.env.PINDECK_MEDIA_USER_ID ||
@@ -144,7 +144,6 @@ function getMediaGatewayConfig(): MediaGatewayConfig | null {
   const bucket = process.env.MEDIA_GATEWAY_BUCKET || "pindeck";
   const configuredPrefix =
     process.env.MEDIA_GATEWAY_UPLOAD_PREFIX ||
-    process.env.NEXTCLOUD_UPLOAD_PREFIX ||
     "media-uploads";
   const normalizedPrefix = normalizePath(configuredPrefix);
   const uploadPrefix =
@@ -706,109 +705,22 @@ async function persistImageBuffer(args: {
   const nonce = Math.random().toString(36).slice(2, 8);
   const fileBase = `${baseName}-${Date.now().toString(36)}-${nonce}`;
 
-  if (mediaGateway) {
-    const directory = normalizePath(`${mediaGateway.uploadPrefix}/${year}/${monthDay}`);
-    return await processImageViaMediaGateway({
-      gateway: mediaGateway,
-      directory,
-      fileBase,
-      originalExt,
-      title: args.title,
-      contentType: args.contentType || "application/octet-stream",
-      data: args.fileBuffer,
-    });
+  if (!mediaGateway) {
+    throw new Error(
+      "Missing RustFS media gateway env. Required: MEDIA_GATEWAY_URL/RUSTFS_MEDIA_API_URL and MEDIA_GATEWAY_TOKEN/MEDIA_API_TOKEN"
+    );
   }
 
-  const config = getNextcloudConfig();
-  const directory = normalizePath(`${config.uploadPrefix}/${year}/${monthDay}`);
-  const originalPath = `${directory}/original/${fileBase}.${originalExt}`;
-
-  const preview = await buildPreview(
-    args.fileBuffer,
-    args.contentType || "application/octet-stream",
-    originalExt
-  );
-  const previewPath = `${directory}/preview/${fileBase}-preview.${preview.extension}`;
-  const [smallData, mediumData, largeData] = await Promise.all([
-    buildDerivative(
-      args.fileBuffer,
-      DERIVATIVE_DIMENSIONS.small.width,
-      DERIVATIVE_DIMENSIONS.small.height
-    ),
-    buildDerivative(
-      args.fileBuffer,
-      DERIVATIVE_DIMENSIONS.medium.width,
-      DERIVATIVE_DIMENSIONS.medium.height
-    ),
-    buildDerivative(
-      args.fileBuffer,
-      DERIVATIVE_DIMENSIONS.large.width,
-      DERIVATIVE_DIMENSIONS.large.height
-    ),
-  ]);
-
-  // If sharp is unavailable, buildDerivative returns the original buffer reference.
-  // Skip derivative uploads in that case to avoid storing corrupted webp-labeled files.
-  const sharpAvailable = smallData !== args.fileBuffer;
-
-  const uploadPublicFile = async (
-    relativePath: string,
-    contentType: string,
-    data: Buffer
-  ): Promise<{ publicUrl: string; storagePath: string }> => {
-    return {
-      publicUrl: await uploadAndShareFile(config, relativePath, contentType, data),
-      storagePath: relativePath,
-    };
-  };
-
-  const originalUpload = await uploadPublicFile(
-    originalPath,
-    args.contentType || "application/octet-stream",
-    args.fileBuffer
-  );
-  const previewUpload = await uploadPublicFile(previewPath, preview.contentType, preview.data);
-  const imageUrl = originalUpload.publicUrl;
-  const previewUrl = previewUpload.publicUrl;
-  const resolvedOriginalPath = originalUpload.storagePath;
-  const resolvedPreviewPath = previewUpload.storagePath;
-
-  if (!sharpAvailable) {
-    return {
-      imageUrl,
-      previewUrl,
-      storagePath: resolvedOriginalPath,
-      previewStoragePath: resolvedPreviewPath,
-    };
-  }
-
-  const derivativePaths = {
-    small: `${directory}/low/${fileBase}-w320.webp`,
-    medium: `${directory}/high/${fileBase}-w1280.webp`,
-    large: `${directory}/high/${fileBase}-w1920.webp`,
-  };
-  const [smallUpload, mediumUpload, largeUpload] = await Promise.all([
-    uploadPublicFile(derivativePaths.small, "image/webp", smallData),
-    uploadPublicFile(derivativePaths.medium, "image/webp", mediumData),
-    uploadPublicFile(derivativePaths.large, "image/webp", largeData),
-  ]);
-
-  return {
-    imageUrl,
-    previewUrl,
-    storagePath: resolvedOriginalPath,
-    previewStoragePath: resolvedPreviewPath,
-    derivativeUrls: {
-      small: smallUpload.publicUrl,
-      medium: mediumUpload.publicUrl,
-      large: largeUpload.publicUrl,
-    },
-    derivativeStoragePaths: {
-      small: smallUpload.storagePath,
-      medium: mediumUpload.storagePath,
-      large: largeUpload.storagePath,
-    },
-  };
+  const directory = normalizePath(`${mediaGateway.uploadPrefix}/${year}/${monthDay}`);
+  return await processImageViaMediaGateway({
+    gateway: mediaGateway,
+    directory,
+    fileBase,
+    originalExt,
+    title: args.title,
+    contentType: args.contentType || "application/octet-stream",
+    data: args.fileBuffer,
+  });
 }
 
 async function fetchImageAsBuffer(sourceUrl: string): Promise<{
@@ -898,10 +810,10 @@ export const persistGeneratedImageFromUrl = internalAction({
       } as const;
     } catch (error: any) {
       const msg = error?.message || "Failed to persist generated image";
-      const isNextcloudUnconfigured = /Missing Nextcloud env/i.test(msg);
+      const isRustfsUnconfigured = /Missing RustFS media gateway env/i.test(msg);
       return {
         ok: false,
-        error: isNextcloudUnconfigured ? "Nextcloud not configured" : msg,
+        error: isRustfsUnconfigured ? "RustFS media gateway not configured" : msg,
       } as const;
     }
   },
@@ -1007,7 +919,7 @@ export const finalizeUploadedImage = internalAction({
           throw new Error("Could not resolve temporary Convex storage URL for fallback analysis");
         }
 
-        // Keep the upload workflow moving even if Nextcloud/media gateway persistence fails.
+        // Keep the upload workflow moving even if RustFS media gateway persistence fails.
         // The source file is already in Convex storage, so analysis and color sampling can still
         // complete and populate the draft card while the persistence error is surfaced separately.
         await ctx.runMutation((internal as any).images.internalSetAiStatus, {
@@ -1040,7 +952,7 @@ export const finalizeUploadedImage = internalAction({
           variationCount: Math.max(0, Math.min(args.variationCount ?? 2, 12)),
         });
       } catch (fallbackError: any) {
-        console.error("Failed to schedule fallback analysis after Nextcloud persist error", fallbackError);
+        console.error("Failed to schedule fallback analysis after RustFS persist error", fallbackError);
         await ctx.runMutation((internal as any).images.internalSetAiStatus, {
           imageId: args.imageId,
           status: "failed",

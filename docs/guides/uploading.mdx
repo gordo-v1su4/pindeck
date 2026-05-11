@@ -11,10 +11,10 @@ Upload images to Pindeck via drag-and-drop, file picker, or the Discord ingest p
 
 1. Click **Upload** in the gallery or drag files onto the page
 2. Files are stored in Convex file storage first
-3. A background action persists the file to Nextcloud via WebDAV
+3. A background action persists the file to RustFS through the media API
 4. Derivatives (preview, small, medium, large) are generated and stored alongside the original
 
-### File path format on Nextcloud
+### RustFS object path format
 
 ```
 pindeck/media-uploads/YYYY/MM_DD/original/<filename>
@@ -24,7 +24,7 @@ pindeck/media-uploads/YYYY/MM_DD/high/<filename>-w768.webp
 pindeck/media-uploads/YYYY/MM_DD/high/<filename>-w1280.webp
 ```
 
-Directories are created explicitly via WebDAV `MKCOL` before `PUT`.
+Objects are written through the RustFS media API under the `pindeck` bucket.
 
 ## Image metadata
 
@@ -46,13 +46,14 @@ Every image record includes:
 
 ## Persistence tracking
 
-Each image tracks its Nextcloud persistence status:
+Each image tracks its durable storage status:
 
 | Field | Values | Description |
 |-------|--------|-------------|
-| `nextcloudPersistStatus` | `pending`, `succeeded`, `failed` | Current persistence state |
-| `nextcloudPersistError` | string | Error message if persist failed |
-| `storageProvider` | `convex`, `nextcloud` | Where the file is currently stored |
+| `storageProvider` | `convex`, `rustfs` | Where the file is currently stored |
+| `storageBucket` | string | RustFS bucket name |
+| `storagePersistStatus` | `pending`, `succeeded`, `failed` | Current persistence state |
+| `storagePersistError` | string | Error message if persist failed |
 | `derivativeUrls` | object | URLs for small/medium/large derivatives |
 
 ## Backfill failed uploads
@@ -60,7 +61,7 @@ Each image tracks its Nextcloud persistence status:
 Reschedule persistence for uploads stuck in Convex storage:
 
 ```bash
-bunx convex run images:backfillNextcloudFailedUploads '{"limit":50}'
+bun run deploy:convex
 ```
 
 This targets images where `sourceType = "upload"`, `storageProvider = "convex"`, and `storageId` is still present.

@@ -37,7 +37,7 @@
             "group": "Integrations",
             "pages": [
               "guides/discord-bot",
-              "guides/nextcloud"
+              "guides/rustfs-storage"
             ]
           }
         ]

@@ -1,0 +1,43 @@
+---
+title: RustFS storage
+description: Configure RustFS as persistent storage for Pindeck media
+---
+
+# RustFS storage
+
+Pindeck stores durable media in RustFS. Uploads may land in Convex temporarily, but originals, previews, and derivatives are persisted through the RustFS media API.
+
+## Required environment
+
+Set these in the Convex backend environment:
+
+| Variable | Description |
+|----------|-------------|
+| `MEDIA_GATEWAY_URL` | RustFS media API URL, normally `https://media.v1su4.dev` |
+| `MEDIA_GATEWAY_TOKEN` | Bearer token used for writes and deletes |
+| `MEDIA_GATEWAY_BUCKET` | RustFS bucket, normally `pindeck` |
+| `MEDIA_GATEWAY_USER_ID` | Media API user namespace, normally `pindeck` |
+| `MEDIA_GATEWAY_UPLOAD_PREFIX` | Object prefix, normally `media-uploads` |
+| `PINDECK_STORAGE_PROVIDER` | Set to `rustfs` |
+
+## Object layout
+
+Pindeck writes to the `pindeck` bucket with object keys rooted at `media-uploads/`:
+
+```text
+media-uploads/YYYY/MM_DD/original/<file>
+media-uploads/YYYY/MM_DD/preview/<file>-preview.<ext>
+media-uploads/YYYY/MM_DD/low/<file>-w320.<ext>
+media-uploads/YYYY/MM_DD/high/<file>-w1280.<ext>
+media-uploads/YYYY/MM_DD/high/<file>-w1920.<ext>
+```
+
+Public URLs should use:
+
+```text
+https://s3.v1su4.dev/pindeck/media-uploads/...
+```
+
+## Discord ingest
+
+Discord imports use the same pipeline. Reacting with the configured pin emoji queues the source image, Convex persists the image through the RustFS media API, then moderation/generation continues from the RustFS-backed URLs.

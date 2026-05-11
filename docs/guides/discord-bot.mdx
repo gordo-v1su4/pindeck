@@ -42,8 +42,9 @@ Set these in the Discord bot's `.env.local`:
 | `PINDECK_INGEST_URL` | Optional override for ingest endpoint URL |
 | `PINDECK_DISCORD_QUEUE_URL` | Optional override for queue endpoint URL |
 | `PINDECK_DISCORD_MODERATION_URL` | Optional override for moderation endpoint URL |
-| `NEXTCLOUD_PUBLIC_SHARE_TOKEN` | Recommended for public asset delivery |
-| `NEXTCLOUD_UPLOAD_SHARE_TOKEN` | Recommended for backend uploads |
+| `MEDIA_GATEWAY_URL` | RustFS-backed media API URL |
+| `MEDIA_GATEWAY_TOKEN` | Bearer token for media API writes |
+| `MEDIA_GATEWAY_BUCKET` | RustFS bucket, normally `pindeck` |
 
 ### 4. Run the bot
 

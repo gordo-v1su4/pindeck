@@ -60,7 +60,6 @@ Set in Convex Project Settings:
 - `MEDIA_GATEWAY_USER_ID=pindeck`
 - `MEDIA_GATEWAY_UPLOAD_PREFIX=media-uploads`
 - `PINDECK_STORAGE_PROVIDER=rustfs`
-- `NEXTCLOUD_*` values are legacy fallback only during migration.
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` (for Google OAuth)
 - `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` (for GitHub OAuth)
 - `SITE_URL` (public app URL for OAuth redirect/callback)
@@ -97,44 +96,14 @@ For Convex function deploys:
 ### Image record tracking fields
 
 Each image now carries persistence status for observability:
-- `storageProvider`: `convex` | `nextcloud` | `rustfs`
+- `storageProvider`: `convex` | `rustfs`
 - `storageBucket`: bucket name for RustFS-backed assets
 - `storagePersistStatus`: `pending` | `succeeded` | `failed`
 - `storagePersistError`: generic storage error when persist failed
-- `nextcloudPersistStatus`: `pending` | `succeeded` | `failed`
-- `nextcloudPersistError`: error message when persist failed
 - `derivativeUrls`: `{ small, medium, large }` (when available)
 - `derivativeStoragePaths`: `{ small, medium, large }` (when available)
 
-### Legacy Nextcloud public delivery
-
-Nextcloud support remains only as a migration fallback for older rows. New durable writes should use RustFS.
-
-1. Preferred: share the upload root folder once in Nextcloud and set:
-   - `NEXTCLOUD_PUBLIC_SHARE_TOKEN`
-   - `NEXTCLOUD_UPLOAD_SHARE_TOKEN` (optional but recommended: separate write-enabled token for backend uploads)
-   - `NEXTCLOUD_PUBLIC_SHARE_PATH` (optional, defaults to `NEXTCLOUD_UPLOAD_PREFIX`)
-   - `NEXTCLOUD_PUBLIC_BASE_URL` (optional, defaults to the Nextcloud server base URL)
-2. Alternate: create per-file public shares through the Nextcloud OCS API.
-
-The shared-folder model is the closest match to "Nextcloud as a bucket":
-- Convex still uploads originals/previews/derivatives through WebDAV.
-- Public image URLs are derived from the shared root folder token using
-  `public.php/dav/files/<token>/...` paths.
-- Gallery, boards, deck, and table all continue to read the same `images.imageUrl` / `previewUrl` fields.
-
-### Backfill legacy uploads
-
-Use the operator HTTP action to migrate existing Convex/Nextcloud rows into RustFS:
-
-```bash
-curl -X POST "$VITE_CONVEX_SITE_URL/backfillNextcloud" \
-  -H "Authorization: Bearer $INGEST_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"limit":50,"dryRun":true}'
-```
-
-Set `dryRun` to `false` after reviewing the result list.
+Gallery, boards, deck, and table all continue to read the same `images.imageUrl` / `previewUrl` fields; those URLs should resolve to RustFS-backed public objects.
 
 ## Discord Bot (Ingest + Status)
 
@@ -151,10 +120,9 @@ Typical setup in `.env.local`:
 - `DISCORD_GUILD_ID`
 - `DISCORD_INGEST_EMOJIS` (example: `:pushpin:` equivalent unicode/custom emoji format)
 - `INGEST_API_KEY`
-- `NEXTCLOUD_PUBLIC_SHARE_TOKEN` (recommended when Nextcloud is used as the public asset host)
-- `NEXTCLOUD_UPLOAD_SHARE_TOKEN` (recommended hidden upload token when using a separate write-enabled share)
-- `NEXTCLOUD_PUBLIC_SHARE_PATH` (optional override for the shared root)
-- `NEXTCLOUD_PUBLIC_BASE_URL` (optional override when Nextcloud is behind a public proxy)
+- `MEDIA_GATEWAY_URL` / `RUSTFS_MEDIA_API_URL` (RustFS-backed media API)
+- `MEDIA_GATEWAY_TOKEN` / `MEDIA_API_TOKEN`
+- `MEDIA_GATEWAY_BUCKET=pindeck`
 - `PINDECK_INGEST_URL` (optional if deriving from Convex site URL)
 - `PINDECK_DISCORD_QUEUE_URL` / `PINDECK_DISCORD_MODERATION_URL` (optional overrides)
 

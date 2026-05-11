@@ -1059,10 +1059,10 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
       title: body.title || "Discord Import",
     });
   } catch (error: any) {
-    console.error("Nextcloud persist failed during external ingest", error);
+    console.error("RustFS persist failed during external ingest", error);
     return new Response(
       JSON.stringify({
-        error: error?.message || "Failed to persist image to Nextcloud",
+        error: error?.message || "Failed to persist image to RustFS",
       }),
       {
         status: 502,
@@ -1094,7 +1094,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
   });
 
   // Pixel-accurate server-side color sampling. Runs against the persisted
-  // Nextcloud URL so we don't depend on cdn.discordapp.com CORS.
+  // RustFS URL so we don't depend on cdn.discordapp.com CORS.
   await ctx.scheduler.runAfter(
     0,
     (internalApi as any).colorExtraction.internalExtractAndStoreColors,
