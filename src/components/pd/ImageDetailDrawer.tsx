@@ -106,6 +106,14 @@ const cleanOptional = (value: string) => {
   return trimmed ? trimmed : undefined;
 };
 
+const formatImageTimestamp = (value: number | undefined) => {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+};
+
 export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: ImageDetailDrawerProps) {
   const [tab, setTab] = useState("edit");
   const generateVariations = useMutation(api.vision.generateVariations);
@@ -441,7 +449,9 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><PinIcon name="eye" size={11} /> {image.views}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><PinIcon name="heart" size={11} /> {image.likes}</span>
           <div style={{ flex: 1 }} />
-          <span className="pd-mono" style={{ color: "var(--pd-ink-faint)" }}>{image.projectName || "—"}</span>
+          <span className="pd-mono" style={{ color: "var(--pd-ink-faint)" }}>
+            {formatImageTimestamp(image.uploadedAt || image._creationTime)}
+          </span>
         </div>
       </div>
 
@@ -539,6 +549,12 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
                   />
                 </div>
               ))}
+              <div style={{ minWidth: 0, gridColumn: "1 / -1" }}>
+                <label className="pd-mono" style={labelStyle}>Created</label>
+                <div className="pd-mono" style={{ ...fieldStyle, display: "flex", alignItems: "center", color: "var(--pd-ink-dim)" }}>
+                  {formatImageTimestamp(image.uploadedAt || image._creationTime)}
+                </div>
+              </div>
             </div>
 
             <div

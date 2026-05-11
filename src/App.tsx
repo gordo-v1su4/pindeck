@@ -640,9 +640,8 @@ function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, ac
             { label: "Filters", icon: "filter" },
             { label: "Sort", icon: "sort" },
           ].map((item) => (
-            <button
+            <div
               key={item.label}
-              type="button"
               title={`${item.label} controls live in the left rail and table headers`}
               style={{
                 display: "inline-flex",
@@ -656,22 +655,23 @@ function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, ac
                 color: "var(--pd-ink-dim)",
                 fontSize: 12,
                 fontWeight: 500,
+                cursor: "default",
               }}
             >
               <PinIcon name={item.icon} size={13} />
               {item.label}
-            </button>
+            </div>
           ))}
         </div>
       ) : null}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 2, border: "1px solid var(--pd-line)", borderRadius: 5, padding: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
         {[
           { id: "gallery", icon: "masonry", label: "Gallery" },
           { id: "table", icon: "table", label: "Table" },
           { id: "boards", icon: "board", label: "Boards" },
         ].map((v) => (
-          <button key={v.id} onClick={() => setView(v.id)} title={v.label} style={{
+          <button key={v.id} className="pd-topbar-row" onClick={() => setView(v.id)} title={v.label} style={{
             display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
             borderRadius: 4, fontSize: 11, fontWeight: 500,
             color: view === v.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
@@ -683,13 +683,11 @@ function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, ac
         ))}
       </div>
 
-      <button onClick={onToggleTweaks} title="Tweaks" style={{
+      <button onClick={onToggleTweaks} title="Tweaks" className={tweaksOn ? "pd-tweaks-trigger is-active" : "pd-tweaks-trigger"} style={{
         width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-        borderRadius: 4, border: "1px solid var(--pd-line)",
-        borderColor: tweaksOn ? "color-mix(in srgb, var(--pd-accent) 42%, transparent)" : "var(--pd-line)",
-        background: tweaksOn ? "var(--pd-accent-soft)" : "transparent",
-        color: tweaksOn ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
-        boxShadow: tweaksOn ? "0 0 0 1px color-mix(in srgb, var(--pd-accent) 18%, transparent) inset" : "none",
+        borderRadius: 4, border: "0",
+        background: "transparent",
+        color: tweaksOn ? "var(--pd-accent)" : "var(--pd-ink-dim)",
       }}>
         <PinIcon name="bolt" size={13} />
       </button>

@@ -27,7 +27,7 @@ export function SignOutButton({ onBeforeSignOut }: SignOutButtonProps) {
           Guest
         </Badge>
       ) : loggedInUser?.email ? (
-        <Badge variant="outline" className="max-w-[16rem] truncate">
+        <Badge variant="outline" className="pd-user-email-badge max-w-[16rem] truncate">
           {loggedInUser.email}
         </Badge>
       ) : null}

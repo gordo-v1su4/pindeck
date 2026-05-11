@@ -390,6 +390,43 @@ body {
   color: var(--pd-ink) !important;
 }
 
+.pd-topbar-row {
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.pd-topbar-row:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--pd-ink) !important;
+}
+
+.pd-tweaks-trigger {
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+}
+
+.pd-tweaks-trigger:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--pd-ink) !important;
+}
+
+.pd-tweaks-trigger.is-active:hover {
+  color: var(--pd-accent) !important;
+}
+
+.pd-tweaks-trigger.is-active svg {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.pd-user-email-badge {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--pd-accent) !important;
+}
+
 .auth-panel {
   width: 100%;
   overflow: hidden;
