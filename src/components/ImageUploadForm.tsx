@@ -58,12 +58,18 @@ interface UploadFile {
   metadataError?: string;
 }
 
+const ANALYSIS_IMAGE_MAX_DIMENSION = 1024;
+const ANALYSIS_IMAGE_MAX_DATA_URL_BYTES = 4 * 1024 * 1024;
+const ANALYSIS_UPLOAD_CONCURRENCY = 2;
+
 function fileToAnalysisDataUrl(previewUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
-      const maxDimension = 1024;
-      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const scale = Math.min(
+        1,
+        ANALYSIS_IMAGE_MAX_DIMENSION / Math.max(image.naturalWidth, image.naturalHeight)
+      );
       const width = Math.max(1, Math.round(image.naturalWidth * scale));
       const height = Math.max(1, Math.round(image.naturalHeight * scale));
       const canvas = document.createElement("canvas");
@@ -75,11 +81,34 @@ function fileToAnalysisDataUrl(previewUrl: string): Promise<string> {
         return;
       }
       context.drawImage(image, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
+
+      for (const quality of [0.82, 0.72, 0.62, 0.52]) {
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        if (dataUrl.length <= ANALYSIS_IMAGE_MAX_DATA_URL_BYTES || quality === 0.52) {
+          resolve(dataUrl);
+          return;
+        }
+      }
     };
     image.onerror = () => reject(new Error("Could not prepare image for metadata analysis."));
     image.src = previewUrl;
   });
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>
+) {
+  const queue = [...items];
+  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length) {
+      const item = queue.shift();
+      if (!item) return;
+      await worker(item);
+    }
+  });
+  await Promise.all(workers);
 }
 
 function createUploadUniqueId(): string {
@@ -264,49 +293,47 @@ export function ImageUploadForm() {
       })
     );
 
-    void Promise.all(
-      newUploadFiles.map(async (uploadFile) => {
-        try {
-          const imageDataUrl = await fileToAnalysisDataUrl(uploadFile.preview);
-          const metadata = await previewUploadMetadata({
-            imageDataUrl,
-            fileName: uploadFile.file.name,
-            description: uploadFile.description || undefined,
-          });
-          setFiles(prev => prev.map((file) => {
-            if (file.id !== uploadFile.id) return file;
-            const resolvedTitle = file.title || metadata.title || uploadFile.file.name;
-            return {
-              ...file,
-              title: resolvedTitle,
-              description: file.description || metadata.description || file.description,
-              tags: file.tags.length ? file.tags : metadata.tags || [],
-              category: metadata.category || file.category,
-              colors: file.colors.length ? file.colors : metadata.colors || [],
-              group: file.group || metadata.group || undefined,
-              genre: file.genre || metadata.genre || undefined,
-              style: file.style || metadata.style || undefined,
-              shot: file.shot || metadata.shot || undefined,
-              projectName: file.projectName || metadata.projectName || resolvedTitle,
-              moodboardName: file.moodboardName || metadata.moodboardName || undefined,
-              uniqueId: file.uniqueId || metadata.uniqueId || createUploadUniqueId(),
-              metadataStatus: "ready",
-              metadataError: undefined,
-            };
-          }));
-        } catch (error) {
-          console.error("Pre-upload metadata analysis failed:", error);
-          setFiles(prev => prev.map((file) => {
-            if (file.id !== uploadFile.id) return file;
-            return {
-              ...file,
-              metadataStatus: "failed",
-              metadataError: error instanceof Error ? error.message : "AI metadata failed.",
-            };
-          }));
-        }
-      })
-    );
+    void runWithConcurrency(newUploadFiles, ANALYSIS_UPLOAD_CONCURRENCY, async (uploadFile) => {
+      try {
+        const imageDataUrl = await fileToAnalysisDataUrl(uploadFile.preview);
+        const metadata = await previewUploadMetadata({
+          imageDataUrl,
+          fileName: uploadFile.file.name,
+          description: uploadFile.description || undefined,
+        });
+        setFiles(prev => prev.map((file) => {
+          if (file.id !== uploadFile.id) return file;
+          const resolvedTitle = file.title || metadata.title || uploadFile.file.name;
+          return {
+            ...file,
+            title: resolvedTitle,
+            description: file.description || metadata.description || file.description,
+            tags: file.tags.length ? file.tags : metadata.tags || [],
+            category: metadata.category || file.category,
+            colors: file.colors.length ? file.colors : metadata.colors || [],
+            group: file.group || metadata.group || undefined,
+            genre: file.genre || metadata.genre || undefined,
+            style: file.style || metadata.style || undefined,
+            shot: file.shot || metadata.shot || undefined,
+            projectName: file.projectName || metadata.projectName || resolvedTitle,
+            moodboardName: file.moodboardName || metadata.moodboardName || undefined,
+            uniqueId: file.uniqueId || metadata.uniqueId || createUploadUniqueId(),
+            metadataStatus: "ready",
+            metadataError: undefined,
+          };
+        }));
+      } catch (error) {
+        console.error("Pre-upload metadata analysis failed:", error);
+        setFiles(prev => prev.map((file) => {
+          if (file.id !== uploadFile.id) return file;
+          return {
+            ...file,
+            metadataStatus: "failed",
+            metadataError: error instanceof Error ? error.message : "AI metadata failed.",
+          };
+        }));
+      }
+    });
   };
 
   const handleDrag = (e: React.DragEvent) => {

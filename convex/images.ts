@@ -415,7 +415,7 @@ export const enqueueMetadataRefresh = mutation({
 
     const mine = args.imageIds
       ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
-          .filter((img): img is NonNullable<typeof img> => img !== null)
+          .filter((img): img is NonNullable<typeof img> => img !== null && img.uploadedBy === userId)
       : await ctx.db
           .query("images")
           .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
@@ -1575,7 +1575,7 @@ export const incrementViews = mutation({
 
 // Broad type (e.g. Type): Commercial, Film, Moodboard, etc.
 export const GROUPS = [
-  "Commercial", "Film", "Moodboard",
+  "Commercial", "Editorial", "Film", "Moodboard",
   "Music Video", "TV Series", "Web Series", "Video Game Cinematic",
 ] as const;
 
