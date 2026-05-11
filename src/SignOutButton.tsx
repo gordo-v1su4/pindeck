@@ -7,7 +7,11 @@ import { api } from "../convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-export function SignOutButton() {
+interface SignOutButtonProps {
+  onBeforeSignOut?: () => void;
+}
+
+export function SignOutButton({ onBeforeSignOut }: SignOutButtonProps) {
   const { isAuthenticated } = useConvexAuth();
   const { signOut } = useAuthActions();
   const loggedInUser = useQuery(api.auth.loggedInUser);
@@ -27,7 +31,14 @@ export function SignOutButton() {
           {loggedInUser.email}
         </Badge>
       ) : null}
-      <Button variant="outline" size="sm" onClick={() => void signOut()}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          onBeforeSignOut?.();
+          void signOut();
+        }}
+      >
         <LogOutIcon data-icon="inline-start" />
         Sign out
       </Button>

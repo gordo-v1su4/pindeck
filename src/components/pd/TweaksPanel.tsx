@@ -16,7 +16,7 @@ export const DEFAULT_TWEAKS: Tweaks = {
   accent: "#3a7bff",
   density: "cozy",
   cardStyle: "bordered",
-  typography: "archivo",
+  typography: "geist",
   hover: "lift",
   letterbox: false,
   grain: true,

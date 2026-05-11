@@ -5,7 +5,6 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
-import { extractColorsFromImage } from "@/lib/colorExtraction";
 import { toast } from "sonner";
 
 /** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
@@ -39,7 +38,6 @@ interface TableViewProps {
 export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
   const images = useQuery(api.images.list, { limit: 1000 });
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
-  const updateImageMetadata = useMutation(api.images.updateImageMetadata);
   const removeMany = useMutation(api.images.removeMany);
   const createBoardFromImages = useMutation(api.boards.createFromImages);
   const createDeckFromImages = useMutation(api.decks.createFromImages);
@@ -72,17 +70,6 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
             .filter(Boolean)
         : [];
       const missingPaletteBefore = selectedImages.filter((image: any) => !image.colors?.length).length;
-      if (selectedImages.length) {
-        await Promise.all(
-          selectedImages
-            .filter((image: any) => !image.colors?.length && image.imageUrl)
-            .map(async (image: any) => {
-              const colors = await extractColorsFromImage(image.imageUrl);
-              if (colors.length < 3) return;
-              await updateImageMetadata({ imageId: image._id, colors });
-            })
-        );
-      }
 
       const r = await enqueueMetadataRefresh({
         onlyMissing: ids.length === 0,
@@ -130,7 +117,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     } finally {
       setRefreshBusy(false);
     }
-  }, [enqueueMetadataRefresh, images, selectedIds, updateImageMetadata]);
+  }, [enqueueMetadataRefresh, images, selectedIds]);
 
   const filtered = useMemo(() => {
     if (!images) return [];
@@ -189,11 +176,17 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
       .filter(Boolean);
     if (targets.length !== refreshStatus.imageIds.length) return;
     const pending = targets.filter((image: any) => image.aiStatus === "processing");
+    const failed = targets.filter((image: any) => image.aiStatus === "failed" && !image.colors?.length);
     const missingPalette = targets.filter((image: any) => !image.colors?.length);
     if (pending.length === 0 && missingPalette.length === 0) {
       setRefreshStatus({
         tone: "success",
         copy: `Metadata and palettes updated for ${targets.length} selected image${targets.length === 1 ? "" : "s"}.`,
+      });
+    } else if (failed.length > 0) {
+      setRefreshStatus({
+        tone: "error",
+        copy: `Palette sampling failed for ${failed.length} selected image${failed.length === 1 ? "" : "s"}. Check the image URL and server extraction logs.`,
       });
     } else {
       const elapsed = refreshStatus.startedAt ? Date.now() - refreshStatus.startedAt : 0;

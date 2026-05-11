@@ -1,5 +1,5 @@
 import React, { Component, useState, useEffect, useLayoutEffect, lazy, Suspense } from "react";
-import { AuthLoading, Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "@/SignInForm";
 import { SignOutButton } from "@/SignOutButton";
@@ -86,6 +86,12 @@ export default function App() {
   }, [view]);
 
   useEffect(() => {
+    if (isAuthenticated) return;
+    setSelectedImage(null);
+    setTweaksOpen(false);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "Escape") { setSelectedImage(null); setTweaksOpen(false); }
@@ -104,106 +110,116 @@ export default function App() {
     setView("deck");
   };
 
-  /** While Convex auth is loading, `Authenticated` / `Unauthenticated` render null — show `AuthLoading` instead. */
-  const showAppChrome = isAuthenticated && !authLoading;
+  const closeTransientUi = () => {
+    setSelectedImage(null);
+    setTweaksOpen(false);
+  };
+
+  const appShellStyle: React.CSSProperties = {
+    height: "100vh",
+    display: "flex",
+    background: "var(--pd-bg)",
+    position: "relative",
+    color: "var(--pd-ink)",
+    fontFamily: "var(--pd-font-sans)",
+    fontSize: 13,
+    lineHeight: 1.45,
+  };
+
+  if (authLoading) {
+    return (
+      <div className={`pd-theme ${tweaks.grain ? "pd-grain" : ""}`} style={appShellStyle}>
+        <div
+          className="pd-fade-in"
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 0,
+            color: "var(--pd-ink-faint)",
+            fontSize: 12,
+          }}
+        >
+          <div style={{ textAlign: "center" }}>
+            <PinIcon name="film" size={28} stroke={1.2} />
+            <div className="pd-mono" style={{ marginTop: 12, letterSpacing: "0.06em" }}>
+              Loading session...
+            </div>
+          </div>
+        </div>
+        <PindeckToaster />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className={`pd-theme ${tweaks.grain ? "pd-grain" : ""}`} style={appShellStyle}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <SignInForm />
+        </div>
+        <PindeckToaster />
+      </div>
+    );
+  }
 
   return (
     <div
       className={`pd-theme ${tweaks.grain ? "pd-grain" : ""}`}
-      style={{
-        height: "100vh",
-        display: "flex",
-        background: "var(--pd-bg)",
-        position: "relative",
-        color: "var(--pd-ink)",
-        fontFamily: "var(--pd-font-sans)",
-        fontSize: 13,
-        lineHeight: 1.45,
-      }}
+      style={appShellStyle}
     >
-      {showAppChrome && (
-        <Sidebar
-          activeView={view}
-          onView={(v) => setView(sanitizeStoredView(v))}
-          libraryFilter={libraryFilter}
-          setLibraryFilter={setLibraryFilter}
-        />
-      )}
+      <Sidebar
+        activeView={view}
+        onView={(v) => setView(sanitizeStoredView(v))}
+        libraryFilter={libraryFilter}
+        setLibraryFilter={setLibraryFilter}
+      />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
-        {showAppChrome && (
-          <Topbar
-            search={search}
-            setSearch={setSearch}
-            view={view}
-            setView={(v) => setView(sanitizeStoredView(v))}
-            tweaksOn={tweaksOpen}
-            onToggleTweaks={() => setTweaksOpen(!tweaksOpen)}
-            accountActions={<SignOutButton />}
-          />
-        )}
+        <Topbar
+          search={search}
+          setSearch={setSearch}
+          view={view}
+          setView={(v) => setView(sanitizeStoredView(v))}
+          tweaksOn={tweaksOpen}
+          onToggleTweaks={() => setTweaksOpen(!tweaksOpen)}
+          accountActions={<SignOutButton onBeforeSignOut={closeTransientUi} />}
+        />
 
         <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative", alignItems: "stretch" }}>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-            <AuthLoading>
-              <div
-                className="pd-fade-in"
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 0,
-                  color: "var(--pd-ink-faint)",
-                  fontSize: 12,
-                }}
-              >
-                <div style={{ textAlign: "center" }}>
-                  <PinIcon name="film" size={28} stroke={1.2} />
-                  <div className="pd-mono" style={{ marginTop: 12, letterSpacing: "0.06em" }}>
-                    Loading session…
-                  </div>
-                </div>
-              </div>
-            </AuthLoading>
-            <Unauthenticated>
-              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <SignInForm />
-              </div>
-            </Unauthenticated>
-            <Authenticated>
-              {view === "gallery" && (
-                <GalleryView
-                  search={search}
-                  tweaks={tweaks}
-                  onOpenImage={setSelectedImage}
-                  libraryFilter={libraryFilter}
-                  onNavigateToBoards={() => setView("boards")}
-                />
-              )}
-              {view === "table" && (
-                <TableView search={search} onOpenImage={setSelectedImage} libraryFilter={libraryFilter} />
-              )}
-              {view === "boards" && (
-                <BoardsView onOpenDeck={openDeck} />
-              )}
-              {view === "deck" && (
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                  <Suspense fallback={<Placeholder />}>
-                    <DeckView
-                      selectedDeckId={activeDeckId}
-                      onSelectDeck={setActiveDeckId}
-                      onStartFromGallery={() => setView("gallery")}
-                    />
-                  </Suspense>
-                </div>
-              )}
-              {view === "upload" && (
+            {view === "gallery" && (
+              <GalleryView
+                search={search}
+                tweaks={tweaks}
+                onOpenImage={setSelectedImage}
+                libraryFilter={libraryFilter}
+                onNavigateToBoards={() => setView("boards")}
+              />
+            )}
+            {view === "table" && (
+              <TableView search={search} onOpenImage={setSelectedImage} libraryFilter={libraryFilter} />
+            )}
+            {view === "boards" && (
+              <BoardsView onOpenDeck={openDeck} />
+            )}
+            {view === "deck" && (
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <Suspense fallback={<Placeholder />}>
-                  <ImageUploadForm />
+                  <DeckView
+                    selectedDeckId={activeDeckId}
+                    onSelectDeck={setActiveDeckId}
+                    onStartFromGallery={() => setView("gallery")}
+                  />
                 </Suspense>
-              )}
-            </Authenticated>
+              </div>
+            )}
+            {view === "upload" && (
+              <Suspense fallback={<Placeholder />}>
+                <ImageUploadForm />
+              </Suspense>
+            )}
           </div>
 
           {selectedImage && (
@@ -215,42 +231,46 @@ export default function App() {
           <TweaksPanel tweaks={tweaks} setTweaks={setTweaks} onClose={() => setTweaksOpen(false)} />
         )}
 
-        {showAppChrome && (
-          <div className="pd-mono" style={{
-            position: "fixed", bottom: 0, left: 208, right: 0, height: 22,
-            background: "var(--pd-bg-1)", borderTop: "1px solid var(--pd-line)",
-            display: "flex", alignItems: "center", padding: "0 10px", gap: 10,
-            fontSize: 10, color: "var(--pd-ink-faint)", zIndex: 5,
-          }}>
-            <span><span style={{ color: "var(--pd-green)" }}>●</span> convex · live</span>
-            <span>·</span>
-            <span>{view}</span>
-            <div style={{ flex: 1 }} />
-            <span>accent {tweaks.accent}</span>
-            <span>·</span>
-            <span>{tweaks.density}</span>
-            <span>·</span>
-            <span>{tweaks.cardStyle}</span>
-          </div>
-        )}
+        <div className="pd-mono" style={{
+          position: "fixed", bottom: 0, left: 208, right: 0, height: 22,
+          background: "var(--pd-bg-1)", borderTop: "1px solid var(--pd-line)",
+          display: "flex", alignItems: "center", padding: "0 10px", gap: 10,
+          fontSize: 10, color: "var(--pd-ink-faint)", zIndex: 5,
+        }}>
+          <span><span style={{ color: "var(--pd-green)" }}>●</span> convex · live</span>
+          <span>·</span>
+          <span>{view}</span>
+          <div style={{ flex: 1 }} />
+          <span>accent {tweaks.accent}</span>
+          <span>·</span>
+          <span>{tweaks.density}</span>
+          <span>·</span>
+          <span>{tweaks.cardStyle}</span>
+        </div>
       </div>
 
-      <Toaster
-        theme="dark"
-        position="bottom-right"
-        toastOptions={{
-          style: {
-            background: "rgba(11, 11, 14, 0.88)",
-            border: "1px solid var(--pd-line-strong)",
-            color: "var(--pd-ink)",
-            borderRadius: "6px",
-            boxShadow: "0 18px 60px rgba(0,0,0,0.42)",
-            backdropFilter: "blur(10px) saturate(1.12)",
-            fontSize: "12px",
-          },
-        }}
-      />
+      <PindeckToaster />
     </div>
+  );
+}
+
+function PindeckToaster() {
+  return (
+    <Toaster
+      theme="dark"
+      position="bottom-right"
+      toastOptions={{
+        style: {
+          background: "rgba(11, 11, 14, 0.88)",
+          border: "1px solid var(--pd-line-strong)",
+          color: "var(--pd-ink)",
+          borderRadius: "6px",
+          boxShadow: "0 18px 60px rgba(0,0,0,0.42)",
+          backdropFilter: "blur(10px) saturate(1.12)",
+          fontSize: "12px",
+        },
+      }}
+    />
   );
 }
 

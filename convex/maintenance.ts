@@ -6,6 +6,7 @@ import { internal } from "./_generated/api";
 const FULL_WIPE_CONFIRMATION = "DELETE_ALL_IMAGES_AND_STORAGE";
 const ORPHAN_WIPE_CONFIRMATION = "DELETE_ORPHANED_STORAGE_FILES";
 const IMAGE_DOMAIN_RESET_CONFIRMATION = "RESET_ALL_IMAGE_DOMAIN_DATA";
+const BAD_PINDECK_RUSTFS_CONFIRMATION = "DELETE_BAD_PINDECK_RUSTFS_ROWS";
 const internalApi = internal as any;
 
 function isStorageId(id: Id<"_storage"> | undefined): id is Id<"_storage"> {
@@ -155,6 +156,115 @@ export const wipeAllImagesAndStorage = internalMutation({
       storageDeleted,
       storageFailed: storageFailedIds.length,
       storageFailedIds,
+    };
+  },
+});
+
+export const deleteBadPindeckRustfsRows = internalMutation({
+  args: {
+    confirm: v.string(),
+    dryRun: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    dryRun: v.boolean(),
+    scanned: v.number(),
+    matched: v.number(),
+    deleted: v.number(),
+    collectionsDeleted: v.number(),
+    storyboardsDeleted: v.number(),
+    decksDeleted: v.number(),
+    likesDeleted: v.number(),
+    generationsDeleted: v.number(),
+    parentRefsCleared: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    if (args.confirm !== BAD_PINDECK_RUSTFS_CONFIRMATION) {
+      throw new Error(
+        `Confirmation mismatch. Pass confirm="${BAD_PINDECK_RUSTFS_CONFIRMATION}" to proceed.`
+      );
+    }
+
+    const dryRun = args.dryRun ?? false;
+    const images = await ctx.db.query("images").collect();
+    const badImages = images.filter(
+      (image) =>
+        image.storagePath?.startsWith("pindeck/media-uploads/") ||
+        image.previewStoragePath?.startsWith("pindeck/media-uploads/") ||
+        image.imageUrl.includes("/pindeck/pindeck/media-uploads/")
+    );
+    const badImageIds = new Set(badImages.map((image) => image._id));
+
+    let collectionsDeleted = 0;
+    for (const collection of await ctx.db.query("collections").collect()) {
+      if (collection.imageIds.some((id) => badImageIds.has(id))) {
+        collectionsDeleted += 1;
+        if (!dryRun) await ctx.db.delete(collection._id);
+      }
+    }
+
+    let storyboardsDeleted = 0;
+    for (const storyboard of await ctx.db.query("storyboards").collect()) {
+      if (
+        storyboard.sourceImageIds.some((id) => badImageIds.has(id)) ||
+        storyboard.panels.some((panel) => badImageIds.has(panel.imageId))
+      ) {
+        storyboardsDeleted += 1;
+        if (!dryRun) await ctx.db.delete(storyboard._id);
+      }
+    }
+
+    let decksDeleted = 0;
+    for (const deck of await ctx.db.query("decks").collect()) {
+      if (
+        deck.sourceImageIds.some((id) => badImageIds.has(id)) ||
+        deck.slides.some((slide) => badImageIds.has(slide.imageId))
+      ) {
+        decksDeleted += 1;
+        if (!dryRun) await ctx.db.delete(deck._id);
+      }
+    }
+
+    let likesDeleted = 0;
+    for (const like of await ctx.db.query("likes").collect()) {
+      if (badImageIds.has(like.imageId)) {
+        likesDeleted += 1;
+        if (!dryRun) await ctx.db.delete(like._id);
+      }
+    }
+
+    let generationsDeleted = 0;
+    for (const generation of await ctx.db.query("generations").collect()) {
+      if (badImageIds.has(generation.imageId)) {
+        generationsDeleted += 1;
+        if (!dryRun) await ctx.db.delete(generation._id);
+      }
+    }
+
+    let parentRefsCleared = 0;
+    for (const image of images) {
+      if (image.parentImageId && badImageIds.has(image.parentImageId)) {
+        parentRefsCleared += 1;
+        if (!dryRun) await ctx.db.patch(image._id, { parentImageId: undefined });
+      }
+    }
+
+    if (!dryRun) {
+      for (const image of badImages) {
+        await ctx.db.delete(image._id);
+      }
+    }
+
+    return {
+      dryRun,
+      scanned: images.length,
+      matched: badImages.length,
+      deleted: dryRun ? 0 : badImages.length,
+      collectionsDeleted,
+      storyboardsDeleted,
+      decksDeleted,
+      likesDeleted,
+      generationsDeleted,
+      parentRefsCleared,
     };
   },
 });

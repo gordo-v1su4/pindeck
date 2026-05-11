@@ -106,7 +106,7 @@ export function applyPindeckTweaksToDocument(opts: {
   root.style.setProperty("--accent-soft", soft);
   root.style.setProperty("--accent-ink", ink);
 
-  const typo = PD_FONT_STACKS.find((x) => x.id === opts.typography) ?? PD_FONT_STACKS.find((x) => x.id === "archivo");
+  const typo = PD_FONT_STACKS.find((x) => x.id === opts.typography) ?? PD_FONT_STACKS.find((x) => x.id === "geist");
   if (typo) {
     root.style.setProperty("--pd-font-sans", typo.css);
     root.style.setProperty("--pd-font-mono", typo.mono);

@@ -7,24 +7,9 @@ import type { FormEvent } from "react";
 import { GitBranchIcon, GlobeIcon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-} from "@/components/ui/field";
+import { FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function SignInForm() {
   const { signIn } = useAuthActions();
@@ -138,23 +123,19 @@ export function SignInForm() {
   };
 
   const title = flow === "signIn" ? "Welcome back" : "Create an account";
-  const description =
-    flow === "signIn"
-      ? "Enter your email and password below to continue into Pindeck."
-      : "Enter your email below to create your account and start building decks.";
   const submitLabel =
     flow === "signIn"
       ? submitting
         ? "Signing in..."
-        : "Sign In with Email"
+        : "Sign in"
       : submitting
         ? "Creating account..."
         : "Create account";
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-[24.5rem] flex-col gap-7">
       <div className="flex flex-col items-center text-center">
-        <div className="flex scale-[1.65] flex-col items-center gap-0.5">
+        <div className="flex scale-[1.55] flex-col items-center gap-0.5">
           <div className="site-brand-lockup">
             <div className="site-brand-mark">P/</div>
             <div className="site-brand-word">
@@ -168,36 +149,33 @@ export function SignInForm() {
         </div>
       </div>
 
-      <Card className="border border-white/8 bg-[#17191d]/95 shadow-2xl shadow-black/35 ring-0 backdrop-blur">
-        <CardHeader className="gap-4">
-          <Tabs value={flow} onValueChange={(value) => setFlow(value as "signIn" | "signUp")}>
-            <TabsList className="grid h-10 w-full grid-cols-2 rounded-xl bg-white/5 p-1">
-              <TabsTrigger
-                value="signIn"
-                className="rounded-lg text-white/60 data-[state=active]:bg-[var(--pd-accent)] data-[state=active]:text-white"
-              >
-                Sign in
-              </TabsTrigger>
-              <TabsTrigger
-                value="signUp"
-                className="rounded-lg text-white/60 data-[state=active]:bg-[var(--pd-accent)] data-[state=active]:text-white"
-              >
-                Create account
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <div className="text-center">
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </div>
-        </CardHeader>
+      <div className="pd-glass-panel auth-panel pd-fade-in">
+        <div className="auth-segment">
+          {[
+            { id: "signIn", label: "Sign in" },
+            { id: "signUp", label: "Create account" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setFlow(item.id as "signIn" | "signUp")}
+              className={flow === item.id ? "auth-segment-button is-active" : "auth-segment-button"}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
 
-        <CardContent className="flex flex-col gap-6">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="auth-email" className="sr-only">
-                  Email
+        <div className="auth-panel-title">
+          <h1>{title}</h1>
+        </div>
+
+        <div className="auth-panel-body">
+          <form onSubmit={handleSubmit} className="auth-form-stack">
+            <div className="auth-field-stack">
+              <div>
+                <FieldLabel htmlFor="auth-email" className="auth-panel-label">
+                  email
                 </FieldLabel>
                 <Input
                   id="auth-email"
@@ -205,35 +183,30 @@ export function SignInForm() {
                   name="email"
                   placeholder="name@example.com"
                   autoComplete="email"
-                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-[var(--pd-accent)] focus-visible:ring-[var(--pd-accent-soft)] dark:bg-white/5"
+                  className="auth-panel-input"
                   required
                 />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="auth-password" className="sr-only">
-                  Password
+              </div>
+              <div>
+                <FieldLabel htmlFor="auth-password" className="auth-panel-label">
+                  password
                 </FieldLabel>
                 <Input
                   id="auth-password"
                   type="password"
                   name="password"
-                  placeholder="Password"
+                  placeholder="password"
                   autoComplete={flow === "signIn" ? "current-password" : "new-password"}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 px-4 text-white placeholder:text-white/35 focus-visible:border-[var(--pd-accent)] focus-visible:ring-[var(--pd-accent-soft)] dark:bg-white/5"
+                  className="auth-panel-input"
                   required
                 />
-                {flow === "signUp" && (
-                  <FieldDescription>
-                    Use at least 8 characters so your account is ready for future sign-ins.
-                  </FieldDescription>
-                )}
-              </Field>
-            </FieldGroup>
+              </div>
+            </div>
 
             <Button
               type="submit"
               size="lg"
-              className="h-11 w-full rounded-xl bg-[var(--pd-accent)] text-base font-semibold text-[var(--pd-accent-contrast-text)] hover:bg-[var(--pd-accent-hover)] hover:text-[var(--pd-accent-contrast-text)]"
+              className="auth-panel-primary"
               disabled={submitting || isLoading}
             >
               {submitting ? <Spinner data-icon="inline-start" /> : null}
@@ -241,15 +214,15 @@ export function SignInForm() {
             </Button>
           </form>
 
-          <FieldSeparator className="text-sm [&_[data-slot=field-separator-content]]:bg-transparent [&_[data-slot=field-separator-content]]:px-0 [&_[data-slot=field-separator-content]]:text-muted-foreground">
+          <FieldSeparator className="auth-panel-separator">
             Or continue with
           </FieldSeparator>
 
-          <div className="flex flex-col gap-3">
+          <div className="auth-provider-stack-panel">
             <Button
               type="button"
               size="lg"
-              className="h-11 w-full rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
+              className="auth-panel-secondary"
               onClick={() => handleProviderSignIn("github", "GitHub")}
               disabled={submitting}
             >
@@ -259,7 +232,7 @@ export function SignInForm() {
             <Button
               type="button"
               size="lg"
-              className="h-11 w-full rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
+              className="auth-panel-secondary"
               onClick={() => handleProviderSignIn("google", "Google")}
               disabled={submitting}
             >
@@ -267,25 +240,23 @@ export function SignInForm() {
               Google
             </Button>
           </div>
-          <div className="flex flex-col gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-10 w-full rounded-xl text-white/80 hover:bg-white/5 hover:text-white"
-              onClick={() => void handleAnonymousSignIn()}
-              disabled={submitting}
-            >
-              <UserRoundIcon data-icon="inline-start" />
-              Continue as guest (no saved decks)
-            </Button>
-          </div>
-        </CardContent>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="auth-panel-ghost"
+            onClick={() => void handleAnonymousSignIn()}
+            disabled={submitting}
+          >
+            <UserRoundIcon data-icon="inline-start" />
+            Continue as guest
+          </Button>
+        </div>
 
-        <CardFooter className="justify-center px-6 py-5 text-center text-sm leading-relaxed text-muted-foreground">
-          By continuing, you agree to our Terms of Service and Privacy Policy.
-        </CardFooter>
-      </Card>
+        <div className="auth-panel-footer">
+          Terms of Service and Privacy Policy
+        </div>
+      </div>
     </div>
   );
 }
