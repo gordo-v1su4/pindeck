@@ -38,12 +38,17 @@ const APP_VIEWS = [
 ] as const;
 
 type AppViewId = (typeof APP_VIEWS)[number]["id"];
+type GalleryDisplayMode = "random" | "project-rows" | "sref-rows";
 
 const VALID_VIEW_IDS = new Set<string>(APP_VIEWS.map((v) => v.id));
 
 function sanitizeStoredView(raw: string | null): AppViewId {
   if (raw && VALID_VIEW_IDS.has(raw)) return raw as AppViewId;
   return "gallery";
+}
+
+function sanitizeGalleryDisplayMode(raw: string | null): GalleryDisplayMode {
+  return raw === "project-rows" || raw === "sref-rows" || raw === "random" ? raw : "random";
 }
 
 export default function App() {
@@ -63,6 +68,9 @@ export default function App() {
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
   const [activeDeckId, setActiveDeckId] = useState<Id<"decks"> | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<LibraryFilters>(defaultLibraryFilters);
+  const [galleryDisplayMode, setGalleryDisplayMode] = useState<GalleryDisplayMode>(() =>
+    sanitizeGalleryDisplayMode(localStorage.getItem("pindeck_gallery_display_mode")),
+  );
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
 
   useEffect(() => {
@@ -80,6 +88,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("pindeck_view", view);
   }, [view]);
+
+  useEffect(() => {
+    localStorage.setItem("pindeck_gallery_display_mode", galleryDisplayMode);
+  }, [galleryDisplayMode]);
 
   useEffect(() => {
     if (view !== "deck") setActiveDeckId(null);
@@ -174,6 +186,8 @@ export default function App() {
         onView={(v) => setView(sanitizeStoredView(v))}
         libraryFilter={libraryFilter}
         setLibraryFilter={setLibraryFilter}
+        galleryDisplayMode={galleryDisplayMode}
+        setGalleryDisplayMode={setGalleryDisplayMode}
       />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
@@ -195,6 +209,7 @@ export default function App() {
                 tweaks={tweaks}
                 onOpenImage={setSelectedImage}
                 libraryFilter={libraryFilter}
+                displayMode={galleryDisplayMode}
                 onNavigateToBoards={() => setView("boards")}
               />
             )}
@@ -479,12 +494,22 @@ function Sidebar({
   onView,
   libraryFilter,
   setLibraryFilter,
+  galleryDisplayMode,
+  setGalleryDisplayMode,
 }: {
   activeView: string;
   onView: (v: string) => void;
   libraryFilter: LibraryFilters;
   setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
+  galleryDisplayMode: GalleryDisplayMode;
+  setGalleryDisplayMode: React.Dispatch<React.SetStateAction<GalleryDisplayMode>>;
 }) {
+  const displayModes: Array<{ id: GalleryDisplayMode; label: string; icon: string }> = [
+    { id: "random", label: "Random", icon: "masonry" },
+    { id: "project-rows", label: "Project Rows", icon: "film" },
+    { id: "sref-rows", label: "SREF Rows", icon: "tree" },
+  ];
+
   return (
     <aside style={{
       width: 208, flexShrink: 0, background: "var(--pd-bg-1)",
@@ -519,22 +544,55 @@ function Sidebar({
       </div>
 
       <div className="pd-scroll" style={{ flex: 1, overflow: "auto", padding: "8px 12px 14px" }}>
-        <Authenticated>
-          <div style={{ padding: "4px 4px 4px" }}>
-            <LibraryAggregationsErrorBoundary
-              fallback={
-                <>
-                  <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", marginBottom: 10, lineHeight: 1.45 }}>
-                    Type / genre / style counts need the latest Convex deploy. You can still filter with the options below.
-                  </div>
-                  <SidebarFilterControls libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
-                </>
-              }
-            >
-              <SidebarLibraryAggregationBody libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
-            </LibraryAggregationsErrorBoundary>
+        {activeView === "gallery" && (
+          <div style={{ padding: "4px 4px 12px", borderBottom: "1px solid var(--pd-line)", marginBottom: 10 }}>
+            <div className="pd-mono" style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--pd-ink-faint)", marginBottom: 7 }}>
+              View
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {displayModes.map((mode) => {
+                const selected = galleryDisplayMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setGalleryDisplayMode(mode.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      padding: "6px 7px",
+                      borderRadius: 4,
+                      border: selected ? "1px solid transparent" : "1px solid var(--pd-line)",
+                      background: selected ? "var(--pd-accent-soft)" : "rgba(255,255,255,0.018)",
+                      color: selected ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+                      fontSize: 11.5,
+                      textAlign: "left",
+                    }}
+                  >
+                    <PinIcon name={mode.icon} size={12} />
+                    <span>{mode.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </Authenticated>
+        )}
+        <div style={{ padding: "4px 4px 4px" }}>
+          <LibraryAggregationsErrorBoundary
+            fallback={
+              <>
+                <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", marginBottom: 10, lineHeight: 1.45 }}>
+                  Type / genre / style counts need the latest Convex deploy. You can still filter with the options below.
+                </div>
+                <SidebarFilterControls libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
+              </>
+            }
+          >
+            <SidebarLibraryAggregationBody libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
+          </LibraryAggregationsErrorBoundary>
+        </div>
       </div>
 
       <div style={{ borderTop: "1px solid var(--pd-line)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 10.5 }}>
@@ -574,6 +632,37 @@ function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, ac
       </div>
 
       <div style={{ flex: 1 }} />
+
+      {view === "gallery" || view === "table" ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 3, marginRight: 4 }}>
+          {[
+            { label: "Filters", icon: "filter" },
+            { label: "Sort", icon: "sort" },
+          ].map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              title={`${item.label} controls live in the left rail and table headers`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 8px",
+                borderRadius: 4,
+                border: "1px solid transparent",
+                borderRight: item.label === "Sort" ? "1px solid var(--pd-line)" : "1px solid transparent",
+                background: "transparent",
+                color: "var(--pd-ink-dim)",
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              <PinIcon name={item.icon} size={13} />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div style={{ display: "flex", alignItems: "center", gap: 2, border: "1px solid var(--pd-line)", borderRadius: 5, padding: 1 }}>
         {[
