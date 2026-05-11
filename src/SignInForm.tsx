@@ -133,9 +133,9 @@ export function SignInForm() {
         : "Create account";
 
   return (
-    <div className="mx-auto flex w-full max-w-[24.5rem] flex-col gap-7">
+    <div className="mx-auto flex w-full max-w-[22.5rem] flex-col gap-6">
       <div className="flex flex-col items-center text-center">
-        <div className="flex scale-[1.55] flex-col items-center gap-0.5">
+        <div className="flex scale-[1.42] flex-col items-center gap-0.5">
           <div className="site-brand-lockup">
             <div className="site-brand-mark">P/</div>
             <div className="site-brand-word">
