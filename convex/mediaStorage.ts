@@ -33,6 +33,7 @@ type UploadedImage = {
   previewUrl: string;
   storagePath: string;
   previewStoragePath: string;
+  colors?: string[];
   derivativeUrls?: {
     small: string;
     medium: string;
@@ -491,6 +492,7 @@ async function processImageViaMediaGateway(args: {
     previewUrl: parsed.previewUrl,
     storagePath: normalizePath(parsed.storagePath),
     previewStoragePath: normalizePath(parsed.previewStoragePath),
+    colors: parsed.colors?.slice(0, 5),
     derivativeUrls: parsed.derivativeUrls,
     derivativeStoragePaths: {
       small: normalizePath(parsed.derivativeStoragePaths.small),
@@ -595,6 +597,7 @@ const uploadedImageReturnValidator = v.object({
   previewUrl: v.string(),
   storagePath: v.string(),
   previewStoragePath: v.string(),
+  colors: v.optional(v.array(v.string())),
   derivativeUrls: v.optional(
     v.object({
       small: v.string(),
@@ -870,6 +873,7 @@ export const finalizeUploadedImage = internalAction({
         storageBucket: uploaded.bucket,
         storagePath: uploaded.storagePath,
         previewStoragePath: uploaded.previewStoragePath,
+        colors: uploaded.colors,
         derivativeUrls: uploaded.derivativeUrls,
         derivativeStoragePaths: uploaded.derivativeStoragePaths,
       });

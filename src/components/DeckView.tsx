@@ -109,14 +109,10 @@ export function DeckView({
         }) === index;
       });
       return (
-        <div className="pd-scroll pd-fade-in relative flex min-h-0 w-full flex-1 flex-col overflow-auto bg-[#050507] text-white" style={{ padding: 16 }}>
+        <div className="pd-scroll pd-fade-in relative flex min-h-0 w-full flex-1 flex-col overflow-auto" style={{ padding: 16, background: "var(--pd-bg)", color: "var(--pd-ink)" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14 }}>
-              <h1 style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, lineHeight: 1.2 }}>
-                Decks
-              </h1>
-              <p className="pd-mono text-[11px] text-[var(--pd-ink-faint)]">
-                {visibleDecks.length} saved
-              </p>
+              <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em" }}>Decks</div>
+              <div className="pd-mono" style={{ fontSize: 11, color: "var(--pd-ink-faint)" }}>{visibleDecks.length} saved</div>
           </div>
         {visibleDecks.length === 0 ? (
           <p className="shrink-0 pt-2 text-[11px] leading-relaxed text-zinc-500">

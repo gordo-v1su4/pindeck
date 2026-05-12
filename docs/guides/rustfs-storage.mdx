@@ -38,6 +38,22 @@ Public URLs should use:
 https://s3.v1su4.dev/pindeck/media-uploads/...
 ```
 
+## Color sampling contract
+
+Every image entering the upload review flow must have five sampled colors before tags are rendered or the item is finalized.
+
+- Local uploads sample colors in the browser before metadata is applied.
+- RustFS `/process-image` returns `colors` with the original, preview, and derivative URLs.
+- Convex server-side palette jobs first try `sharp`; if `sharp` is unavailable on the runtime, they call RustFS `/palette`.
+- VLM-provided colors are metadata only and must not replace sampled image colors.
+
 ## Discord ingest
 
 Discord imports use the same pipeline. Reacting with the configured pin emoji queues the source image, Convex persists the image through the RustFS media API, then moderation/generation continues from the RustFS-backed URLs.
+
+After a Discord import is approved, it enters the same `Review & Finalize` draft lane as a local upload. At that point the draft row should already have:
+
+- RustFS original, preview, and derivative URLs
+- five sampled colors
+- AI title, description, tags, category, group, style, shot, and project fields
+- the same `Generate Variations` control used by local uploads

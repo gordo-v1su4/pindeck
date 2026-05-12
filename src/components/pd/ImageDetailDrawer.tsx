@@ -6,6 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import { PinIcon, PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { Tweaks } from "../TweaksPanel";
 import { downloadImage } from "@/lib/imageDownload";
+import { ImageLightbox } from "@/components/pd/ImageLightbox";
 
 interface ImageDetailDrawerProps {
   image: any;
@@ -126,6 +127,7 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
   const [metadataStatus, setMetadataStatus] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [editDraft, setEditDraft] = useState<EditDraft>(() => editDraftFromImage(image));
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const [genMode, setGenMode] = useState(image.modificationMode || "shot-variation");
   const [genDetail, setGenDetail] = useState(image.variationDetail || "");
@@ -313,14 +315,14 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
     <aside className="pd-slide-in pd-scroll" style={{
       width: 440, flexShrink: 0, minHeight: 0, alignSelf: "stretch",
       overflow: "auto",
-      background: "rgba(11, 11, 14, 0.82)", borderLeft: "1px solid var(--pd-line)",
-      backdropFilter: "blur(10px) saturate(1.12)",
+      background: "var(--pd-glass-bg)", borderLeft: "1px solid var(--pd-glass-line)",
+      backdropFilter: "blur(var(--pd-glass-blur)) saturate(1.25)",
       display: "flex", flexDirection: "column", position: "relative",
     }}>
       <div style={{
         padding: "12px 14px 10px", borderBottom: "1px solid var(--pd-line)",
         display: "flex", alignItems: "center", gap: 8, position: "sticky", top: 0,
-        background: "rgba(11, 11, 14, 0.9)", backdropFilter: "blur(10px) saturate(1.12)", zIndex: 2,
+        background: "var(--pd-glass-header)", backdropFilter: "blur(var(--pd-glass-blur)) saturate(1.25)", zIndex: 2,
       }}>
         <button onClick={onClose} style={{
           width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
@@ -349,6 +351,27 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
             {dash(image.shot)} · {dash(image.style)} · {dash(image.genre)}
           </div>
         </div>
+        <button
+          type="button"
+          aria-label="Zoom image"
+          title="Zoom image"
+          onClick={() => setLightboxOpen(true)}
+          style={{
+            alignSelf: "flex-start",
+            width: 28,
+            height: 28,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 4,
+            border: "1px solid var(--pd-line)",
+            background: "rgba(255,255,255,0.025)",
+            color: "var(--pd-ink-dim)",
+            flexShrink: 0,
+          }}
+        >
+          <PinIcon name="expand" size={13} />
+        </button>
         <button
           type="button"
           className="pd-mono"
@@ -386,6 +409,29 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
           }
         >
           <img src={image.imageUrl} alt={image.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <button
+            type="button"
+            aria-label="Zoom image"
+            title="Zoom image"
+            onClick={() => setLightboxOpen(true)}
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              width: 28,
+              height: 28,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 4,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(0,0,0,0.46)",
+              color: "rgba(255,255,255,0.86)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <PinIcon name="expand" size={13} />
+          </button>
           <div style={{
             position: "absolute",
             bottom: 8,
@@ -838,6 +884,8 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
           </div>
         )}
       </div>
+
+      <ImageLightbox image={image} open={lightboxOpen} onOpenChange={setLightboxOpen} />
     </aside>
   );
 }

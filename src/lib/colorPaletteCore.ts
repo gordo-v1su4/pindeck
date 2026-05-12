@@ -222,7 +222,7 @@ export function extractDominantHexes(
     if (h >= 195 && h <= 330) coolMass += b.count;
   }
 
-  const scored: Scored[] = list.map((b) => {
+  const scoreCluster = (b: { rgb: [number, number, number]; count: number }): Scored => {
     const [r, g, b0] = b.rgb;
     const sat = getSaturation(r, g, b0);
     const share = b.count / meaningfulTotal;
@@ -234,9 +234,14 @@ export function extractDominantHexes(
       share,
       dominanceScore,
     };
-  });
+  };
+
+  const scored: Scored[] = list.map(scoreCluster);
 
   scored.sort((a, b) => b.dominanceScore - a.dominanceScore);
+
+  const scoredAll: Scored[] =
+    list.length === clusters.length ? scored : clusters.map(scoreCluster).sort((a, b) => b.dominanceScore - a.dominanceScore);
 
   const reject = (c: Scored): boolean =>
     shouldRejectHueInWarmScene({
@@ -250,6 +255,25 @@ export function extractDominantHexes(
 
   const picked: Scored[] = [];
   const usedHex = new Set<string>();
+  const appendCandidate = (c: Scored): void => {
+    picked.push(c);
+    usedHex.add(rgbToHex(c.rgb[0], c.rgb[1], c.rgb[2]));
+  };
+
+  const fillFromCandidates = (
+    candidates: Scored[],
+    labSq: number,
+    allowRejected: boolean
+  ): void => {
+    for (const c of candidates) {
+      if (picked.length >= topN) break;
+      const hx = rgbToHex(c.rgb[0], c.rgb[1], c.rgb[2]);
+      if (usedHex.has(hx)) continue;
+      if (!allowRejected && reject(c)) continue;
+      if (picked.some((p) => labDistanceSq(p.lab, c.lab) < labSq)) continue;
+      appendCandidate(c);
+    }
+  };
 
   for (const c of scored) {
     if (picked.length >= topN) break;
@@ -257,31 +281,13 @@ export function extractDominantHexes(
     if (usedHex.has(hx)) continue;
     if (picked.some((p) => labDistanceSq(p.lab, c.lab) < minLabSq)) continue;
     if (reject(c)) continue;
-    picked.push(c);
-    usedHex.add(hx);
+    appendCandidate(c);
   }
 
-  while (picked.length < topN) {
-    const next = scored.find((c) => {
-      const hx = rgbToHex(c.rgb[0], c.rgb[1], c.rgb[2]);
-      if (usedHex.has(hx)) return false;
-      if (reject(c)) return false;
-      return !picked.some((p) => labDistanceSq(p.lab, c.lab) < minLabSq * 0.72);
-    });
-    if (!next) break;
-    picked.push(next);
-    usedHex.add(rgbToHex(next.rgb[0], next.rgb[1], next.rgb[2]));
-  }
-
-  while (picked.length < topN) {
-    const next = scored.find((c) => {
-      const hx = rgbToHex(c.rgb[0], c.rgb[1], c.rgb[2]);
-      return !usedHex.has(hx);
-    });
-    if (!next) break;
-    picked.push(next);
-    usedHex.add(rgbToHex(next.rgb[0], next.rgb[1], next.rgb[2]));
-  }
+  fillFromCandidates(scored, minLabSq * 0.72, false);
+  fillFromCandidates(scoredAll, minLabSq * 0.42, false);
+  fillFromCandidates(scoredAll, minLabSq * 0.18, false);
+  fillFromCandidates(scoredAll, 1, true);
 
   return picked.slice(0, topN).map((p) => rgbToHex(p.rgb[0], p.rgb[1], p.rgb[2]));
 }

@@ -1,5 +1,7 @@
 # Pindeck (Production-First)
 
+![Pindeck gallery with metadata drawer](docs/images/pindeck-gallery-readme.webp)
+
 AI-powered image gallery + generation app using React, Convex, OpenRouter, and fal.ai.
 
 ## Production Local Workflow (No Dev Server)

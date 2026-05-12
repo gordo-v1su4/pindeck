@@ -7,6 +7,7 @@ import type { Tweaks } from "./TweaksPanel";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters } from "@/lib/libraryFilters";
 import { downloadImage } from "@/lib/imageDownload";
+import { ImageLightbox } from "@/components/pd/ImageLightbox";
 import {
   HeartIcon,
   HeartFilledIcon,
@@ -96,6 +97,7 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
 
   const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
   const [createBoardImageId, setCreateBoardImageId] = useState<Id<"images"> | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<any | null>(null);
   /** Instant feedback while Convex syncs */
   const [likeOptimistic, setLikeOptimistic] = useState<Partial<Record<Id<"images">, boolean>>>({});
   /** Keeps tile actions visible while board menu is open (portal steals hover from `.group`). */
@@ -249,6 +251,16 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
                 ) : (
                   <HeartIcon width={ICON_SIZE} height={ICON_SIZE} color={HEART_OUTLINE} />
                 )}
+              </ActionIconButton>
+
+              <ActionIconButton
+                label="Zoom image"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxImage(img);
+                }}
+              >
+                <PinIcon name="expand" size={ICON_SIZE} stroke={1.8} />
               </ActionIconButton>
 
               <ActionIconButton
@@ -447,6 +459,14 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
           if (tab === "boards") onNavigateToBoards?.();
         }}
         incrementBoardVersion={() => {}}
+      />
+
+      <ImageLightbox
+        image={lightboxImage}
+        open={!!lightboxImage}
+        onOpenChange={(open) => {
+          if (!open) setLightboxImage(null);
+        }}
       />
     </>
   );

@@ -473,6 +473,7 @@ export const enqueueMetadataRefresh = mutation({
     metadataScheduled: v.number(),
     paletteScheduled: v.number(),
     skipped: v.number(),
+    scheduledImageIds: v.array(v.id("images")),
   }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -483,7 +484,7 @@ export const enqueueMetadataRefresh = mutation({
 
     const mine = args.imageIds
       ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
-          .filter((img): img is NonNullable<typeof img> => img !== null && img.uploadedBy === userId)
+          .filter((img): img is NonNullable<typeof img> => img !== null)
       : await ctx.db
           .query("images")
           .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
@@ -511,6 +512,7 @@ export const enqueueMetadataRefresh = mutation({
     let metadataScheduled = 0;
     let paletteScheduled = 0;
     let skipped = 0;
+    const scheduledImageIds: Array<Doc<"images">["_id"]> = [];
 
     for (const plan of refreshPlan) {
       const { img } = plan;
@@ -533,9 +535,10 @@ export const enqueueMetadataRefresh = mutation({
       delay += stagger;
       paletteScheduled += 1;
       if (plan.runMetadata) metadataScheduled += 1;
+      scheduledImageIds.push(img._id);
     }
 
-    return { metadataScheduled, paletteScheduled, skipped };
+    return { metadataScheduled, paletteScheduled, skipped, scheduledImageIds };
   },
 });
 
@@ -754,6 +757,7 @@ export const createExternal = mutation({
     ),
     storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
+    colors: v.optional(v.array(v.string())),
     derivativeUrls: v.optional(
       v.object({
         small: v.string(),
@@ -900,6 +904,7 @@ export const ingestExternal = internalMutation({
     ),
     storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
+    colors: v.optional(v.array(v.string())),
     derivativeUrls: v.optional(
       v.object({
         small: v.string(),
@@ -1085,6 +1090,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     storageProvider: persistedImage.bucket ? "rustfs" : "nextcloud",
     storageBucket: persistedImage.bucket,
     previewStoragePath: persistedImage.previewStoragePath,
+    colors: persistedImage.colors,
     derivativeUrls: persistedImage.derivativeUrls,
     derivativeStoragePaths: persistedImage.derivativeStoragePaths,
     externalId: body.externalId,
@@ -2078,7 +2084,8 @@ export const remove = mutation({
       throw new Error("Image not found");
     }
 
-    if (image.uploadedBy !== userId) {
+    const isVisibleLibraryImage = image.status === "active" || image.status === undefined;
+    if (image.uploadedBy !== userId && !isVisibleLibraryImage) {
       throw new Error("Not authorized to delete this image");
     }
 
@@ -2101,7 +2108,8 @@ export const removeMany = mutation({
     let skipped = 0;
     for (const id of args.ids) {
       const image = await ctx.db.get(id);
-      if (!image || image.uploadedBy !== userId) {
+      const isVisibleLibraryImage = image?.status === "active" || image?.status === undefined;
+      if (!image || (image.uploadedBy !== userId && !isVisibleLibraryImage)) {
         skipped += 1;
         continue;
       }
@@ -2218,6 +2226,7 @@ export const internalApplyNextcloudUpload = internalMutation({
     storageBucket: v.optional(v.string()),
     storagePath: v.string(),
     previewStoragePath: v.optional(v.string()),
+    colors: v.optional(v.array(v.string())),
     derivativeUrls: v.optional(
       v.object({
         small: v.string(),
@@ -2244,6 +2253,7 @@ export const internalApplyNextcloudUpload = internalMutation({
       storageBucket: args.storageBucket,
       storagePath: args.storagePath,
       previewStoragePath: args.previewStoragePath,
+      colors: args.colors ?? [],
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       nextcloudPersistStatus: "succeeded",
@@ -2347,7 +2357,7 @@ export const internalGetMetadataRefreshPayload = internalQuery({
   returns: v.any(),
   handler: async (ctx, args) => {
     const image = await ctx.db.get(args.imageId);
-    if (!image || image.uploadedBy !== args.userId) return null;
+    if (!image) return null;
     return {
       _id: image._id,
       storageId: image.storageId,

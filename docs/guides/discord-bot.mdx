@@ -58,8 +58,9 @@ bun run dev
 
 1. A user adds a configured emoji reaction to a message with an image attachment
 2. The bot sends the image to Pindeck's `/ingestExternal` HTTP endpoint
-3. Pindeck stores the image and creates a record with `sourceType = "discord"`
-4. The image appears in the moderation queue
+3. Pindeck stores the image in RustFS, including preview/derivative URLs and five sampled colors
+4. Pindeck creates a record with `sourceType = "discord"`
+5. The image appears in the moderation queue
 
 ## Moderation queue
 
@@ -67,7 +68,11 @@ New Discord-sourced images enter the moderation queue:
 
 1. Images land in a pending state via the `/discordQueue` endpoint
 2. Moderators review and approve or reject via the `/discordModerate` endpoint
-3. Approved images are visible in the gallery; rejected images are removed
+3. Approved images move into the same `Review & Finalize` draft lane as local uploads
+4. Draft Discord images use the same sampled colors, colored tags, metadata fields, and variation controls as local uploads
+5. Rejected images are removed
+
+Approved status webhook messages also trigger the Discord bot to post the six variation buttons when `DISCORD_APPROVED_VARIATION_BUTTONS` is enabled: Shot, Action, Coverage, B-Roll, Style, and Subtle.
 
 ## Hosting
 
@@ -99,3 +104,7 @@ Do not treat `services/discord-bot` in the Pindeck repo as the deployment source
 | `/discordModerate` | POST | Approve or reject a queued image |
 
 See the [API reference](/api-reference/introduction) for full endpoint documentation.
+
+## Hostinger DNS note
+
+The Hostinger bot container runs on the same public host that serves the Convex HTTP domains. If the container resolves `convex-site.serving.cloud` or `convex.serving.cloud` back to `127.0.1.1`, Bun fetches fail with connection errors. The deployed Compose file pins those names to the Docker host gateway (`172.18.0.1`) using `extra_hosts`.

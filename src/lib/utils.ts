@@ -70,7 +70,7 @@ export function sortColorsDarkToLight(colors: string[]): string[] {
 }
 
 export const compactImageTagClass =
-  "h-6 rounded-[6px] px-2 text-[11px] font-medium leading-none tracking-normal";
+  "pd-image-tag-chip tracking-normal";
 
 function withAlpha(hex: string, alpha: number): string {
   const boundedAlpha = Math.max(0, Math.min(1, alpha));

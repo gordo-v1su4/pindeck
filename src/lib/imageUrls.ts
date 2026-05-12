@@ -9,7 +9,7 @@ type ImageWithVariants = {
   };
 };
 
-export type ImageUrlVariant = "dense" | "card" | "detail";
+export type ImageUrlVariant = "dense" | "card" | "detail" | "lightbox";
 
 function uniqueUrls(values: Array<string | undefined>): string[] {
   return values.filter((value, index, array): value is string => {
@@ -69,6 +69,17 @@ export function getImageUrlCandidates(
       image.derivativeUrls?.medium,
       image.derivativeUrls?.large,
       image.imageUrl,
+      image.previewUrl,
+      image.derivativeUrls?.small,
+      sourceCandidate,
+    ]);
+  }
+
+  if (variant === "lightbox") {
+    return uniqueUrls([
+      image.derivativeUrls?.large,
+      image.imageUrl,
+      image.derivativeUrls?.medium,
       image.previewUrl,
       image.derivativeUrls?.small,
       sourceCandidate,

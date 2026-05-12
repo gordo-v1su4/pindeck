@@ -24,6 +24,15 @@ function parseSrefIds(raw: string | undefined): string[] {
   return out;
 }
 
+function hasMissingMetadata(image: any): boolean {
+  return !(
+    image.group?.trim() &&
+    image.genre?.trim() &&
+    image.shot?.trim() &&
+    image.style?.trim()
+  );
+}
+
 const oneLineCell: React.CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -48,6 +57,8 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     tone: "working" | "success" | "error";
     copy: string;
     imageIds?: Id<"images">[];
+    expectMetadata?: boolean;
+    expectPalette?: boolean;
     startedAt?: number;
   } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -56,12 +67,22 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
 
   const handleRefreshMetadata = useCallback(async () => {
     const ids = Array.from(selectedIds);
-    const targetCopy = ids.length > 0 ? `${ids.length} selected image${ids.length === 1 ? "" : "s"}` : "uploads with missing metadata";
+    if (ids.length === 0) {
+      setRefreshStatus({
+        tone: "error",
+        copy: "Select one or more rows before generating metadata and palettes.",
+      });
+      toast.error("Select rows first.");
+      return;
+    }
+    const targetCopy = `${ids.length} selected image${ids.length === 1 ? "" : "s"}`;
     setRefreshBusy(true);
     setRefreshStatus({
       tone: "working",
       copy: `Generating metadata and sampled palettes for ${targetCopy}...`,
-      imageIds: ids.length ? ids : undefined,
+      imageIds: ids,
+      expectMetadata: true,
+      expectPalette: true,
       startedAt: Date.now(),
     });
     try {
@@ -73,39 +94,28 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
       const missingPaletteBefore = selectedImages.filter((image: any) => !image.colors?.length).length;
 
       const r = await enqueueMetadataRefresh({
-        onlyMissing: ids.length === 0,
-        forceAll: ids.length > 0,
-        imageIds: ids.length ? ids : undefined,
+        onlyMissing: false,
+        forceAll: true,
+        imageIds: ids,
       });
       const paletteScheduled = r.paletteScheduled;
+      const scheduledImageIds = (r.scheduledImageIds ?? []) as Id<"images">[];
 
-      if (ids.length) {
-        if (paletteScheduled > 0 || r.metadataScheduled > 0) {
-          setRefreshStatus({
-            tone: "working",
-            copy: `Processing: ${paletteScheduled} palette-first job${paletteScheduled === 1 ? "" : "s"} on the server...`,
-            imageIds: ids,
-            startedAt: Date.now(),
-          });
-        } else {
-          setRefreshStatus({
-            tone: missingPaletteBefore ? "error" : "success",
-            copy: missingPaletteBefore
-              ? `Could not start palette sampling for ${missingPaletteBefore} selected image${missingPaletteBefore === 1 ? "" : "s"}.`
-              : `Selected image${selectedImages.length === 1 ? "" : "s"} already have metadata and palettes.`,
-          });
-        }
-      } else if (r.metadataScheduled === 0 && r.paletteScheduled === 0) {
+      if (paletteScheduled > 0 || r.metadataScheduled > 0) {
         setRefreshStatus({
-          tone: "success",
-          copy: "No uploads with missing metadata or palettes were found.",
+          tone: "working",
+          copy: `Processing ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"} for ${scheduledImageIds.length || ids.length} selected image${(scheduledImageIds.length || ids.length) === 1 ? "" : "s"}...`,
+          imageIds: scheduledImageIds.length ? scheduledImageIds : ids,
+          expectMetadata: r.metadataScheduled > 0,
+          expectPalette: r.paletteScheduled > 0,
+          startedAt: Date.now(),
         });
       } else {
         setRefreshStatus({
-          tone: "working",
-          copy: `Processing ${r.metadataScheduled} metadata and ${r.paletteScheduled} palette job${r.metadataScheduled + r.paletteScheduled === 1 ? "" : "s"}...`,
-          imageIds: ids.length ? ids : undefined,
-          startedAt: Date.now(),
+          tone: missingPaletteBefore ? "error" : "success",
+          copy: missingPaletteBefore
+            ? `Could not start palette sampling for ${missingPaletteBefore} selected image${missingPaletteBefore === 1 ? "" : "s"}.`
+            : `Selected image${selectedImages.length === 1 ? "" : "s"} already have metadata and palettes.`,
         });
       }
     } catch (e) {
@@ -177,9 +187,10 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
       .filter(Boolean);
     if (targets.length !== refreshStatus.imageIds.length) return;
     const pending = targets.filter((image: any) => image.aiStatus === "processing");
-    const failed = targets.filter((image: any) => image.aiStatus === "failed" && !image.colors?.length);
-    const missingPalette = targets.filter((image: any) => !image.colors?.length);
-    if (pending.length === 0 && missingPalette.length === 0) {
+    const failed = targets.filter((image: any) => image.aiStatus === "failed" && (!image.colors?.length || hasMissingMetadata(image)));
+    const missingPalette = refreshStatus.expectPalette === false ? [] : targets.filter((image: any) => !image.colors?.length);
+    const missingMetadata = refreshStatus.expectMetadata === false ? [] : targets.filter(hasMissingMetadata);
+    if (pending.length === 0 && missingPalette.length === 0 && missingMetadata.length === 0) {
       setRefreshStatus({
         tone: "success",
         copy: `Metadata and palettes updated for ${targets.length} selected image${targets.length === 1 ? "" : "s"}.`,
@@ -187,25 +198,31 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     } else if (failed.length > 0) {
       setRefreshStatus({
         tone: "error",
-        copy: `Palette sampling failed for ${failed.length} selected image${failed.length === 1 ? "" : "s"}. Check the image URL and server extraction logs.`,
+        copy: `Metadata or palette generation failed for ${failed.length} selected image${failed.length === 1 ? "" : "s"}. Check the image URL and Convex logs.`,
       });
     } else {
       const elapsed = refreshStatus.startedAt ? Date.now() - refreshStatus.startedAt : 0;
-      if (elapsed > 30000 && pending.length === 0 && missingPalette.length > 0) {
+      if (elapsed > 30000 && pending.length === 0 && (missingPalette.length > 0 || missingMetadata.length > 0)) {
+        const issue = missingPalette.length
+          ? `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}`
+          : `Metadata did not fill required fields for ${missingMetadata.length} selected image${missingMetadata.length === 1 ? "" : "s"}`;
         setRefreshStatus({
           tone: "error",
-          copy: `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}. The server job was queued but did not write colors back.`,
+          copy: `${issue}. The server job finished or stalled without updating the row.`,
         });
         return;
       }
       let timeoutId: number | undefined;
-      if (refreshStatus.startedAt && pending.length === 0 && missingPalette.length > 0) {
+      if (refreshStatus.startedAt && pending.length === 0 && (missingPalette.length > 0 || missingMetadata.length > 0)) {
         timeoutId = window.setTimeout(() => {
           setRefreshStatus((current) => {
             if (!current || current.tone !== "working") return current;
+            const issue = missingPalette.length
+              ? `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}`
+              : `Metadata did not fill required fields for ${missingMetadata.length} selected image${missingMetadata.length === 1 ? "" : "s"}`;
             return {
               tone: "error",
-              copy: `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}. The server job was queued but did not write colors back.`,
+              copy: `${issue}. The server job finished or stalled without updating the row.`,
             };
           });
         }, Math.max(0, 30000 - elapsed));
@@ -215,6 +232,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         const pieces = [];
         if (pending.length) pieces.push(`${pending.length} palette-first job${pending.length === 1 ? "" : "s"} running`);
         if (missingPalette.length) pieces.push(`${missingPalette.length} palette pending`);
+        if (missingMetadata.length) pieces.push(`${missingMetadata.length} metadata pending`);
         const copy = pieces.length ? `Processing: ${pieces.join(", ")}...` : "Finishing metadata and palette updates...";
         return current.copy === copy ? current : { ...current, copy };
       });
@@ -268,7 +286,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         toast.success(`Deleted ${r.removed} image(s).`);
       }
       if (r.skipped > 0) {
-        toast.warning(`${r.skipped} image(s) were skipped because they were missing or not owned by this account.`);
+        toast.warning(`${r.skipped} image(s) were skipped because they were missing or no longer visible.`);
       }
     } catch (e) {
       console.error(e);
@@ -340,7 +358,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {[
-            { label: refreshBusy ? "Generating..." : "Generate Metadata & Palette", onClick: handleRefreshMetadata, disabled: refreshBusy, primary: true },
+            { label: refreshBusy ? "Generating..." : "Generate Metadata & Palette", onClick: handleRefreshMetadata, disabled: selectedCount === 0 || refreshBusy, primary: true },
             { label: "Download Hi-Res", onClick: handleDownloadSelection, disabled: selectedCount === 0 || selectionBusy },
             { label: "New Board", onClick: handleCreateBoard, disabled: selectedCount === 0 || selectionBusy },
             { label: "New Deck", onClick: handleCreateDeck, disabled: selectedCount === 0 || selectionBusy },
@@ -525,7 +543,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
                     />
                     <span className="pd-filter-checkbox-box" aria-hidden="true" />
                   </label>
-                  <div style={{ width: 36, height: 24, background: "#000", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: 48, height: 32, background: "#000", borderRadius: 2, overflow: "hidden" }}>
                     <img src={im.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                 </span>

@@ -72,6 +72,7 @@ export default function App() {
     sanitizeGalleryDisplayMode(localStorage.getItem("pindeck_gallery_display_mode")),
   );
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const libraryImages = useQuery(api.images.list, isAuthenticated ? { limit: 1000 } : "skip");
 
   useEffect(() => {
     localStorage.setItem("pindeck_tweaks", JSON.stringify(tweaks));
@@ -102,6 +103,16 @@ export default function App() {
     setSelectedImage(null);
     setTweaksOpen(false);
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!selectedImage || libraryImages === undefined) return;
+    const freshImage = libraryImages.find((image: any) => image._id === selectedImage._id);
+    if (!freshImage) {
+      setSelectedImage(null);
+      return;
+    }
+    setSelectedImage(freshImage);
+  }, [libraryImages, selectedImage?._id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -200,6 +200,9 @@ export function ImageUploadForm() {
   const [variationDetail, setVariationDetail] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const hasPendingColorSampling = files.some((file) => file.colorStatus === "pending");
+  const hasIncompleteColorSampling = files.some(
+    (file) => file.colorStatus === "failed" || file.colors.length < 5
+  );
   const hasPendingMetadataAnalysis = files.some((file) => file.metadataStatus === "pending");
 
   useEffect(() => {
@@ -279,15 +282,22 @@ export function ImageUploadForm() {
 
     setFiles(prev => [...prev, ...newUploadFiles]);
 
+    const colorPromises = new Map<string, Promise<string[]>>();
+
+    newUploadFiles.forEach((uploadFile) => {
+      const promise = extractColorsFromImage(uploadFile.preview);
+      colorPromises.set(uploadFile.id, promise);
+    });
+
     void Promise.all(
       newUploadFiles.map(async (uploadFile) => {
-        const colors = await extractColorsFromImage(uploadFile.preview);
+        const colors = (await colorPromises.get(uploadFile.id)) ?? [];
         setFiles(prev => prev.map((file) => {
           if (file.id !== uploadFile.id) return file;
           return {
             ...file,
             colors,
-            colorStatus: colors.length > 0 ? "ready" : "failed",
+            colorStatus: colors.length >= 5 ? "ready" : "failed",
           };
         }));
       })
@@ -295,6 +305,7 @@ export function ImageUploadForm() {
 
     void runWithConcurrency(newUploadFiles, ANALYSIS_UPLOAD_CONCURRENCY, async (uploadFile) => {
       try {
+        const sampledColors = (await colorPromises.get(uploadFile.id)) ?? [];
         const imageDataUrl = await fileToAnalysisDataUrl(uploadFile.preview);
         const metadata = await previewUploadMetadata({
           imageDataUrl,
@@ -310,7 +321,7 @@ export function ImageUploadForm() {
             description: file.description || metadata.description || file.description,
             tags: file.tags.length ? file.tags : metadata.tags || [],
             category: metadata.category || file.category,
-            colors: file.colors.length ? file.colors : metadata.colors || [],
+            colors: file.colors.length ? file.colors : sampledColors,
             group: file.group || metadata.group || undefined,
             genre: file.genre || metadata.genre || undefined,
             style: file.style || metadata.style || undefined,
@@ -470,6 +481,10 @@ export function ImageUploadForm() {
     }
     if (hasPendingColorSampling) {
       toast.info("Still sampling image colors. Upload will be ready in a moment.");
+      return;
+    }
+    if (hasIncompleteColorSampling) {
+      toast.error("Color sampling must return 5 sampled colors before upload.");
       return;
     }
     if (hasPendingMetadataAnalysis) {

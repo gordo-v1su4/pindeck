@@ -20,6 +20,7 @@ const LOAD_TIMEOUT_MS_BY_VARIANT: Record<ImageUrlVariant, number> = {
   dense: 2500,
   card: 2500,
   detail: 5000,
+  lightbox: 7000,
 };
 
 export function SmartImage({
