@@ -8,11 +8,6 @@
       "entrypoint": ".",
       "routePrefix": "/",
       "framework": "vite"
-    },
-    "media-gateway": {
-      "entrypoint": "services/media-gateway",
-      "routePrefix": "/_/media-gateway",
-      "framework": "express"
     }
   },
   "rewrites": [
