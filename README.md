@@ -41,6 +41,9 @@ bun run serve
 - Convex production deployment: **self-hosted only**
 - Convex client URL: `https://convex.serving.cloud`
 - Convex HTTP/actions URL: `https://convex-site.serving.cloud`
+- Frontend production project: **Vercel `pindeck`**
+- Frontend production URL: `https://pindeck.dev`
+- Frontend production aliases: `https://www.pindeck.dev`, `https://pindeck-git-main-gordo-v1su4s-projects.vercel.app`, `https://pindeck-gordo-v1su4s-projects.vercel.app`
 - Legacy Convex Cloud deployments have been removed/deleted and must not be used for deploys or frontend env.
 - Discord bot + media gateway deployment source: separate repo `~/Documents/Github/discord-bot`
 
@@ -177,7 +180,9 @@ No Convex MCP is configured or required for production deploys; use the direct s
 
 ### Vercel
 
-Use Vercel for frontend deployment. Pushing to `main` on GitHub triggers the Vercel frontend deploy.
+Use the active Vercel project named **`pindeck`** for frontend deployment. Pushing to `main` on GitHub triggers the production frontend deploy at `https://pindeck.dev`.
+
+If GitHub shows a stale duplicate Vercel project/status context, ignore it when judging production health. The only current frontend production project is `pindeck`.
 
 **Vercel builds** do not use `.env.local`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` to **`https://convex.serving.cloud`** when unset, so previews deploy without extra env. Set `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud` when code needs the HTTP/actions URL.
 

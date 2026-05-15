@@ -91,9 +91,13 @@ Set these in the Convex Project Settings:
 ## Production deployments
 
 - **Convex**: self-hosted at `https://convex.serving.cloud`
-- **Frontend**: Vercel (ensure `VITE_CONVEX_URL` is set)
+- **Frontend**: Vercel project `pindeck`, published at `https://pindeck.dev`
 - **Discord bot**: Hosted separately — see [Discord bot guide](/guides/discord-bot)
 
 <Warning>
 Do not set `CONVEX_DEPLOYMENT`. The old Convex Cloud project has been deleted; the Pindeck production backend is self-hosted at `https://convex.serving.cloud`.
+</Warning>
+
+<Warning>
+Ignore stale duplicate Vercel project/status contexts. Current production deploys and health checks should use only the `pindeck` project and `https://pindeck.dev`.
 </Warning>
