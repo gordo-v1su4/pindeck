@@ -778,6 +778,7 @@ export const persistGeneratedImageFromUrl = internalAction({
       previewUrl: v.string(),
       storagePath: v.string(),
       previewStoragePath: v.string(),
+      colors: v.optional(v.array(v.string())),
       derivativeUrls: v.optional(
         v.object({
           small: v.string(),
