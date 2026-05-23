@@ -7,7 +7,18 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
-  providers: [Password, Anonymous, Google, GitHub],
+  providers: [
+    Password({
+      profile(params) {
+        return {
+          email: String(params.email ?? "").trim().toLowerCase(),
+        };
+      },
+    }),
+    Anonymous,
+    Google,
+    GitHub,
+  ],
 });
 
 export const loggedInUser = query({

@@ -11,10 +11,46 @@ import { FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
+type AuthFlow = "signIn" | "signUp";
+
+function rawAuthMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
+function authToastMessage(flow: AuthFlow, error: unknown) {
+  const message = rawAuthMessage(error);
+
+  if (message.includes("InvalidAccountId")) {
+    return flow === "signIn"
+      ? "No password account found for that email. Create an account first, or use the provider you originally signed in with."
+      : "Could not create account. Please try again.";
+  }
+
+  if (message.includes("InvalidSecret") || message.includes("Invalid password")) {
+    return "Invalid password. Please check your password and try again.";
+  }
+
+  if (message.includes("TooManyFailedAttempts")) {
+    return "Too many failed sign-in attempts. Please wait a bit and try again.";
+  }
+
+  if (message.includes("already exists")) {
+    return "An account with this email already exists. Please sign in instead.";
+  }
+
+  if (message.includes("User not found") || message.includes("not found")) {
+    return flow === "signIn"
+      ? "No account found with this email. Please sign up first."
+      : "Could not create account. Please try again.";
+  }
+
+  return flow === "signIn" ? "Could not sign in. Please try again." : "Could not sign up. Please try again.";
+}
+
 export function SignInForm() {
   const { signIn } = useAuthActions();
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
+  const [flow, setFlow] = useState<AuthFlow>("signIn");
   const [submitting, setSubmitting] = useState(false);
   const [signInStarted, setSignInStarted] = useState(false);
 
@@ -46,7 +82,7 @@ export function SignInForm() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const email = (formData.get("email") as string) || "";
+    const email = ((formData.get("email") as string) || "").trim().toLowerCase();
     const password = (formData.get("password") as string) || "";
 
     if (!email || !password) {
@@ -56,6 +92,7 @@ export function SignInForm() {
 
     setSubmitting(true);
     setSignInStarted(true);
+    formData.set("email", email);
     formData.set("flow", flow);
 
     try {
@@ -72,25 +109,13 @@ export function SignInForm() {
       setSubmitting(false);
       setSignInStarted(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = rawAuthMessage(error);
 
       if (message.includes("already exists")) {
-        toast.error("An account with this email already exists. Please sign in instead.");
+        toast.error(authToastMessage(flow, error));
         setFlow("signIn");
-      } else if (message.includes("InvalidSecret") || message.includes("Invalid password")) {
-        toast.error("Invalid password. Please check your password and try again.");
-      } else if (message.includes("User not found") || message.includes("not found")) {
-        toast.error(
-          flow === "signIn"
-            ? "No account found with this email. Please sign up first."
-            : "Could not create account. Please try again."
-        );
       } else {
-        toast.error(
-          flow === "signIn"
-            ? `Could not sign in: ${message}`
-            : `Could not sign up: ${message}`
-        );
+        toast.error(authToastMessage(flow, error));
       }
 
       setSignInStarted(false);
@@ -101,7 +126,7 @@ export function SignInForm() {
   const handleProviderSignIn = (provider: "google" | "github", label: string) => {
     setSubmitting(true);
     void signIn(provider).catch((error) => {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = rawAuthMessage(error);
       toast.error(`${label} sign-in failed: ${message}`);
       setSubmitting(false);
       setSignInStarted(false);
@@ -115,7 +140,7 @@ export function SignInForm() {
     try {
       await signIn("anonymous");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = rawAuthMessage(error);
       toast.error(`Guest sign-in failed: ${message}`);
       setSubmitting(false);
       setSignInStarted(false);
