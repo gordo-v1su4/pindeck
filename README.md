@@ -80,6 +80,8 @@ For Convex function deploys:
 - `CONVEX_SELF_HOSTED_ADMIN_KEY=<self-hosted admin key>`
 - Do **not** set `CONVEX_DEPLOYMENT` for Pindeck production.
 
+GitHub Actions deploys Convex on pushes to `main` that touch `convex/**` or deploy tooling. The repository must have a GitHub secret named `CONVEX_SELF_HOSTED_ADMIN_KEY`.
+
 ## Scripts
 
 - `bun run check:prod-target` - Verify local env is pinned to self-hosted production Convex
