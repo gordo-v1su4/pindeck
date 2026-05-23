@@ -20,4 +20,4 @@ if [ -z "${DISCORD_TOKEN:-}" ]; then
   exit 1
 fi
 
-exec npx -y @chinchillaenterprises/mcp-discord "$@"
+exec bunx @chinchillaenterprises/mcp-discord "$@"

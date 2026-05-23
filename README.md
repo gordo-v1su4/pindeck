@@ -182,7 +182,7 @@ No Convex MCP is configured or required for production deploys; use the direct s
 
 ### Vercel
 
-Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `npx convex deploy --cmd 'bun run build'`, so Convex functions deploy through the same push build instead of a separate GitHub Actions workflow.
+Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bunx convex deploy --cmd 'bun run build'`, so Convex functions deploy through the same push build instead of a separate GitHub Actions workflow.
 
 If GitHub shows a stale duplicate Vercel project/status context, ignore it when judging production health. The only current frontend production project is `pindeck`.
 

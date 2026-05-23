@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx convex deploy --cmd 'bun run build'",
+  "buildCommand": "bunx convex deploy --cmd 'bun run build'",
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "devCommand": "bun run dev:frontend",
