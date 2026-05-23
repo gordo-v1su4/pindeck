@@ -1,0 +1,40 @@
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]: P/
+        - generic [ref=e11]:
+          - generic [ref=e12]: PIN
+          - generic [ref=e13]: DECK
+      - paragraph [ref=e14]: Visual ref system
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - button "Sign in" [ref=e17]
+        - button "Create account" [ref=e18]
+      - heading "Welcome back" [level=1] [ref=e20]
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - generic [ref=e25]: email
+              - textbox "email" [ref=e26]:
+                - /placeholder: name@example.com
+            - generic [ref=e27]:
+              - generic [ref=e28]: password
+              - textbox "password" [ref=e29]
+          - button "Loading Signing in..." [disabled]:
+            - status "Loading"
+            - text: Signing in...
+        - generic [ref=e32]: Or continue with
+        - generic [ref=e33]:
+          - button "GitHub" [disabled]:
+            - img
+            - text: GitHub
+          - button "Google" [disabled]:
+            - img
+            - text: Google
+        - button "Continue as guest" [disabled]:
+          - img
+          - text: Continue as guest
+      - generic [ref=e37]: Terms of Service and Privacy Policy
+  - region "Notifications alt+T"

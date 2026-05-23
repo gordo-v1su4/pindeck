@@ -1,0 +1,145 @@
+- generic [ref=e4]:
+  - complementary [ref=e38]:
+    - generic [ref=e39]:
+      - generic [ref=e40]: P/
+      - generic [ref=e41]: PINDECK
+    - generic [ref=e42]:
+      - button "Gallery G" [ref=e43]:
+        - img [ref=e44]
+        - generic [ref=e48]: Gallery
+        - generic [ref=e49]: G
+      - button "Table T" [ref=e50]:
+        - img [ref=e51]
+        - generic [ref=e53]: Table
+        - generic [ref=e54]: T
+      - button "Boards B" [ref=e55]:
+        - img [ref=e56]
+        - generic [ref=e61]: Boards
+        - generic [ref=e62]: B
+      - button "Decks D" [ref=e63]:
+        - img [ref=e64]
+        - generic [ref=e67]: Decks
+        - generic [ref=e68]: D
+      - button "Upload U" [ref=e69]:
+        - img [ref=e70]
+        - generic [ref=e73]: Upload
+        - generic [ref=e74]: U
+    - generic [ref=e75]:
+      - generic [ref=e76]:
+        - generic [ref=e77]: View
+        - generic [ref=e78]:
+          - button "Random" [ref=e79]:
+            - img [ref=e80]
+            - generic [ref=e84]: Random
+          - button "Project Rows" [ref=e85]:
+            - img [ref=e86]
+            - generic [ref=e88]: Project Rows
+          - button "SREF Rows" [ref=e89]:
+            - img [ref=e90]
+            - generic [ref=e92]: SREF Rows
+      - generic [ref=e93]:
+        - generic [ref=e94]: Type
+        - button "Film 3" [ref=e96] [cursor=pointer]:
+          - generic [ref=e97]: Film
+          - generic [ref=e98]: "3"
+        - generic [ref=e99]: Genre
+        - button "Drama" [ref=e101] [cursor=pointer]
+        - generic [ref=e102]: Style / medium
+        - button "Digital" [ref=e104] [cursor=pointer]
+        - generic [ref=e105]:
+          - generic [ref=e106]: Filters
+          - button "Clear" [ref=e107] [cursor=pointer]
+        - generic [ref=e108] [cursor=pointer]:
+          - checkbox "Originals only"
+          - text: Originals only
+        - generic [ref=e110] [cursor=pointer]:
+          - checkbox "Has sref"
+          - text: Has sref
+    - generic [ref=e114]: convex · live
+  - generic [ref=e115]:
+    - banner [ref=e116]:
+      - generic [ref=e117]:
+        - img [ref=e118]
+        - textbox "Search titles, tags, srefs…" [ref=e121]
+        - generic [ref=e122]: ⌘K
+      - generic [ref=e123]:
+        - generic [ref=e124]: gallery
+        - generic [ref=e125]: /
+        - generic [ref=e126]: Pindeck Library
+      - generic [ref=e127]:
+        - generic "Filters controls live in the left rail and table headers" [ref=e128]:
+          - img [ref=e129]
+          - text: Filters
+        - generic "Sort controls live in the left rail and table headers" [ref=e131]:
+          - img [ref=e132]
+          - text: Sort
+      - generic [ref=e135]:
+        - button "Gallery" [ref=e136]:
+          - img [ref=e137]
+          - generic [ref=e141]: Gallery
+        - button "Table" [ref=e142]:
+          - img [ref=e143]
+          - generic [ref=e145]: Table
+        - button "Boards" [ref=e146]:
+          - img [ref=e147]
+          - generic [ref=e152]: Boards
+      - button "Tweaks" [ref=e153]:
+        - img [ref=e154]
+      - generic [ref=e157]:
+        - generic [ref=e158]: Guest
+        - button "Sign out" [ref=e159]:
+          - img
+          - text: Sign out
+    - generic [ref=e163]:
+      - button "Night Street Scream VAR Like Zoom image Download high-res Save to board" [ref=e164] [cursor=pointer]:
+        - generic [ref=e166]:
+          - img "Night Street Scream" [ref=e167]
+          - generic [ref=e168]:
+            - img [ref=e169]
+            - text: VAR
+          - generic:
+            - button "Like":
+              - img
+            - button "Zoom image":
+              - img
+            - button "Download high-res":
+              - generic: ↓
+            - button "Save to board":
+              - img
+      - button "Night's Embrace Like Zoom image Download high-res Save to board" [ref=e172] [cursor=pointer]:
+        - generic [ref=e174]:
+          - img "Night's Embrace" [ref=e175]
+          - generic:
+            - button "Like":
+              - img
+            - button "Zoom image":
+              - img
+            - button "Download high-res":
+              - generic: ↓
+            - button "Save to board":
+              - img
+      - button "Rain-Soaked Scream VAR Like Zoom image Download high-res Save to board" [ref=e176] [cursor=pointer]:
+        - generic [ref=e178]:
+          - img "Rain-Soaked Scream" [ref=e179]
+          - generic [ref=e180]:
+            - img [ref=e181]
+            - text: VAR
+          - generic:
+            - button "Like":
+              - img
+            - button "Zoom image":
+              - img
+            - button "Download high-res":
+              - generic: ↓
+            - button "Save to board":
+              - img
+    - generic [ref=e184]:
+      - generic [ref=e185]: ● convex · live
+      - generic [ref=e186]: ·
+      - generic [ref=e187]: gallery
+      - generic [ref=e188]: "accent #3a7bff"
+      - generic [ref=e189]: ·
+      - generic [ref=e190]: comfortable
+      - generic [ref=e191]: ·
+      - generic [ref=e192]: bordered
+  - region "Notifications alt+T"

@@ -9,6 +9,7 @@ import {
 } from "@radix-ui/react-icons";
 import { Button, Select } from "@radix-ui/themes";
 import { toast } from "sonner";
+import "./DeckComposer.css";
 import { DeckCanvasPage } from "./DeckCanvasPage";
 import { DeckSection } from "./DeckSection";
 import type {
@@ -1752,7 +1753,7 @@ export function DeckComposer({
           <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#050507]">
             <div className="px-6 py-6">
               {selectedBlock && !isPreviewMode ? (
-                <div className="mx-auto mb-3 flex w-full max-w-[620px] flex-wrap items-center justify-between gap-3 border border-white/8 bg-[#0b0b0d] px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                <div className="deck-selected-bar mx-auto mb-3 flex w-full max-w-[620px] flex-wrap items-center justify-between gap-3 border border-white/8 bg-[#0b0b0d] px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-white/45">
                   <span>
                     Selected ·{" "}
                     <span className="text-white/78">
@@ -1765,7 +1766,7 @@ export function DeckComposer({
                   </span>
                 </div>
               ) : null}
-              <div ref={previewRef} className="mx-auto w-full max-w-[620px]">
+              <div ref={previewRef} className="deck-preview-frame mx-auto w-full max-w-[620px]">
                 <DeckCanvasPage
                   title={title}
                   blocks={blocks}

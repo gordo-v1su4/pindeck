@@ -1,0 +1,5 @@
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - img [ref=e7]
+    - generic [ref=e9]: Loading session...
+  - region "Notifications alt+T"

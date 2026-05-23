@@ -1,0 +1,253 @@
+.deck-scope {
+  --deck-bg: #050506;
+  --deck-panel: #0c0c10;
+  --deck-panel-raised: #111117;
+  --deck-panel-soft: rgba(255, 255, 255, 0.028);
+  --deck-line: rgba(255, 255, 255, 0.08);
+  --deck-line-strong: rgba(255, 255, 255, 0.14);
+  --deck-text: rgba(245, 247, 250, 0.88);
+  --deck-text-soft: rgba(245, 247, 250, 0.58);
+  --deck-text-faint: rgba(245, 247, 250, 0.32);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 180px),
+    var(--deck-bg);
+  color: var(--deck-text);
+}
+
+.deck-scope,
+.deck-scope * {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.deck-scope ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.deck-scope ::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  background-clip: padding-box;
+}
+
+.deck-scope ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+  background-clip: padding-box;
+}
+
+.deck-scope aside {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 260px),
+    var(--deck-panel);
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.035) inset;
+}
+
+.deck-scope aside section {
+  position: relative;
+}
+
+.deck-scope aside section + section::before {
+  position: absolute;
+  top: -16px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--deck-line), transparent);
+  content: "";
+}
+
+.deck-scope input[type="text"],
+.deck-scope input:not([type]) {
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.deck-scope input[type="text"]:focus,
+.deck-scope input:not([type]):focus {
+  border-color: color-mix(in srgb, var(--pd-accent) 50%, var(--deck-line));
+  background: rgba(18, 18, 24, 0.92);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--pd-accent) 24%, transparent),
+    0 14px 28px -24px color-mix(in srgb, var(--pd-accent) 60%, transparent);
+}
+
+.deck-scope button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.deck-scope button:focus-visible,
+.deck-scope [role="button"]:focus-visible,
+.deck-scope [data-radix-collection-item]:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--pd-accent) 62%, transparent);
+  outline-offset: 2px;
+}
+
+.deck-scope button:active {
+  transform: translateY(1px);
+}
+
+.deck-scope button[title^="Reference"],
+.deck-scope button[title^="PRI"],
+.deck-scope button[title^="SEC"],
+.deck-scope button[title^="ACC"],
+.deck-scope button[title^="DAR"],
+.deck-scope button[title^="LIQ"] {
+  transition:
+    border-color 150ms ease,
+    filter 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.deck-scope button[title^="Reference"]:hover,
+.deck-scope button[title^="PRI"]:hover,
+.deck-scope button[title^="SEC"]:hover,
+.deck-scope button[title^="ACC"]:hover,
+.deck-scope button[title^="DAR"]:hover,
+.deck-scope button[title^="LIQ"]:hover {
+  filter: brightness(1.08) saturate(1.05);
+  transform: translateY(-1px);
+}
+
+.deck-composer-select :is(button, [role="combobox"]) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.deck-composer-select :is(button, [role="combobox"]):hover {
+  border-color: var(--deck-line-strong) !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+}
+
+.deck-composer-select-content {
+  border: 1px solid var(--deck-line-strong) !important;
+  border-radius: 5px !important;
+  background: rgba(11, 11, 15, 0.96) !important;
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.94) !important;
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+.deck-rect-range {
+  --deck-range-track: rgba(255, 255, 255, 0.1);
+}
+
+.deck-rect-range:focus-visible {
+  outline: none;
+}
+
+.deck-rect-range:focus-visible::-webkit-slider-thumb {
+  border-color: color-mix(in srgb, var(--pd-accent) 60%, white 12%);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--pd-accent) 20%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.deck-rect-range:focus-visible::-moz-range-thumb {
+  border-color: color-mix(in srgb, var(--pd-accent) 60%, white 12%);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--pd-accent) 20%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.deck-scope main {
+  background: linear-gradient(180deg, #070709, #050506);
+}
+
+.deck-scope main > div {
+  min-height: 100%;
+}
+
+.deck-scope [class*="sticky"][class*="top-0"] {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.035),
+    0 18px 44px -30px rgba(0, 0, 0, 0.9);
+}
+
+.deck-preview-frame,
+.deck-selected-bar {
+  max-width: min(720px, calc(100vw - 24px));
+}
+
+.deck-canvas-page {
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 140px),
+    #050507;
+  box-shadow:
+    0 28px 70px -52px rgba(0, 0, 0, 0.98),
+    0 1px 0 rgba(255, 255, 255, 0.035) inset;
+}
+
+.deck-canvas-page .slide-block {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 20px 40px -34px rgba(0, 0, 0, 0.95),
+    0 1px 0 rgba(255, 255, 255, 0.025) inset;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.deck-canvas-page .slide-block:hover {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.deck-canvas-page .slide-block[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--pd-accent) 54%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--pd-accent) 30%, transparent),
+    0 22px 48px -34px color-mix(in srgb, var(--pd-accent) 34%, black);
+}
+
+.deck-canvas-page .slide-block[data-selected="true"]::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--pd-accent) 34%, transparent);
+  content: "";
+}
+
+.deck-scope [class*="snap-y"] .slide-block {
+  background: #050507;
+}
+
+@media (max-width: 1023px) {
+  .deck-scope {
+    min-height: 100%;
+  }
+
+  .deck-scope aside {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: min(340px, calc(100vw - 28px));
+    box-shadow:
+      1px 0 0 rgba(255, 255, 255, 0.05) inset,
+      28px 0 80px -44px rgba(0, 0, 0, 0.96);
+  }
+
+  .deck-scope [class*="sticky"][class*="top-0"] {
+    padding: 12px 14px;
+  }
+
+  .deck-scope main > div {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-scope *,
+  .deck-scope *::before,
+  .deck-scope *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+}
