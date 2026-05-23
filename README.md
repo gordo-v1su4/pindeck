@@ -141,26 +141,12 @@ bun install
 bun run dev
 ```
 
-### Hostinger SSH
-
-The Discord bot and media gateway are hosted on the Hostinger machine below and should be managed from the separate `discord-bot` repo:
-
-- Hostname: `srv1353991`
-- Public IP: `187.77.8.227`
-- Tailscale IP: `100.105.199.93`
-- User: `root`
-
-Connect with:
-
-```bash
-ssh root@187.77.8.227
-```
+### Discord Bot Deployment
 
 Notes:
-- The preferred deploy path is direct SSH over the public IP, including GitHub Actions.
-- Tailscale SSH remains a fallback operator path if public access is unavailable.
-- The deployment repo on that host is `/root/discord-bot`.
-- Pushing to `main` in the separate `discord-bot` repo can trigger the Hostinger deploy workflow when `HOSTINGER_SSH_KEY` is configured in GitHub Actions.
+- Manage the Discord bot and media gateway from the separate `discord-bot` repo.
+- Keep hostnames, IP addresses, usernames, and SSH targets out of this repository.
+- Pushing to `main` in the separate `discord-bot` repo can trigger its deploy workflow when the required GitHub Actions secrets are configured.
 
 ## Deploy
 
