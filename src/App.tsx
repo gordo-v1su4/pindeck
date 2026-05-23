@@ -228,7 +228,7 @@ export default function App() {
               <TableView search={search} onOpenImage={setSelectedImage} libraryFilter={libraryFilter} />
             )}
             {view === "boards" && (
-              <BoardsView onOpenDeck={openDeck} />
+              <BoardsView onOpenDeck={openDeck} onOpenImage={setSelectedImage} />
             )}
             {view === "deck" && (
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">

@@ -8,6 +8,24 @@ const DECK_TEMPLATE = {
   layout: "single-image",
 };
 
+function canUseImageInSelection(image: { uploadedBy: string; status?: string }, userId: string) {
+  return image.uploadedBy === userId || image.status === "active" || image.status === undefined;
+}
+
+async function requireDeckCreator(ctx: any) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Must be logged in to create decks");
+  }
+
+  const user = await ctx.db.get(userId);
+  if (!user || user.isAnonymous) {
+    throw new Error("Please log in to create a deck.");
+  }
+
+  return userId;
+}
+
 async function imagePreviewUrl(
   ctx: QueryCtx,
   imageId: Id<"images">,
@@ -213,20 +231,17 @@ export const createFromImages = mutation({
   },
   returns: v.id("decks"),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to create decks");
-    }
+    const userId = await requireDeckCreator(ctx);
 
     const imageIds: Array<typeof args.imageIds[number]> = [];
     for (const imageId of args.imageIds) {
       const image = await ctx.db.get(imageId);
-      if (!image || image.uploadedBy !== userId) continue;
+      if (!image || !canUseImageInSelection(image, userId)) continue;
       if (!imageIds.includes(imageId)) imageIds.push(imageId);
     }
 
     if (imageIds.length === 0) {
-      throw new Error("Select at least one image you own.");
+      throw new Error("Select at least one visible library image.");
     }
 
     const name = args.title?.trim() || `Selection ${new Date().toLocaleDateString("en-US")}`;

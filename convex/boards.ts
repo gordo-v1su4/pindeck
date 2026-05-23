@@ -2,6 +2,24 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
+function canUseImageInSelection(image: { uploadedBy: string; status?: string }, userId: string) {
+  return image.uploadedBy === userId || image.status === "active" || image.status === undefined;
+}
+
+async function requireBoardCreator(ctx: any) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Must be logged in to create boards");
+  }
+
+  const user = await ctx.db.get(userId);
+  if (!user || user.isAnonymous) {
+    throw new Error("Please log in to create a board.");
+  }
+
+  return userId;
+}
+
 export const list = query({
   args: {},
   returns: v.array(v.object({
@@ -184,20 +202,17 @@ export const createFromImages = mutation({
   },
   returns: v.id("collections"),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to create boards");
-    }
+    const userId = await requireBoardCreator(ctx);
 
     const imageIds: Array<typeof args.imageIds[number]> = [];
     for (const imageId of args.imageIds) {
       const image = await ctx.db.get(imageId);
-      if (!image || image.uploadedBy !== userId) continue;
+      if (!image || !canUseImageInSelection(image, userId)) continue;
       if (!imageIds.includes(imageId)) imageIds.push(imageId);
     }
 
     if (imageIds.length === 0) {
-      throw new Error("Select at least one image you own.");
+      throw new Error("Select at least one visible library image.");
     }
 
     return await ctx.db.insert("collections", {

@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
+import { Tooltip } from "@radix-ui/themes";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
 import { downloadImages } from "@/lib/imageDownload";
@@ -47,6 +48,7 @@ interface TableViewProps {
 
 export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
   const images = useQuery(api.images.list, { limit: 1000 });
+  const loggedInUser = useQuery(api.auth.loggedInUser);
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
   const removeMany = useMutation(api.images.removeMany);
   const createBoardFromImages = useMutation(api.boards.createFromImages);
@@ -154,6 +156,8 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
 
   const filteredIds = useMemo(() => filtered.map((im) => im._id as Id<"images">), [filtered]);
   const selectedCount = selectedIds.size;
+  const isGuest = loggedInUser?.isAnonymous === true;
+  const authStateLoading = loggedInUser === undefined;
   const allVisibleSelected =
     filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
 
@@ -245,6 +249,10 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
   const handleCreateBoard = useCallback(async () => {
     const ids = selectedArray();
     if (ids.length === 0) return;
+    if (isGuest) {
+      toast.error("Please sign up or sign in to create a board.");
+      return;
+    }
     setSelectionBusy(true);
     try {
       const boardId = await createBoardFromImages({ imageIds: ids });
@@ -256,11 +264,15 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     } finally {
       setSelectionBusy(false);
     }
-  }, [createBoardFromImages, selectedArray]);
+  }, [createBoardFromImages, isGuest, selectedArray]);
 
   const handleCreateDeck = useCallback(async () => {
     const ids = selectedArray();
     if (ids.length === 0) return;
+    if (isGuest) {
+      toast.error("Please sign up or sign in to create a deck.");
+      return;
+    }
     setSelectionBusy(true);
     try {
       const deckId = await createDeckFromImages({ imageIds: ids });
@@ -272,7 +284,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
     } finally {
       setSelectionBusy(false);
     }
-  }, [createDeckFromImages, selectedArray]);
+  }, [createDeckFromImages, isGuest, selectedArray]);
 
   const handleDeleteSelection = useCallback(async () => {
     const ids = selectedArray();
@@ -354,49 +366,73 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         }}
       >
         <div className="pd-mono" style={{ fontSize: 10, color: selectedCount ? "var(--pd-accent-ink)" : "var(--pd-ink-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-          {selectedCount ? `${selectedCount} selected` : "Select rows for batch actions"}
+          {selectedCount
+            ? isGuest
+              ? `${selectedCount} selected · sign in to save boards/decks`
+              : `${selectedCount} selected`
+            : "Select rows for batch actions"}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {[
             { label: refreshBusy ? "Generating..." : "Generate Metadata & Palette", onClick: handleRefreshMetadata, disabled: selectedCount === 0 || refreshBusy, primary: true },
             { label: "Download Hi-Res", onClick: handleDownloadSelection, disabled: selectedCount === 0 || selectionBusy },
-            { label: "New Board", onClick: handleCreateBoard, disabled: selectedCount === 0 || selectionBusy },
-            { label: "New Deck", onClick: handleCreateDeck, disabled: selectedCount === 0 || selectionBusy },
+            {
+              label: "New Board",
+              onClick: handleCreateBoard,
+              disabled: selectedCount === 0 || selectionBusy || authStateLoading || isGuest,
+              tooltip: isGuest ? "Please log in to create a board." : undefined,
+            },
+            {
+              label: "New Deck",
+              onClick: handleCreateDeck,
+              disabled: selectedCount === 0 || selectionBusy || authStateLoading || isGuest,
+              tooltip: isGuest ? "Please log in to create a deck." : undefined,
+            },
             { label: "Delete Selection", onClick: () => setDeleteConfirmOpen(true), disabled: selectedCount === 0 || selectionBusy, danger: true },
-          ].map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              disabled={action.disabled}
-              onClick={(e) => {
-                e.stopPropagation();
-                void action.onClick();
-              }}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 10.5,
-                padding: "4px 8px",
-                borderRadius: 4,
-                border: action.danger ? "1px solid rgba(239,67,67,0.28)" : action.primary ? "1px solid transparent" : "1px solid transparent",
-                background: action.danger
-                  ? "rgba(239,67,67,0.1)"
-                  : action.primary
-                    ? "var(--pd-accent-soft)"
-                    : "rgba(255,255,255,0.025)",
-                color: action.danger
-                  ? "rgba(255,190,190,0.9)"
-                  : action.primary
-                    ? "var(--pd-accent-ink)"
-                    : "var(--pd-ink-dim)",
-                cursor: action.disabled ? "not-allowed" : "pointer",
-                opacity: action.disabled ? 0.45 : 1,
-              }}
-            >
-              {action.label}
-            </button>
-          ))}
+          ].map((action) => {
+            const button = (
+              <button
+                type="button"
+                disabled={action.disabled}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void action.onClick();
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10.5,
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  border: action.danger ? "1px solid rgba(239,67,67,0.28)" : action.primary ? "1px solid transparent" : "1px solid transparent",
+                  background: action.danger
+                    ? "rgba(239,67,67,0.1)"
+                    : action.primary
+                      ? "var(--pd-accent-soft)"
+                      : "rgba(255,255,255,0.025)",
+                  color: action.danger
+                    ? "rgba(255,190,190,0.9)"
+                    : action.primary
+                      ? "var(--pd-accent-ink)"
+                      : "var(--pd-ink-dim)",
+                  cursor: action.disabled ? "not-allowed" : "pointer",
+                  opacity: action.disabled ? 0.45 : 1,
+                  pointerEvents: action.tooltip ? "none" : undefined,
+                }}
+              >
+                {action.label}
+              </button>
+            );
+
+            return action.tooltip ? (
+              <Tooltip key={action.label} content={action.tooltip} className="pd-tooltip">
+                <span style={{ display: "inline-flex" }}>{button}</span>
+              </Tooltip>
+            ) : (
+              <React.Fragment key={action.label}>{button}</React.Fragment>
+            );
+          })}
         </div>
       </div>
       {(refreshStatus || deleteConfirmOpen) && (
