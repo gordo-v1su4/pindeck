@@ -287,6 +287,32 @@ Do not inline unrelated HTTP action handlers into `convex/http.ts` only to quiet
 this warning; that would trade a noisy source-position warning for worse module
 ownership. The current imported-handler shape is normal Convex usage.
 
+Confirmed Pindeck route sources as of 2026-05-24:
+
+- `convex/http.ts` owns router construction and route registration.
+- `/smartAnalyzeImage` is registered in `convex/http.ts` but the handler is
+  imported from `convex/vision.ts`.
+- `/ingestExternal`, `/admin/backfillNextcloud`,
+  `/admin/quarantineBrokenNextcloud`, `/discordQueue`, `/discordModerate`, and
+  legacy Discord aliases are registered in `convex/http.ts` but the handlers are
+  imported from `convex/images.ts`.
+- `auth.addHttpRoutes(http)` from `@convex-dev/auth` injects
+  `/.well-known/openid-configuration`, `/.well-known/jwks.json`,
+  `/api/auth/signin/*`, and `/api/auth/callback/*` routes. Those handlers live
+  in the auth package, not in Pindeck's `convex/http.ts`.
+
+Those imported/package-owned handlers explain why the analyzer sees valid routes
+from `http.getRoutes()` but cannot always map the handler function origin back to
+`http.js`. Runtime routing is still valid; this warning affects dashboard/source
+position metadata only.
+
+Related upstream source anchors from the 2026-05-24 trace:
+
+- Convex router route listing:
+  `get-convex/convex-backend/npm-packages/convex/src/server/router.ts#L231-L256`
+- Convex Auth injected HTTP routes:
+  `get-convex/convex-auth/src/server/implementation/index.ts#L185-L195`
+
 The same deployment may also log messages like:
 
 ```text
@@ -298,8 +324,10 @@ WARN model::components::config: Module not in functions: convex.config.js
 Root cause: Convex source packages include support modules, generated `_deps`,
 schema/config modules, and other files that are not themselves exported Convex
 functions. The backend fills in default analysis for those modules and currently
-logs that path as a warning. Treat this as backend noise unless it is paired
-with a deploy failure.
+logs that path as a warning. In upstream Convex backend source, the comment above
+this warning explicitly calls out extra modules such as `_deps/*`; the Convex CLI
+bundler also defaults split dependency chunks into `_deps`. Treat this as backend
+noise unless it is paired with a deploy failure.
 
 Upstream source reference:
 
