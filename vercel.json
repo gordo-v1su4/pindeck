@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bunx convex deploy --cmd 'bun run build'",
+  "buildCommand": "bun run build",
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "devCommand": "bun run dev:frontend",

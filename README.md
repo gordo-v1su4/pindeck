@@ -80,12 +80,12 @@ For Convex function deploys:
 - `CONVEX_SELF_HOSTED_ADMIN_KEY=<self-hosted admin key>`
 - Do **not** set `CONVEX_DEPLOYMENT` for Pindeck production.
 
-GitHub Actions deploys Convex on pushes to `main` that touch `convex/**` or deploy tooling. The repository must have a GitHub secret named `CONVEX_SELF_HOSTED_ADMIN_KEY`.
+Vercel deploys Convex during the production build. Keep `CONVEX_SELF_HOSTED_ADMIN_KEY` configured in the Vercel project environment so `bun run build` can run the deploy wrapper on pushes to `main`.
 
 ## Scripts
 
 - `bun run check:prod-target` - Verify local env is pinned to self-hosted production Convex
-- `bun run build` - Production build (`vite build`)
+- `bun run build` - Local production frontend build (`vite build`); on Vercel this deploys Convex first, then builds the frontend.
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
 - `bun run deploy:convex` - Deploy Convex functions
 
@@ -168,7 +168,7 @@ No Convex MCP is configured or required for production deploys; use the direct s
 
 ### Vercel
 
-Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bunx convex deploy --cmd 'bun run build'`, so Convex functions deploy through the same push build instead of a separate GitHub Actions workflow.
+Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bun run build`, and `scripts/build.sh` runs `bunx convex deploy --cmd 'bun run build:frontend'` on Vercel so Convex functions deploy through the same push build instead of a separate GitHub Actions workflow.
 
 If GitHub shows a stale duplicate Vercel project/status context, ignore it when judging production health. The only current frontend production project is `pindeck`.
 

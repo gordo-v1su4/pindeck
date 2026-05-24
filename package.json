@@ -12,9 +12,10 @@
     "dev:backend": "convex dev",
     "discord:bot": "bash ./scripts/run-discord-bot.sh",
     "discord:bot:dry-run": "cd services/discord-bot && DISCORD_DRY_RUN=1 bun src/index.js",
-    "build": "bun run check:prod-target && vite build",
+    "build": "bash ./scripts/build.sh",
+    "build:frontend": "bun run check:prod-target && vite build",
     "serve": "bun run check:prod-target && PORT=4173 bun run kill-port && vite preview --host 0.0.0.0 --port 4173",
-    "deploy:convex": "bun run check:prod-target && convex deploy",
+    "deploy:convex": "bun run check:prod-target && bunx convex deploy",
     "lint": "bun run check:prod-target && tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
   },
   "dependencies": {
