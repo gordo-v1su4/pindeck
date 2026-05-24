@@ -182,12 +182,24 @@ ssh -i ~/.ssh/hostinger-vps root@serving.cloud \
   'docker manifest inspect ghcr.io/get-convex/convex-backend:latest | jq -r ".manifests[]? | select(.platform.architecture==\"amd64\" and .platform.os==\"linux\") | .digest"'
 ```
 
-Check compose image tags:
+Check compose image tags/digests:
 
 ```bash
 ssh -i ~/.ssh/hostinger-vps root@serving.cloud \
   'grep -n "image: ghcr.io/get-convex/convex-" /docker/convex-wv5d/docker-compose.yml'
 ```
+
+As of 2026-05-24, the Hostinger compose file is intentionally pinned to the
+known-good images that were already running:
+
+```text
+ghcr.io/get-convex/convex-backend@sha256:f452b899806e76c7ab2876f3a7f18b21746c628bce0416eed03ad1e0d25ed0dd
+ghcr.io/get-convex/convex-dashboard@sha256:8d0c08bf1207ffe7a883f199cc8ff8da35135e67b661b786e3a3f4bf44e20000
+```
+
+That pin is a stability guard, not an upgrade. Do not replace it with `latest`
+or move it forward without the export, maintenance, and verification steps
+below.
 
 Current upstream release check:
 
@@ -234,10 +246,25 @@ not smooth, use the export/import path instead.
 ## Known Warning Pattern
 
 During deployment, the Hostinger backend logs may show deploy-analyzer warnings
-if Convex cannot statically resolve HTTP routes, for example:
+if Convex cannot map HTTP route handlers back to a source position inside
+`convex/http.ts`, for example:
 
 ```text
 WARN isolate::environment::analyze: Failed to resolve http.js:/ingestExternal
+```
+
+Root cause: Convex's backend analyzer calls the router's `getRoutes()` method,
+then tries to resolve each route handler's V8 script origin and source map back
+to `http.js`. If the handler lives in another bundled module, such as an action
+imported from `images.ts` or a handler added by `@convex-dev/auth`, the route is
+valid but the analyzer cannot attach a `http.js` source position. The backend
+currently logs that as a warning.
+
+Upstream source reference, current latest non-prerelease release as of
+2026-05-24:
+
+```text
+https://github.com/get-convex/convex-backend/blob/precompiled-2026-05-18-c3ac00a/crates/isolate/src/environment/analyze.rs#L921-L950
 ```
 
 Treat those as cleanup targets, not automatic outages. Confirm runtime health
@@ -255,3 +282,32 @@ despite that shape, compare the local Convex CLI version, the deployed function
 version, and the Hostinger backend image digest. Consider a pinned
 backend/dashboard upgrade only in a planned maintenance window with an export
 and rollback path.
+
+Do not inline unrelated HTTP action handlers into `convex/http.ts` only to quiet
+this warning; that would trade a noisy source-position warning for worse module
+ownership. The current imported-handler shape is normal Convex usage.
+
+The same deployment may also log messages like:
+
+```text
+WARN model::components::config: Module not in functions: _deps/...
+WARN model::components::config: Module not in functions: schema.js
+WARN model::components::config: Module not in functions: convex.config.js
+```
+
+Root cause: Convex source packages include support modules, generated `_deps`,
+schema/config modules, and other files that are not themselves exported Convex
+functions. The backend fills in default analysis for those modules and currently
+logs that path as a warning. Treat this as backend noise unless it is paired
+with a deploy failure.
+
+Upstream source reference:
+
+```text
+https://github.com/get-convex/convex-backend/blob/precompiled-2026-05-18-c3ac00a/crates/model/src/components/config.rs#L149-L156
+```
+
+Current local cleanup note: if local dry runs report a function-version
+downgrade, check `bunx convex --version` and `node_modules/convex/package.json`.
+This repo's committed `bun.lock` resolves Convex `1.34.1`; stale local
+`node_modules` can make local CLI behavior look older than Vercel's install.
