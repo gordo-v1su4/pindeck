@@ -166,6 +166,9 @@ CONVEX_SELF_HOSTED_ADMIN_KEY=...
 Do **not** set `CONVEX_DEPLOYMENT`; the old Convex Cloud project has been deleted and Pindeck production uses the self-hosted Convex target above.
 No Convex MCP is configured or required for production deploys; use the direct self-hosted Convex CLI target above.
 
+For self-hosted Convex health checks, Hostinger VPS container logs, and safe
+agent access commands, see [`docs/self-hosted-convex-ops.md`](docs/self-hosted-convex-ops.md).
+
 ### Vercel
 
 Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bun run build`, and `scripts/build.sh` runs `bunx convex deploy --cmd 'bun run build:frontend'` on Vercel so Convex functions deploy through the same push build instead of a separate GitHub Actions workflow.

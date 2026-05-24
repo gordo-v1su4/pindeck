@@ -1,5 +1,5 @@
 import { auth } from "./auth";
-import router from "./router";
+import { httpRouter } from "convex/server";
 import { smartAnalyzeImage } from "./vision";
 import {
   backfillNextcloudHttp,
@@ -9,7 +9,7 @@ import {
   quarantineBrokenNextcloudHttp,
 } from "./images";
 
-const http = router;
+const http = httpRouter();
 
 http.route({
   path: "/smartAnalyzeImage",
