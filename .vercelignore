@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-bun.lock
 
 # Docs (hosted by Mintlify, not Vercel)
 docs/
