@@ -214,4 +214,5 @@ Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_
 - Do not use `bunx convex dev` when targeting production.
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
 - Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.
+- `services/pinterest-ingest` is the Hostinger sidecar for Pinterest/FreshRSS automation. It uses `gallery-dl` plus exported cookies to discover Pinterest images, exposes RSS feeds for FreshRSS, and sends new items to `/ingestExternal` so Pindeck copies the files into RustFS before review.
 - `dev`, `build`, `serve`, `lint`, and `deploy:convex` enforce self-hosted production Convex targets (`https://convex.serving.cloud`) and fail fast otherwise.

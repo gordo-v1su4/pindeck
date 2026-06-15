@@ -1,44 +1,74 @@
 # Pinterest Automation Notes
 
-Pindeck should treat Pinterest as an approval-first ingest source, not as a
-direct publish path.
+Pindeck treats Pinterest as an approval-first ingest source. New Pinterest
+items should land in the Pinterest review queue, then be approved before they
+become normal library references or feed AI variation workflows.
 
 ## Current Decision
 
-Use a scheduled poller for Pinterest boards. The poller should:
+Use the `services/pinterest-ingest` Hostinger sidecar. It uses `gallery-dl`
+with an exported Pinterest browser cookie file to read watched Pinterest boards
+or profiles.
 
-1. Authenticate with the Pinterest API for the account that owns the watched
-   boards.
-2. Resolve watched board names or URLs to stable board IDs.
-3. Poll board pins on a schedule.
-4. Store the last seen pin IDs per watched board.
-5. POST each new pin image to Pindeck's `/ingestExternal` endpoint with:
+The sidecar has two jobs:
+
+1. Expose RSS feeds like `/feeds/pinterest/<source>.xml` so FreshRSS can
+   subscribe to Pinterest boards without a paid RSS.app-style service.
+2. Forward new Pinterest images to Pindeck's `/ingestExternal` endpoint with
+   `sourceType: "pinterest"`.
+
+The sidecar does not store image files long-term. It stores only source
+metadata, dedupe state, run status, and RSS entries in SQLite. Pindeck owns the
+durable image copy: `/ingestExternal` downloads the media URL, persists the file
+to RustFS, creates the database record, extracts colors, and keeps the original
+Pinterest page URL on the image as source metadata.
+
+## Pindeck Payload
 
 ```json
 {
   "sourceType": "pinterest",
   "source": "Pinterest",
+  "imageUrl": "https://i.pinimg.com/originals/...",
   "sourceUrl": "https://www.pinterest.com/pin/...",
-  "externalId": "pinterest:<pin-id>",
-  "tags": ["pinterest", "<board-name>"],
+  "externalId": "pinterest:<source-slug>:<pin-id>",
+  "tags": ["pinterest", "<source-slug>"],
   "userId": "<pindeck-user-id>"
 }
 ```
 
-Pinterest imports are now moderated imports. They enter Pindeck with
+Pinterest imports are moderated imports. They enter Pindeck with
 `status: "pending"` and `aiStatus: "queued"` and must be approved before
 metadata analysis or publishing continues.
 
-## Automation Options
+## Runtime
 
-- Official Pinterest API: preferred for production. Use board and pin endpoints
-  plus a scheduled poller. This is durable, debuggable, and does not depend on a
-  third-party automation vendor.
-- Zapier/Make/Pipedream: acceptable bridges if they provide the needed Pinterest
-  trigger for the account. They should still call `/ingestExternal` with
-  `sourceType: "pinterest"` so Pindeck keeps the same approval gate.
-- Manual URL import: useful as a fallback workflow, but not the target
-  automation.
+The service is packaged at `services/pinterest-ingest`.
+
+Required for Pindeck sync:
+
+- `PINDECK_INGEST_URL`
+- `PINDECK_INGEST_API_KEY`
+- `PINDECK_USER_ID`
+
+Required for Pinterest extraction:
+
+- `PINTEREST_COOKIES_PATH`, defaulting to `/secrets/pinterest-cookies.txt`
+
+Persistent data:
+
+- `DATABASE_PATH`, defaulting to `/data/pinterest-ingest.sqlite`
+
+## Failure Policy
+
+Do not add fallbacks that make broken extraction look healthy.
+
+- Missing cookies fail the run.
+- `gallery-dl` errors fail the run.
+- Pinterest output without a usable media URL is skipped; a run with no usable
+  image records fails.
+- Pindeck ingest failures stay attached to the item and are visible in sync
+  results.
 
 ## Non-Goal
 

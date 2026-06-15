@@ -193,18 +193,6 @@ const applicationTables = {
     .index("by_created_by", ["createdBy"])
     .index("by_type", ["type"]),
 
-  profiles: defineTable({
-    userId: v.id("users"),
-    discordUserId: v.optional(v.string()),
-    discordUsername: v.optional(v.string()),
-    discordAvatar: v.optional(v.string()),
-    nextcloudFolder: v.optional(v.string()),
-    pinterestBoards: v.optional(v.array(v.string())),
-    importSettings: v.optional(v.any()),
-  })
-    .index("by_user", ["userId"])
-    .index("by_discord_user_id", ["discordUserId"]),
-
   importBatches: defineTable({
     userId: v.id("users"),
     sourceType: v.union(

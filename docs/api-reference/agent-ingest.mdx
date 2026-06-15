@@ -10,7 +10,7 @@ Use this guide when an agent, automation, or external service needs to send imag
 1. Find a public image URL.
 2. Build a stable `externalId` for deduplication.
 3. Send the image to `/ingestExternal`.
-4. Let Pindeck persist the file to RustFS, create the image record, extract colors, and put moderated sources into review.
+4. Let Pindeck copy the file into RustFS, create the image record, extract colors, and put moderated sources into review.
 
 ## Endpoint
 
@@ -24,7 +24,7 @@ Content-Type: application/json
 
 | Field | Description |
 | --- | --- |
-| `imageUrl` | Public URL that Pindeck can download. |
+| `imageUrl` | Public URL that Pindeck can download and copy into RustFS. |
 | `userId` | Pindeck user id that owns the imported image. |
 
 ## Recommended fields
@@ -38,7 +38,7 @@ Content-Type: application/json
 | `description` | Short context for search and review. |
 | `tags` | Array of searchable tags. |
 | `category` | Broad classification, usually `General` when unknown. |
-| `importBatchId` | Optional batch id for grouping one automation run. |
+| `importBatchId` | Optional Convex import batch id, if the integration has already created one. Omit for simple external automations. |
 | `sref` | Style reference id when the import came from an SREF workflow. |
 
 ## Minimal request
@@ -108,11 +108,16 @@ Images with `sourceType` set to `discord` or `pinterest` are created as draft/mo
 
 For Discord-specific review tooling, use `/discordQueue` to list queued items and `/discordModerate` to approve, reject, or generate variations for a queued image.
 
+For Pinterest, keep `sourceUrl` as the original pin/page URL, but still send a
+downloadable `imageUrl`. Pindeck stores its own RustFS copy so Pinterest
+references remain usable for boards, decks, color extraction, and AI variation
+workflows even if the source URL changes later.
+
 ## Integration checklist
 
 - Use `externalId` on every automated import.
 - Keep `INGEST_API_KEY` server-side only.
-- Use a source-specific `importBatchId` for scheduled sync jobs.
+- Omit `importBatchId` unless you have a real Convex import batch id.
 - Send `sourceUrl` so reviewers can trace where an image came from.
 - Prefer direct image URLs that do not require browser cookies.
 - Retry `502` responses with backoff; they can mean the upstream image host or RustFS persistence step failed.
