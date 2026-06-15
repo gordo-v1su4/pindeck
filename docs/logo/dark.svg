@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 32" width="164" height="32">
-  <rect x="2" y="4" width="24" height="24" rx="5" fill="#101014" stroke="rgba(255,255,255,0.12)"/>
-  <text x="14" y="22" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="17" font-weight="900" font-style="italic" fill="#ffffff" text-anchor="middle" letter-spacing="-0.08em">P/</text>
-  <text x="35" y="24" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#ffffff" letter-spacing="-0.07em">PIN</text>
-  <text x="79" y="24" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#3a7bff" letter-spacing="-0.07em">DECK</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 174 32" width="174" height="32">
+  <rect x="2" y="4" width="24" height="24" rx="5" fill="#101014" stroke="#ffffff" stroke-opacity=".12"/>
+  <text x="14" y="22" font-family="Arial Black, Archivo Black, Geist, Inter, system-ui, sans-serif" font-size="17" font-weight="900" font-style="italic" fill="#ffffff" text-anchor="middle" letter-spacing="-1.2">P/</text>
+  <text x="34" y="24" font-family="Arial Black, Archivo Black, Geist, Inter, system-ui, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#ffffff" letter-spacing="-1.45">PIN</text>
+  <text x="76" y="24" font-family="Arial Black, Archivo Black, Geist, Inter, system-ui, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#3a7bff" letter-spacing="-1.45">DECK</text>
 </svg>

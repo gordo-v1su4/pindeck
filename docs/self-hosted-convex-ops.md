@@ -7,11 +7,16 @@ tokens, webhook URLs, or raw verbose deploy output here.
 
 ## Production Targets
 
-| Role | URL |
-| --- | --- |
-| Convex API | `https://convex.serving.cloud` |
-| Convex HTTP actions | `https://convex-site.serving.cloud` |
-| Convex dashboard | `https://convex-dashboard.serving.cloud` |
+| Role | Production name | URL |
+| --- | --- | --- |
+| Backend | Self-hosted Convex | `https://convex.serving.cloud` |
+| HTTP actions | Self-hosted Convex site | `https://convex-site.serving.cloud` |
+| Dashboard | Self-hosted Convex dashboard | `https://convex-dashboard.serving.cloud` |
+
+Do not use Convex Cloud deployment names such as `production` or
+`production-pindeck` for this repo. Those names are easy to confuse with
+Vercel's `production` target, but Pindeck's Convex production target is the
+self-hosted stack above.
 
 Local and Vercel production deploys should use:
 
@@ -357,5 +362,5 @@ https://github.com/get-convex/convex-backend/blob/precompiled-2026-05-18-c3ac00a
 
 Current local cleanup note: if local dry runs report a function-version
 downgrade, check `bunx convex --version` and `node_modules/convex/package.json`.
-This repo's committed `bun.lock` resolves Convex `1.34.1`; stale local
+This repo's committed `bun.lock` resolves Convex `1.41.0`; stale local
 `node_modules` can make local CLI behavior look older than Vercel's install.

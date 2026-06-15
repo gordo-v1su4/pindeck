@@ -1,12 +1,31 @@
-# Pindeck (Production-First)
+# Pindeck
 
 ![Pindeck gallery with metadata drawer](docs/images/pindeck-gallery-readme.webp)
 
 AI-powered image gallery + generation app using React, Convex, OpenRouter, and fal.ai.
 
-## Production Local Workflow (No Dev Server)
+## Production Names
 
-This repo is configured to run locally against the **self-hosted production Convex deployment**.
+Pindeck has one production frontend and one production backend target:
+
+| Surface | Production name | Target |
+| --- | --- | --- |
+| Frontend | Vercel project `pindeck` | `https://pindeck.dev` |
+| Backend | Self-hosted Convex | `https://convex.serving.cloud` |
+| HTTP actions | Self-hosted Convex site | `https://convex-site.serving.cloud` |
+
+Use `production` only for the Vercel deployment target. Do not create or select
+Convex Cloud deployments named `production`, `production-pindeck`, or similar for
+this app; Pindeck production deploys to self-hosted Convex through
+`CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY`.
+
+The old duplicate Vercel test project `pindeck-754f` was removed on June 15,
+2026. The only current frontend production project is `pindeck`.
+
+## Local Production Workflow
+
+This repo is configured to run locally against the self-hosted Pindeck Convex
+production backend.
 
 1. Install dependencies:
 ```bash
@@ -87,7 +106,7 @@ Vercel production builds deploy Convex when `CONVEX_SELF_HOSTED_URL` and `CONVEX
 - `bun run check:prod-target` - Verify local env is pinned to self-hosted production Convex
 - `bun run build` - Local production frontend build (`vite build`); on Vercel production builds with deploy secrets, this deploys Convex first, then builds the frontend.
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
-- `bun run deploy:convex` - Deploy Convex functions
+- `bun run deploy:convex` - Deploy Convex functions with `bunx convex deploy`
 
 ## Media Upload Pipeline (Convex -> RustFS)
 
@@ -173,8 +192,6 @@ agent access commands, see [`docs/self-hosted-convex-ops.md`](docs/self-hosted-c
 
 Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bun run build`, and `scripts/build.sh` runs `bunx convex deploy --cmd 'bun run build:frontend'` on production builds when the self-hosted Convex deploy secrets are present. Preview builds without those secrets skip Convex deploy and run the frontend build only.
 
-The duplicate Vercel test project `pindeck-754f` was removed on June 15, 2026. The only current frontend production project is `pindeck`.
-
 **Vercel builds** do not use `.env.local`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` to **`https://convex.serving.cloud`** when unset, so previews deploy without extra env. Set `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud` when code needs the HTTP/actions URL.
 
 Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_HOSTED_URL`**, and **`CONVEX_SELF_HOSTED_ADMIN_KEY`** in **`.env.local`** so `dev` / `deploy:convex` match production (see `.env.example`). Keep **`CONVEX_DEPLOYMENT` unset**.
@@ -194,7 +211,7 @@ Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_
 - **Decks** ([`src/components/DeckView.tsx`](src/components/DeckView.tsx), [`src/components/deck/`](src/components/deck/)): Matches **`claude/redesign`** — sideways deck library strip, **`DeckComposer`** + **`DeckCanvasPage`**. **`convex/decks.list`** returns **`stripImageUrls`** + **`stripPalettes`** (**`images.colors[..5]`** per slide, same metadata as the **Table** `PinSwatches` column). Library cards use a **16:9 hero** still for the first slide and a **filmstrip** row for extras, each with **`PinSwatches`**. **Tweaks** **`--pd-accent*`** apply to **composer chrome**; composer **left swatches** client-sample the **active** strip image (Convex fallback by **`imageUrl`**). **`DeckCanvasPage`** slide frames have **no selection outline**; **editable-text** focus uses **`colors.accent`**. Deck **color state** is not persisted in **`localStorage`**. Deploy self-hosted Convex after **`decks.list`** changes.
 - **Image palette / swatches:** Stored `colors` are **average RGB per quantized cluster** (not lattice corners), Lab-space dedup + warm-scene magenta/purple suppression (`src/lib/colorPaletteCore.ts`). Server prefers **`imageUrl`** (`convex/colorExtractionUrls.ts`). After changing extraction logic deploy self-hosted Convex, then Table **“Refresh metadata”** / **“Refresh selected”** → wait for scheduled actions → reload.
 - **Cinematic metadata (TYPE / Genre / Shot / Style):** VLM analysis (`convex/vision.ts`) writes `group`, `genre`, `shot`, and `style` on `images`. Table **“Refresh metadata”** schedules metadata and color refresh for **your** uploads; when rows are selected, **“Refresh selected”** only schedules the selected images. Sidebar filter chips use `libraryAggregations` + shared client filters (`src/lib/libraryFilters.ts`).
-- Do not use `convex dev` when targeting production.
+- Do not use `bunx convex dev` when targeting production.
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
 - Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.
 - `dev`, `build`, `serve`, `lint`, and `deploy:convex` enforce self-hosted production Convex targets (`https://convex.serving.cloud`) and fail fast otherwise.

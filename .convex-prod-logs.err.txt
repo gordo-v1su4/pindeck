@@ -1,3 +1,0 @@
-Ignoring `--prod`, `--preview-name`, or `--deployment-name` flags and using deployment from CONVEX_DEPLOY_KEY
-Watching logs for production deployment tremendous-jaguar-953...
-^C

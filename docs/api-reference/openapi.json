@@ -98,7 +98,7 @@
     "/ingestExternal": {
       "post": {
         "summary": "Ingest external image",
-        "description": "Accept an image from an external source (e.g., Discord bot) and store it in Pindeck. The image is saved to Convex storage and a record is created with the specified metadata.",
+        "description": "Accept an image from an external source (for example Discord, Pinterest, or another agent-run connector) and store it in Pindeck. Pindeck downloads the source image, persists it to RustFS, creates the image record, and schedules color extraction.",
         "operationId": "ingestExternal",
         "requestBody": {
           "required": true,
@@ -106,17 +106,21 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["imageUrl", "sourceType"],
+                "required": ["imageUrl", "userId"],
                 "properties": {
                   "imageUrl": {
                     "type": "string",
                     "format": "uri",
                     "description": "URL of the image to ingest"
                   },
+                  "userId": {
+                    "type": "string",
+                    "description": "Pindeck user id that should own the imported image"
+                  },
                   "sourceType": {
                     "type": "string",
                     "enum": ["upload", "discord", "pinterest", "ai"],
-                    "description": "Origin of the image"
+                    "description": "Origin of the image. Use discord or pinterest for moderated review flows."
                   },
                   "title": {
                     "type": "string",
@@ -145,6 +149,14 @@
                   "externalId": {
                     "type": "string",
                     "description": "External identifier for deduplication"
+                  },
+                  "importBatchId": {
+                    "type": "string",
+                    "description": "Optional batch identifier for one sync or import run"
+                  },
+                  "sref": {
+                    "type": "string",
+                    "description": "Optional Midjourney style reference id"
                   }
                 }
               }
@@ -163,9 +175,9 @@
                       "type": "string",
                       "description": "ID of the created image record"
                     },
-                    "storageId": {
+                    "userId": {
                       "type": "string",
-                      "description": "Convex storage ID for the uploaded file"
+                      "description": "Resolved Pindeck user id"
                     }
                   }
                 }

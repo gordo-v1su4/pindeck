@@ -1,5 +1,5 @@
 {
-  "name": "flex-template",
+  "name": "pindeck",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,14 +9,14 @@
     "kill-port": "bash ./scripts/kill-port.sh",
     "dev": "bun run check:prod-target && PORT=4000 bun run kill-port && bun run dev:frontend",
     "dev:frontend": "vite --open --port 4000 --strictPort",
-    "dev:backend": "convex dev",
+    "dev:backend": "bunx convex dev",
     "discord:bot": "bash ./scripts/run-discord-bot.sh",
     "discord:bot:dry-run": "cd services/discord-bot && DISCORD_DRY_RUN=1 bun src/index.js",
     "build": "bash ./scripts/build.sh",
     "build:frontend": "bun run check:prod-target && vite build",
     "serve": "bun run check:prod-target && PORT=4173 bun run kill-port && vite preview --host 0.0.0.0 --port 4173",
     "deploy:convex": "bun run check:prod-target && bunx convex deploy",
-    "lint": "bun run check:prod-target && tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
+    "lint": "bun run check:prod-target && tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && bunx convex dev --once && vite build"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",
