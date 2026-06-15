@@ -270,3 +270,22 @@ export const createFromImages = mutation({
     });
   },
 });
+
+export const deleteDeck = mutation({
+  args: { deckId: v.id("decks") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to delete decks");
+    }
+
+    const deck = await ctx.db.get(args.deckId);
+    if (!deck || deck.userId !== userId) {
+      throw new Error("Deck not found");
+    }
+
+    await ctx.db.delete(args.deckId);
+    return null;
+  },
+});
