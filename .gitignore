@@ -1,6 +1,8 @@
 # Logs
 logs
 *.log
+*.out.log
+*.err.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -48,16 +50,19 @@ set-jwks.cjs
 # Build outputs
 build/
 out/
+output/
 
 # Package manager files
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
-jwt_private_key.pem
-jwt_public_key.pem# Preview / testing artifacts
+
+# Preview / testing artifacts
 screenshots/
 *.png
 capture_tmp.py
+test-browser.ts
+tmp-*
 preview_app.py
 
 # Skills

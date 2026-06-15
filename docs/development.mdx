@@ -46,7 +46,7 @@ bun run serve
 The app runs on port `4173`. The serve script auto-kills any existing process on that port.
 
 <Warning>
-Do not use `convex dev` when targeting production. The build scripts enforce the production Convex target and fail fast otherwise.
+Do not use `bunx convex dev` when targeting production. The build scripts enforce the production Convex target and fail fast otherwise.
 </Warning>
 
 ## Environment variables
@@ -90,14 +90,15 @@ Set these in the Convex Project Settings:
 
 ## Production deployments
 
-- **Convex**: self-hosted at `https://convex.serving.cloud`
-- **Frontend**: Vercel project `pindeck`, published at `https://pindeck.dev`
+- **Frontend production**: Vercel project `pindeck`, published at `https://pindeck.dev`
+- **Backend production**: self-hosted Convex at `https://convex.serving.cloud`
+- **HTTP/actions production**: self-hosted Convex site at `https://convex-site.serving.cloud`
 - **Discord bot**: Hosted separately — see [Discord bot guide](/guides/discord-bot)
 
 <Warning>
-Do not set `CONVEX_DEPLOYMENT`. The old Convex Cloud project has been deleted; the Pindeck production backend is self-hosted at `https://convex.serving.cloud`.
+Do not set `CONVEX_DEPLOYMENT`, and do not select Convex Cloud deployments named `production`, `production-pindeck`, or similar. Pindeck production uses the self-hosted Convex target selected by `CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY`.
 </Warning>
 
 <Info>
-The old duplicate Vercel project `pindeck-754f` was removed on June 15, 2026. Current deploys and status contexts should come only from the `pindeck` project.
+The old duplicate Vercel project `pindeck-754f` was removed on June 15, 2026. Current frontend deploys and status contexts should come only from the `pindeck` project.
 </Info>
