@@ -88,6 +88,43 @@ function applyGroupContext(mode: string, prompt: string, group?: string) {
   return prompt;
 }
 
+function hasSrefReference(sref?: string): boolean {
+  return Boolean(sref?.trim());
+}
+
+function formatPaletteReference(colors?: string[]): string | undefined {
+  const palette = (colors ?? [])
+    .filter((color) => /^#[0-9a-f]{6}$/i.test(color))
+    .slice(0, 5);
+  return palette.length ? palette.join(", ") : undefined;
+}
+
+function applySrefContext(
+  prompt: string,
+  {
+    sref,
+    colors,
+    style,
+  }: {
+    sref?: string;
+    colors?: string[];
+    style?: string;
+  }
+) {
+  if (!hasSrefReference(sref)) return prompt;
+
+  const palette = formatPaletteReference(colors);
+  const styleNote = style?.trim();
+  const context = [
+    `Preserve the Midjourney style reference --sref ${sref?.trim()}.`,
+    palette ? `Keep the source color palette (${palette}).` : "Keep the source image's color palette.",
+    styleNote ? `Maintain its ${styleNote} visual style.` : "Maintain its lighting, texture, mood, composition language, and stylization.",
+    "Change only what the variation request asks for; the result should still feel like it belongs to the same SREF family.",
+  ];
+
+  return `${prompt} ${context.join(" ")}`;
+}
+
 const VISION_ANALYSIS_KEYS = [
   "title",
   "description",
@@ -432,11 +469,17 @@ function buildVariationPromptPlan({
   variationCount,
   variationDetail,
   group,
+  sref,
+  colors,
+  style,
 }: {
   modificationMode: string;
   variationCount: number;
   variationDetail?: string;
   group?: string;
+  sref?: string;
+  colors?: string[];
+  style?: string;
 }) {
   const count = Math.min(Math.max(variationCount ?? 0, 0), 12);
   if (count === 0) return [] as string[];
@@ -450,12 +493,15 @@ function buildVariationPromptPlan({
     for (let i = 0; i < count; i++) {
       const shot = SHOT_TYPES[i % SHOT_TYPES.length];
       const prompt = promptBuilder(shot);
-      prompts.push(applyGroupContext(mode, prompt, group));
+      prompts.push(applySrefContext(applyGroupContext(mode, prompt, group), { sref, colors, style }));
     }
     return prompts;
   }
 
-  const prompt = applyGroupContext(mode, promptBuilder(userDetail || undefined), group);
+  const prompt = applySrefContext(
+    applyGroupContext(mode, promptBuilder(userDetail || undefined), group),
+    { sref, colors, style }
+  );
   for (let i = 0; i < count; i++) prompts.push(prompt);
   return prompts;
 }
@@ -467,6 +513,9 @@ export const getVariationPrompts = query({
     variationCount: v.number(),
     variationDetail: v.optional(v.string()),
     group: v.optional(v.string()),
+    sref: v.optional(v.string()),
+    colors: v.optional(v.array(v.string())),
+    style: v.optional(v.string()),
   },
   returns: v.array(v.string()),
   handler: (_ctx, args) => {
@@ -475,6 +524,9 @@ export const getVariationPrompts = query({
       variationCount: args.variationCount,
       variationDetail: args.variationDetail,
       group: args.group,
+      sref: args.sref,
+      colors: args.colors,
+      style: args.style,
     });
   },
 });
@@ -501,6 +553,9 @@ export const getVariationPromptsForImage = query({
       variationCount: args.variationCount,
       variationDetail: args.variationDetail,
       group: image.group,
+      sref: image.sref,
+      colors: image.colors,
+      style: image.style,
     });
   },
 });
@@ -516,6 +571,8 @@ export const internalGenerateRelatedImages = internalAction({
     title: v.optional(v.string()),
     aspectRatio: v.optional(v.string()),
     group: v.optional(v.string()),
+    sref: v.optional(v.string()),
+    colors: v.optional(v.array(v.string())),
     // User-configurable options
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
@@ -566,6 +623,9 @@ export const internalGenerateRelatedImages = internalAction({
       variationCount: count,
       variationDetail: args.variationDetail,
       group: args.group,
+      sref: args.sref,
+      colors: args.colors,
+      style: args.style,
     });
     console.log(
       `[Gen Plan] image=${args.originalImageId} mode=${mode} count=${count} prompts=${JSON.stringify(prompts)}`
@@ -716,10 +776,12 @@ export const generateVariations = mutation({
       imageUrl: image.imageUrl,
       description: image.description || "",
       category: image.category,
-      style: undefined,
+      style: image.style,
       title: image.title,
       aspectRatio: args.aspectRatio,
       group: image.group,
+      sref: image.sref,
+      colors: image.colors,
       variationCount: args.variationCount,
       modificationMode: args.modificationMode,
       variationDetail: args.variationDetail,
@@ -951,6 +1013,7 @@ export const internalSmartAnalyzeImage = internalAction({
           style: visual_style,
           title,
           group: group ?? undefined,
+          sref: args.sref,
           variationCount: requestedCount,
           modificationMode: args.modificationMode,
           variationType: args.variationType,
