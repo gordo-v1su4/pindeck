@@ -209,6 +209,7 @@ export default function App() {
           setSearch={setSearch}
           view={view}
           setView={(v) => setView(sanitizeStoredView(v))}
+          docsUrl={`${DOCS_URL}?accent=${encodeURIComponent(tweaks.accent)}&typography=${encodeURIComponent(tweaks.typography)}`}
           tweaksOn={tweaksOpen}
           onToggleTweaks={() => setTweaksOpen(!tweaksOpen)}
           accountActions={<SignOutButton onBeforeSignOut={closeTransientUi} />}
@@ -617,8 +618,9 @@ function Sidebar({
   );
 }
 
-function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, accountActions }: {
+function Topbar({ search, setSearch, view, setView, docsUrl, tweaksOn, onToggleTweaks, accountActions }: {
   search: string; setSearch: (s: string) => void; view: string; setView: (v: string) => void;
+  docsUrl: string;
   tweaksOn: boolean; onToggleTweaks: () => void;
   accountActions: React.ReactNode;
 }) {
@@ -696,7 +698,7 @@ function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, ac
         ))}
       </div>
 
-      <a href={DOCS_URL} target="_blank" rel="noreferrer" title="Open Pindeck docs" className="pd-topbar-row" style={{
+      <a href={docsUrl} target="_blank" rel="noreferrer" title="Open Pindeck docs" className="pd-topbar-row" style={{
         display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
         borderRadius: 4, fontSize: 11, fontWeight: 500, color: "var(--pd-ink-dim)",
         background: "transparent", textDecoration: "none",

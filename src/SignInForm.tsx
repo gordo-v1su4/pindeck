@@ -4,7 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { GitBranchIcon, GlobeIcon, UserRoundIcon } from "lucide-react";
+import { GitBranchIcon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, FieldSeparator } from "@/components/ui/field";
@@ -45,6 +45,14 @@ function authToastMessage(flow: AuthFlow, error: unknown) {
   }
 
   return flow === "signIn" ? "Could not sign in. Please try again." : "Could not sign up. Please try again.";
+}
+
+function GoogleMark() {
+  return (
+    <span className="auth-google-mark" data-icon="inline-start" aria-hidden="true">
+      G
+    </span>
+  );
 }
 
 export function SignInForm() {
@@ -261,7 +269,7 @@ export function SignInForm() {
               onClick={() => handleProviderSignIn("google", "Google")}
               disabled={submitting}
             >
-              <GlobeIcon data-icon="inline-start" />
+              <GoogleMark />
               Google
             </Button>
           </div>

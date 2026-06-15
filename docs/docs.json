@@ -3,9 +3,9 @@
   "theme": "mint",
   "name": "Pindeck Docs",
   "colors": {
-    "primary": "#ef4343",
-    "light": "#ff6b6b",
-    "dark": "#d73535"
+    "primary": "#3a7bff",
+    "light": "#c7ddff",
+    "dark": "#2447b8"
   },
   "font": {
     "family": "Inter"
@@ -67,8 +67,7 @@
       "anchors": [
         {
           "anchor": "Open Pindeck",
-          "href": "https://www.pindeck.dev",
-          "icon": "grid-art"
+          "href": "https://www.pindeck.dev"
         },
         {
           "anchor": "GitHub",
