@@ -35,10 +35,21 @@ ssh -i ~/.ssh/hostinger-vps root@serving.cloud
 Useful containers:
 
 ```text
-convex-wv5d-backend-1
-convex-wv5d-dashboard-1
+pindeck-convex-backend-1
+pindeck-convex-dashboard-1
 traefik-7ilq-traefik-1
 ```
+
+The Pindeck compose file lives at `/docker/convex-wv5d/docker-compose.yml` but
+the Compose project is now named `pindeck-convex`, so `docker ps` shows readable
+container names. The data volume remains the original external
+`convex-wv5d_convex_data` volume.
+
+The sibling Review Room / Unfold stack lives at
+`/docker/convex-lvow/docker-compose.yml`, uses the Compose project name
+`review-room-convex`, and keeps its original external
+`convex-lvow_convex_data` volume. Its public routes are the `unfold*.serving.cloud`
+hosts, not Pindeck.
 
 ## Health Checks
 
@@ -74,14 +85,14 @@ Recent Convex backend logs:
 
 ```bash
 ssh -i ~/.ssh/hostinger-vps root@serving.cloud \
-  'docker logs --since 30m convex-wv5d-backend-1 2>&1 | tail -200'
+  'docker logs --since 30m pindeck-convex-backend-1 2>&1 | tail -200'
 ```
 
 Recent Convex warnings/errors:
 
 ```bash
 ssh -i ~/.ssh/hostinger-vps root@serving.cloud \
-  'docker logs --since 30m convex-wv5d-backend-1 2>&1 | grep -Ei "ERROR|WARN|panic|failed|exception|uncaught" | tail -100'
+  'docker logs --since 30m pindeck-convex-backend-1 2>&1 | grep -Ei "ERROR|WARN|panic|failed|exception|uncaught" | tail -100'
 ```
 
 Recent Traefik entries related to Convex:
@@ -95,7 +106,7 @@ Container health:
 
 ```bash
 ssh -i ~/.ssh/hostinger-vps root@serving.cloud \
-  'docker inspect --format "{{.State.Health.Status}}" convex-wv5d-backend-1'
+  'docker inspect --format "{{.State.Health.Status}}" pindeck-convex-backend-1'
 ```
 
 ## Convex CLI Checks
@@ -189,7 +200,7 @@ ssh -i ~/.ssh/hostinger-vps root@serving.cloud \
   'grep -n "image: ghcr.io/get-convex/convex-" /docker/convex-wv5d/docker-compose.yml'
 ```
 
-As of 2026-05-24, the Hostinger compose file is intentionally pinned to the
+As of 2026-06-15, the Hostinger compose file is intentionally pinned to the
 known-good images that were already running:
 
 ```text
@@ -200,6 +211,15 @@ ghcr.io/get-convex/convex-dashboard@sha256:8d0c08bf1207ffe7a883f199cc8ff8da35135
 That pin is a stability guard, not an upgrade. Do not replace it with `latest`
 or move it forward without the export, maintenance, and verification steps
 below.
+
+On 2026-06-15, the local app dependency was updated to `convex@1.41.0`. The
+Pindeck Docker stack was checked against upstream Convex release metadata and
+the published GHCR `latest` image. The latest non-prerelease GitHub release was
+`precompiled-2026-06-09-b6aaa1a`, while GHCR `latest` identified itself as a
+different backend revision (`9c73f185d0f698eaefce0ee82af6f245674bc6d1`) without
+a matching non-prerelease Docker tag. Keep Pindeck pinned until a traceable
+non-prerelease image/tag can be selected or there is a specific bug/security
+reason to take the moving `latest` channel.
 
 Current upstream release check:
 
