@@ -1388,7 +1388,7 @@ export const internalModerateDiscordImage = internalMutation({
       if (!image.colors || image.colors.length === 0) {
         await ctx.scheduler.runAfter(
           0,
-          (internalApi as any).colorExtraction.internalExtractAndStoreColors,
+          internalApi.colorExtraction.internalExtractAndStoreColors,
           {
             imageId: image._id,
             imageUrl: preferredImageUrlForSampling(image) ?? image.imageUrl,

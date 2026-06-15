@@ -94,7 +94,10 @@ function hasSrefReference(sref?: string): boolean {
 
 function formatPaletteReference(colors?: string[]): string | undefined {
   const palette = (colors ?? [])
-    .filter((color) => /^#[0-9a-f]{6}$/i.test(color))
+    .filter((color): color is string => typeof color === "string")
+    .map((color) => color.trim())
+    .filter((color) => /^#?[0-9a-f]{6}$/i.test(color))
+    .map((color) => (color.startsWith("#") ? color : `#${color}`))
     .slice(0, 5);
   return palette.length ? palette.join(", ") : undefined;
 }
@@ -113,10 +116,11 @@ function applySrefContext(
 ) {
   if (!hasSrefReference(sref)) return prompt;
 
+  const cleanSref = sref?.trim().replace(/^--sref\s+/i, "");
   const palette = formatPaletteReference(colors);
   const styleNote = style?.trim();
   const context = [
-    `Preserve the Midjourney style reference --sref ${sref?.trim()}.`,
+    `Preserve the Midjourney style reference --sref ${cleanSref}.`,
     palette ? `Keep the source color palette (${palette}).` : "Keep the source image's color palette.",
     styleNote ? `Maintain its ${styleNote} visual style.` : "Maintain its lighting, texture, mood, composition language, and stylization.",
     "Change only what the variation request asks for; the result should still feel like it belongs to the same SREF family.",
