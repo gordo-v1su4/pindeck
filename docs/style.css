@@ -38,6 +38,56 @@ body {
   object-fit: contain !important;
 }
 
+.pindeck-docs-logo-lockup {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: auto !important;
+  height: 24px !important;
+  text-decoration: none !important;
+}
+
+.pindeck-docs-logo-lockup img.nav-logo {
+  display: none !important;
+}
+
+.pindeck-docs-logo-mark {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  flex: 0 0 22px !important;
+  border: 1px solid var(--pd-doc-line-hi) !important;
+  border-radius: 4px !important;
+  background: #000 !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  font-style: italic !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.06em !important;
+  line-height: 1 !important;
+}
+
+.pindeck-docs-logo-word {
+  display: inline-flex !important;
+  align-items: baseline !important;
+  color: var(--pd-doc-ink) !important;
+  font-size: 14px !important;
+  font-style: italic !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1 !important;
+}
+
+.pindeck-docs-logo-pin {
+  color: var(--pd-doc-ink) !important;
+}
+
+.pindeck-docs-logo-deck {
+  color: var(--pd-doc-accent) !important;
+}
+
 #search-bar-entry,
 #search-bar-entry-mobile {
   width: 320px !important;

@@ -56,12 +56,40 @@
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
 
+  function installLogoLockup() {
+    var run = function () {
+      document.querySelectorAll("img.nav-logo").forEach(function (img) {
+        var anchor = img.closest("a");
+        if (!anchor) return;
+        anchor.classList.add("pindeck-docs-logo-lockup");
+        anchor.setAttribute("aria-label", "Pindeck Docs home");
+        if (!anchor.querySelector(".pindeck-docs-logo-mark")) {
+          anchor.insertAdjacentHTML(
+            "beforeend",
+            '<span class="pindeck-docs-logo-mark" aria-hidden="true">P/</span>' +
+              '<span class="pindeck-docs-logo-word" aria-hidden="true">' +
+              '<span class="pindeck-docs-logo-pin">PIN</span>' +
+              '<span class="pindeck-docs-logo-deck">DECK</span>' +
+              "</span>"
+          );
+        }
+      });
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  }
+
   function updateLogos(accent) {
     var run = function () {
       document.querySelectorAll('img[src="/logo/dark.svg"], img[src="/logo/light.svg"]').forEach(function (img) {
         var isLightLogo = img.getAttribute("src") === "/logo/light.svg";
         img.setAttribute("src", logoDataUri(accent, isLightLogo ? "#111116" : "#ffffff"));
       });
+      installLogoLockup();
     };
 
     if (document.readyState === "loading") {
