@@ -1,36 +1,50 @@
 ---
-title: PINDOCS
+title: Pindeck Docs
 slug: /
-description: Documentation for Pindeck — AI-powered image gallery and generation for creatives
+description: Operating notes and integration docs for Pindeck
 ---
 
-# Pindeck Documentation
+# Pindeck Docs
 
-Pindeck is an AI-powered image gallery and generation platform built for creatives. Upload, organize, generate variations, and present your visual work — all in one place.
+Pindeck is the operating surface for ingesting, organizing, generating, and presenting visual references. These docs focus on the workflows that need to stay dependable: uploads, Discord and Pinterest ingest, board and deck creation, AI variation generation, and the self-hosted Convex/RustFS runtime.
 
-## What you can do
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Sign in, upload a first image, organize it, and create a generated variation.
+  </Card>
+  <Card title="Upload and review" icon="upload" href="/guides/uploading">
+    Understand the metadata, storage, and approval path behind incoming images.
+  </Card>
+  <Card title="Discord ingest" icon="upload" href="/guides/discord-bot">
+    Route pinned Discord images into the same Pindeck review queue.
+  </Card>
+  <Card title="Decks" icon="presentation" href="/guides/decks">
+    Build and present slide decks from approved library images.
+  </Card>
+</CardGroup>
 
-- **Upload and organize** — Drag-and-drop image uploads with automatic metadata extraction, tagging, and categorization
-- **Build boards** — Create collections and storyboards to organize images by project, mood, or theme
-- **Create decks** — Build slide presentations directly from your image collections
-- **Generate AI variations** — Use fal.ai and OpenRouter VLM to create shot-type and style variations of your images
-- **Integrate with Discord** — Ingest images from Discord channels with emoji triggers and moderation queues
-- **Store on RustFS** — Automatic media pipeline from Convex to the RustFS-backed media API with public object URLs
+## Core flows
 
-## Architecture overview
+- **Ingest** images from local upload, Discord, and Pinterest into a consistent review path.
+- **Describe** each image with titles, tags, cinematic metadata, project grouping, and palette data.
+- **Organize** approved images into boards and deck-ready selections.
+- **Generate** controlled AI variations while preserving source image context and style reference intent.
+- **Publish** durable media through Convex, RustFS, and the production Pindeck frontend.
 
-Pindeck uses a modern stack:
+## Production map
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React + Vite |
-| Backend | Convex (real-time database, HTTP actions, file storage) |
-| AI generation | fal.ai (image generation), OpenRouter (VLM analysis) |
-| Storage | RustFS object storage via media API |
-| Deployment | Vercel project `pindeck` (frontend), self-hosted Convex at `https://convex.serving.cloud` (backend) |
+| Surface | Location |
+| --- | --- |
+| App | [pindeck.dev](https://pindeck.dev) |
+| Docs | [docs.pindeck.dev](https://docs.pindeck.dev) |
+| Frontend hosting | Vercel project `pindeck` |
+| Backend | Self-hosted Convex at `https://convex.serving.cloud` |
+| HTTP/actions | `https://convex-site.serving.cloud` |
+| Storage | RustFS-backed media API and public S3-style object URLs |
+| Discord worker | Separate `discord-bot` repository |
 
-## Next steps
+## Start here
 
-- [Quickstart](/quickstart) — Get up and running in minutes
-- [Development](/development) — Local development setup
-- [API reference](/api-reference/introduction) — Convex HTTP endpoints
+- [Quickstart](/quickstart) for the product flow.
+- [Development](/development) for local build and deployment expectations.
+- [API reference](/api-reference/introduction) for Convex HTTP endpoints.

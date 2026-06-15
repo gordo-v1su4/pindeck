@@ -80,12 +80,12 @@ For Convex function deploys:
 - `CONVEX_SELF_HOSTED_ADMIN_KEY=<self-hosted admin key>`
 - Do **not** set `CONVEX_DEPLOYMENT` for Pindeck production.
 
-Vercel deploys Convex during the production build. Keep `CONVEX_SELF_HOSTED_ADMIN_KEY` configured in the Vercel project environment so `bun run build` can run the deploy wrapper on pushes to `main`.
+Vercel production builds deploy Convex when `CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY` are configured. Preview builds without those deploy secrets run as frontend-only builds, so PR checks can still validate the UI without backend deploy credentials.
 
 ## Scripts
 
 - `bun run check:prod-target` - Verify local env is pinned to self-hosted production Convex
-- `bun run build` - Local production frontend build (`vite build`); on Vercel this deploys Convex first, then builds the frontend.
+- `bun run build` - Local production frontend build (`vite build`); on Vercel production builds with deploy secrets, this deploys Convex first, then builds the frontend.
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
 - `bun run deploy:convex` - Deploy Convex functions
 
@@ -171,9 +171,9 @@ agent access commands, see [`docs/self-hosted-convex-ops.md`](docs/self-hosted-c
 
 ### Vercel
 
-Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bun run build`, and `scripts/build.sh` runs `bunx convex deploy --cmd 'bun run build:frontend'` on Vercel so Convex functions deploy through the same push build instead of a separate GitHub Actions workflow.
+Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bun run build`, and `scripts/build.sh` runs `bunx convex deploy --cmd 'bun run build:frontend'` on production builds when the self-hosted Convex deploy secrets are present. Preview builds without those secrets skip Convex deploy and run the frontend build only.
 
-If GitHub shows a stale duplicate Vercel project/status context, ignore it when judging production health. The only current frontend production project is `pindeck`.
+The duplicate Vercel test project `pindeck-754f` was removed on June 15, 2026. The only current frontend production project is `pindeck`.
 
 **Vercel builds** do not use `.env.local`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` to **`https://convex.serving.cloud`** when unset, so previews deploy without extra env. Set `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud` when code needs the HTTP/actions URL.
 

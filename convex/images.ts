@@ -233,6 +233,14 @@ function mapImageForDisplay<T extends Record<string, any>>(image: T): T {
   return image;
 }
 
+function isModeratedImportSource(sourceType?: string) {
+  return sourceType === "discord" || sourceType === "pinterest";
+}
+
+function shouldQueueAnalysis(image: { sourceType?: string; aiStatus?: string }) {
+  return isModeratedImportSource(image.sourceType) && image.aiStatus === "queued";
+}
+
 async function resolveLineageRoot(ctx: any, image: any) {
   let current = image;
   let depth = 0;
@@ -827,7 +835,7 @@ export const createExternal = mutation({
     const title = args.title || "Untitled";
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
-    const isDiscordImport = args.sourceType === "discord";
+    const isModeratedImport = isModeratedImportSource(args.sourceType);
     const storageProvider = storageProviderFromPayload(args);
     const projectName = args.sourceType === "ai" ? undefined : title;
 
@@ -844,8 +852,8 @@ export const createExternal = mutation({
       uploadedBy: userId,
       likes: 0,
       views: 0,
-      status: isDiscordImport ? "pending" : "active",
-      aiStatus: isDiscordImport ? "queued" : "processing",
+      status: isModeratedImport ? "pending" : "active",
+      aiStatus: isModeratedImport ? "queued" : "processing",
       uploadedAt: Date.now(),
       storageProvider,
       storageBucket: args.storageBucket,
@@ -863,7 +871,7 @@ export const createExternal = mutation({
       ingestedAt: Date.now(),
     });
 
-    if (isDiscordImport) {
+    if (args.sourceType === "discord") {
       try {
         await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
           event: "queued",
@@ -879,7 +887,7 @@ export const createExternal = mutation({
       }
     }
 
-    if (!isDiscordImport) {
+    if (!isModeratedImport) {
       await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
         imageId,
         userId,
@@ -972,7 +980,7 @@ export const ingestExternal = internalMutation({
     const title = args.title || "Untitled";
     const category = args.category || "General";
     const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
-    const isDiscordImport = args.sourceType === "discord";
+    const isModeratedImport = isModeratedImportSource(args.sourceType);
     const storageProvider = storageProviderFromPayload(args);
     const projectName = args.sourceType === "ai" ? undefined : title;
 
@@ -989,8 +997,8 @@ export const ingestExternal = internalMutation({
       uploadedBy: args.userId,
       likes: 0,
       views: 0,
-      status: isDiscordImport ? "pending" : "active",
-      aiStatus: isDiscordImport ? "queued" : "processing",
+      status: isModeratedImport ? "pending" : "active",
+      aiStatus: isModeratedImport ? "queued" : "processing",
       uploadedAt: Date.now(),
       storageProvider,
       storageBucket: args.storageBucket,
@@ -1008,7 +1016,7 @@ export const ingestExternal = internalMutation({
       ingestedAt: Date.now(),
     });
 
-    if (isDiscordImport) {
+    if (args.sourceType === "discord") {
       try {
         await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
           event: "queued",
@@ -1024,7 +1032,7 @@ export const ingestExternal = internalMutation({
       }
     }
 
-    if (!isDiscordImport) {
+    if (!isModeratedImport) {
       await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
         imageId,
         userId: args.userId,
@@ -1377,12 +1385,12 @@ export const internalModerateDiscordImage = internalMutation({
         };
       }
 
-      const isDiscordSource = image.sourceType === "discord";
-      const shouldRunDiscordAnalysis = isDiscordSource && image.aiStatus === "queued";
-      const nextStatus = isDiscordSource ? "draft" : "active";
+      const isModeratedSource = isModeratedImportSource(image.sourceType);
+      const shouldRunAnalysis = shouldQueueAnalysis(image);
+      const nextStatus = isModeratedSource ? "draft" : "active";
       await ctx.db.patch(args.imageId, {
         status: nextStatus,
-        aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
+        aiStatus: shouldRunAnalysis ? "processing" : image.aiStatus,
       });
 
       if (!image.colors || image.colors.length === 0) {
@@ -1396,7 +1404,7 @@ export const internalModerateDiscordImage = internalMutation({
         );
       }
 
-      if (shouldRunDiscordAnalysis) {
+      if (shouldRunAnalysis) {
         await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
           imageId: image._id,
           userId: args.userId,
@@ -1433,7 +1441,7 @@ export const internalModerateDiscordImage = internalMutation({
         ok: true,
         message: "Image approved.",
         status: nextStatus,
-        aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
+        aiStatus: shouldRunAnalysis ? "processing" : image.aiStatus,
       };
     }
 
@@ -2014,12 +2022,12 @@ export const approveImage = mutation({
 
     if (image.uploadedBy !== userId) throw new Error("Not authorized");
 
-    const isDiscordSource = image.sourceType === "discord";
-    const shouldRunDiscordAnalysis = isDiscordSource && image.aiStatus === "queued";
-    const nextStatus = isDiscordSource ? "draft" : "active";
+    const isModeratedSource = isModeratedImportSource(image.sourceType);
+    const shouldRunAnalysis = shouldQueueAnalysis(image);
+    const nextStatus = isModeratedSource ? "draft" : "active";
     await ctx.db.patch("images", args.imageId, {
       status: nextStatus,
-      aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
+      aiStatus: shouldRunAnalysis ? "processing" : image.aiStatus,
     });
 
     if (!image.colors || image.colors.length === 0) {
@@ -2034,7 +2042,7 @@ export const approveImage = mutation({
       );
     }
 
-    if (shouldRunDiscordAnalysis) {
+    if (shouldRunAnalysis) {
       await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
         imageId: image._id,
         userId,

@@ -1,11 +1,11 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "PINDOCS",
+  "name": "Pindeck Docs",
   "colors": {
-    "primary": "#1f8fe5",
-    "light": "#52a8ff",
-    "dark": "#0c3564"
+    "primary": "#3a7bff",
+    "light": "#c7ddff",
+    "dark": "#2447b8"
   },
   "font": {
     "family": "Inter"
@@ -66,9 +66,8 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Pindeck",
-          "href": "https://www.pindeck.dev",
-          "icon": "grid-art"
+          "anchor": "Open Pindeck",
+          "href": "https://www.pindeck.dev"
         },
         {
           "anchor": "GitHub",

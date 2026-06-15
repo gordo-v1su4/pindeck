@@ -169,12 +169,17 @@ export function ImageUploadForm() {
   const setAiStatusMutation = useMutation(api.images.setAiStatus);
   const clearMyStaleProcessingImagesMutation = useMutation(api.images.clearMyStaleProcessingImages);
 
-  const localPendingImages = (pendingImages || []).filter((img) => img.sourceType !== "discord");
+  const localPendingImages = (pendingImages || []).filter(
+    (img) => img.sourceType !== "discord" && img.sourceType !== "pinterest"
+  );
   const discordPendingImages = (pendingImages || []).filter((img) => img.sourceType === "discord");
+  const pinterestPendingImages = (pendingImages || []).filter((img) => img.sourceType === "pinterest");
   const localDraftImages = draftImages || [];
   const supportingGroups = (groups || []).filter((group) => group.toLowerCase() !== "film");
   const discordDraftImages = (draftImages || []).filter((img) => img.sourceType === "discord");
   const discordProcessingImages = (processingImages || []).filter((img) => img.sourceType === "discord");
+  const pinterestDraftImages = (draftImages || []).filter((img) => img.sourceType === "pinterest");
+  const pinterestProcessingImages = (processingImages || []).filter((img) => img.sourceType === "pinterest");
   const discordQueueLoaded =
     loggedInUser !== undefined &&
     pendingImages !== undefined &&
@@ -695,14 +700,12 @@ export function ImageUploadForm() {
             )}
             {activeUploadTab === "pinterest" && (
               <Text size="2" color="gray">
-                Paste a public Pinterest board URL to import new pins into your
-                gallery. We only import content you explicitly request.
+                Pinterest imports are staged for approval before analysis or publishing. Use the configured connector to send pins into this queue.
               </Text>
             )}
             {activeUploadTab === "automation" && (
               <Text size="2" color="gray">
-                Automation is coming soon. We'll add scheduled imports and board
-                triggers here once they’re ready.
+                Scheduled board polling is the supported automation path for Pinterest board imports.
               </Text>
             )}
           </Card>
@@ -857,6 +860,98 @@ export function ImageUploadForm() {
                   )}
                 </Dialog.Content>
               </Dialog.Root>
+            </Box>
+          )}
+
+          {activeUploadTab === "pinterest" && (
+            <Box className="mt-6 animate-in fade-in">
+              <Separator size="4" className="mb-6" />
+              <Card className="p-4 mb-4">
+                <Flex align="start" justify="between" gap="3" wrap="wrap">
+                  <Box>
+                    <Heading size="3" className="mb-1">Pinterest Queue</Heading>
+                    <Text size="2" color="gray" className="block">
+                      Signed-in queue owner:{" "}
+                      {loggedInUser === undefined
+                        ? "Loading..."
+                        : loggedInUser
+                          ? (loggedInUser.email || loggedInUser.name || "Authenticated user")
+                          : "Not signed in"}
+                    </Text>
+                    <Text size="2" color="gray" className="block">
+                      Queue query: {discordQueueLoaded ? "Loaded" : "Loading..."}
+                    </Text>
+                  </Box>
+                  <Flex gap="2" wrap="wrap">
+                    <Badge color="gray" variant="soft">
+                      Pending {pinterestPendingImages.length}
+                    </Badge>
+                    <Badge color="amber" variant="soft">
+                      Processing {pinterestProcessingImages.length}
+                    </Badge>
+                    <Badge color="green" variant="soft">
+                      Draft {pinterestDraftImages.length}
+                    </Badge>
+                  </Flex>
+                </Flex>
+              </Card>
+
+              {pinterestPendingImages.length === 0 ? (
+                <Card className="p-4">
+                  <Text size="2" color="gray">
+                    No queued Pinterest imports yet.
+                  </Text>
+                </Card>
+              ) : (
+                <Grid columns={{ initial: "1", sm: "2", md: "3" }} gap="4">
+                  {pinterestPendingImages.map((image) => (
+                    <Card key={image._id} className="overflow-hidden p-0 group relative">
+                      <Box className="relative aspect-video">
+                        <img
+                          src={image.previewUrl || image.imageUrl}
+                          alt={image.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <Box className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <Button
+                            color="green"
+                            variant="solid"
+                            size="1"
+                            onClick={() => void handleApprove(image._id)}
+                            className="flex-1 shadow-lg bg-green-500/90 hover:bg-green-500 cursor-pointer"
+                          >
+                            <CheckIcon /> Keep
+                          </Button>
+                          <Button
+                            color="red"
+                            variant="solid"
+                            size="1"
+                            onClick={() => void handleReject(image._id)}
+                            className="flex-1 shadow-lg bg-red-500/90 hover:bg-red-500 cursor-pointer"
+                          >
+                            <Cross2Icon /> Discard
+                          </Button>
+                        </Box>
+                      </Box>
+                      <Box className="p-2 bg-gray-50 dark:bg-gray-900/50">
+                        <Text weight="medium" size="1" className="block truncate">{(image as any).title}</Text>
+                        <Text size="1" color="gray" className="line-clamp-1 text-[10px]">{(image as any).sourceUrl || (image as any).description}</Text>
+                      </Box>
+                    </Card>
+                  ))}
+                </Grid>
+              )}
+
+              {(pinterestProcessingImages.length > 0 || pinterestDraftImages.length > 0) && (
+                <Card className="p-4 mt-4">
+                  <Text size="2" weight="medium" className="block">
+                    Approved Pinterest items moved out of queue
+                  </Text>
+                  <Text size="2" color="gray">
+                    {pinterestProcessingImages.length} processing, {pinterestDraftImages.length} ready for review/finalize.
+                  </Text>
+                </Card>
+              )}
             </Box>
           )}
         </>
