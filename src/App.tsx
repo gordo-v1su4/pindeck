@@ -29,6 +29,8 @@ const DeckView = lazy(() =>
   import("@/components/DeckView").then((mod) => ({ default: mod.DeckView }))
 );
 
+const DOCS_URL = "https://docs.pindeck.dev";
+
 const APP_VIEWS = [
   { id: "gallery", label: "Gallery", icon: "masonry", hk: "G" },
   { id: "table", label: "Table", icon: "table", hk: "T" },
@@ -693,6 +695,16 @@ function Topbar({ search, setSearch, view, setView, tweaksOn, onToggleTweaks, ac
           </button>
         ))}
       </div>
+
+      <a href={DOCS_URL} target="_blank" rel="noreferrer" title="Open Pindeck docs" className="pd-topbar-row" style={{
+        display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
+        borderRadius: 4, fontSize: 11, fontWeight: 500, color: "var(--pd-ink-dim)",
+        background: "transparent", textDecoration: "none",
+      }}>
+        <PinIcon name="docs" size={12} />
+        <span>Docs</span>
+        <PinIcon name="external" size={10} stroke={1.5} />
+      </a>
 
       <button onClick={onToggleTweaks} title="Tweaks" className={tweaksOn ? "pd-tweaks-trigger is-active" : "pd-tweaks-trigger"} style={{
         width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",

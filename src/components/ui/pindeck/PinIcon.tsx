@@ -3,7 +3,7 @@ import {
   Search, LayoutGrid, LayoutTemplate, Table, Presentation, Upload, Zap, Sparkles,
   Heart, Eye, X, ChevronDown, ChevronRight, ChevronLeft, Pencil, MoreHorizontal,
   Filter, ArrowUpDown, TreePine, Plus, Check, Image, Film, Palette, GripVertical,
-  Lock, Unlock, EyeOff, Play, Maximize, Download, Bolt
+  Lock, Unlock, EyeOff, Play, Maximize, Download, Bolt, BookOpen, ExternalLink
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
@@ -40,6 +40,8 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?
   play: Play,
   expand: Maximize,
   download: Download,
+  docs: BookOpen,
+  external: ExternalLink,
 
   dot: () => null,
 };
