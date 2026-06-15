@@ -804,7 +804,12 @@ export const createExternal = mutation({
         .query("images")
         .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId))
         .unique();
-      if (existing) return existing._id;
+      if (existing) {
+        if ((!existing.colors || existing.colors.length === 0) && args.colors?.length) {
+          await ctx.db.patch(existing._id, { colors: args.colors });
+        }
+        return existing._id;
+      }
     }
 
     const existingByUrl = await ctx.db
@@ -812,7 +817,12 @@ export const createExternal = mutation({
       .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
       .filter((q) => q.eq(q.field("imageUrl"), args.imageUrl))
       .take(1);
-    if (existingByUrl[0]) return existingByUrl[0]._id;
+    if (existingByUrl[0]) {
+      if ((!existingByUrl[0].colors || existingByUrl[0].colors.length === 0) && args.colors?.length) {
+        await ctx.db.patch(existingByUrl[0]._id, { colors: args.colors });
+      }
+      return existingByUrl[0]._id;
+    }
 
     const title = args.title || "Untitled";
     const category = args.category || "General";
@@ -843,6 +853,7 @@ export const createExternal = mutation({
       previewStoragePath: args.previewStoragePath,
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
+      colors: args.colors ?? [],
       nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
       storagePersistStatus: args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
@@ -938,7 +949,12 @@ export const ingestExternal = internalMutation({
         .query("images")
         .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId))
         .unique();
-      if (existing) return existing._id;
+      if (existing) {
+        if ((!existing.colors || existing.colors.length === 0) && args.colors?.length) {
+          await ctx.db.patch(existing._id, { colors: args.colors });
+        }
+        return existing._id;
+      }
     }
 
     const existingByUrl = await ctx.db
@@ -946,7 +962,12 @@ export const ingestExternal = internalMutation({
       .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", args.userId))
       .filter((q) => q.eq(q.field("imageUrl"), args.imageUrl))
       .take(1);
-    if (existingByUrl[0]) return existingByUrl[0]._id;
+    if (existingByUrl[0]) {
+      if ((!existingByUrl[0].colors || existingByUrl[0].colors.length === 0) && args.colors?.length) {
+        await ctx.db.patch(existingByUrl[0]._id, { colors: args.colors });
+      }
+      return existingByUrl[0]._id;
+    }
 
     const title = args.title || "Untitled";
     const category = args.category || "General";
@@ -977,6 +998,7 @@ export const ingestExternal = internalMutation({
       previewStoragePath: args.previewStoragePath,
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
+      colors: args.colors ?? [],
       nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
       storagePersistStatus: args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
@@ -1363,6 +1385,17 @@ export const internalModerateDiscordImage = internalMutation({
         aiStatus: shouldRunDiscordAnalysis ? "processing" : image.aiStatus,
       });
 
+      if (!image.colors || image.colors.length === 0) {
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.colorExtraction.internalExtractAndStoreColors,
+          {
+            imageId: image._id,
+            imageUrl: preferredImageUrlForSampling(image) ?? image.imageUrl,
+          }
+        );
+      }
+
       if (shouldRunDiscordAnalysis) {
         await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
           imageId: image._id,
@@ -1453,10 +1486,12 @@ export const internalModerateDiscordImage = internalMutation({
       imageUrl: image.imageUrl,
       description: image.description || "",
       category: image.category,
-      style: undefined,
+      style: image.style,
       title: image.title,
       aspectRatio: args.aspectRatio,
       group: image.group,
+      sref: image.sref,
+      colors: image.colors,
       variationCount,
       modificationMode,
       variationDetail: args.variationDetail,
