@@ -2,11 +2,13 @@
   --pd-doc-bg: #08080a;
   --pd-doc-surface: #0c0c0f;
   --pd-doc-surface-2: #101014;
-  --pd-doc-line: rgba(255, 255, 255, 0.07);
-  --pd-doc-line-strong: rgba(255, 255, 255, 0.12);
+  --pd-doc-line: rgba(255, 255, 255, 0.055);
+  --pd-doc-line-strong: rgba(255, 255, 255, 0.09);
+  --pd-doc-line-hi: rgba(255, 255, 255, 0.14);
   --pd-doc-ink: #c9ccd1;
-  --pd-doc-ink-dim: rgba(238, 240, 242, 0.62);
-  --pd-doc-ink-faint: rgba(238, 240, 242, 0.34);
+  --pd-doc-ink-dim: rgba(238, 240, 242, 0.6);
+  --pd-doc-ink-mute: rgba(238, 240, 242, 0.52);
+  --pd-doc-ink-faint: rgba(238, 240, 242, 0.3);
   --pd-doc-accent: #3a7bff;
   --pd-doc-accent-ink: #c7ddff;
   --pd-doc-accent-soft: rgba(58, 123, 255, 0.14);
@@ -30,29 +32,110 @@ body {
   backdrop-filter: blur(18px) saturate(1.1);
 }
 
+.nav-logo {
+  width: auto !important;
+  height: 24px !important;
+  object-fit: contain !important;
+}
+
 #search-bar-entry,
 #search-bar-entry-mobile {
-  border: 1px solid var(--pd-doc-line-strong) !important;
-  border-radius: 6px !important;
+  width: 320px !important;
+  max-width: 38vw !important;
+  padding: 5px 8px !important;
+  min-height: 34px !important;
+  height: 34px !important;
+  border: 1px solid var(--pd-doc-line) !important;
+  border-radius: 5px !important;
+  background: var(--pd-doc-surface-2) !important;
+  box-shadow: none !important;
+  color: var(--pd-doc-ink-dim) !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+}
+
+#search-bar-entry:hover,
+#search-bar-entry-mobile:hover {
+  border-color: var(--pd-doc-line-hi) !important;
+  background: color-mix(in srgb, var(--pd-doc-surface-2) 88%, #ffffff) !important;
+}
+
+#search-bar-entry:focus,
+#search-bar-entry:focus-visible,
+#search-bar-entry-mobile:focus,
+#search-bar-entry-mobile:focus-visible {
+  border-color: color-mix(in srgb, var(--pd-doc-accent) 42%, var(--pd-doc-line-strong)) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pd-doc-accent) 24%, transparent) inset !important;
+  outline: none !important;
+}
+
+#search-bar-entry *,
+#search-bar-entry-mobile * {
+  color: var(--pd-doc-ink-dim) !important;
+  font-size: 12px !important;
+}
+
+#search-bar-entry kbd,
+#search-bar-entry-mobile kbd,
+#search-bar-entry [class*="kbd"],
+#search-bar-entry-mobile [class*="kbd"] {
+  border: 1px solid var(--pd-doc-line) !important;
+  border-radius: 3px !important;
   background: rgba(255, 255, 255, 0.025) !important;
+  color: var(--pd-doc-ink-faint) !important;
   box-shadow: none !important;
 }
 
 #topbar-cta-button {
-  border-radius: 6px !important;
-  background: var(--pd-doc-accent-soft) !important;
-  color: var(--pd-doc-accent-ink) !important;
-  border: 1px solid color-mix(in srgb, var(--pd-doc-accent) 28%, transparent) !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  background: transparent !important;
   box-shadow: none !important;
 }
 
+#topbar-cta-button > a,
+#topbar-cta-button a[href="https://www.pindeck.dev"],
 #navbar a[href="https://www.pindeck.dev"],
 #topbar a[href="https://www.pindeck.dev"] {
-  border-radius: 6px !important;
+  min-height: 30px !important;
+  padding: 5px 10px !important;
+  border: 1px solid color-mix(in srgb, var(--pd-doc-accent) 34%, transparent) !important;
+  border-radius: 3px !important;
   background: var(--pd-doc-accent-soft) !important;
   color: var(--pd-doc-accent-ink) !important;
-  border: 1px solid color-mix(in srgb, var(--pd-doc-accent) 28%, transparent) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
   box-shadow: none !important;
+  line-height: 1.2 !important;
+}
+
+#topbar-cta-button > a > div,
+#topbar-cta-button a[href="https://www.pindeck.dev"] > div {
+  border-radius: 3px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#topbar-cta-button span,
+#navbar a[href="https://www.pindeck.dev"] span,
+#topbar a[href="https://www.pindeck.dev"] span {
+  border-radius: 3px !important;
+  background: transparent !important;
+  color: var(--pd-doc-accent-ink) !important;
+}
+
+#topbar-cta-button svg,
+#navbar a[href="https://www.pindeck.dev"] svg,
+#topbar a[href="https://www.pindeck.dev"] svg {
+  color: var(--pd-doc-accent-ink) !important;
+}
+
+#topbar-cta-button > a:hover,
+#topbar-cta-button a[href="https://www.pindeck.dev"]:hover,
+#navbar a[href="https://www.pindeck.dev"]:hover,
+#topbar a[href="https://www.pindeck.dev"]:hover {
+  border-color: color-mix(in srgb, var(--pd-doc-accent) 48%, transparent) !important;
+  background: color-mix(in srgb, var(--pd-doc-accent) 18%, transparent) !important;
 }
 
 #sidebar {
@@ -62,7 +145,8 @@ body {
 
 #sidebar-content a,
 #table-of-contents-content a {
-  border-radius: 5px !important;
+  border-radius: 3px !important;
+  color: var(--pd-doc-ink-mute) !important;
 }
 
 #sidebar-content a:hover,
@@ -91,7 +175,7 @@ body {
 
 #content a:has(h2) {
   border: 1px solid var(--pd-doc-line-strong) !important;
-  border-radius: 6px !important;
+  border-radius: 4px !important;
   background: rgba(255, 255, 255, 0.025) !important;
   color: var(--pd-doc-ink-dim) !important;
   box-shadow: none !important;
@@ -119,8 +203,21 @@ body {
 h1,
 h2,
 h3 {
-  color: #f4f5f7 !important;
+  color: var(--pd-doc-ink) !important;
   letter-spacing: 0 !important;
+}
+
+h1 {
+  font-size: 24px !important;
+  line-height: 1.16 !important;
+  font-weight: 650 !important;
+}
+
+#content > h2,
+#content section > h2 {
+  font-size: 20px !important;
+  line-height: 1.2 !important;
+  font-weight: 650 !important;
 }
 
 p,
@@ -139,7 +236,7 @@ a {
 table {
   overflow: hidden;
   border: 1px solid var(--pd-doc-line) !important;
-  border-radius: 6px !important;
+  border-radius: 4px !important;
   background: rgba(255, 255, 255, 0.015) !important;
 }
 
@@ -162,7 +259,7 @@ code {
 
 pre {
   border: 1px solid var(--pd-doc-line) !important;
-  border-radius: 6px !important;
+  border-radius: 4px !important;
   background: #0b0b0e !important;
   box-shadow: none !important;
 }

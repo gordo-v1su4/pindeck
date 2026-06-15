@@ -5,7 +5,7 @@ description: Pindeck Convex HTTP API for external integrations
 
 # API reference
 
-Pindeck exposes HTTP endpoints through Convex HTTP actions. These endpoints allow external services (like the Discord bot) to interact with Pindeck programmatically.
+Pindeck exposes HTTP endpoints through Convex HTTP actions. These endpoints allow agents, automations, and external services like Discord or Pinterest import workers to send images into Pindeck programmatically.
 
 ## Base URL
 
@@ -31,6 +31,10 @@ The `INGEST_API_KEY` is configured in the Convex dashboard and must match the ke
 | POST | `/ingestExternal` | Ingest an image from an external source |
 | POST | `/discordQueue` | Add an image to the Discord moderation queue |
 | POST | `/discordModerate` | Approve or reject a queued Discord image |
+
+## Agent integrations
+
+Start with [Agent ingest](/api-reference/agent-ingest) when building a connector that watches another service and forwards images into Pindeck. It covers required fields, idempotency keys, source tracing, and a JavaScript fetch helper.
 
 ## Request format
 

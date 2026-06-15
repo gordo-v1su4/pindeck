@@ -1,0 +1,118 @@
+---
+title: Agent ingest
+description: Agent-friendly guide for sending external images into Pindeck
+---
+
+# Agent ingest
+
+Use this guide when an agent, automation, or external service needs to send images into Pindeck from another system. The common path is:
+
+1. Find a public image URL.
+2. Build a stable `externalId` for deduplication.
+3. Send the image to `/ingestExternal`.
+4. Let Pindeck persist the file to RustFS, create the image record, extract colors, and put moderated sources into review.
+
+## Endpoint
+
+```text
+POST https://convex-site.serving.cloud/ingestExternal
+Authorization: Bearer <INGEST_API_KEY>
+Content-Type: application/json
+```
+
+## Required fields
+
+| Field | Description |
+| --- | --- |
+| `imageUrl` | Public URL that Pindeck can download. |
+| `userId` | Pindeck user id that owns the imported image. |
+
+## Recommended fields
+
+| Field | Description |
+| --- | --- |
+| `sourceType` | Use `discord`, `pinterest`, `upload`, or `ai`. Moderated sources such as `discord` and `pinterest` enter review before publishing. |
+| `externalId` | Stable idempotency key, such as `pinterest:<board-id>:<pin-id>` or `discord:<guild-id>:<message-id>:<attachment-id>`. |
+| `sourceUrl` | Original page, pin, post, or message URL. |
+| `title` | Human-readable title. |
+| `description` | Short context for search and review. |
+| `tags` | Array of searchable tags. |
+| `category` | Broad classification, usually `General` when unknown. |
+| `importBatchId` | Optional batch id for grouping one automation run. |
+| `sref` | Style reference id when the import came from an SREF workflow. |
+
+## Minimal request
+
+```bash
+curl -X POST "https://convex-site.serving.cloud/ingestExternal" \
+  -H "Authorization: Bearer $INGEST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "USER_ID",
+    "imageUrl": "https://example.com/image.jpg",
+    "sourceType": "pinterest",
+    "externalId": "pinterest:board-123:pin-456",
+    "sourceUrl": "https://www.pinterest.com/pin/456",
+    "title": "Imported reference",
+    "tags": ["pinterest", "reference"]
+  }'
+```
+
+Successful responses return the created `imageId` and resolved `userId`.
+
+```json
+{
+  "imageId": "k17...",
+  "userId": "j57..."
+}
+```
+
+## JavaScript agent example
+
+```ts
+type PindeckIngestPayload = {
+  userId: string;
+  imageUrl: string;
+  sourceType?: "discord" | "pinterest" | "upload" | "ai";
+  externalId?: string;
+  sourceUrl?: string;
+  title?: string;
+  description?: string;
+  tags?: string[];
+  category?: string;
+  importBatchId?: string;
+  sref?: string;
+};
+
+export async function sendToPindeck(payload: PindeckIngestPayload) {
+  const response = await fetch("https://convex-site.serving.cloud/ingestExternal", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.INGEST_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Pindeck ingest failed: ${response.status} ${await response.text()}`);
+  }
+
+  return response.json() as Promise<{ imageId: string; userId: string }>;
+}
+```
+
+## Moderated sources
+
+Images with `sourceType` set to `discord` or `pinterest` are created as draft/moderated imports. They are available to the review workflow before becoming active in the main library.
+
+For Discord-specific review tooling, use `/discordQueue` to list queued items and `/discordModerate` to approve, reject, or generate variations for a queued image.
+
+## Integration checklist
+
+- Use `externalId` on every automated import.
+- Keep `INGEST_API_KEY` server-side only.
+- Use a source-specific `importBatchId` for scheduled sync jobs.
+- Send `sourceUrl` so reviewers can trace where an image came from.
+- Prefer direct image URLs that do not require browser cookies.
+- Retry `502` responses with backoff; they can mean the upstream image host or RustFS persistence step failed.
