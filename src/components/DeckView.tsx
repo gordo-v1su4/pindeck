@@ -88,10 +88,8 @@ function formatDeckAge(createdAt: number): string {
 function slideGridStyle(count: number) {
   const visible = Math.max(1, Math.min(count, 6));
   const columns = visible <= 1 ? 1 : visible <= 4 ? 2 : 3;
-  const rows = Math.ceil(visible / columns);
   return {
     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-    gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
   };
 }
 
