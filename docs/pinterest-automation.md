@@ -6,9 +6,10 @@ become normal library references or feed AI variation workflows.
 
 ## Current Decision
 
-Use the `services/pinterest-ingest` Hostinger sidecar. It uses `gallery-dl`
-with an exported Pinterest browser cookie file to read watched Pinterest boards
-or profiles.
+Use the Pinterest ingest sidecar in the standalone `discord-bot` repository.
+It runs as a sibling Docker Compose service beside the Discord worker and
+legacy media gateway. The sidecar uses `gallery-dl` with an exported Pinterest
+browser cookie file to read watched Pinterest boards or profiles.
 
 The sidecar has two jobs:
 
@@ -43,12 +44,14 @@ metadata analysis or publishing continues.
 
 ## Runtime
 
-The service is packaged at `services/pinterest-ingest`.
+The service is packaged at `discord-bot/services/pinterest-ingest`.
+The Pindeck app repo owns the `/ingestExternal` endpoint and review workflow;
+the Discord bot repo owns always-on worker deployment.
 
 Required for Pindeck sync:
 
 - `PINDECK_INGEST_URL`
-- `PINDECK_INGEST_API_KEY`
+- `PINDECK_INGEST_API_KEY` or the shared Discord worker `INGEST_API_KEY`
 - `PINDECK_USER_ID`
 
 Required for Pinterest extraction:

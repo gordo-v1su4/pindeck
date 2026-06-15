@@ -1,1 +1,0 @@
-"""Pindeck Pinterest ingest sidecar."""
