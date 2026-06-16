@@ -146,6 +146,55 @@ const ASPECT_OPTIONS: { label: string; value: string }[] = [
 ];
 
 const COUNT_OPTIONS = [1, 4, 8, 12];
+const PINTEREST_INGEST_BASE_URL = (
+  (import.meta.env.VITE_PINTEREST_INGEST_BASE_URL as string | undefined) ||
+  "https://rssbridge.serving.cloud/pinterest-ingest"
+).replace(/\/+$/, "");
+
+type PinterestSourceRecord = {
+  id: string;
+  name: string;
+  url: string;
+  tags: string[];
+  active: boolean;
+  last_run_id?: string | null;
+  last_status?: string | null;
+  last_error?: string | null;
+  last_run_at?: string | null;
+};
+
+type PinterestRunRecord = {
+  id: string;
+  source_id: string;
+  status: string;
+  discovered_count: number;
+  new_count: number;
+  synced_count: number;
+  error?: string | null;
+};
+
+type PinterestSyncResult = {
+  source_id: string;
+  attempted: number;
+  synced: number;
+  failed: number;
+  errors: string[];
+};
+
+async function pinterestRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${PINTEREST_INGEST_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(body || `Pinterest ingest request failed (${response.status})`);
+  }
+  return (body ? JSON.parse(body) : null) as T;
+}
 
 export function ImageUploadForm() {
   const loggedInUser = useQuery(api.auth.loggedInUser);
@@ -192,6 +241,14 @@ export function ImageUploadForm() {
   const [activeUploadTab, setActiveUploadTab] = useState<
     "local" | "discord" | "pinterest" | "automation"
   >("local");
+  const [pinterestSources, setPinterestSources] = useState<PinterestSourceRecord[]>([]);
+  const [pinterestSourceUrl, setPinterestSourceUrl] = useState("");
+  const [pinterestSourceName, setPinterestSourceName] = useState("");
+  const [pinterestSourceTags, setPinterestSourceTags] = useState("reference");
+  const [pinterestSourceLoading, setPinterestSourceLoading] = useState(false);
+  const [pinterestSourceSaving, setPinterestSourceSaving] = useState(false);
+  const [pinterestBusySourceId, setPinterestBusySourceId] = useState<string | null>(null);
+  const [pinterestLastResult, setPinterestLastResult] = useState<string>("");
   
   // Discord queue image preview (click to enlarge)
   const [discordPreviewImageId, setDiscordPreviewImageId] = useState<Id<"images"> | null>(null);
@@ -215,6 +272,120 @@ export function ImageUploadForm() {
       console.warn("Failed to clear stale processing images", error);
     });
   }, [clearMyStaleProcessingImagesMutation]);
+
+  const refreshPinterestSources = async () => {
+    setPinterestSourceLoading(true);
+    try {
+      const sources = await pinterestRequest<PinterestSourceRecord[]>("/sources");
+      setPinterestSources(sources);
+    } catch (error) {
+      console.error("Failed to load Pinterest sources", error);
+      toast.error(error instanceof Error ? error.message : "Failed to load Pinterest sources");
+    } finally {
+      setPinterestSourceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeUploadTab !== "pinterest") return;
+    void refreshPinterestSources();
+  }, [activeUploadTab]);
+
+  const savePinterestSource = async () => {
+    const url = pinterestSourceUrl.trim();
+    if (!url) {
+      toast.info("Paste a Pinterest board, profile, or pin URL first.");
+      return;
+    }
+
+    setPinterestSourceSaving(true);
+    setPinterestLastResult("");
+    try {
+      const tags = pinterestSourceTags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      const source = await pinterestRequest<PinterestSourceRecord>("/sources", {
+        method: "POST",
+        body: JSON.stringify({
+          url,
+          name: pinterestSourceName.trim() || undefined,
+          tags,
+          active: true,
+        }),
+      });
+      setPinterestSourceUrl("");
+      setPinterestSourceName("");
+      setPinterestSourceTags("reference");
+      setPinterestSources((current) => [
+        source,
+        ...current.filter((item) => item.id !== source.id),
+      ]);
+      setPinterestLastResult(`Saved ${source.name}.`);
+      toast.success("Pinterest source saved.");
+    } catch (error) {
+      console.error("Failed to save Pinterest source", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save Pinterest source");
+    } finally {
+      setPinterestSourceSaving(false);
+    }
+  };
+
+  const runPinterestSource = async (sourceId: string) => {
+    setPinterestBusySourceId(sourceId);
+    setPinterestLastResult("");
+    try {
+      const run = await pinterestRequest<PinterestRunRecord>(`/runs/${encodeURIComponent(sourceId)}`, {
+        method: "POST",
+      });
+      await refreshPinterestSources();
+      if (run.status === "failed") {
+        setPinterestLastResult(`Run failed: ${run.error || "unknown error"}`);
+        toast.error(run.error || "Pinterest extraction failed.");
+        return;
+      }
+      setPinterestLastResult(
+        `Found ${run.discovered_count} item${run.discovered_count === 1 ? "" : "s"}; ${run.new_count} new.`
+      );
+      toast.success("Pinterest extraction finished.");
+    } catch (error) {
+      console.error("Failed to run Pinterest source", error);
+      toast.error(error instanceof Error ? error.message : "Failed to run Pinterest source");
+    } finally {
+      setPinterestBusySourceId(null);
+    }
+  };
+
+  const syncPinterestSource = async (sourceId: string) => {
+    setPinterestBusySourceId(sourceId);
+    setPinterestLastResult("");
+    try {
+      const sync = await pinterestRequest<PinterestSyncResult>(
+        `/sources/${encodeURIComponent(sourceId)}/sync-pindeck`,
+        { method: "POST" }
+      );
+      setPinterestLastResult(
+        `Sent ${sync.synced} to queue; ${sync.failed} failed; ${sync.attempted} attempted.`
+      );
+      if (sync.failed > 0) {
+        toast.error(sync.errors[0] || "Some Pinterest items failed to sync.");
+      } else if (sync.synced > 0) {
+        toast.success("Pinterest items sent to queue.");
+      } else {
+        toast.info("No new Pinterest items to send.");
+      }
+    } catch (error) {
+      console.error("Failed to sync Pinterest source", error);
+      toast.error(error instanceof Error ? error.message : "Failed to sync Pinterest source");
+    } finally {
+      setPinterestBusySourceId(null);
+    }
+  };
+
+  const runAndSyncPinterestSource = async (sourceId: string) => {
+    await runPinterestSource(sourceId);
+    await syncPinterestSource(sourceId);
+  };
 
   // Loading state check
   if (categories === undefined) {
@@ -866,6 +1037,143 @@ export function ImageUploadForm() {
           {activeUploadTab === "pinterest" && (
             <Box className="mt-6 animate-in fade-in">
               <Separator size="4" className="mb-6" />
+              <Card className="p-4 mb-4">
+                <Flex direction="column" gap="4">
+                  <Flex align="start" justify="between" gap="3" wrap="wrap">
+                    <Box>
+                      <Heading size="3" className="mb-1">Pinterest Sources</Heading>
+                      <Text size="2" color="gray" className="block">
+                        Add a board, profile, or pin URL, then run it and send new images into the review queue.
+                      </Text>
+                    </Box>
+                    <Button
+                      size="1"
+                      variant="soft"
+                      onClick={() => void refreshPinterestSources()}
+                      disabled={pinterestSourceLoading}
+                    >
+                      {pinterestSourceLoading ? "Refreshing..." : "Refresh"}
+                    </Button>
+                  </Flex>
+
+                  <Grid columns={{ initial: "1", md: "3" }} gap="3">
+                    <Box className="md:col-span-2">
+                      <Text as="label" size="1" weight="medium" className="block mb-1">
+                        Pinterest URL
+                      </Text>
+                      <TextField.Root
+                        value={pinterestSourceUrl}
+                        onChange={(event) => setPinterestSourceUrl(event.target.value)}
+                        placeholder="https://www.pinterest.com/user/board/ or /pin/..."
+                      />
+                    </Box>
+                    <Box>
+                      <Text as="label" size="1" weight="medium" className="block mb-1">
+                        Name
+                      </Text>
+                      <TextField.Root
+                        value={pinterestSourceName}
+                        onChange={(event) => setPinterestSourceName(event.target.value)}
+                        placeholder="Optional"
+                      />
+                    </Box>
+                    <Box className="md:col-span-2">
+                      <Text as="label" size="1" weight="medium" className="block mb-1">
+                        Tags
+                      </Text>
+                      <TextField.Root
+                        value={pinterestSourceTags}
+                        onChange={(event) => setPinterestSourceTags(event.target.value)}
+                        placeholder="reference, style, campaign"
+                      />
+                    </Box>
+                    <Flex align="end">
+                      <Button
+                        className="w-full pd-action-primary"
+                        onClick={() => void savePinterestSource()}
+                        disabled={pinterestSourceSaving}
+                      >
+                        {pinterestSourceSaving ? "Saving..." : "Save Source"}
+                      </Button>
+                    </Flex>
+                  </Grid>
+
+                  {pinterestLastResult && (
+                    <Text size="2" color="gray">
+                      {pinterestLastResult}
+                    </Text>
+                  )}
+
+                  {pinterestSources.length > 0 && (
+                    <Flex direction="column" gap="2">
+                      {pinterestSources.map((source) => (
+                        <Box
+                          key={source.id}
+                          className="p-3 border border-gray-7 bg-gray-2 dark:bg-gray-2"
+                        >
+                          <Flex align="start" justify="between" gap="3" wrap="wrap">
+                            <Box className="min-w-0 flex-1">
+                              <Flex gap="2" align="center" wrap="wrap">
+                                <Text weight="medium" size="2">{source.name}</Text>
+                                <Badge color={source.last_status === "failed" ? "red" : source.last_status === "succeeded" ? "green" : "gray"} variant="soft">
+                                  {source.last_status || "not run"}
+                                </Badge>
+                                {source.tags.map((tag) => (
+                                  <Badge key={tag} color="gray" variant="soft">{tag}</Badge>
+                                ))}
+                              </Flex>
+                              <Text size="1" color="gray" className="block truncate mt-1">
+                                {source.url}
+                              </Text>
+                              {source.last_error && (
+                                <Text size="1" color="red" className="block mt-1">
+                                  {source.last_error}
+                                </Text>
+                              )}
+                            </Box>
+                            <Flex gap="2" wrap="wrap">
+                              <Button
+                                size="1"
+                                variant="soft"
+                                onClick={() => void runPinterestSource(source.id)}
+                                disabled={pinterestBusySourceId === source.id}
+                              >
+                                Run
+                              </Button>
+                              <Button
+                                size="1"
+                                variant="soft"
+                                onClick={() => void syncPinterestSource(source.id)}
+                                disabled={pinterestBusySourceId === source.id}
+                              >
+                                Send to Queue
+                              </Button>
+                              <Button
+                                size="1"
+                                className="pd-action-primary"
+                                onClick={() => void runAndSyncPinterestSource(source.id)}
+                                disabled={pinterestBusySourceId === source.id}
+                              >
+                                Run + Send
+                              </Button>
+                              <Button size="1" variant="ghost" asChild>
+                                <a
+                                  href={`${PINTEREST_INGEST_BASE_URL}/feeds/pinterest/${encodeURIComponent(source.id)}.xml`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Feed
+                                </a>
+                              </Button>
+                            </Flex>
+                          </Flex>
+                        </Box>
+                      ))}
+                    </Flex>
+                  )}
+                </Flex>
+              </Card>
+
               <Card className="p-4 mb-4">
                 <Flex align="start" justify="between" gap="3" wrap="wrap">
                   <Box>
