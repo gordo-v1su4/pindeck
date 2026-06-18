@@ -34,7 +34,7 @@ Today focused on Discord ingest moderation, queue quality, and Discord-to-Pindec
 
 | Priority | Next Step | Why |
 |---|---|---|
-| P0 | Migrate Discord bot from local machine to always-on worker host (Coolify/Render/Railway/VPS). | Prevent downtime when local terminal is off. |
+| P0 | Migrate Discord bot from local machine to always-on worker host (Portainer/Render/Railway/VPS). | Prevent downtime when local terminal is off. |
 | P0 | Add multi-tenant Discord user mapping (avoid single global `PINDECK_USER_ID`). | Let any app user use Discord ingest safely. |
 | P1 | Add idempotency guards on Discord button actions (approve/reject/generate). | Prevent duplicate actions from rapid clicks/retries. |
 | P1 | Add audit trail table for moderation events (`who`, `what`, `when`, `source`). | Better debugging and accountability. |
