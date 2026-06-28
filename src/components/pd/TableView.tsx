@@ -8,6 +8,7 @@ import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
 import { downloadImages } from "@/lib/imageDownload";
 import { toast } from "sonner";
+import { SmartImage } from "@/components/SmartImage";
 
 /** Deduped numeric tokens for `--sref`-style chips (supports multiple numbers in one cell). */
 function parseSrefIds(raw: string | undefined): string[] {
@@ -580,7 +581,7 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
                     <span className="pd-filter-checkbox-box" aria-hidden="true" />
                   </label>
                   <div style={{ width: 48, height: 32, background: "#000", borderRadius: 2, overflow: "hidden" }}>
-                    <img src={im.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <SmartImage image={im} variant="dense" alt={im.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                 </span>
               </td>

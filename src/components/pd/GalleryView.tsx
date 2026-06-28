@@ -412,7 +412,7 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
                     {row.rows.length} {row.rows.length === 1 ? "image" : "images"}
                   </span>
                 </div>
-                <div className="pd-scroll" style={{ display: "flex", gap, overflowX: "auto", paddingBottom: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap, overflowX: "hidden", paddingBottom: 8 }}>
                   {row.rows.map((img, index) => renderTile(img, index, true))}
                 </div>
               </section>

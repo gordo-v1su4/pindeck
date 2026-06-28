@@ -7,6 +7,7 @@ import { PinIcon, PinChip, PinSwatches } from "@/components/ui/pindeck";
 import type { Tweaks } from "../TweaksPanel";
 import { downloadImage } from "@/lib/imageDownload";
 import { ImageLightbox } from "@/components/pd/ImageLightbox";
+import { SmartImage } from "@/components/SmartImage";
 
 interface ImageDetailDrawerProps {
   image: any;
@@ -120,11 +121,14 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
   const generateVariations = useMutation(api.vision.generateVariations);
   const updateImageMetadata = useMutation(api.images.updateImageMetadata);
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
+  const enqueueMediaRepair = useMutation(api.images.enqueueMediaRepair);
   const lineage = useQuery((api as any).images.getLineage, { imageId: image._id as Id<"images"> });
   const [genBusy, setGenBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [metadataBusy, setMetadataBusy] = useState(false);
   const [metadataStatus, setMetadataStatus] = useState<string | null>(null);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const [mediaStatus, setMediaStatus] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [editDraft, setEditDraft] = useState<EditDraft>(() => editDraftFromImage(image));
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -146,6 +150,8 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
     setAspectLabel("16:9");
     setEditDraft(editDraftFromImage(image));
     setTagInput("");
+    setMetadataStatus(null);
+    setMediaStatus(null);
   }, [image._id, image.modificationMode, image.variationDetail, image.variationCount]);
 
   const fmtSref = (s: string | undefined) => {
@@ -264,6 +270,25 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
       setMetadataBusy(false);
     }
   };
+
+  const handleRepairMedia = async () => {
+    setMediaBusy(true);
+    setMediaStatus("Regenerating stored media sizes...");
+    try {
+      await enqueueMediaRepair({
+        imageId: image._id as Id<"images">,
+      });
+      setMediaStatus("Queued media regeneration. The side panel will refresh when the new image URLs land.");
+      toast.success("Media regeneration queued.");
+    } catch (e) {
+      console.error(e);
+      setMediaStatus("Could not queue media regeneration. Check ownership and Convex deploy status.");
+      toast.error(e instanceof Error ? e.message : "Could not queue media regeneration.");
+    } finally {
+      setMediaBusy(false);
+    }
+  };
+
   const chipSelected: React.CSSProperties = {
     ...chipBase,
     border: "1px solid transparent",
@@ -292,8 +317,9 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
         onOpenImage?.(item);
       }}
     >
-      <img
-        src={item.derivativeUrls?.small || item.previewUrl || item.imageUrl}
+      <SmartImage
+        image={item}
+        variant="dense"
         alt={item.title}
         style={{ width: 72, height: 44, borderRadius: 3, objectFit: "cover", background: "#000" }}
       />
@@ -408,7 +434,7 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
             } as React.CSSProperties
           }
         >
-          <img src={image.imageUrl} alt={image.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <SmartImage image={image} variant="detail" alt={image.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           <button
             type="button"
             aria-label="Zoom image"
@@ -641,6 +667,11 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
                   {metadataStatus}
                 </div>
               ) : null}
+              {mediaStatus ? (
+                <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", lineHeight: 1.45 }}>
+                  {mediaStatus}
+                </div>
+              ) : null}
               <button
                 type="button"
                 disabled={metadataBusy}
@@ -653,6 +684,19 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
                 }}
               >
                 {metadataBusy ? "Generating..." : "Generate Metadata & Palette"}
+              </button>
+              <button
+                type="button"
+                disabled={mediaBusy}
+                onClick={() => void handleRepairMedia()}
+                style={{
+                  ...chipBase,
+                  alignSelf: "flex-start",
+                  cursor: mediaBusy ? "wait" : "pointer",
+                  opacity: mediaBusy ? 0.75 : 1,
+                }}
+              >
+                {mediaBusy ? "Regenerating..." : "Regenerate Media Sizes"}
               </button>
             </div>
 

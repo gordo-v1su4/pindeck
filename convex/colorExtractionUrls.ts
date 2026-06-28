@@ -1,12 +1,16 @@
 /**
- * Which URL to fetch for palette extraction: prefer the primary gallery `imageUrl`
- * so swatches match what users see; use `derivativeUrls.large` only when the main URL is missing.
+ * Which URL to fetch for palette extraction: prefer the durable display asset
+ * so swatches match the image users actually see in cards/details.
  */
 export function preferredImageUrlForSampling(img: {
   imageUrl?: string;
+  previewUrl?: string;
   derivativeUrls?: { large?: string };
 }): string | null {
-  const primary = img.imageUrl?.trim();
-  if (primary) return primary;
-  return img.derivativeUrls?.large?.trim() || null;
+  return (
+    img.derivativeUrls?.large?.trim() ||
+    img.previewUrl?.trim() ||
+    img.imageUrl?.trim() ||
+    null
+  );
 }

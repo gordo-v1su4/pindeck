@@ -427,11 +427,11 @@ function extractImageLinksFromMessage(message) {
 
 function extractAllUrls(text) {
   if (!text) return [];
-  return text.match(/https?:\/\/\S+/g) || [];
+  return (text.match(/https?:\/\/\S+/g) || []).map(cleanCapturedUrl);
 }
 
 function cleanCapturedUrl(raw) {
-  return String(raw || "").replace(/[),.;!?]+$/g, "").trim();
+  return String(raw || "").replace(/[>\]),.;!?]+$/g, "").trim();
 }
 
 function looksLikeImageUrl(url) {
