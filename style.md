@@ -290,12 +290,12 @@ Menus and dropdowns should feel like compact glass panels, not bright popovers.
 .pd-glass-panel {
   border: 1px solid var(--pd-glass-line);
   border-radius: 6px;
-  background: rgba(10, 10, 14, 0.66);
+  background: rgba(10, 10, 14, 0.42);
   color: var(--pd-ink);
   box-shadow:
-    0 24px 80px -28px rgba(0, 0, 0, 0.95),
-    0 2px 0 rgba(255, 255, 255, 0.025) inset;
-  backdrop-filter: blur(22px) saturate(1.25);
+    0 24px 80px -32px rgba(0, 0, 0, 0.82),
+    0 2px 0 rgba(255, 255, 255, 0.018) inset;
+  backdrop-filter: blur(12px) saturate(1.25);
 }
 ```
 
@@ -418,6 +418,12 @@ Batch action bar:
 - Selected-count text uses `--pd-accent-ink`.
 - Primary batch action may use accent variant.
 - Destructive action uses red tint and red border.
+- Table utility rows, including batch actions, should share a compact `34px` minimum height.
+- Utility-row buttons should be `24px` tall with about `3px 8px` padding, matching tag/filter chip density rather than large toolbar buttons.
+- Stacked sticky utility rows should measure their actual height and offset the table header underneath, rather than adding extra dead vertical space.
+- The top Filters control should open a compact dropdown with checkbox filters mirroring the left rail; it should not add another full-width table row.
+- The top Columns control should open a compact dropdown too. Column toggles should use tag-sized typography (`10.5px`, `3px 7px`, `3px` radius) in a tight two-column grid, not a full-width table row.
+- Selected utility chips, filter checkboxes, and dropdown buttons inherit the Tweaks selected treatment: `--pd-accent-soft` fill with `--pd-accent-ink` text.
 
 ### Cards And Image Tiles
 
@@ -463,26 +469,30 @@ Glass tokens:
 
 ```css
 :root {
-  --pd-glass-bg: rgba(10, 10, 14, 0.66);
-  --pd-glass-bg-strong: rgba(10, 10, 14, 0.78);
-  --pd-glass-header: rgba(10, 10, 14, 0.64);
-  --pd-glass-footer: rgba(14, 14, 18, 0.66);
+  --pd-glass-bg: rgba(10, 10, 14, 0.42);
+  --pd-glass-bg-strong: rgba(10, 10, 14, 0.56);
+  --pd-glass-header: rgba(10, 10, 14, 0.36);
+  --pd-glass-footer: rgba(14, 14, 18, 0.44);
   --pd-glass-field: rgba(255, 255, 255, 0.035);
   --pd-glass-line: rgba(255, 255, 255, 0.09);
   --pd-glass-line-hi: rgba(255, 255, 255, 0.15);
   --pd-glass-radius: 6px;
-  --pd-glass-blur: 22px;
-  --pd-glass-overlay: rgba(0, 0, 0, 0.38);
-  --pd-glass-overlay-blur: 4px;
+  --pd-glass-blur: 12px;
+  --pd-glass-overlay: rgba(0, 0, 0, 0.24);
+  --pd-glass-overlay-blur: 2px;
+  --pd-scrollbar-thumb: rgba(40, 43, 45, 0.9);
+  --pd-scrollbar-thumb-hover: rgba(62, 66, 69, 0.94);
 }
 ```
 
 Overlay treatment:
 
-- Background dim: `rgba(0,0,0,0.38)`.
-- Optional blur: `4px`.
+- Background dim: `rgba(0,0,0,0.24)`.
+- Optional blur: `2px`.
 - Dialog shadow: deep and soft, not a bright glow.
 - Header/footer: translucent dark bands with `--pd-glass-line` separators.
+- Floating menus, tweak panels, palette popovers, and dialogs should share these glass tokens unless a component has a strong reason to opt out.
+- Floating popover scrollbars and main pane scrollbars should share the same 8px transparent-track scrollbar treatment.
 
 ### Toasts And Status
 

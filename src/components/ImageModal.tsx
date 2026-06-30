@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { SmartImage } from "./SmartImage";
 import {
   compactImageTagClass,
-  getPaletteTagStyle,
+  getPaletteTagStyleForLabel,
   sortColorsDarkToLight,
 } from "../lib/utils";
 
@@ -257,7 +257,7 @@ export function ImageModal({ imageId, onClose, setActiveTab, incrementBoardVersi
                       variant="soft"
                       size="1"
                       className={`${compactImageTagClass} cursor-pointer border-0`}
-                      style={getPaletteTagStyle(image.colors, i, Math.min(image.tags.length, 12))}
+                      style={getPaletteTagStyleForLabel(image.colors, tag, i)}
                       onClick={() => copyToClipboard(tag, 'Tag')}
                     >
                       {tag}

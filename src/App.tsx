@@ -5,7 +5,7 @@ import { SignInForm } from "@/SignInForm";
 import { SignOutButton } from "@/SignOutButton";
 import { Toaster } from "sonner";
 import { PinIcon, PinHotkey } from "@/components/ui/pindeck";
-import { defaultLibraryFilters, normalizeLibraryGroup, type LibraryFilters } from "@/lib/libraryFilters";
+import { defaultLibraryFilters, normalizeColorHex, normalizeLibraryGroup, type LibraryFilters } from "@/lib/libraryFilters";
 import { TweaksPanel, DEFAULT_TWEAKS, type Tweaks } from "@/components/pd/TweaksPanel";
 import { GalleryView } from "@/components/pd/GalleryView";
 import { TableView } from "@/components/pd/TableView";
@@ -41,6 +41,44 @@ const APP_VIEWS = [
 
 type AppViewId = (typeof APP_VIEWS)[number]["id"];
 type GalleryDisplayMode = "random" | "project-rows" | "sref-rows";
+type TableColumnKey =
+  | "date"
+  | "group"
+  | "genre"
+  | "shot"
+  | "style"
+  | "tags"
+  | "palette"
+  | "sref"
+  | "likes"
+  | "views";
+
+const TABLE_COLUMN_VISIBILITY_STORAGE_KEY = "pindeck_table_visible_columns";
+const defaultTableVisibleColumns: Record<TableColumnKey, boolean> = {
+  date: true,
+  group: true,
+  genre: true,
+  shot: true,
+  style: true,
+  tags: true,
+  palette: true,
+  sref: true,
+  likes: true,
+  views: true,
+};
+
+const tableColumnOptions: Array<{ key: TableColumnKey; label: string }> = [
+  { key: "date", label: "Date" },
+  { key: "group", label: "Type" },
+  { key: "genre", label: "Genre" },
+  { key: "shot", label: "Shot" },
+  { key: "style", label: "Style" },
+  { key: "tags", label: "Tags" },
+  { key: "palette", label: "Palette" },
+  { key: "sref", label: "SREF" },
+  { key: "likes", label: "Likes" },
+  { key: "views", label: "Views" },
+];
 
 const VALID_VIEW_IDS = new Set<string>(APP_VIEWS.map((v) => v.id));
 
@@ -51,6 +89,17 @@ function sanitizeStoredView(raw: string | null): AppViewId {
 
 function sanitizeGalleryDisplayMode(raw: string | null): GalleryDisplayMode {
   return raw === "project-rows" || raw === "sref-rows" || raw === "random" ? raw : "random";
+}
+
+function readStoredTableColumnVisibility(): Record<TableColumnKey, boolean> {
+  try {
+    const raw = window.localStorage.getItem(TABLE_COLUMN_VISIBILITY_STORAGE_KEY);
+    if (!raw) return defaultTableVisibleColumns;
+    const parsed = JSON.parse(raw) as Partial<Record<TableColumnKey, boolean>>;
+    return { ...defaultTableVisibleColumns, ...parsed };
+  } catch {
+    return defaultTableVisibleColumns;
+  }
 }
 
 export default function App() {
@@ -70,6 +119,7 @@ export default function App() {
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
   const [activeDeckId, setActiveDeckId] = useState<Id<"decks"> | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<LibraryFilters>(defaultLibraryFilters);
+  const [tableVisibleColumns, setTableVisibleColumns] = useState<Record<TableColumnKey, boolean>>(readStoredTableColumnVisibility);
   const [galleryDisplayMode, setGalleryDisplayMode] = useState<GalleryDisplayMode>(() =>
     sanitizeGalleryDisplayMode(localStorage.getItem("pindeck_gallery_display_mode")),
   );
@@ -95,6 +145,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("pindeck_gallery_display_mode", galleryDisplayMode);
   }, [galleryDisplayMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TABLE_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(tableVisibleColumns));
+    } catch {
+      // Column visibility should never block app rendering.
+    }
+  }, [tableVisibleColumns]);
 
   useEffect(() => {
     if (view !== "deck") setActiveDeckId(null);
@@ -212,6 +270,10 @@ export default function App() {
           docsUrl={`${DOCS_URL}?accent=${encodeURIComponent(tweaks.accent)}&typography=${encodeURIComponent(tweaks.typography)}`}
           tweaksOn={tweaksOpen}
           onToggleTweaks={() => setTweaksOpen(!tweaksOpen)}
+          libraryFilter={libraryFilter}
+          setLibraryFilter={setLibraryFilter}
+          visibleColumns={tableVisibleColumns}
+          setVisibleColumns={setTableVisibleColumns}
           accountActions={<SignOutButton onBeforeSignOut={closeTransientUi} />}
         />
 
@@ -228,7 +290,12 @@ export default function App() {
               />
             )}
             {view === "table" && (
-              <TableView search={search} onOpenImage={setSelectedImage} libraryFilter={libraryFilter} />
+              <TableView
+                search={search}
+                onOpenImage={setSelectedImage}
+                libraryFilter={libraryFilter}
+                visibleColumns={tableVisibleColumns}
+              />
             )}
             {view === "boards" && (
               <BoardsView onOpenDeck={openDeck} onOpenImage={setSelectedImage} />
@@ -326,13 +393,86 @@ class LibraryAggregationsErrorBoundary extends Component<
   }
 }
 
+function hexToRgb(hex: string): [number, number, number] | null {
+  const normalized = normalizeColorHex(hex);
+  if (!normalized) return null;
+  const h = normalized.slice(1);
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+function rgbToHue([r255, g255, b255]: [number, number, number]) {
+  const r = r255 / 255;
+  const g = g255 / 255;
+  const b = b255 / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === min) return 361;
+  const delta = max - min;
+  let hue = 0;
+  if (max === r) hue = (g - b) / delta + (g < b ? 6 : 0);
+  else if (max === g) hue = (b - r) / delta + 2;
+  else hue = (r - g) / delta + 4;
+  return hue * 60;
+}
+
+function colorBrightness(hex: string) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  const [r, g, b] = rgb;
+  return (r * 299 + g * 587 + b * 114) / 1000 / 255;
+}
+
+function buildSidebarColorRows(images: any[] | undefined): string[][] {
+  const colors = new Map<string, { color: string; hue: number; lightness: number; count: number }>();
+  for (const image of images ?? []) {
+    for (const raw of image.colors ?? []) {
+      const color = normalizeColorHex(raw);
+      const rgb = color ? hexToRgb(color) : null;
+      if (!color || !rgb) continue;
+      const current = colors.get(color);
+      if (current) current.count += 1;
+      else colors.set(color, { color, hue: rgbToHue(rgb), lightness: colorBrightness(color), count: 1 });
+    }
+  }
+
+  const sorted = Array.from(colors.values())
+    .sort((a, b) => a.hue - b.hue || a.lightness - b.lightness || b.count - a.count)
+    .slice(0, 80)
+    .map((entry) => entry.color);
+
+  const rows: string[][] = [];
+  for (let index = 0; index < sorted.length; index += 5) rows.push(sorted.slice(index, index + 5));
+  return rows;
+}
+
 function SidebarFilterControls({
   libraryFilter,
   setLibraryFilter,
+  activeView,
 }: {
   libraryFilter: LibraryFilters;
   setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
+  activeView: AppViewId;
 }) {
+  const images = useQuery(api.images.list, { limit: 1000 });
+  const [sidebarColorPickerOpen, setSidebarColorPickerOpen] = useState(false);
+  const [sidebarColorPickerPos, setSidebarColorPickerPos] = useState<{ left: number; top: number } | null>(null);
+  const sidebarColorLabelRef = React.useRef<HTMLLabelElement>(null);
+  const sidebarColorRows = React.useMemo(() => buildSidebarColorRows(images), [images]);
+
+  const openSidebarColorPicker = () => {
+    const rect = sidebarColorLabelRef.current?.getBoundingClientRect();
+    const left = rect ? Math.min(rect.left, Math.max(8, window.innerWidth - 336)) : 102;
+    const top = rect ? rect.bottom + 6 : 560;
+    setSidebarColorPickerPos({ left, top });
+    setSidebarColorPickerOpen(true);
+  };
+
+  const setColorFilter = (color: string | null) => {
+    setLibraryFilter((f) => ({ ...f, colorHex: color }));
+  };
+  const colorCheckboxChecked = Boolean(libraryFilter.colorHex) || sidebarColorPickerOpen;
+
   return (
     <>
       <div
@@ -395,6 +535,101 @@ function SidebarFilterControls({
         <span className="pd-filter-checkbox-box" aria-hidden="true" />
         Has sref
       </label>
+      <div style={{ position: "relative" }}>
+        <label
+          ref={sidebarColorLabelRef}
+          className="pd-filter-checkbox"
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}
+        >
+          <input
+            type="checkbox"
+            checked={colorCheckboxChecked}
+            onChange={(e) => {
+              if (e.target.checked) {
+                openSidebarColorPicker();
+              } else {
+                setColorFilter(null);
+                setSidebarColorPickerOpen(false);
+              }
+            }}
+          />
+          <span className="pd-filter-checkbox-box" aria-hidden="true" />
+          Color
+          {libraryFilter.colorHex && (
+            <span className="pd-mono" style={{ color: "var(--pd-ink-faint)", fontSize: 9, marginLeft: 2 }}>
+              {libraryFilter.colorHex}
+            </span>
+          )}
+        </label>
+        {libraryFilter.colorHex && (
+          <button
+            type="button"
+            onClick={() => setLibraryFilter((f) => ({ ...f, colorHex: null }))}
+            className="pd-mono"
+            style={{ marginLeft: 8, fontSize: 9, color: "var(--pd-ink-faint)", padding: 0 }}
+          >
+            Clear
+          </button>
+        )}
+        {sidebarColorPickerOpen && (
+          <div
+            className="pd-color-popover"
+            style={{
+              position: "fixed",
+              top: sidebarColorPickerPos?.top ?? 0,
+              left: sidebarColorPickerPos?.left ?? 0,
+              zIndex: 80,
+              display: "flex",
+              flexDirection: "column",
+              gap: 5,
+              width: 320,
+              maxHeight: 208,
+              overflowX: "hidden",
+              overflowY: "auto",
+              padding: 8,
+              borderRadius: 5,
+              border: "1px solid var(--pd-glass-line)",
+              background: "var(--pd-glass-bg)",
+              backdropFilter: "blur(var(--pd-glass-blur)) saturate(1.25)",
+              boxShadow: "var(--pd-glass-shadow)",
+            }}
+          >
+            {sidebarColorRows.length > 0 ? sidebarColorRows.map((row, rowIndex) => (
+              <div
+                key={`${row.join("|")}-${rowIndex}`}
+                style={{ display: "grid", gridTemplateColumns: "repeat(5, 56px)", gap: 5 }}
+              >
+                {row.map((color) => {
+                  const active = libraryFilter.colorHex === color;
+                  return (
+                    <button
+                      key={`${rowIndex}-${color}`}
+                      type="button"
+                      title={color}
+                      aria-label={`Filter near ${color}`}
+                      aria-pressed={active}
+                      onClick={() => setColorFilter(active ? null : color)}
+                      style={{
+                        height: 20,
+                        borderRadius: 3,
+                        border: active ? "2px solid var(--pd-ink)" : "1px solid rgba(255,255,255,0.14)",
+                        background: color,
+                        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.18)",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )) : (
+              <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
+                No sampled colors yet
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </>
   );
 }
@@ -402,9 +637,11 @@ function SidebarFilterControls({
 function SidebarLibraryAggregationBody({
   libraryFilter,
   setLibraryFilter,
+  activeView,
 }: {
   libraryFilter: LibraryFilters;
   setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
+  activeView: AppViewId;
 }) {
   const aggregations = useQuery(api.images.libraryAggregations);
   const groupRows = React.useMemo(() => {
@@ -498,7 +735,11 @@ function SidebarLibraryAggregationBody({
           </LibraryAggregationChipWrap>
         </>
       )}
-      <SidebarFilterControls libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
+      <SidebarFilterControls
+        libraryFilter={libraryFilter}
+        setLibraryFilter={setLibraryFilter}
+        activeView={activeView}
+      />
     </>
   );
 }
@@ -511,7 +752,7 @@ function Sidebar({
   galleryDisplayMode,
   setGalleryDisplayMode,
 }: {
-  activeView: string;
+  activeView: AppViewId;
   onView: (v: string) => void;
   libraryFilter: LibraryFilters;
   setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
@@ -601,11 +842,19 @@ function Sidebar({
                 <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", marginBottom: 10, lineHeight: 1.45 }}>
                   Type / genre / style counts need the latest Convex deploy. You can still filter with the options below.
                 </div>
-                <SidebarFilterControls libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
+                <SidebarFilterControls
+                  libraryFilter={libraryFilter}
+                  setLibraryFilter={setLibraryFilter}
+                  activeView={activeView}
+                />
               </>
             }
           >
-            <SidebarLibraryAggregationBody libraryFilter={libraryFilter} setLibraryFilter={setLibraryFilter} />
+            <SidebarLibraryAggregationBody
+              libraryFilter={libraryFilter}
+              setLibraryFilter={setLibraryFilter}
+              activeView={activeView}
+            />
           </LibraryAggregationsErrorBoundary>
         </div>
       </div>
@@ -618,12 +867,76 @@ function Sidebar({
   );
 }
 
-function Topbar({ search, setSearch, view, setView, docsUrl, tweaksOn, onToggleTweaks, accountActions }: {
+function Topbar({
+  search,
+  setSearch,
+  view,
+  setView,
+  docsUrl,
+  tweaksOn,
+  onToggleTweaks,
+  libraryFilter,
+  setLibraryFilter,
+  visibleColumns,
+  setVisibleColumns,
+  accountActions,
+}: {
   search: string; setSearch: (s: string) => void; view: string; setView: (v: string) => void;
   docsUrl: string;
   tweaksOn: boolean; onToggleTweaks: () => void;
+  libraryFilter: LibraryFilters;
+  setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
+  visibleColumns: Record<TableColumnKey, boolean>;
+  setVisibleColumns: React.Dispatch<React.SetStateAction<Record<TableColumnKey, boolean>>>;
   accountActions: React.ReactNode;
 }) {
+  const images = useQuery(api.images.list, { limit: 1000 });
+  const [topFiltersOpen, setTopFiltersOpen] = useState(false);
+  const [topColumnsOpen, setTopColumnsOpen] = useState(false);
+  const [topColorPickerOpen, setTopColorPickerOpen] = useState(false);
+  const topMenuRef = React.useRef<HTMLDivElement>(null);
+  const topColorRows = React.useMemo(() => buildSidebarColorRows(images), [images]);
+  const topColorChecked = Boolean(libraryFilter.colorHex) || topColorPickerOpen;
+
+  React.useEffect(() => {
+    if (!topFiltersOpen && !topColumnsOpen) return;
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && topMenuRef.current?.contains(target)) return;
+      setTopFiltersOpen(false);
+      setTopColumnsOpen(false);
+      setTopColorPickerOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [topFiltersOpen, topColumnsOpen]);
+
+  const setTopColorFilter = (color: string | null) => {
+    setLibraryFilter((f) => ({ ...f, colorHex: color }));
+    if (color) setTopColorPickerOpen(false);
+  };
+  const columnChipStyle = (active: boolean): React.CSSProperties => ({
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 24,
+    width: "100%",
+    padding: "3px 7px",
+    borderRadius: 3,
+    border: active ? "1px solid transparent" : "1px solid var(--pd-line-strong)",
+    background: active ? "var(--pd-accent-soft)" : "rgba(255,255,255,0.025)",
+    color: active ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+    fontSize: 10.5,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    cursor: "pointer",
+  });
+  const toggleColumn = (key: TableColumnKey) => {
+    setVisibleColumns((current) => ({ ...current, [key]: !current[key] }));
+  };
+
   return (
     <header style={{
       height: 44, flexShrink: 0, borderBottom: "1px solid var(--pd-line)",
@@ -649,34 +962,182 @@ function Topbar({ search, setSearch, view, setView, docsUrl, tweaksOn, onToggleT
 
       <div style={{ flex: 1 }} />
 
-      {view === "gallery" || view === "table" ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 3, marginRight: 4 }}>
+      {view === "table" ? (
+        <div ref={topMenuRef} style={{ display: "flex", alignItems: "center", gap: 3, marginRight: 4, position: "relative" }}>
           {[
-            { label: "Filters", icon: "filter" },
-            { label: "Sort", icon: "sort" },
+            { id: "filters", label: "Filters", icon: "filter" },
+            { id: "columns", label: "Columns", icon: "eye" },
           ].map((item) => (
-            <div
-              key={item.label}
-              title={`${item.label} controls live in the left rail and table headers`}
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={item.id === "filters" ? topFiltersOpen : topColumnsOpen}
+              title={`${item.label} controls`}
+              onClick={() => {
+                if (item.id === "filters") {
+                  setTopFiltersOpen((open) => !open);
+                  setTopColumnsOpen(false);
+                } else {
+                  setTopColumnsOpen((open) => !open);
+                  setTopFiltersOpen(false);
+                }
+              }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
                 padding: "5px 8px",
                 borderRadius: 4,
-                border: "1px solid transparent",
-                borderRight: item.label === "Sort" ? "1px solid var(--pd-line)" : "1px solid transparent",
-                background: "transparent",
-                color: "var(--pd-ink-dim)",
+                border: (item.id === "filters" ? topFiltersOpen : topColumnsOpen) ? "1px solid transparent" : "1px solid transparent",
+                background: (item.id === "filters" ? topFiltersOpen : topColumnsOpen) ? "var(--pd-accent-soft)" : "transparent",
+                color: (item.id === "filters" ? topFiltersOpen : topColumnsOpen) ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
                 fontSize: 12,
                 fontWeight: 500,
-                cursor: "default",
+                cursor: "pointer",
               }}
             >
               <PinIcon name={item.icon} size={13} />
               {item.label}
-            </div>
+            </button>
           ))}
+          {topFiltersOpen && (
+            <div
+              className="pd-glass-panel"
+              style={{
+                position: "absolute",
+                top: 34,
+                left: 0,
+                zIndex: 80,
+                width: 232,
+                padding: "8px 10px",
+              }}
+            >
+              <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={libraryFilter.originalsOnly}
+                  onChange={(e) => setLibraryFilter((f) => ({ ...f, originalsOnly: e.target.checked }))}
+                />
+                <span className="pd-filter-checkbox-box" aria-hidden="true" />
+                Originals only
+              </label>
+              <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={libraryFilter.hasSref}
+                  onChange={(e) => setLibraryFilter((f) => ({ ...f, hasSref: e.target.checked }))}
+                />
+                <span className="pd-filter-checkbox-box" aria-hidden="true" />
+                Has sref
+              </label>
+              <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={topColorChecked}
+                  onChange={(e) => {
+                    if (e.target.checked) setTopColorPickerOpen(true);
+                    else {
+                      setTopColorFilter(null);
+                      setTopColorPickerOpen(false);
+                    }
+                  }}
+                />
+                <span className="pd-filter-checkbox-box" aria-hidden="true" />
+                Color
+                {libraryFilter.colorHex && (
+                  <span className="pd-mono" style={{ color: "var(--pd-ink-faint)", fontSize: 9, marginLeft: 2 }}>
+                    {libraryFilter.colorHex}
+                  </span>
+                )}
+              </label>
+              {topColorPickerOpen && (
+                <div
+                  className="pd-color-popover"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 5,
+                    width: 320,
+                    maxHeight: 208,
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                    marginTop: 7,
+                    padding: 8,
+                    borderRadius: 5,
+                    border: "1px solid var(--pd-glass-line)",
+                    background: "var(--pd-glass-bg)",
+                    backdropFilter: "blur(var(--pd-glass-blur)) saturate(1.25)",
+                    boxShadow: "var(--pd-glass-shadow)",
+                  }}
+                >
+                  {topColorRows.length > 0 ? topColorRows.map((row, rowIndex) => (
+                    <div key={`${row.join("|")}-${rowIndex}`} style={{ display: "grid", gridTemplateColumns: "repeat(5, 56px)", gap: 5 }}>
+                      {row.map((color) => {
+                        const active = libraryFilter.colorHex === color;
+                        return (
+                          <button
+                            key={`${rowIndex}-${color}`}
+                            type="button"
+                            title={color}
+                            aria-label={`Filter near ${color}`}
+                            aria-pressed={active}
+                            onClick={() => setTopColorFilter(active ? null : color)}
+                            style={{
+                              height: 20,
+                              borderRadius: 3,
+                              border: active ? "2px solid var(--pd-ink)" : "1px solid rgba(255,255,255,0.14)",
+                              background: color,
+                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.18)",
+                              cursor: "pointer",
+                              padding: 0,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  )) : (
+                    <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
+                      No sampled colors yet
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {topColumnsOpen && (
+            <div
+              className="pd-glass-panel"
+              style={{
+                position: "absolute",
+                top: 34,
+                left: 86,
+                zIndex: 80,
+                width: 232,
+                padding: 8,
+              }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 4 }}>
+                {tableColumnOptions.map((column) => (
+                  <button
+                    key={column.key}
+                    type="button"
+                    aria-pressed={visibleColumns[column.key]}
+                    onClick={() => toggleColumn(column.key)}
+                    style={columnChipStyle(visibleColumns[column.key])}
+                  >
+                    {column.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setVisibleColumns(defaultTableVisibleColumns)}
+                  style={{ ...columnChipStyle(false), gridColumn: "1 / -1" }}
+                >
+                  Show all
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -686,7 +1147,7 @@ function Topbar({ search, setSearch, view, setView, docsUrl, tweaksOn, onToggleT
           { id: "table", icon: "table", label: "Table" },
           { id: "boards", icon: "board", label: "Boards" },
         ].map((v) => (
-          <button key={v.id} className="pd-topbar-row" onClick={() => setView(v.id)} title={v.label} style={{
+            <button key={v.id} className="pd-topbar-row" onClick={() => setView(v.id)} title={v.label} style={{
             display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
             borderRadius: 4, fontSize: 11, fontWeight: 500,
             color: view === v.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",

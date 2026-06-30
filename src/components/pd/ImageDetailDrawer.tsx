@@ -8,6 +8,7 @@ import type { Tweaks } from "../TweaksPanel";
 import { downloadImage } from "@/lib/imageDownload";
 import { ImageLightbox } from "@/components/pd/ImageLightbox";
 import { SmartImage } from "@/components/SmartImage";
+import { getPaletteTagColorForLabel } from "@/lib/utils";
 
 interface ImageDetailDrawerProps {
   image: any;
@@ -566,7 +567,7 @@ export function ImageDetailDrawer({ image, onClose, tweaks, onOpenImage }: Image
                 {editDraft.tags.map((t: string, i: number) => (
                   <PinChip
                     key={t}
-                    color={image.colors?.[i % (image.colors?.length || 1)]}
+                    color={getPaletteTagColorForLabel(image.colors, t, i)}
                     removable
                     onRemove={() => removeEditTag(t)}
                   >

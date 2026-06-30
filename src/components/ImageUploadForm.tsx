@@ -4,7 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import {
   compactImageTagClass,
-  getPaletteTagStyle,
+  getPaletteTagStyleForLabel,
   getPaletteSwatchStyle,
   sortColorsDarkToLight,
 } from "../lib/utils";
@@ -1619,7 +1619,7 @@ export function ImageUploadForm() {
                             variant="soft"
                             size="1"
                             className={compactImageTagClass}
-                            style={getPaletteTagStyle(file.colors, index, file.tags.length)}
+                            style={getPaletteTagStyleForLabel(file.colors, tag, index)}
                           >
                             {tag}
                             <button
@@ -2028,7 +2028,7 @@ export function ImageUploadForm() {
                             variant="soft"
                             size="1"
                             className={compactImageTagClass}
-                            style={getPaletteTagStyle(image.colors, index, image.tags.length)}
+                            style={getPaletteTagStyleForLabel(image.colors, tag, index)}
                           >
                             {tag}
                             <button
