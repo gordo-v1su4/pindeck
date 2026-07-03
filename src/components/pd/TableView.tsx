@@ -5,7 +5,10 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { PinChip, PinSwatches } from "@/components/ui/pindeck";
 import { Tooltip } from "@radix-ui/themes";
 import type { LibraryFilters } from "@/lib/libraryFilters";
-import { applyLibraryFilters, normalizeLibraryGroup } from "@/lib/libraryFilters";
+import {
+  applyLibraryFilters,
+  normalizeLibraryGroup,
+} from "@/lib/libraryFilters";
 import { downloadImages } from "@/lib/imageDownload";
 import { toast } from "sonner";
 import { SmartImage } from "@/components/SmartImage";
@@ -143,7 +146,10 @@ export function TableView({
   } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<Id<"images">>>(new Set());
-  const [sort, setSort] = useState<{ by: SortKey; dir: SortDir }>({ by: "uploadedAt", dir: "desc" });
+  const [sort, setSort] = useState<{ by: SortKey; dir: SortDir }>({
+    by: "uploadedAt",
+    dir: "desc",
+  });
 
   const handleRefreshMetadata = useCallback(async () => {
     const ids = Array.from(selectedIds);
@@ -166,12 +172,15 @@ export function TableView({
       startedAt: Date.now(),
     });
     try {
-      const selectedImages = ids.length && images
-        ? ids
-            .map((id) => images.find((image) => image._id === id))
-            .filter(Boolean)
-        : [];
-      const missingPaletteBefore = selectedImages.filter((image: any) => !image.colors?.length).length;
+      const selectedImages =
+        ids.length && images
+          ? ids
+              .map((id) => images.find((image) => image._id === id))
+              .filter(Boolean)
+          : [];
+      const missingPaletteBefore = selectedImages.filter(
+        (image: any) => !image.colors?.length,
+      ).length;
 
       const r = await enqueueMetadataRefresh({
         onlyMissing: false,
@@ -215,10 +224,11 @@ export function TableView({
     let data = applyLibraryFilters([...images], libraryFilter);
     if (search) {
       const q = search.toLowerCase();
-      data = data.filter((im) =>
-        im.title.toLowerCase().includes(q) ||
-        im.tags?.some((t: string) => t.toLowerCase().includes(q)) ||
-        im.sref?.toLowerCase().includes(q)
+      data = data.filter(
+        (im) =>
+          im.title.toLowerCase().includes(q) ||
+          im.tags?.some((t: string) => t.toLowerCase().includes(q)) ||
+          im.sref?.toLowerCase().includes(q),
       );
     }
     data.sort((a, b) => {
@@ -228,12 +238,20 @@ export function TableView({
       if (typeof av === "number" && typeof bv === "number") {
         return (av - bv) * dir;
       }
-      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * dir;
+      return (
+        String(av).localeCompare(String(bv), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        }) * dir
+      );
     });
     return data;
   }, [images, libraryFilter, search, sort]);
 
-  const filteredIds = useMemo(() => filtered.map((im) => im._id as Id<"images">), [filtered]);
+  const filteredIds = useMemo(
+    () => filtered.map((im) => im._id as Id<"images">),
+    [filtered],
+  );
   const selectedCount = selectedIds.size;
   const isGuest = loggedInUser?.isAnonymous === true;
   const authStateLoading = loggedInUser === undefined;
@@ -261,19 +279,44 @@ export function TableView({
     });
   }, [filteredIds]);
 
-  const selectedArray = useCallback(() => Array.from(selectedIds), [selectedIds]);
+  const selectedArray = useCallback(
+    () => Array.from(selectedIds),
+    [selectedIds],
+  );
 
   useEffect(() => {
-    if (!refreshStatus || refreshStatus.tone !== "working" || !refreshStatus.imageIds?.length || !images) return;
+    if (
+      !refreshStatus ||
+      refreshStatus.tone !== "working" ||
+      !refreshStatus.imageIds?.length ||
+      !images
+    )
+      return;
     const targets = refreshStatus.imageIds
       .map((id) => images.find((image) => image._id === id))
       .filter(Boolean);
     if (targets.length !== refreshStatus.imageIds.length) return;
-    const pending = targets.filter((image: any) => image.aiStatus === "processing");
-    const failed = targets.filter((image: any) => image.aiStatus === "failed" && (!image.colors?.length || hasMissingMetadata(image)));
-    const missingPalette = refreshStatus.expectPalette === false ? [] : targets.filter((image: any) => !image.colors?.length);
-    const missingMetadata = refreshStatus.expectMetadata === false ? [] : targets.filter(hasMissingMetadata);
-    if (pending.length === 0 && missingPalette.length === 0 && missingMetadata.length === 0) {
+    const pending = targets.filter(
+      (image: any) => image.aiStatus === "processing",
+    );
+    const failed = targets.filter(
+      (image: any) =>
+        image.aiStatus === "failed" &&
+        (!image.colors?.length || hasMissingMetadata(image)),
+    );
+    const missingPalette =
+      refreshStatus.expectPalette === false
+        ? []
+        : targets.filter((image: any) => !image.colors?.length);
+    const missingMetadata =
+      refreshStatus.expectMetadata === false
+        ? []
+        : targets.filter(hasMissingMetadata);
+    if (
+      pending.length === 0 &&
+      missingPalette.length === 0 &&
+      missingMetadata.length === 0
+    ) {
       setRefreshStatus({
         tone: "success",
         copy: `Metadata and palettes updated for ${targets.length} selected image${targets.length === 1 ? "" : "s"}.`,
@@ -284,8 +327,14 @@ export function TableView({
         copy: `Metadata or palette generation failed for ${failed.length} selected image${failed.length === 1 ? "" : "s"}. Check the image URL and Convex logs.`,
       });
     } else {
-      const elapsed = refreshStatus.startedAt ? Date.now() - refreshStatus.startedAt : 0;
-      if (elapsed > 30000 && pending.length === 0 && (missingPalette.length > 0 || missingMetadata.length > 0)) {
+      const elapsed = refreshStatus.startedAt
+        ? Date.now() - refreshStatus.startedAt
+        : 0;
+      if (
+        elapsed > 30000 &&
+        pending.length === 0 &&
+        (missingPalette.length > 0 || missingMetadata.length > 0)
+      ) {
         const issue = missingPalette.length
           ? `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}`
           : `Metadata did not fill required fields for ${missingMetadata.length} selected image${missingMetadata.length === 1 ? "" : "s"}`;
@@ -296,27 +345,41 @@ export function TableView({
         return;
       }
       let timeoutId: number | undefined;
-      if (refreshStatus.startedAt && pending.length === 0 && (missingPalette.length > 0 || missingMetadata.length > 0)) {
-        timeoutId = window.setTimeout(() => {
-          setRefreshStatus((current) => {
-            if (!current || current.tone !== "working") return current;
-            const issue = missingPalette.length
-              ? `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}`
-              : `Metadata did not fill required fields for ${missingMetadata.length} selected image${missingMetadata.length === 1 ? "" : "s"}`;
-            return {
-              tone: "error",
-              copy: `${issue}. The server job finished or stalled without updating the row.`,
-            };
-          });
-        }, Math.max(0, 30000 - elapsed));
+      if (
+        refreshStatus.startedAt &&
+        pending.length === 0 &&
+        (missingPalette.length > 0 || missingMetadata.length > 0)
+      ) {
+        timeoutId = window.setTimeout(
+          () => {
+            setRefreshStatus((current) => {
+              if (!current || current.tone !== "working") return current;
+              const issue = missingPalette.length
+                ? `Palette sampling did not return for ${missingPalette.length} selected image${missingPalette.length === 1 ? "" : "s"}`
+                : `Metadata did not fill required fields for ${missingMetadata.length} selected image${missingMetadata.length === 1 ? "" : "s"}`;
+              return {
+                tone: "error",
+                copy: `${issue}. The server job finished or stalled without updating the row.`,
+              };
+            });
+          },
+          Math.max(0, 30000 - elapsed),
+        );
       }
       setRefreshStatus((current) => {
         if (!current || current.tone !== "working") return current;
         const pieces = [];
-        if (pending.length) pieces.push(`${pending.length} palette-first job${pending.length === 1 ? "" : "s"} running`);
-        if (missingPalette.length) pieces.push(`${missingPalette.length} palette pending`);
-        if (missingMetadata.length) pieces.push(`${missingMetadata.length} metadata pending`);
-        const copy = pieces.length ? `Processing: ${pieces.join(", ")}...` : "Finishing metadata and palette updates...";
+        if (pending.length)
+          pieces.push(
+            `${pending.length} palette-first job${pending.length === 1 ? "" : "s"} running`,
+          );
+        if (missingPalette.length)
+          pieces.push(`${missingPalette.length} palette pending`);
+        if (missingMetadata.length)
+          pieces.push(`${missingMetadata.length} metadata pending`);
+        const copy = pieces.length
+          ? `Processing: ${pieces.join(", ")}...`
+          : "Finishing metadata and palette updates...";
         return current.copy === copy ? current : { ...current, copy };
       });
       return () => {
@@ -377,7 +440,9 @@ export function TableView({
         toast.success(`Deleted ${r.removed} image(s).`);
       }
       if (r.skipped > 0) {
-        toast.warning(`${r.skipped} image(s) were skipped because they were missing or no longer visible.`);
+        toast.warning(
+          `${r.skipped} image(s) were skipped because they were missing or no longer visible.`,
+        );
       }
     } catch (e) {
       console.error(e);
@@ -397,7 +462,9 @@ export function TableView({
     if (queued === 0) {
       toast.error("No downloadable image URL found for the selected rows.");
     } else {
-      toast.success(`Started ${queued} high-res download${queued === 1 ? "" : "s"}.`);
+      toast.success(
+        `Started ${queued} high-res download${queued === 1 ? "" : "s"}.`,
+      );
     }
   }, [images, selectedArray]);
 
@@ -424,7 +491,12 @@ export function TableView({
         cursor: "pointer",
         width: w,
       }}
-      onClick={() => setSort({ by: key, dir: sort.by === key && sort.dir === "asc" ? "desc" : "asc" })}
+      onClick={() =>
+        setSort({
+          by: key,
+          dir: sort.by === key && sort.dir === "asc" ? "desc" : "asc",
+        })
+      }
     >
       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
         {label}
@@ -438,12 +510,36 @@ export function TableView({
   );
 
   if (images === undefined) {
-    return <div className="pd-fade-in" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--pd-ink-faint)" }}>Loading…</div>;
+    return (
+      <div
+        className="pd-fade-in"
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--pd-ink-faint)",
+        }}
+      >
+        Loading…
+      </div>
+    );
   }
 
   return (
-    <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: 0, background: "var(--pd-bg)", display: "flex", flexDirection: "column" }}>
+    <div
+      className="pd-scroll pd-fade-in pd-table-view-scroll"
+      style={{
+        flex: 1,
+        overflow: "auto",
+        padding: 0,
+        background: "var(--pd-bg)",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <div
+        className="pd-table-utility-row"
         style={{
           flexShrink: 0,
           display: "flex",
@@ -456,30 +552,67 @@ export function TableView({
           background: "var(--pd-bg-1)",
         }}
       >
-        <div className="pd-mono" style={{ fontSize: 10, color: selectedCount ? "var(--pd-accent-ink)" : "var(--pd-ink-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+        <div
+          className="pd-mono"
+          style={{
+            fontSize: 10,
+            color: selectedCount
+              ? "var(--pd-accent-ink)"
+              : "var(--pd-ink-faint)",
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+          }}
+        >
           {selectedCount
             ? isGuest
               ? `${selectedCount} selected · sign in to save boards/decks`
               : `${selectedCount} selected`
             : "Select rows for batch actions"}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div
+          className="pd-table-action-bar"
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
           {[
-            { label: refreshBusy ? "Generating..." : "Generate Metadata & Palette", onClick: handleRefreshMetadata, disabled: selectedCount === 0 || refreshBusy, primary: true },
-            { label: "Download Hi-Res", onClick: handleDownloadSelection, disabled: selectedCount === 0 || selectionBusy },
+            {
+              label: refreshBusy
+                ? "Generating..."
+                : "Generate Metadata & Palette",
+              onClick: handleRefreshMetadata,
+              disabled: selectedCount === 0 || refreshBusy,
+              primary: true,
+            },
+            {
+              label: "Download Hi-Res",
+              onClick: handleDownloadSelection,
+              disabled: selectedCount === 0 || selectionBusy,
+            },
             {
               label: "New Board",
               onClick: handleCreateBoard,
-              disabled: selectedCount === 0 || selectionBusy || authStateLoading || isGuest,
+              disabled:
+                selectedCount === 0 ||
+                selectionBusy ||
+                authStateLoading ||
+                isGuest,
               tooltip: isGuest ? "Please log in to create a board." : undefined,
             },
             {
               label: "New Deck",
               onClick: handleCreateDeck,
-              disabled: selectedCount === 0 || selectionBusy || authStateLoading || isGuest,
+              disabled:
+                selectedCount === 0 ||
+                selectionBusy ||
+                authStateLoading ||
+                isGuest,
               tooltip: isGuest ? "Please log in to create a deck." : undefined,
             },
-            { label: "Delete Selection", onClick: () => setDeleteConfirmOpen(true), disabled: selectedCount === 0 || selectionBusy, danger: true },
+            {
+              label: "Delete Selection",
+              onClick: () => setDeleteConfirmOpen(true),
+              disabled: selectedCount === 0 || selectionBusy,
+              danger: true,
+            },
           ].map((action) => {
             const button = (
               <button
@@ -497,7 +630,11 @@ export function TableView({
                   minHeight: 24,
                   padding: "3px 8px",
                   borderRadius: 4,
-                  border: action.danger ? "1px solid rgba(239,67,67,0.28)" : action.primary ? "1px solid transparent" : "1px solid transparent",
+                  border: action.danger
+                    ? "1px solid rgba(239,67,67,0.28)"
+                    : action.primary
+                      ? "1px solid transparent"
+                      : "1px solid transparent",
                   background: action.danger
                     ? "rgba(239,67,67,0.1)"
                     : action.primary
@@ -518,7 +655,11 @@ export function TableView({
             );
 
             return action.tooltip ? (
-              <Tooltip key={action.label} content={action.tooltip} className="pd-tooltip">
+              <Tooltip
+                key={action.label}
+                content={action.tooltip}
+                className="pd-tooltip"
+              >
                 <span style={{ display: "inline-flex" }}>{button}</span>
               </Tooltip>
             ) : (
@@ -541,11 +682,28 @@ export function TableView({
               : refreshStatus?.tone === "error"
                 ? "rgba(239,67,67,0.08)"
                 : "color-mix(in srgb, var(--pd-accent) 8%, transparent)",
-            color: refreshStatus?.tone === "error" ? "rgba(255,190,190,0.94)" : "var(--pd-ink-dim)",
+            color:
+              refreshStatus?.tone === "error"
+                ? "rgba(255,190,190,0.94)"
+                : "var(--pd-ink-dim)",
           }}
         >
-          <span className="pd-mono" style={{ fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pd-ink-faint)" }}>
-            {deleteConfirmOpen ? "Confirm delete" : refreshStatus?.tone === "working" ? "Working" : refreshStatus?.tone === "error" ? "Issue" : "Queued"}
+          <span
+            className="pd-mono"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--pd-ink-faint)",
+            }}
+          >
+            {deleteConfirmOpen
+              ? "Confirm delete"
+              : refreshStatus?.tone === "working"
+                ? "Working"
+                : refreshStatus?.tone === "error"
+                  ? "Issue"
+                  : "Queued"}
           </span>
           <span style={{ flex: 1, fontSize: 12 }}>
             {deleteConfirmOpen
@@ -554,21 +712,57 @@ export function TableView({
           </span>
           {deleteConfirmOpen ? (
             <>
-              <button type="button" className="pd-mono" onClick={() => setDeleteConfirmOpen(false)} style={{ fontSize: 10, color: "var(--pd-ink-dim)", padding: "5px 8px" }}>
+              <button
+                type="button"
+                className="pd-mono"
+                onClick={() => setDeleteConfirmOpen(false)}
+                style={{
+                  fontSize: 10,
+                  color: "var(--pd-ink-dim)",
+                  padding: "5px 8px",
+                }}
+              >
                 Cancel
               </button>
-              <button type="button" className="pd-mono" disabled={selectionBusy} onClick={() => void handleDeleteSelection()} style={{ fontSize: 10, color: "rgba(255,210,210,0.95)", background: "rgba(239,67,67,0.16)", border: "1px solid rgba(239,67,67,0.3)", borderRadius: 4, padding: "5px 8px" }}>
+              <button
+                type="button"
+                className="pd-mono"
+                disabled={selectionBusy}
+                onClick={() => void handleDeleteSelection()}
+                style={{
+                  fontSize: 10,
+                  color: "rgba(255,210,210,0.95)",
+                  background: "rgba(239,67,67,0.16)",
+                  border: "1px solid rgba(239,67,67,0.3)",
+                  borderRadius: 4,
+                  padding: "5px 8px",
+                }}
+              >
                 {selectionBusy ? "Deleting..." : "Delete"}
               </button>
             </>
           ) : (
-            <button type="button" aria-label="Dismiss metadata status" onClick={() => setRefreshStatus(null)} style={{ color: "var(--pd-ink-faint)", padding: "4px 6px" }}>
+            <button
+              type="button"
+              aria-label="Dismiss metadata status"
+              onClick={() => setRefreshStatus(null)}
+              style={{ color: "var(--pd-ink-faint)", padding: "4px 6px" }}
+            >
               ×
             </button>
           )}
         </div>
       )}
-      <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 11.5, tableLayout: "fixed" }}>
+      <table
+        className="pd-data-table"
+        style={{
+          width: "100%",
+          borderCollapse: "separate",
+          borderSpacing: 0,
+          fontSize: 11.5,
+          tableLayout: "fixed",
+        }}
+      >
         <thead>
           <tr>
             <th
@@ -590,7 +784,14 @@ export function TableView({
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <label className="pd-filter-checkbox" style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+              <label
+                className="pd-filter-checkbox"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={allVisibleSelected}
@@ -640,148 +841,303 @@ export function TableView({
             const imageId = im._id as Id<"images">;
             const isSelected = selectedIds.has(imageId);
             const baseBg = i % 2 ? "transparent" : "rgba(255,255,255,0.012)";
-            const selectedBg = "color-mix(in srgb, var(--pd-accent) 8%, transparent)";
+            const selectedBg =
+              "color-mix(in srgb, var(--pd-accent) 8%, transparent)";
             const srefIds = parseSrefIds(im.sref);
             const visibleSrefIds = srefIds.slice(0, 3);
-            const hiddenSrefCount = Math.max(0, srefIds.length - visibleSrefIds.length);
+            const hiddenSrefCount = Math.max(
+              0,
+              srefIds.length - visibleSrefIds.length,
+            );
             return (
-            <tr
-              key={im._id}
-              onClick={() => onOpenImage(im)}
-              style={{
-                cursor: "pointer",
-                background: isSelected ? selectedBg : baseBg,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = isSelected ? "color-mix(in srgb, var(--pd-accent) 11%, transparent)" : "rgba(255,255,255,0.032)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? selectedBg : baseBg; }}
-            >
-              <td
+              <tr
+                key={im._id}
+                onClick={() => onOpenImage(im)}
                 style={{
-                  padding: "4px 8px",
-                  borderBottom: "1px solid var(--pd-line)",
-                  borderLeft: "2px solid transparent",
+                  cursor: "pointer",
+                  background: isSelected ? selectedBg : baseBg,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isSelected
+                    ? "color-mix(in srgb, var(--pd-accent) 11%, transparent)"
+                    : "rgba(255,255,255,0.032)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = isSelected
+                    ? selectedBg
+                    : baseBg;
                 }}
               >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <label
-                    className="pd-filter-checkbox"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelected(imageId)}
-                      aria-label={`Select ${im.title}`}
-                    />
-                    <span className="pd-filter-checkbox-box" aria-hidden="true" />
-                  </label>
-                  <div style={{ width: 48, height: 32, background: "#000", borderRadius: 2, overflow: "hidden" }}>
-                    <SmartImage image={im} variant="dense" alt={im.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  </div>
-                </span>
-              </td>
-              <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink)", fontWeight: 500, textAlign: "left", ...oneLineCell }}>{im.title}</td>
-              {visibleColumns.date && (
-                <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }} className="pd-mono">{formatImageTimestamp(getImageTimestamp(im))}</td>
-              )}
-              {visibleColumns.group && (
-                <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }}>{normalizeLibraryGroup(im.group) || "—"}</td>
-              )}
-              {visibleColumns.genre && (
-                <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }}>{im.genre || "—"}</td>
-              )}
-              {visibleColumns.shot && (
-                <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }}>{im.shot || "—"}</td>
-              )}
-              {visibleColumns.style && (
-                <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)", ...oneLineCell }}>{im.style || "—"}</td>
-              )}
-              {visibleColumns.tags && (
                 <td
-                style={{
-                  padding: "4px 8px",
-                  borderBottom: "1px solid var(--pd-line)",
-                  maxWidth: 340,
-                  verticalAlign: "top",
-                }}
-              >
-                <span
                   style={{
-                    display: "inline-flex",
-                    gap: 3,
-                    flexWrap: "nowrap",
-                    maxWidth: "100%",
-                    overflow: "hidden",
-                    alignItems: "center",
+                    padding: "4px 8px",
+                    borderBottom: "1px solid var(--pd-line)",
+                    borderLeft: "2px solid transparent",
                   }}
                 >
-                  {im.tags?.slice(0, 3).map((t: string, ti: number) => (
-                    <PinChip key={t} color={getPaletteTagColorForLabel(im.colors, t, ti)}>{t}</PinChip>
-                  ))}
-                  {im.tags?.length > 3 && <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>+{im.tags.length - 3}</span>}
-                </span>
-                </td>
-              )}
-              {visibleColumns.palette && (
-                <td
-                style={{
-                  padding: "4px 8px",
-                  borderBottom: "1px solid var(--pd-line)",
-                  textAlign: "left",
-                  verticalAlign: "middle",
-                }}
-              >
-                <span style={{ display: "inline-flex", justifyContent: "flex-start", width: "100%" }}>
-                  <PinSwatches pad={5} colors={im.colors ?? []} size={11} gap={3} />
-                </span>
-                </td>
-              )}
-              {visibleColumns.sref && (
-                <td
-                style={{
-                  padding: "4px 8px",
-                  borderBottom: "1px solid var(--pd-line)",
-                  verticalAlign: "top",
-                  textAlign: "left",
-                  maxWidth: 170,
-                }}
-              >
-                {srefIds.length > 0 ? (
                   <span
                     style={{
                       display: "inline-flex",
-                      flexWrap: "nowrap",
-                      gap: 6,
-                      justifyContent: "flex-start",
                       alignItems: "center",
-                      maxWidth: "100%",
-                      overflow: "hidden",
+                      gap: 8,
                     }}
                   >
-                    {visibleSrefIds.map((id) => (
-                      <PinChip key={`${String(im._id)}-sref-${id}`} mono tone="softBlue">
-                        {id}
-                      </PinChip>
-                    ))}
-                    {hiddenSrefCount > 0 ? (
-                      <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
-                        +{hiddenSrefCount}
-                      </span>
-                    ) : null}
+                    <label
+                      className="pd-filter-checkbox"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelected(imageId)}
+                        aria-label={`Select ${im.title}`}
+                      />
+                      <span
+                        className="pd-filter-checkbox-box"
+                        aria-hidden="true"
+                      />
+                    </label>
+                    <div
+                      style={{
+                        width: 48,
+                        height: 32,
+                        background: "#000",
+                        borderRadius: 2,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <SmartImage
+                        image={im}
+                        variant="dense"
+                        alt={im.title}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    </div>
                   </span>
-                ) : (
-                  <span className="pd-mono" style={{ color: "var(--pd-ink-faint)" }}>—</span>
-                )}
                 </td>
-              )}
-              {visibleColumns.likes && (
-                <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }} className="pd-mono">{im.likes}</td>
-              )}
-              {visibleColumns.views && (
-                <td style={{ padding: "6px 8px", borderBottom: "1px solid var(--pd-line)", color: "var(--pd-ink-dim)" }} className="pd-mono">{im.views}</td>
-              )}
-            </tr>
+                <td
+                  style={{
+                    padding: "6px 8px",
+                    borderBottom: "1px solid var(--pd-line)",
+                    color: "var(--pd-ink)",
+                    fontWeight: 500,
+                    textAlign: "left",
+                    ...oneLineCell,
+                  }}
+                >
+                  {im.title}
+                </td>
+                {visibleColumns.date && (
+                  <td
+                    style={{
+                      padding: "6px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      color: "var(--pd-ink-dim)",
+                      ...oneLineCell,
+                    }}
+                    className="pd-mono"
+                  >
+                    {formatImageTimestamp(getImageTimestamp(im))}
+                  </td>
+                )}
+                {visibleColumns.group && (
+                  <td
+                    style={{
+                      padding: "6px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      color: "var(--pd-ink-dim)",
+                      ...oneLineCell,
+                    }}
+                  >
+                    {normalizeLibraryGroup(im.group) || "—"}
+                  </td>
+                )}
+                {visibleColumns.genre && (
+                  <td
+                    style={{
+                      padding: "6px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      color: "var(--pd-ink-dim)",
+                      ...oneLineCell,
+                    }}
+                  >
+                    {im.genre || "—"}
+                  </td>
+                )}
+                {visibleColumns.shot && (
+                  <td
+                    style={{
+                      padding: "6px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      color: "var(--pd-ink-dim)",
+                      ...oneLineCell,
+                    }}
+                  >
+                    {im.shot || "—"}
+                  </td>
+                )}
+                {visibleColumns.style && (
+                  <td
+                    style={{
+                      padding: "6px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      color: "var(--pd-ink-dim)",
+                      ...oneLineCell,
+                    }}
+                  >
+                    {im.style || "—"}
+                  </td>
+                )}
+                {visibleColumns.tags && (
+                  <td
+                    style={{
+                      padding: "4px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      maxWidth: 340,
+                      verticalAlign: "top",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        gap: 3,
+                        flexWrap: "nowrap",
+                        maxWidth: "100%",
+                        overflow: "hidden",
+                        alignItems: "center",
+                      }}
+                    >
+                      {im.tags?.slice(0, 3).map((t: string, ti: number) => (
+                        <PinChip
+                          key={t}
+                          color={getPaletteTagColorForLabel(im.colors, t, ti)}
+                        >
+                          {t}
+                        </PinChip>
+                      ))}
+                      {im.tags?.length > 3 && (
+                        <span
+                          className="pd-mono"
+                          style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}
+                        >
+                          +{im.tags.length - 3}
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                )}
+                {visibleColumns.palette && (
+                  <td
+                    style={{
+                      padding: "4px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      textAlign: "left",
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        justifyContent: "flex-start",
+                        width: "100%",
+                      }}
+                    >
+                      <PinSwatches
+                        pad={5}
+                        colors={im.colors ?? []}
+                        size={11}
+                        gap={3}
+                      />
+                    </span>
+                  </td>
+                )}
+                {visibleColumns.sref && (
+                  <td
+                    style={{
+                      padding: "4px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      verticalAlign: "top",
+                      textAlign: "left",
+                      maxWidth: 170,
+                    }}
+                  >
+                    {srefIds.length > 0 ? (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          flexWrap: "nowrap",
+                          gap: 6,
+                          justifyContent: "flex-start",
+                          alignItems: "center",
+                          maxWidth: "100%",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {visibleSrefIds.map((id) => (
+                          <PinChip
+                            key={`${String(im._id)}-sref-${id}`}
+                            mono
+                            tone="softBlue"
+                          >
+                            {id}
+                          </PinChip>
+                        ))}
+                        {hiddenSrefCount > 0 ? (
+                          <span
+                            className="pd-mono"
+                            style={{
+                              fontSize: 10,
+                              color: "var(--pd-ink-faint)",
+                            }}
+                          >
+                            +{hiddenSrefCount}
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : (
+                      <span
+                        className="pd-mono"
+                        style={{ color: "var(--pd-ink-faint)" }}
+                      >
+                        —
+                      </span>
+                    )}
+                  </td>
+                )}
+                {visibleColumns.likes && (
+                  <td
+                    style={{
+                      padding: "6px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      color: "var(--pd-ink-dim)",
+                    }}
+                    className="pd-mono"
+                  >
+                    {im.likes}
+                  </td>
+                )}
+                {visibleColumns.views && (
+                  <td
+                    style={{
+                      padding: "6px 8px",
+                      borderBottom: "1px solid var(--pd-line)",
+                      color: "var(--pd-ink-dim)",
+                    }}
+                    className="pd-mono"
+                  >
+                    {im.views}
+                  </td>
+                )}
+              </tr>
             );
           })}
         </tbody>

@@ -1,12 +1,28 @@
-import React, { Component, useState, useEffect, useLayoutEffect, lazy, Suspense } from "react";
+import React, {
+  Component,
+  useState,
+  useEffect,
+  useLayoutEffect,
+  lazy,
+  Suspense,
+} from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "@/SignInForm";
 import { SignOutButton } from "@/SignOutButton";
 import { Toaster } from "sonner";
 import { PinIcon, PinHotkey } from "@/components/ui/pindeck";
-import { defaultLibraryFilters, normalizeColorHex, normalizeLibraryGroup, type LibraryFilters } from "@/lib/libraryFilters";
-import { TweaksPanel, DEFAULT_TWEAKS, type Tweaks } from "@/components/pd/TweaksPanel";
+import {
+  defaultLibraryFilters,
+  normalizeColorHex,
+  normalizeLibraryGroup,
+  type LibraryFilters,
+} from "@/lib/libraryFilters";
+import {
+  TweaksPanel,
+  DEFAULT_TWEAKS,
+  type Tweaks,
+} from "@/components/pd/TweaksPanel";
 import { GalleryView } from "@/components/pd/GalleryView";
 import { TableView } from "@/components/pd/TableView";
 import { BoardsView } from "@/components/pd/BoardsView";
@@ -22,11 +38,13 @@ import {
 } from "@/components/pd/LibraryAggregationFilterParts";
 
 const ImageUploadForm = lazy(() =>
-  import("@/components/ImageUploadForm").then((mod) => ({ default: mod.ImageUploadForm }))
+  import("@/components/ImageUploadForm").then((mod) => ({
+    default: mod.ImageUploadForm,
+  })),
 );
 /** Decks UI from `claude/redesign` — library strip + composer (see `src/components/DeckView.tsx`). */
 const DeckView = lazy(() =>
-  import("@/components/DeckView").then((mod) => ({ default: mod.DeckView }))
+  import("@/components/DeckView").then((mod) => ({ default: mod.DeckView })),
 );
 
 const DOCS_URL = "https://docs.pindeck.dev";
@@ -88,12 +106,16 @@ function sanitizeStoredView(raw: string | null): AppViewId {
 }
 
 function sanitizeGalleryDisplayMode(raw: string | null): GalleryDisplayMode {
-  return raw === "project-rows" || raw === "sref-rows" || raw === "random" ? raw : "random";
+  return raw === "project-rows" || raw === "sref-rows" || raw === "random"
+    ? raw
+    : "random";
 }
 
 function readStoredTableColumnVisibility(): Record<TableColumnKey, boolean> {
   try {
-    const raw = window.localStorage.getItem(TABLE_COLUMN_VISIBILITY_STORAGE_KEY);
+    const raw = window.localStorage.getItem(
+      TABLE_COLUMN_VISIBILITY_STORAGE_KEY,
+    );
     if (!raw) return defaultTableVisibleColumns;
     const parsed = JSON.parse(raw) as Partial<Record<TableColumnKey, boolean>>;
     return { ...defaultTableVisibleColumns, ...parsed };
@@ -106,7 +128,9 @@ export default function App() {
   const [tweaks, setTweaks] = useState<Tweaks>(() => {
     try {
       const saved = localStorage.getItem("pindeck_tweaks");
-      return saved ? { ...DEFAULT_TWEAKS, ...JSON.parse(saved) } : DEFAULT_TWEAKS;
+      return saved
+        ? { ...DEFAULT_TWEAKS, ...JSON.parse(saved) }
+        : DEFAULT_TWEAKS;
     } catch {
       return DEFAULT_TWEAKS;
     }
@@ -118,13 +142,23 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
   const [activeDeckId, setActiveDeckId] = useState<Id<"decks"> | null>(null);
-  const [libraryFilter, setLibraryFilter] = useState<LibraryFilters>(defaultLibraryFilters);
-  const [tableVisibleColumns, setTableVisibleColumns] = useState<Record<TableColumnKey, boolean>>(readStoredTableColumnVisibility);
-  const [galleryDisplayMode, setGalleryDisplayMode] = useState<GalleryDisplayMode>(() =>
-    sanitizeGalleryDisplayMode(localStorage.getItem("pindeck_gallery_display_mode")),
+  const [libraryFilter, setLibraryFilter] = useState<LibraryFilters>(
+    defaultLibraryFilters,
   );
+  const [tableVisibleColumns, setTableVisibleColumns] = useState<
+    Record<TableColumnKey, boolean>
+  >(readStoredTableColumnVisibility);
+  const [galleryDisplayMode, setGalleryDisplayMode] =
+    useState<GalleryDisplayMode>(() =>
+      sanitizeGalleryDisplayMode(
+        localStorage.getItem("pindeck_gallery_display_mode"),
+      ),
+    );
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const libraryImages = useQuery(api.images.list, isAuthenticated ? { limit: 1000 } : "skip");
+  const libraryImages = useQuery(
+    api.images.list,
+    isAuthenticated ? { limit: 1000 } : "skip",
+  );
 
   useEffect(() => {
     localStorage.setItem("pindeck_tweaks", JSON.stringify(tweaks));
@@ -148,7 +182,10 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(TABLE_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(tableVisibleColumns));
+      localStorage.setItem(
+        TABLE_COLUMN_VISIBILITY_STORAGE_KEY,
+        JSON.stringify(tableVisibleColumns),
+      );
     } catch {
       // Column visibility should never block app rendering.
     }
@@ -166,7 +203,9 @@ export default function App() {
 
   useEffect(() => {
     if (!selectedImage || libraryImages === undefined) return;
-    const freshImage = libraryImages.find((image: any) => image._id === selectedImage._id);
+    const freshImage = libraryImages.find(
+      (image: any) => image._id === selectedImage._id,
+    );
     if (!freshImage) {
       setSelectedImage(null);
       return;
@@ -176,8 +215,15 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "Escape") { setSelectedImage(null); setTweaksOpen(false); }
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+      if (e.key === "Escape") {
+        setSelectedImage(null);
+        setTweaksOpen(false);
+      }
       if (e.key === "g") setView("gallery");
       if (e.key === "t") setView("table");
       if (e.key === "b") setView("boards");
@@ -211,7 +257,10 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className={`pd-theme ${tweaks.grain ? "pd-grain" : ""}`} style={appShellStyle}>
+      <div
+        className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""}`}
+        style={appShellStyle}
+      >
         <div
           className="pd-fade-in"
           style={{
@@ -226,7 +275,10 @@ export default function App() {
         >
           <div style={{ textAlign: "center" }}>
             <PinIcon name="film" size={28} stroke={1.2} />
-            <div className="pd-mono" style={{ marginTop: 12, letterSpacing: "0.06em" }}>
+            <div
+              className="pd-mono"
+              style={{ marginTop: 12, letterSpacing: "0.06em" }}
+            >
               Loading session...
             </div>
           </div>
@@ -238,8 +290,20 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className={`pd-theme ${tweaks.grain ? "pd-grain" : ""}`} style={appShellStyle}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div
+        className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""}`}
+        style={appShellStyle}
+      >
+        <div
+          className="pd-auth-center"
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
           <SignInForm />
         </div>
         <PindeckToaster />
@@ -249,7 +313,7 @@ export default function App() {
 
   return (
     <div
-      className={`pd-theme ${tweaks.grain ? "pd-grain" : ""}`}
+      className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""}`}
       style={appShellStyle}
     >
       <Sidebar
@@ -261,7 +325,16 @@ export default function App() {
         setGalleryDisplayMode={setGalleryDisplayMode}
       />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
+      <div
+        className="pd-main-shell"
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+          position: "relative",
+        }}
+      >
         <Topbar
           search={search}
           setSearch={setSearch}
@@ -277,8 +350,25 @@ export default function App() {
           accountActions={<SignOutButton onBeforeSignOut={closeTransientUi} />}
         />
 
-        <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative", alignItems: "stretch" }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div
+          className="pd-workspace"
+          style={{
+            flex: 1,
+            display: "flex",
+            minHeight: 0,
+            position: "relative",
+            alignItems: "stretch",
+          }}
+        >
+          <div
+            className="pd-view-stage"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              minWidth: 0,
+            }}
+          >
             {view === "gallery" && (
               <GalleryView
                 search={search}
@@ -298,7 +388,10 @@ export default function App() {
               />
             )}
             {view === "boards" && (
-              <BoardsView onOpenDeck={openDeck} onOpenImage={setSelectedImage} />
+              <BoardsView
+                onOpenDeck={openDeck}
+                onOpenImage={setSelectedImage}
+              />
             )}
             {view === "deck" && (
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -329,16 +422,35 @@ export default function App() {
         </div>
 
         {tweaksOpen && (
-          <TweaksPanel tweaks={tweaks} setTweaks={setTweaks} onClose={() => setTweaksOpen(false)} />
+          <TweaksPanel
+            tweaks={tweaks}
+            setTweaks={setTweaks}
+            onClose={() => setTweaksOpen(false)}
+          />
         )}
 
-        <div className="pd-mono" style={{
-          position: "fixed", bottom: 0, left: 208, right: 0, height: 22,
-          background: "var(--pd-bg-1)", borderTop: "1px solid var(--pd-line)",
-          display: "flex", alignItems: "center", padding: "0 10px", gap: 10,
-          fontSize: 10, color: "var(--pd-ink-faint)", zIndex: 5,
-        }}>
-          <span><span style={{ color: "var(--pd-green)" }}>●</span> convex · live</span>
+        <div
+          className="pd-mono pd-status-bar"
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 208,
+            right: 0,
+            height: 22,
+            background: "var(--pd-bg-1)",
+            borderTop: "1px solid var(--pd-line)",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 10px",
+            gap: 10,
+            fontSize: 10,
+            color: "var(--pd-ink-faint)",
+            zIndex: 5,
+          }}
+        >
+          <span>
+            <span style={{ color: "var(--pd-green)" }}>●</span> convex · live
+          </span>
           <span>·</span>
           <span>{view}</span>
           <div style={{ flex: 1 }} />
@@ -397,7 +509,11 @@ function hexToRgb(hex: string): [number, number, number] | null {
   const normalized = normalizeColorHex(hex);
   if (!normalized) return null;
   const h = normalized.slice(1);
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
 }
 
 function rgbToHue([r255, g255, b255]: [number, number, number]) {
@@ -423,7 +539,10 @@ function colorBrightness(hex: string) {
 }
 
 function buildSidebarColorRows(images: any[] | undefined): string[][] {
-  const colors = new Map<string, { color: string; hue: number; lightness: number; count: number }>();
+  const colors = new Map<
+    string,
+    { color: string; hue: number; lightness: number; count: number }
+  >();
   for (const image of images ?? []) {
     for (const raw of image.colors ?? []) {
       const color = normalizeColorHex(raw);
@@ -431,17 +550,26 @@ function buildSidebarColorRows(images: any[] | undefined): string[][] {
       if (!color || !rgb) continue;
       const current = colors.get(color);
       if (current) current.count += 1;
-      else colors.set(color, { color, hue: rgbToHue(rgb), lightness: colorBrightness(color), count: 1 });
+      else
+        colors.set(color, {
+          color,
+          hue: rgbToHue(rgb),
+          lightness: colorBrightness(color),
+          count: 1,
+        });
     }
   }
 
   const sorted = Array.from(colors.values())
-    .sort((a, b) => a.hue - b.hue || a.lightness - b.lightness || b.count - a.count)
+    .sort(
+      (a, b) => a.hue - b.hue || a.lightness - b.lightness || b.count - a.count,
+    )
     .slice(0, 80)
     .map((entry) => entry.color);
 
   const rows: string[][] = [];
-  for (let index = 0; index < sorted.length; index += 5) rows.push(sorted.slice(index, index + 5));
+  for (let index = 0; index < sorted.length; index += 5)
+    rows.push(sorted.slice(index, index + 5));
   return rows;
 }
 
@@ -456,13 +584,21 @@ function SidebarFilterControls({
 }) {
   const images = useQuery(api.images.list, { limit: 1000 });
   const [sidebarColorPickerOpen, setSidebarColorPickerOpen] = useState(false);
-  const [sidebarColorPickerPos, setSidebarColorPickerPos] = useState<{ left: number; top: number } | null>(null);
+  const [sidebarColorPickerPos, setSidebarColorPickerPos] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
   const sidebarColorLabelRef = React.useRef<HTMLLabelElement>(null);
-  const sidebarColorRows = React.useMemo(() => buildSidebarColorRows(images), [images]);
+  const sidebarColorRows = React.useMemo(
+    () => buildSidebarColorRows(images),
+    [images],
+  );
 
   const openSidebarColorPicker = () => {
     const rect = sidebarColorLabelRef.current?.getBoundingClientRect();
-    const left = rect ? Math.min(rect.left, Math.max(8, window.innerWidth - 336)) : 102;
+    const left = rect
+      ? Math.min(rect.left, Math.max(8, window.innerWidth - 336))
+      : 102;
     const top = rect ? rect.bottom + 6 : 560;
     setSidebarColorPickerPos({ left, top });
     setSidebarColorPickerOpen(true);
@@ -471,7 +607,8 @@ function SidebarFilterControls({
   const setColorFilter = (color: string | null) => {
     setLibraryFilter((f) => ({ ...f, colorHex: color }));
   };
-  const colorCheckboxChecked = Boolean(libraryFilter.colorHex) || sidebarColorPickerOpen;
+  const colorCheckboxChecked =
+    Boolean(libraryFilter.colorHex) || sidebarColorPickerOpen;
 
   return (
     <>
@@ -513,7 +650,18 @@ function SidebarFilterControls({
           Clear
         </button>
       </div>
-      <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+      <label
+        className="pd-filter-checkbox"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "3px 0",
+          fontSize: 11.5,
+          color: "var(--pd-ink-dim)",
+          cursor: "pointer",
+        }}
+      >
         <input
           type="checkbox"
           checked={libraryFilter.originalsOnly}
@@ -524,7 +672,18 @@ function SidebarFilterControls({
         <span className="pd-filter-checkbox-box" aria-hidden="true" />
         Originals only
       </label>
-      <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+      <label
+        className="pd-filter-checkbox"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "3px 0",
+          fontSize: 11.5,
+          color: "var(--pd-ink-dim)",
+          cursor: "pointer",
+        }}
+      >
         <input
           type="checkbox"
           checked={libraryFilter.hasSref}
@@ -539,7 +698,15 @@ function SidebarFilterControls({
         <label
           ref={sidebarColorLabelRef}
           className="pd-filter-checkbox"
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "3px 0",
+            fontSize: 11.5,
+            color: "var(--pd-ink-dim)",
+            cursor: "pointer",
+          }}
         >
           <input
             type="checkbox"
@@ -556,7 +723,14 @@ function SidebarFilterControls({
           <span className="pd-filter-checkbox-box" aria-hidden="true" />
           Color
           {libraryFilter.colorHex && (
-            <span className="pd-mono" style={{ color: "var(--pd-ink-faint)", fontSize: 9, marginLeft: 2 }}>
+            <span
+              className="pd-mono"
+              style={{
+                color: "var(--pd-ink-faint)",
+                fontSize: 9,
+                marginLeft: 2,
+              }}
+            >
               {libraryFilter.colorHex}
             </span>
           )}
@@ -566,7 +740,12 @@ function SidebarFilterControls({
             type="button"
             onClick={() => setLibraryFilter((f) => ({ ...f, colorHex: null }))}
             className="pd-mono"
-            style={{ marginLeft: 8, fontSize: 9, color: "var(--pd-ink-faint)", padding: 0 }}
+            style={{
+              marginLeft: 8,
+              fontSize: 9,
+              color: "var(--pd-ink-faint)",
+              padding: 0,
+            }}
           >
             Clear
           </button>
@@ -594,36 +773,47 @@ function SidebarFilterControls({
               boxShadow: "var(--pd-glass-shadow)",
             }}
           >
-            {sidebarColorRows.length > 0 ? sidebarColorRows.map((row, rowIndex) => (
+            {sidebarColorRows.length > 0 ? (
+              sidebarColorRows.map((row, rowIndex) => (
+                <div
+                  key={`${row.join("|")}-${rowIndex}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(5, 56px)",
+                    gap: 5,
+                  }}
+                >
+                  {row.map((color) => {
+                    const active = libraryFilter.colorHex === color;
+                    return (
+                      <button
+                        key={`${rowIndex}-${color}`}
+                        type="button"
+                        title={color}
+                        aria-label={`Filter near ${color}`}
+                        aria-pressed={active}
+                        onClick={() => setColorFilter(active ? null : color)}
+                        style={{
+                          height: 20,
+                          borderRadius: 3,
+                          border: active
+                            ? "2px solid var(--pd-ink)"
+                            : "1px solid rgba(255,255,255,0.14)",
+                          background: color,
+                          boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.18)",
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ))
+            ) : (
               <div
-                key={`${row.join("|")}-${rowIndex}`}
-                style={{ display: "grid", gridTemplateColumns: "repeat(5, 56px)", gap: 5 }}
+                className="pd-mono"
+                style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}
               >
-                {row.map((color) => {
-                  const active = libraryFilter.colorHex === color;
-                  return (
-                    <button
-                      key={`${rowIndex}-${color}`}
-                      type="button"
-                      title={color}
-                      aria-label={`Filter near ${color}`}
-                      aria-pressed={active}
-                      onClick={() => setColorFilter(active ? null : color)}
-                      style={{
-                        height: 20,
-                        borderRadius: 3,
-                        border: active ? "2px solid var(--pd-ink)" : "1px solid rgba(255,255,255,0.14)",
-                        background: color,
-                        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.18)",
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            )) : (
-              <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
                 No sampled colors yet
               </div>
             )}
@@ -651,26 +841,36 @@ function SidebarLibraryAggregationBody({
       const value = normalizeLibraryGroup(row.value);
       counts.set(value, (counts.get(value) ?? 0) + row.count);
     }
-    return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) => {
-      if (a.value === "") return 1;
-      if (b.value === "") return -1;
-      return b.count - a.count || a.value.localeCompare(b.value);
-    });
+    return Array.from(counts, ([value, count]) => ({ value, count })).sort(
+      (a, b) => {
+        if (a.value === "") return 1;
+        if (b.value === "") return -1;
+        return b.count - a.count || a.value.localeCompare(b.value);
+      },
+    );
   }, [aggregations]);
 
   return (
     <>
       {aggregations === undefined && (
-        <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>Loading filters…</div>
+        <div
+          className="pd-mono"
+          style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}
+        >
+          Loading filters…
+        </div>
       )}
       {aggregations !== undefined && groupRows.length > 0 && (
         <>
-          <LibraryAggregationSectionHeading>Type</LibraryAggregationSectionHeading>
+          <LibraryAggregationSectionHeading>
+            Type
+          </LibraryAggregationSectionHeading>
           <LibraryAggregationTypeColumn>
             {groupRows.slice(0, 16).map((row) => {
               const value = row.value;
               const label = value ? value : "Unassigned";
-              const selected = libraryFilter.group !== null && libraryFilter.group === value;
+              const selected =
+                libraryFilter.group !== null && libraryFilter.group === value;
               return (
                 <LibraryAggregationTypeRowButton
                   key={`g-${value || "empty"}`}
@@ -691,7 +891,9 @@ function SidebarLibraryAggregationBody({
       )}
       {aggregations !== undefined && aggregations.byGenre.length > 0 && (
         <>
-          <LibraryAggregationSectionHeading>Genre</LibraryAggregationSectionHeading>
+          <LibraryAggregationSectionHeading>
+            Genre
+          </LibraryAggregationSectionHeading>
           <LibraryAggregationChipWrap>
             {aggregations.byGenre.slice(0, 16).map((row) => {
               const selected = libraryFilter.genre === row.value;
@@ -714,7 +916,9 @@ function SidebarLibraryAggregationBody({
       )}
       {aggregations !== undefined && aggregations.byStyle.length > 0 && (
         <>
-          <LibraryAggregationSectionHeading>Style / medium</LibraryAggregationSectionHeading>
+          <LibraryAggregationSectionHeading>
+            Style / medium
+          </LibraryAggregationSectionHeading>
           <LibraryAggregationChipWrap>
             {aggregations.byStyle.slice(0, 14).map((row) => {
               const selected = libraryFilter.style === row.value;
@@ -757,51 +961,138 @@ function Sidebar({
   libraryFilter: LibraryFilters;
   setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
   galleryDisplayMode: GalleryDisplayMode;
-  setGalleryDisplayMode: React.Dispatch<React.SetStateAction<GalleryDisplayMode>>;
+  setGalleryDisplayMode: React.Dispatch<
+    React.SetStateAction<GalleryDisplayMode>
+  >;
 }) {
-  const displayModes: Array<{ id: GalleryDisplayMode; label: string; icon: string }> = [
+  const displayModes: Array<{
+    id: GalleryDisplayMode;
+    label: string;
+    icon: string;
+  }> = [
     { id: "random", label: "Random", icon: "masonry" },
     { id: "project-rows", label: "Project Rows", icon: "film" },
     { id: "sref-rows", label: "SREF Rows", icon: "tree" },
   ];
 
   return (
-    <aside style={{
-      width: 208, flexShrink: 0, background: "var(--pd-bg-1)",
-      borderRight: "1px solid var(--pd-line)", display: "flex", flexDirection: "column",
-      height: "100%", position: "relative", overflow: "hidden",
-    }}>
-      <div style={{ height: 44, padding: "0 14px", borderBottom: "1px solid var(--pd-line)", display: "flex", alignItems: "center", gap: 8, boxSizing: "border-box" }}>
-        <div style={{
-          width: 22, height: 22, borderRadius: 4, background: "#000",
-          border: "1px solid var(--pd-line-hi)", display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 11, fontWeight: 800, fontStyle: "italic", letterSpacing: "-0.06em",
-        }}>P/</div>
-        <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.03em", fontStyle: "italic" }}>
+    <aside
+      className="pd-sidebar"
+      style={{
+        width: 208,
+        flexShrink: 0,
+        background: "var(--pd-bg-1)",
+        borderRight: "1px solid var(--pd-line)",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          height: 44,
+          padding: "0 14px",
+          borderBottom: "1px solid var(--pd-line)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 4,
+            background: "#000",
+            border: "1px solid var(--pd-line-hi)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 11,
+            fontWeight: 800,
+            fontStyle: "italic",
+            letterSpacing: "-0.06em",
+          }}
+        >
+          P/
+        </div>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            fontStyle: "italic",
+          }}
+        >
           <span style={{ color: "var(--pd-ink)" }}>PIN</span>
           <span style={{ color: "var(--pd-accent)" }}>DECK</span>
         </div>
       </div>
 
-      <div style={{ padding: "10px 8px 6px", display: "flex", flexDirection: "column", gap: 1 }}>
+      <div
+        style={{
+          padding: "10px 8px 6px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+        }}
+      >
         {APP_VIEWS.map((n) => (
-          <button key={n.id} onClick={() => onView(n.id)} style={{
-            display: "flex", alignItems: "center", gap: 9, padding: "6px 8px",
-            borderRadius: 4, color: activeView === n.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
-            background: activeView === n.id ? "rgba(255,255,255,0.05)" : "transparent",
-            fontSize: 12, fontWeight: 500, textAlign: "left", transition: "background 120ms",
-          }}>
-            <PinIcon name={n.icon} size={13} stroke={activeView === n.id ? 1.8 : 1.5} />
+          <button
+            key={n.id}
+            onClick={() => onView(n.id)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 9,
+              padding: "6px 8px",
+              borderRadius: 4,
+              color:
+                activeView === n.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
+              background:
+                activeView === n.id ? "rgba(255,255,255,0.05)" : "transparent",
+              fontSize: 12,
+              fontWeight: 500,
+              textAlign: "left",
+              transition: "background 120ms",
+            }}
+          >
+            <PinIcon
+              name={n.icon}
+              size={13}
+              stroke={activeView === n.id ? 1.8 : 1.5}
+            />
             <span style={{ flex: 1 }}>{n.label}</span>
             <PinHotkey k={n.hk} />
           </button>
         ))}
       </div>
 
-      <div className="pd-scroll" style={{ flex: 1, overflow: "auto", padding: "8px 12px 14px" }}>
+      <div
+        className="pd-scroll"
+        style={{ flex: 1, overflow: "auto", padding: "8px 12px 14px" }}
+      >
         {activeView === "gallery" && (
-          <div style={{ padding: "4px 4px 12px", borderBottom: "1px solid var(--pd-line)", marginBottom: 10 }}>
-            <div className="pd-mono" style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--pd-ink-faint)", marginBottom: 7 }}>
+          <div
+            style={{
+              padding: "4px 4px 12px",
+              borderBottom: "1px solid var(--pd-line)",
+              marginBottom: 10,
+            }}
+          >
+            <div
+              className="pd-mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--pd-ink-faint)",
+                marginBottom: 7,
+              }}
+            >
               View
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -821,8 +1112,12 @@ function Sidebar({
                       padding: "6px 7px",
                       borderRadius: 4,
                       border: "0",
-                      background: selected ? "rgba(255,255,255,0.05)" : "transparent",
-                      color: selected ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+                      background: selected
+                        ? "rgba(255,255,255,0.05)"
+                        : "transparent",
+                      color: selected
+                        ? "var(--pd-accent-ink)"
+                        : "var(--pd-ink-dim)",
                       fontSize: 11.5,
                       textAlign: "left",
                     }}
@@ -839,8 +1134,17 @@ function Sidebar({
           <LibraryAggregationsErrorBoundary
             fallback={
               <>
-                <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)", marginBottom: 10, lineHeight: 1.45 }}>
-                  Type / genre / style counts need the latest Convex deploy. You can still filter with the options below.
+                <div
+                  className="pd-mono"
+                  style={{
+                    fontSize: 10,
+                    color: "var(--pd-ink-faint)",
+                    marginBottom: 10,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Type / genre / style counts need the latest Convex deploy. You
+                  can still filter with the options below.
                 </div>
                 <SidebarFilterControls
                   libraryFilter={libraryFilter}
@@ -859,9 +1163,28 @@ function Sidebar({
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid var(--pd-line)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 10.5 }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--pd-green)", boxShadow: "0 0 8px var(--pd-green)" }} />
-        <span className="pd-mono" style={{ color: "var(--pd-ink-mute)" }}>convex · live</span>
+      <div
+        style={{
+          borderTop: "1px solid var(--pd-line)",
+          padding: "8px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 10.5,
+        }}
+      >
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "var(--pd-green)",
+            boxShadow: "0 0 8px var(--pd-green)",
+          }}
+        />
+        <span className="pd-mono" style={{ color: "var(--pd-ink-mute)" }}>
+          convex · live
+        </span>
       </div>
     </aside>
   );
@@ -881,13 +1204,19 @@ function Topbar({
   setVisibleColumns,
   accountActions,
 }: {
-  search: string; setSearch: (s: string) => void; view: string; setView: (v: string) => void;
+  search: string;
+  setSearch: (s: string) => void;
+  view: string;
+  setView: (v: string) => void;
   docsUrl: string;
-  tweaksOn: boolean; onToggleTweaks: () => void;
+  tweaksOn: boolean;
+  onToggleTweaks: () => void;
   libraryFilter: LibraryFilters;
   setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
   visibleColumns: Record<TableColumnKey, boolean>;
-  setVisibleColumns: React.Dispatch<React.SetStateAction<Record<TableColumnKey, boolean>>>;
+  setVisibleColumns: React.Dispatch<
+    React.SetStateAction<Record<TableColumnKey, boolean>>
+  >;
   accountActions: React.ReactNode;
 }) {
   const images = useQuery(api.images.list, { limit: 1000 });
@@ -895,7 +1224,10 @@ function Topbar({
   const [topColumnsOpen, setTopColumnsOpen] = useState(false);
   const [topColorPickerOpen, setTopColorPickerOpen] = useState(false);
   const topMenuRef = React.useRef<HTMLDivElement>(null);
-  const topColorRows = React.useMemo(() => buildSidebarColorRows(images), [images]);
+  const topColorRows = React.useMemo(
+    () => buildSidebarColorRows(images),
+    [images],
+  );
   const topColorChecked = Boolean(libraryFilter.colorHex) || topColorPickerOpen;
 
   React.useEffect(() => {
@@ -903,14 +1235,16 @@ function Topbar({
 
     const closeOnOutsidePointer = (event: PointerEvent) => {
       const target = event.target;
-      if (target instanceof Node && topMenuRef.current?.contains(target)) return;
+      if (target instanceof Node && topMenuRef.current?.contains(target))
+        return;
       setTopFiltersOpen(false);
       setTopColumnsOpen(false);
       setTopColorPickerOpen(false);
     };
 
     document.addEventListener("pointerdown", closeOnOutsidePointer);
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+    return () =>
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
   }, [topFiltersOpen, topColumnsOpen]);
 
   const setTopColorFilter = (color: string | null) => {
@@ -925,7 +1259,9 @@ function Topbar({
     width: "100%",
     padding: "3px 7px",
     borderRadius: 3,
-    border: active ? "1px solid transparent" : "1px solid var(--pd-line-strong)",
+    border: active
+      ? "1px solid transparent"
+      : "1px solid var(--pd-line-strong)",
     background: active ? "var(--pd-accent-soft)" : "rgba(255,255,255,0.025)",
     color: active ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
     fontSize: 10.5,
@@ -938,23 +1274,63 @@ function Topbar({
   };
 
   return (
-    <header style={{
-      height: 44, flexShrink: 0, borderBottom: "1px solid var(--pd-line)",
-      background: "var(--pd-bg-1)", display: "flex", alignItems: "center", gap: 8,
-      padding: "0 12px", position: "relative", zIndex: 10,
-    }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 6,
-        background: "var(--pd-bg-2)", border: "1px solid var(--pd-line)",
-        borderRadius: 5, padding: "5px 8px", width: 320, maxWidth: "38vw",
-      }}>
+    <header
+      className="pd-topbar"
+      style={{
+        height: 44,
+        flexShrink: 0,
+        borderBottom: "1px solid var(--pd-line)",
+        background: "var(--pd-bg-1)",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "0 12px",
+        position: "relative",
+        zIndex: 10,
+      }}
+    >
+      <div
+        className="pd-search-shell"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "var(--pd-bg-2)",
+          border: "1px solid var(--pd-line)",
+          borderRadius: 5,
+          padding: "5px 8px",
+          width: 320,
+          maxWidth: "38vw",
+        }}
+      >
         <PinIcon name="search" size={12} />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search titles, tags, srefs…"
-          style={{ flex: 1, border: 0, outline: 0, background: "transparent", fontSize: 12, color: "var(--pd-ink)" }} />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search titles, tags, srefs…"
+          style={{
+            flex: 1,
+            border: 0,
+            outline: 0,
+            background: "transparent",
+            fontSize: 12,
+            color: "var(--pd-ink)",
+          }}
+        />
         <PinHotkey k="⌘K" />
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--pd-ink-mute)", marginLeft: 8 }}>
+      <div
+        className="pd-breadcrumb"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 11.5,
+          color: "var(--pd-ink-mute)",
+          marginLeft: 8,
+        }}
+      >
         <span className="pd-mono">{view}</span>
         <span style={{ color: "var(--pd-ink-faint)" }}>/</span>
         <span>Pindeck Library</span>
@@ -963,7 +1339,16 @@ function Topbar({
       <div style={{ flex: 1 }} />
 
       {view === "table" ? (
-        <div ref={topMenuRef} style={{ display: "flex", alignItems: "center", gap: 3, marginRight: 4, position: "relative" }}>
+        <div
+          ref={topMenuRef}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            marginRight: 4,
+            position: "relative",
+          }}
+        >
           {[
             { id: "filters", label: "Filters", icon: "filter" },
             { id: "columns", label: "Columns", icon: "eye" },
@@ -971,7 +1356,9 @@ function Topbar({
             <button
               key={item.id}
               type="button"
-              aria-pressed={item.id === "filters" ? topFiltersOpen : topColumnsOpen}
+              aria-pressed={
+                item.id === "filters" ? topFiltersOpen : topColumnsOpen
+              }
               title={`${item.label} controls`}
               onClick={() => {
                 if (item.id === "filters") {
@@ -988,9 +1375,19 @@ function Topbar({
                 gap: 6,
                 padding: "5px 8px",
                 borderRadius: 4,
-                border: (item.id === "filters" ? topFiltersOpen : topColumnsOpen) ? "1px solid transparent" : "1px solid transparent",
-                background: (item.id === "filters" ? topFiltersOpen : topColumnsOpen) ? "var(--pd-accent-soft)" : "transparent",
-                color: (item.id === "filters" ? topFiltersOpen : topColumnsOpen) ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+                border: (
+                  item.id === "filters" ? topFiltersOpen : topColumnsOpen
+                )
+                  ? "1px solid transparent"
+                  : "1px solid transparent",
+                background: (
+                  item.id === "filters" ? topFiltersOpen : topColumnsOpen
+                )
+                  ? "var(--pd-accent-soft)"
+                  : "transparent",
+                color: (item.id === "filters" ? topFiltersOpen : topColumnsOpen)
+                  ? "var(--pd-accent-ink)"
+                  : "var(--pd-ink-dim)",
                 fontSize: 12,
                 fontWeight: 500,
                 cursor: "pointer",
@@ -1012,25 +1409,68 @@ function Topbar({
                 padding: "8px 10px",
               }}
             >
-              <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+              <label
+                className="pd-filter-checkbox"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "3px 0",
+                  fontSize: 11.5,
+                  color: "var(--pd-ink-dim)",
+                  cursor: "pointer",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={libraryFilter.originalsOnly}
-                  onChange={(e) => setLibraryFilter((f) => ({ ...f, originalsOnly: e.target.checked }))}
+                  onChange={(e) =>
+                    setLibraryFilter((f) => ({
+                      ...f,
+                      originalsOnly: e.target.checked,
+                    }))
+                  }
                 />
                 <span className="pd-filter-checkbox-box" aria-hidden="true" />
                 Originals only
               </label>
-              <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+              <label
+                className="pd-filter-checkbox"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "3px 0",
+                  fontSize: 11.5,
+                  color: "var(--pd-ink-dim)",
+                  cursor: "pointer",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={libraryFilter.hasSref}
-                  onChange={(e) => setLibraryFilter((f) => ({ ...f, hasSref: e.target.checked }))}
+                  onChange={(e) =>
+                    setLibraryFilter((f) => ({
+                      ...f,
+                      hasSref: e.target.checked,
+                    }))
+                  }
                 />
                 <span className="pd-filter-checkbox-box" aria-hidden="true" />
                 Has sref
               </label>
-              <label className="pd-filter-checkbox" style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 11.5, color: "var(--pd-ink-dim)", cursor: "pointer" }}>
+              <label
+                className="pd-filter-checkbox"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "3px 0",
+                  fontSize: 11.5,
+                  color: "var(--pd-ink-dim)",
+                  cursor: "pointer",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={topColorChecked}
@@ -1045,7 +1485,14 @@ function Topbar({
                 <span className="pd-filter-checkbox-box" aria-hidden="true" />
                 Color
                 {libraryFilter.colorHex && (
-                  <span className="pd-mono" style={{ color: "var(--pd-ink-faint)", fontSize: 9, marginLeft: 2 }}>
+                  <span
+                    className="pd-mono"
+                    style={{
+                      color: "var(--pd-ink-faint)",
+                      fontSize: 9,
+                      marginLeft: 2,
+                    }}
+                  >
                     {libraryFilter.colorHex}
                   </span>
                 )}
@@ -1070,33 +1517,49 @@ function Topbar({
                     boxShadow: "var(--pd-glass-shadow)",
                   }}
                 >
-                  {topColorRows.length > 0 ? topColorRows.map((row, rowIndex) => (
-                    <div key={`${row.join("|")}-${rowIndex}`} style={{ display: "grid", gridTemplateColumns: "repeat(5, 56px)", gap: 5 }}>
-                      {row.map((color) => {
-                        const active = libraryFilter.colorHex === color;
-                        return (
-                          <button
-                            key={`${rowIndex}-${color}`}
-                            type="button"
-                            title={color}
-                            aria-label={`Filter near ${color}`}
-                            aria-pressed={active}
-                            onClick={() => setTopColorFilter(active ? null : color)}
-                            style={{
-                              height: 20,
-                              borderRadius: 3,
-                              border: active ? "2px solid var(--pd-ink)" : "1px solid rgba(255,255,255,0.14)",
-                              background: color,
-                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.18)",
-                              cursor: "pointer",
-                              padding: 0,
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  )) : (
-                    <div className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
+                  {topColorRows.length > 0 ? (
+                    topColorRows.map((row, rowIndex) => (
+                      <div
+                        key={`${row.join("|")}-${rowIndex}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(5, 56px)",
+                          gap: 5,
+                        }}
+                      >
+                        {row.map((color) => {
+                          const active = libraryFilter.colorHex === color;
+                          return (
+                            <button
+                              key={`${rowIndex}-${color}`}
+                              type="button"
+                              title={color}
+                              aria-label={`Filter near ${color}`}
+                              aria-pressed={active}
+                              onClick={() =>
+                                setTopColorFilter(active ? null : color)
+                              }
+                              style={{
+                                height: 20,
+                                borderRadius: 3,
+                                border: active
+                                  ? "2px solid var(--pd-ink)"
+                                  : "1px solid rgba(255,255,255,0.14)",
+                                background: color,
+                                boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.18)",
+                                cursor: "pointer",
+                                padding: 0,
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))
+                  ) : (
+                    <div
+                      className="pd-mono"
+                      style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}
+                    >
                       No sampled colors yet
                     </div>
                   )}
@@ -1116,7 +1579,13 @@ function Topbar({
                 padding: 8,
               }}
             >
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 4 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  gap: 4,
+                }}
+              >
                 {tableColumnOptions.map((column) => (
                   <button
                     key={column.key}
@@ -1141,52 +1610,94 @@ function Topbar({
         </div>
       ) : null}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        {[
-          { id: "gallery", icon: "masonry", label: "Gallery" },
-          { id: "table", icon: "table", label: "Table" },
-          { id: "boards", icon: "board", label: "Boards" },
-        ].map((v) => (
-            <button key={v.id} className="pd-topbar-row" onClick={() => setView(v.id)} title={v.label} style={{
-            display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
-            borderRadius: 4, fontSize: 11, fontWeight: 500,
-            color: view === v.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
-            background: view === v.id ? "rgba(255,255,255,0.06)" : "transparent",
-          }}>
+      <div
+        className="pd-topbar-viewnav"
+        style={{ display: "flex", alignItems: "center", gap: 2 }}
+      >
+        {APP_VIEWS.map((v) => (
+          <button
+            key={v.id}
+            className="pd-topbar-row"
+            onClick={() => setView(v.id)}
+            title={v.label}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "4px 8px",
+              borderRadius: 4,
+              fontSize: 11,
+              fontWeight: 500,
+              color: view === v.id ? "var(--pd-ink)" : "var(--pd-ink-dim)",
+              background:
+                view === v.id ? "rgba(255,255,255,0.06)" : "transparent",
+            }}
+          >
             <PinIcon name={v.icon} size={12} />
             <span>{v.label}</span>
           </button>
         ))}
       </div>
 
-      <a href={docsUrl} target="_blank" rel="noreferrer" title="Open Pindeck docs" className="pd-topbar-row" style={{
-        display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
-        borderRadius: 4, fontSize: 11, fontWeight: 500, color: "var(--pd-ink-dim)",
-        background: "transparent", textDecoration: "none",
-      }}>
+      <a
+        href={docsUrl}
+        target="_blank"
+        rel="noreferrer"
+        title="Open Pindeck docs"
+        className="pd-topbar-row pd-docs-link"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "4px 8px",
+          borderRadius: 4,
+          fontSize: 11,
+          fontWeight: 500,
+          color: "var(--pd-ink-dim)",
+          background: "transparent",
+          textDecoration: "none",
+        }}
+      >
         <PinIcon name="docs" size={12} />
         <span>Docs</span>
         <PinIcon name="external" size={10} stroke={1.5} />
       </a>
 
-      <button onClick={onToggleTweaks} title="Tweaks" className={tweaksOn ? "pd-tweaks-trigger is-active" : "pd-tweaks-trigger"} style={{
-        width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-        borderRadius: 4, border: "0",
-        background: "transparent",
-        color: tweaksOn ? "var(--pd-accent)" : "var(--pd-ink-dim)",
-      }}>
+      <button
+        onClick={onToggleTweaks}
+        title="Tweaks"
+        className={
+          tweaksOn
+            ? "pd-tweaks-trigger pd-tweaks-mobile is-active"
+            : "pd-tweaks-trigger pd-tweaks-mobile"
+        }
+        style={{
+          width: 28,
+          height: 28,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 4,
+          border: "0",
+          background: "transparent",
+          color: tweaksOn ? "var(--pd-accent)" : "var(--pd-ink-dim)",
+        }}
+      >
         <PinIcon name="bolt" size={13} />
       </button>
 
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        marginLeft: 6,
-        paddingLeft: 10,
-        borderLeft: "1px solid var(--pd-line)",
-        flexShrink: 0,
-      }}>
+      <div
+        className="pd-account-shell"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginLeft: 6,
+          paddingLeft: 10,
+          borderLeft: "1px solid var(--pd-line)",
+          flexShrink: 0,
+        }}
+      >
         {accountActions}
       </div>
     </header>
@@ -1195,7 +1706,16 @@ function Topbar({
 
 function Placeholder() {
   return (
-    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--pd-ink-faint)", fontSize: 12 }}>
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--pd-ink-faint)",
+        fontSize: 12,
+      }}
+    >
       <div style={{ textAlign: "center" }}>
         <PinIcon name="film" size={28} stroke={1.2} />
         <div style={{ marginTop: 10 }}>Loading…</div>
