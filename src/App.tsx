@@ -50,11 +50,11 @@ const DeckView = lazy(() =>
 const DOCS_URL = "https://docs.pindeck.dev";
 
 const APP_VIEWS = [
-  { id: "gallery", label: "Gallery", icon: "masonry", hk: "G" },
-  { id: "table", label: "Table", icon: "table", hk: "T" },
-  { id: "boards", label: "Boards", icon: "board", hk: "B" },
-  { id: "deck", label: "Decks", icon: "deck", hk: "D" },
-  { id: "upload", label: "Upload", icon: "upload", hk: "U" },
+  { id: "gallery", label: "Gallery", short: "Gal", icon: "masonry", hk: "G" },
+  { id: "table", label: "Table", short: "Tbl", icon: "table", hk: "T" },
+  { id: "boards", label: "Boards", short: "Bds", icon: "board", hk: "B" },
+  { id: "deck", label: "Decks", short: "Dks", icon: "deck", hk: "D" },
+  { id: "upload", label: "Upload", short: "Up", icon: "upload", hk: "U" },
 ] as const;
 
 type AppViewId = (typeof APP_VIEWS)[number]["id"];
@@ -1734,7 +1734,9 @@ function Topbar({
             }}
           >
             <PinIcon name={v.icon} size={12} />
-            <span>{v.label}</span>
+            <span className="pd-viewnav-label" data-short={v.short}>
+              {v.label}
+            </span>
           </button>
         ))}
       </div>

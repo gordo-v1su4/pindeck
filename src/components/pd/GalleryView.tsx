@@ -194,11 +194,18 @@ export function GalleryView({
   }, [filtered]);
 
   const densityLayout = {
-    dense: { cols: 6, gap: 5 },
-    cozy: { cols: 5, gap: 6 },
-    comfortable: { cols: 4, gap: 10 },
+    dense: { cols: 6, mobileCols: 3, gap: 5, mobileGap: 5, rowWidth: 136 },
+    cozy: { cols: 5, mobileCols: 2, gap: 6, mobileGap: 7, rowWidth: 180 },
+    comfortable: {
+      cols: 4,
+      mobileCols: 1,
+      gap: 10,
+      mobileGap: 10,
+      rowWidth: 260,
+    },
   } as const;
-  const { cols, gap } = densityLayout[tweaks.density];
+  const { cols, mobileCols, gap, mobileGap, rowWidth } =
+    densityLayout[tweaks.density];
 
   const hoverClass =
     {
@@ -260,8 +267,8 @@ export function GalleryView({
           breakInside: "avoid",
           marginBottom: compact ? 0 : gap,
           animationDelay: `${i * 18}ms`,
-          width: compact ? 210 : undefined,
-          flex: compact ? "0 0 210px" : undefined,
+          width: compact ? rowWidth : undefined,
+          flex: compact ? `0 0 ${rowWidth}px` : undefined,
         }}
       >
         <div className="pd-flip-inner" style={{ height: "100%" }}>
@@ -566,6 +573,9 @@ export function GalleryView({
           overflow: "auto",
           padding: "12px",
           position: "relative",
+          ["--pd-gallery-mobile-cols" as string]: mobileCols,
+          ["--pd-gallery-mobile-gap" as string]: `${mobileGap}px`,
+          ["--pd-gallery-row-card-width" as string]: `${rowWidth}px`,
         }}
       >
         {displayMode === "project-rows" ? (
