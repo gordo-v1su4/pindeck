@@ -26,7 +26,10 @@ function authToastMessage(flow: AuthFlow, error: unknown) {
       : "Could not create account. Please try again.";
   }
 
-  if (message.includes("InvalidSecret") || message.includes("Invalid password")) {
+  if (
+    message.includes("InvalidSecret") ||
+    message.includes("Invalid password")
+  ) {
     return "Invalid password. Please check your password and try again.";
   }
 
@@ -44,12 +47,18 @@ function authToastMessage(flow: AuthFlow, error: unknown) {
       : "Could not create account. Please try again.";
   }
 
-  return flow === "signIn" ? "Could not sign in. Please try again." : "Could not sign up. Please try again.";
+  return flow === "signIn"
+    ? "Could not sign in. Please try again."
+    : "Could not sign up. Please try again.";
 }
 
 function GoogleMark() {
   return (
-    <span className="auth-google-mark" data-icon="inline-start" aria-hidden="true">
+    <span
+      className="auth-google-mark"
+      data-icon="inline-start"
+      aria-hidden="true"
+    >
       G
     </span>
   );
@@ -67,7 +76,9 @@ export function SignInForm() {
     if (!isAuthenticated) return;
 
     toast.success(
-      flow === "signIn" ? "Signed in successfully." : "Account created successfully."
+      flow === "signIn"
+        ? "Signed in successfully."
+        : "Account created successfully.",
     );
     setSignInStarted(false);
     setSubmitting(false);
@@ -77,7 +88,9 @@ export function SignInForm() {
     if (!signInStarted || isAuthenticated) return;
 
     const timeout = setTimeout(() => {
-      toast.error("Sign-in timed out. Please check your connection and try again.");
+      toast.error(
+        "Sign-in timed out. Please check your connection and try again.",
+      );
       setSignInStarted(false);
       setSubmitting(false);
     }, 10000);
@@ -90,7 +103,9 @@ export function SignInForm() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const email = ((formData.get("email") as string) || "").trim().toLowerCase();
+    const email = ((formData.get("email") as string) || "")
+      .trim()
+      .toLowerCase();
     const password = (formData.get("password") as string) || "";
 
     if (!email || !password) {
@@ -106,12 +121,19 @@ export function SignInForm() {
     try {
       const result = await signIn("password", formData);
 
-      if (result && typeof result === "object" && "signingIn" in result && result.signingIn) {
+      if (
+        result &&
+        typeof result === "object" &&
+        "signingIn" in result &&
+        result.signingIn
+      ) {
         return;
       }
 
       toast.success(
-        flow === "signIn" ? "Signed in successfully." : "Account created successfully."
+        flow === "signIn"
+          ? "Signed in successfully."
+          : "Account created successfully.",
       );
       form.reset();
       setSubmitting(false);
@@ -131,7 +153,10 @@ export function SignInForm() {
     }
   };
 
-  const handleProviderSignIn = (provider: "google" | "github", label: string) => {
+  const handleProviderSignIn = (
+    provider: "google" | "github",
+    label: string,
+  ) => {
     setSubmitting(true);
     void signIn(provider).catch((error) => {
       const message = rawAuthMessage(error);
@@ -166,7 +191,7 @@ export function SignInForm() {
         : "Create account";
 
   return (
-    <div className="mx-auto flex w-full max-w-[22.5rem] flex-col gap-6">
+    <div className="auth-form-shell mx-auto flex w-full max-w-[22.5rem] flex-col gap-6">
       <div className="flex flex-col items-center text-center">
         <div className="flex scale-[1.42] flex-col items-center gap-0.5">
           <div className="site-brand-lockup">
@@ -192,7 +217,11 @@ export function SignInForm() {
               key={item.id}
               type="button"
               onClick={() => setFlow(item.id as "signIn" | "signUp")}
-              className={flow === item.id ? "auth-segment-button is-active" : "auth-segment-button"}
+              className={
+                flow === item.id
+                  ? "auth-segment-button is-active"
+                  : "auth-segment-button"
+              }
             >
               {item.label}
             </button>
@@ -221,7 +250,10 @@ export function SignInForm() {
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="auth-password" className="auth-panel-label">
+                <FieldLabel
+                  htmlFor="auth-password"
+                  className="auth-panel-label"
+                >
                   password
                 </FieldLabel>
                 <Input
@@ -229,7 +261,9 @@ export function SignInForm() {
                   type="password"
                   name="password"
                   placeholder="password"
-                  autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+                  autoComplete={
+                    flow === "signIn" ? "current-password" : "new-password"
+                  }
                   className="auth-panel-input"
                   required
                 />
