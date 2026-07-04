@@ -72,6 +72,7 @@ type TableColumnKey =
   | "views";
 
 const TABLE_COLUMN_VISIBILITY_STORAGE_KEY = "pindeck_table_visible_columns";
+const SIDEBAR_COLLAPSE_STORAGE_KEY = "pindeck_sidebar_collapsed";
 const defaultTableVisibleColumns: Record<TableColumnKey, boolean> = {
   date: true,
   group: true,
@@ -124,6 +125,21 @@ function readStoredTableColumnVisibility(): Record<TableColumnKey, boolean> {
   }
 }
 
+function shouldStartWithCollapsedSidebar() {
+  try {
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
+    if (stored === "true") return true;
+    if (stored === "false") return false;
+    return window.matchMedia("(max-width: 900px)").matches;
+  } catch {
+    return false;
+  }
+}
+
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.innerWidth <= 900;
+}
+
 export default function App() {
   const [tweaks, setTweaks] = useState<Tweaks>(() => {
     try {
@@ -136,6 +152,9 @@ export default function App() {
     }
   });
   const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    shouldStartWithCollapsedSidebar,
+  );
   const [view, setView] = useState<AppViewId>(() =>
     sanitizeStoredView(localStorage.getItem("pindeck_view")),
   );
@@ -145,6 +164,7 @@ export default function App() {
   const [libraryFilter, setLibraryFilter] = useState<LibraryFilters>(
     defaultLibraryFilters,
   );
+  const expandButtonRef = React.useRef<HTMLButtonElement>(null);
   const [tableVisibleColumns, setTableVisibleColumns] = useState<
     Record<TableColumnKey, boolean>
   >(readStoredTableColumnVisibility);
@@ -163,6 +183,35 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("pindeck_tweaks", JSON.stringify(tweaks));
   }, [tweaks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        SIDEBAR_COLLAPSE_STORAGE_KEY,
+        String(sidebarCollapsed),
+      );
+    } catch {
+      // Sidebar preference should never block app rendering.
+    }
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 900px)");
+    const collapseWhenEnteringMobile = (event: MediaQueryListEvent) => {
+      if (event.matches) setSidebarCollapsed(true);
+    };
+    mediaQuery.addEventListener("change", collapseWhenEnteringMobile);
+    return () =>
+      mediaQuery.removeEventListener("change", collapseWhenEnteringMobile);
+  }, []);
+
+  useEffect(() => {
+    if (isMobileViewport()) setSidebarCollapsed(true);
+  }, [view, activeDeckId]);
+
+  useEffect(() => {
+    if (sidebarCollapsed) expandButtonRef.current?.focus();
+  }, [sidebarCollapsed]);
 
   /* useLayoutEffect: avoid one frame where .pd-* accent is wrong before paint */
   useLayoutEffect(() => {
@@ -239,6 +288,12 @@ export default function App() {
     setView("deck");
   };
 
+  const selectView = (nextView: string) => {
+    setView(sanitizeStoredView(nextView));
+  };
+
+  const toggleSidebar = () => setSidebarCollapsed((collapsed) => !collapsed);
+
   const closeTransientUi = () => {
     setSelectedImage(null);
     setTweaksOpen(false);
@@ -313,17 +368,43 @@ export default function App() {
 
   return (
     <div
-      className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""}`}
+      className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""} ${
+        sidebarCollapsed ? "pd-sidebar-collapsed" : "pd-sidebar-open"
+      }`}
       style={appShellStyle}
     >
       <Sidebar
         activeView={view}
-        onView={(v) => setView(sanitizeStoredView(v))}
+        onView={selectView}
         libraryFilter={libraryFilter}
         setLibraryFilter={setLibraryFilter}
         galleryDisplayMode={galleryDisplayMode}
         setGalleryDisplayMode={setGalleryDisplayMode}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
       />
+      {sidebarCollapsed ? (
+        <button
+          ref={expandButtonRef}
+          type="button"
+          className="pd-sidebar-handle"
+          aria-label="Expand sidebar"
+          aria-expanded="false"
+          aria-controls="pindeck-sidebar"
+          onClick={toggleSidebar}
+        >
+          <span className="pd-sidebar-handle-mark" aria-hidden="true" />
+          <span className="pd-sidebar-handle-label">Menu</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="pd-sidebar-backdrop"
+          aria-label="Collapse sidebar"
+          aria-controls="pindeck-sidebar"
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
 
       <div
         className="pd-main-shell"
@@ -339,7 +420,7 @@ export default function App() {
           search={search}
           setSearch={setSearch}
           view={view}
-          setView={(v) => setView(sanitizeStoredView(v))}
+          setView={selectView}
           docsUrl={`${DOCS_URL}?accent=${encodeURIComponent(tweaks.accent)}&typography=${encodeURIComponent(tweaks.typography)}`}
           tweaksOn={tweaksOpen}
           onToggleTweaks={() => setTweaksOpen(!tweaksOpen)}
@@ -376,7 +457,7 @@ export default function App() {
                 onOpenImage={setSelectedImage}
                 libraryFilter={libraryFilter}
                 displayMode={galleryDisplayMode}
-                onNavigateToBoards={() => setView("boards")}
+                onNavigateToBoards={() => selectView("boards")}
               />
             )}
             {view === "table" && (
@@ -955,6 +1036,8 @@ function Sidebar({
   setLibraryFilter,
   galleryDisplayMode,
   setGalleryDisplayMode,
+  collapsed,
+  onToggleCollapsed,
 }: {
   activeView: AppViewId;
   onView: (v: string) => void;
@@ -964,6 +1047,8 @@ function Sidebar({
   setGalleryDisplayMode: React.Dispatch<
     React.SetStateAction<GalleryDisplayMode>
   >;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }) {
   const displayModes: Array<{
     id: GalleryDisplayMode;
@@ -977,7 +1062,10 @@ function Sidebar({
 
   return (
     <aside
-      className="pd-sidebar"
+      id="pindeck-sidebar"
+      className={collapsed ? "pd-sidebar is-collapsed" : "pd-sidebar"}
+      aria-label="Pindeck sidebar"
+      aria-hidden={collapsed}
       style={{
         width: 208,
         flexShrink: 0,
@@ -1025,11 +1113,23 @@ function Sidebar({
             fontWeight: 700,
             letterSpacing: "-0.03em",
             fontStyle: "italic",
+            flex: 1,
           }}
         >
           <span style={{ color: "var(--pd-ink)" }}>PIN</span>
           <span style={{ color: "var(--pd-accent)" }}>DECK</span>
         </div>
+        <button
+          type="button"
+          className="pd-sidebar-collapse-button"
+          aria-label="Collapse sidebar"
+          aria-expanded="true"
+          aria-controls="pindeck-sidebar"
+          title="Collapse sidebar"
+          onClick={onToggleCollapsed}
+        >
+          <PinIcon name="chevron-left" size={13} stroke={1.8} />
+        </button>
       </div>
 
       <div
