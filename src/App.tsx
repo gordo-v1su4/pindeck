@@ -164,6 +164,7 @@ export default function App() {
   const [libraryFilter, setLibraryFilter] = useState<LibraryFilters>(
     defaultLibraryFilters,
   );
+  const expandButtonRef = React.useRef<HTMLButtonElement>(null);
   const [tableVisibleColumns, setTableVisibleColumns] = useState<
     Record<TableColumnKey, boolean>
   >(readStoredTableColumnVisibility);
@@ -203,6 +204,14 @@ export default function App() {
     return () =>
       mediaQuery.removeEventListener("change", collapseWhenEnteringMobile);
   }, []);
+
+  useEffect(() => {
+    if (isMobileViewport()) setSidebarCollapsed(true);
+  }, [view, activeDeckId]);
+
+  useEffect(() => {
+    if (sidebarCollapsed) expandButtonRef.current?.focus();
+  }, [sidebarCollapsed]);
 
   /* useLayoutEffect: avoid one frame where .pd-* accent is wrong before paint */
   useLayoutEffect(() => {
@@ -277,12 +286,10 @@ export default function App() {
   const openDeck = (deckId: Id<"decks">) => {
     setActiveDeckId(deckId);
     setView("deck");
-    if (isMobileViewport()) setSidebarCollapsed(true);
   };
 
   const selectView = (nextView: string) => {
     setView(sanitizeStoredView(nextView));
-    if (isMobileViewport()) setSidebarCollapsed(true);
   };
 
   const toggleSidebar = () => setSidebarCollapsed((collapsed) => !collapsed);
@@ -376,17 +383,27 @@ export default function App() {
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
       />
-      {sidebarCollapsed && (
+      {sidebarCollapsed ? (
         <button
+          ref={expandButtonRef}
           type="button"
           className="pd-sidebar-handle"
           aria-label="Expand sidebar"
           aria-expanded="false"
+          aria-controls="pindeck-sidebar"
           onClick={toggleSidebar}
         >
           <span className="pd-sidebar-handle-mark" aria-hidden="true" />
           <span className="pd-sidebar-handle-label">Menu</span>
         </button>
+      ) : (
+        <button
+          type="button"
+          className="pd-sidebar-backdrop"
+          aria-label="Collapse sidebar"
+          aria-controls="pindeck-sidebar"
+          onClick={() => setSidebarCollapsed(true)}
+        />
       )}
 
       <div
@@ -440,7 +457,7 @@ export default function App() {
                 onOpenImage={setSelectedImage}
                 libraryFilter={libraryFilter}
                 displayMode={galleryDisplayMode}
-                onNavigateToBoards={() => setView("boards")}
+                onNavigateToBoards={() => selectView("boards")}
               />
             )}
             {view === "table" && (
@@ -1045,6 +1062,7 @@ function Sidebar({
 
   return (
     <aside
+      id="pindeck-sidebar"
       className={collapsed ? "pd-sidebar is-collapsed" : "pd-sidebar"}
       aria-label="Pindeck sidebar"
       aria-hidden={collapsed}
@@ -1106,6 +1124,7 @@ function Sidebar({
           className="pd-sidebar-collapse-button"
           aria-label="Collapse sidebar"
           aria-expanded="true"
+          aria-controls="pindeck-sidebar"
           title="Collapse sidebar"
           onClick={onToggleCollapsed}
         >

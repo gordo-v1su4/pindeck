@@ -1894,6 +1894,10 @@ body {
   overflow: hidden;
 }
 
+.pd-sidebar-backdrop {
+  display: none;
+}
+
 .pd-sidebar {
   visibility: visible;
   transition:
@@ -2043,13 +2047,15 @@ body {
     pointer-events: none;
   }
 
-  .pd-sidebar-open::after {
-    content: "";
+  .pd-sidebar-backdrop {
+    display: block;
     position: fixed;
     inset: 0;
     z-index: 58;
+    border: 0;
+    padding: 0;
     background: rgba(0, 0, 0, 0.34);
-    pointer-events: none;
+    cursor: pointer;
   }
 
   .pd-sidebar-handle {
