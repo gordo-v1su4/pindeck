@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import { useMutation } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import {
   DragHandleDots2Icon,
@@ -580,7 +580,14 @@ export function DeckComposer({
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const hydratedRef = useRef(false);
+  const convex = useConvex();
   const updateDeck = useMutation(api.decks.update);
+  const generateUploadUrl = useMutation(api.images.generateUploadUrl);
+  const uploadMultiple = useMutation(api.images.uploadMultiple);
+  const [extraUrlToSlide, setExtraUrlToSlide] = useState<
+    Map<string, { imageId: Id<"images">; layout: string }>
+  >(() => new Map());
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   const resetToDeckDefaults = useCallback(() => {
     setTitle(deck.title);
@@ -630,8 +637,11 @@ export function DeckComposer({
       if (!url) continue;
       map.set(url, { imageId: slide.imageId, layout: slide.layout });
     }
+    for (const [url, slide] of extraUrlToSlide) {
+      if (!map.has(url)) map.set(url, slide);
+    }
     return map;
-  }, [sourceSlides]);
+  }, [sourceSlides, extraUrlToSlide]);
 
   useEffect(() => {
     hydratedRef.current = false;
@@ -950,6 +960,7 @@ export function DeckComposer({
 
   const handleImageUpload = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
+      if (isUploadingImages) return;
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
@@ -972,28 +983,81 @@ export function DeckComposer({
         return true;
       });
 
-      const readAsDataUrl = (file: File): Promise<string> =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (loadEvent) => {
-            const result = loadEvent.target?.result;
-            resolve(typeof result === "string" ? result : "");
+      if (validFiles.length === 0) {
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      setIsUploadingImages(true);
+      try {
+        const uploadPayload: Array<{
+          storageId: Id<"_storage">;
+          originalFileName: string;
+          title: string;
+          tags: string[];
+          category: string;
+          source: string;
+          variationCount: number;
+        }> = [];
+
+        for (const file of validFiles) {
+          const uploadUrl = await generateUploadUrl();
+          const response = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": file.type },
+            body: file,
+          });
+          if (!response.ok) {
+            throw new Error(`Failed to upload ${file.name}`);
+          }
+          const { storageId } = (await response.json()) as {
+            storageId: Id<"_storage">;
           };
-          reader.onerror = () =>
-            reject(new Error(`Failed to read ${file.name}`));
-          reader.readAsDataURL(file);
+          const title = file.name.replace(/\.[^/.]+$/, "");
+          uploadPayload.push({
+            storageId,
+            originalFileName: file.name,
+            title,
+            tags: [],
+            category: "General",
+            source: "Deck Composer",
+            variationCount: 0,
+          });
+        }
+
+        const imageIds = await uploadMultiple({ uploads: uploadPayload });
+        const newUrls: string[] = [];
+        const newMappings = new Map<
+          string,
+          { imageId: Id<"images">; layout: string }
+        >();
+
+        for (const imageId of imageIds) {
+          const image = await convex.query(api.images.getById, { id: imageId });
+          if (image?.imageUrl) {
+            newUrls.push(image.imageUrl);
+            newMappings.set(image.imageUrl, { imageId, layout: "A" });
+          }
+        }
+
+        if (newUrls.length === 0) {
+          throw new Error("Uploaded images could not be resolved");
+        }
+
+        setExtraUrlToSlide((previous) => {
+          const merged = new Map(previous);
+          for (const [url, slide] of newMappings) merged.set(url, slide);
+          return merged;
         });
 
-      try {
-        const newImages = await Promise.all(validFiles.map(readAsDataUrl));
-        const merged = [...referenceImages, ...newImages].slice(0, 10);
+        const merged = [...referenceImages, ...newUrls].slice(0, 10);
         setReferenceImages(merged);
         setActiveImageIndex(Math.max(0, merged.length - 1));
         toast.success(
-          `Added ${newImages.length} image${newImages.length === 1 ? "" : "s"}`,
+          `Added ${newUrls.length} image${newUrls.length === 1 ? "" : "s"}`,
         );
 
-        const sampleNew = newImages[newImages.length - 1];
+        const sampleNew = newUrls[newUrls.length - 1];
         if (sampleNew) {
           try {
             const extracted = await extractColors(sampleNew);
@@ -1002,13 +1066,15 @@ export function DeckComposer({
             // Ignore extraction failure on upload.
           }
         }
-      } catch {
-        toast.error("Some images failed to load");
+      } catch (error) {
+        console.error("Deck image upload failed:", error);
+        toast.error("Some images failed to upload");
       } finally {
+        setIsUploadingImages(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [referenceImages],
+    [referenceImages, generateUploadUrl, uploadMultiple, convex, isUploadingImages],
   );
 
   const handleColorChange = useCallback(

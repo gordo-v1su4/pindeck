@@ -2169,12 +2169,13 @@ export const removeMany = mutation({
       throw new Error("Not authenticated");
     }
 
-    const { canModifyImage } = await import("./lib/authz");
+    const { isAdminUser } = await import("./lib/authz");
+    const isAdmin = await isAdminUser(ctx, userId);
     let removed = 0;
     let skipped = 0;
     for (const id of args.ids) {
       const image = await ctx.db.get(id);
-      if (!image || !(await canModifyImage(ctx, image, userId))) {
+      if (!image || (image.uploadedBy !== userId && !isAdmin)) {
         skipped += 1;
         continue;
       }

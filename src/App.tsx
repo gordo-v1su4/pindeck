@@ -125,7 +125,13 @@ export default function App() {
         searchInputRef.current?.select();
         return;
       }
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) {
+        return;
+      }
       if (e.key === "Escape") { setSelectedImage(null); setTweaksOpen(false); }
       if (e.key === "g") setView("gallery");
       if (e.key === "t") setView("table");
