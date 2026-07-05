@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { PinChip, PinIcon, PinSwatches } from "@/components/ui/pindeck";
+import { PinChip, PinIcon } from "@/components/ui/pindeck";
 import { toast } from "sonner";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -11,6 +11,27 @@ interface BoardsViewProps {
 }
 
 type BoardDetailTab = "images" | "decks";
+type StoryboardStyle = "grid" | "hero" | "strip";
+type StoryboardGridSize = 2 | 3 | 4 | 5;
+type StoryboardPanel = {
+  id: string;
+  style: StoryboardStyle;
+  gridSize: StoryboardGridSize;
+  slots: Array<string | null>;
+  collapsed: boolean;
+  note: string;
+};
+
+const STORYBOARD_GRID_OPTIONS: StoryboardGridSize[] = [2, 3, 4, 5];
+const STORYBOARD_STYLE_OPTIONS: Array<{
+  id: StoryboardStyle;
+  label: string;
+  icon: string;
+}> = [
+  { id: "grid", label: "Grid", icon: "grid" },
+  { id: "hero", label: "Hero", icon: "image" },
+  { id: "strip", label: "Strip", icon: "film" },
+];
 
 export function BoardsView({ onOpenDeck, onOpenImage }: BoardsViewProps) {
   const boards = useQuery(api.boards.list);
@@ -143,44 +164,13 @@ export function BoardsView({ onOpenDeck, onOpenImage }: BoardsViewProps) {
           ) : boardImages.length === 0 ? (
             <EmptyBoardDetail copy="This board has no images yet." />
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-              {boardImages.map((image: any) => (
-                <button
-                  key={image._id}
-                  type="button"
-                  onClick={() => onOpenImage(image)}
-                  style={{
-                    position: "relative",
-                    overflow: "hidden",
-                    borderRadius: 4,
-                    border: "1px solid var(--pd-line)",
-                    background: "var(--pd-panel)",
-                    padding: 0,
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ aspectRatio: "16/10", background: "#000", overflow: "hidden" }}>
-                    <img
-                      src={image.derivativeUrls?.medium || image.previewUrl || image.imageUrl}
-                      alt=""
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  </div>
-                  <div style={{ padding: "8px 9px 9px" }}>
-                    <div style={{ fontSize: 12, color: "var(--pd-ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {image.title}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-                      <PinSwatches colors={image.colors ?? []} size={9} gap={2} />
-                      <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
-                        {image.group || image.genre || "image"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <BoardStoryboardWorkspace
+              key={selectedBoard._id}
+              boardId={selectedBoard._id}
+              boardName={selectedBoard.name}
+              images={boardImages}
+              onOpenImage={onOpenImage}
+            />
           )
         ) : boardDecks === undefined ? (
           <div className="pd-mono" style={{ color: "var(--pd-ink-faint)", fontSize: 10 }}>Loading board decks…</div>
@@ -260,7 +250,16 @@ export function BoardsView({ onOpenDeck, onOpenImage }: BoardsViewProps) {
           return (
             <div
               key={b._id}
-              onClick={() => {
+              role="button"
+              tabIndex={0}
+              title={`Double-click to open ${b.name}`}
+              onDoubleClick={() => {
+                setSelectedBoardId(b._id);
+                setDetailTab("images");
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
                 setSelectedBoardId(b._id);
                 setDetailTab("images");
               }}
@@ -345,6 +344,593 @@ export function BoardsView({ onOpenDeck, onOpenImage }: BoardsViewProps) {
       )}
     </div>
   );
+}
+
+function BoardStoryboardWorkspace({
+  boardId,
+  boardName,
+  images,
+  onOpenImage,
+}: {
+  boardId: Id<"collections">;
+  boardName: string;
+  images: any[];
+  onOpenImage: (image: any) => void;
+}) {
+  const savedStoryboards = useQuery(api.storyboards.listByBoard, { boardId });
+  const saveBoardLayout = useMutation(api.storyboards.saveBoardLayout);
+  const imageById = React.useMemo(() => {
+    return new Map(images.map((image) => [String(image._id), image]));
+  }, [images]);
+  const [panels, setPanels] = useState<StoryboardPanel[]>(() => [
+    createStoryboardPanel(0, { style: "grid", gridSize: 3 }),
+    createStoryboardPanel(1, { style: "hero", gridSize: 3 }),
+  ]);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
+  const [hydratedBoardId, setHydratedBoardId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const usedImageIds = React.useMemo(() => {
+    const used = new Set<string>();
+    panels.forEach((panel) => {
+      panel.slots.forEach((imageId) => {
+        if (imageId) used.add(imageId);
+      });
+    });
+    return used;
+  }, [panels]);
+
+  useEffect(() => {
+    if (savedStoryboards === undefined || hydratedBoardId === String(boardId)) return;
+    const saved = savedStoryboards[0];
+    if (saved?.layoutState?.frames?.length) {
+      setPanels(saved.layoutState.frames.map((frame, index) => ({
+        id: frame.id || `storyboard-saved-${index}`,
+        style: isStoryboardStyle(frame.style) ? frame.style : "grid",
+        gridSize: isStoryboardGridSize(frame.gridSize) ? frame.gridSize : 3,
+        collapsed: Boolean(frame.collapsed),
+        note: frame.note ?? "",
+        slots: resizeSlots(
+          frame.slots.map((slot) => slot ? String(slot) : null),
+          storyboardSlotCount(
+            isStoryboardStyle(frame.style) ? frame.style : "grid",
+            isStoryboardGridSize(frame.gridSize) ? frame.gridSize : 3,
+          ),
+        ),
+      })));
+      setSaveState("saved");
+    }
+    setHydratedBoardId(String(boardId));
+  }, [boardId, hydratedBoardId, savedStoryboards]);
+
+  const markDirty = () => {
+    setSaveState((current) => current === "saving" ? current : "idle");
+  };
+
+  const addPanel = () => {
+    markDirty();
+    setPanels((current) => [
+      ...current,
+      createStoryboardPanel(current.length, { style: "grid", gridSize: 3 }),
+    ]);
+  };
+
+  const updatePanelLayout = (
+    panelId: string,
+    patch: Partial<Pick<StoryboardPanel, "style" | "gridSize">>,
+  ) => {
+    markDirty();
+    setPanels((current) =>
+      current.map((panel) => {
+        if (panel.id !== panelId) return panel;
+        const nextPanel = { ...panel, ...patch };
+        const nextSlotCount = storyboardSlotCount(nextPanel.style, nextPanel.gridSize);
+        return {
+          ...nextPanel,
+          slots: resizeSlots(panel.slots, nextSlotCount),
+        };
+      }),
+    );
+  };
+
+  const updatePanelNote = (panelId: string, note: string) => {
+    markDirty();
+    setPanels((current) =>
+      current.map((panel) => panel.id === panelId ? { ...panel, note } : panel),
+    );
+  };
+
+  const togglePanelCollapsed = (panelId: string) => {
+    markDirty();
+    setPanels((current) =>
+      current.map((panel) =>
+        panel.id === panelId ? { ...panel, collapsed: !panel.collapsed } : panel,
+      ),
+    );
+  };
+
+  const isImageAlreadyUsed = (
+    imageId: string,
+    source?: { panelId: string; slotIndex: number },
+  ) => {
+    return panels.some((panel) =>
+      panel.slots.some((slot, slotIndex) => {
+        if (slot !== imageId) return false;
+        return !(source && panel.id === source.panelId && slotIndex === source.slotIndex);
+      }),
+    );
+  };
+
+  const insertImageIntoPanel = (
+    panelId: string,
+    slotIndex: number,
+    imageId: string,
+    source?: { panelId: string; slotIndex: number },
+  ) => {
+    markDirty();
+    setPanels((current) => {
+      const withoutSource = current.map((panel) => {
+        if (source?.panelId !== panel.id) return panel;
+        const slots = [...panel.slots];
+        slots[source.slotIndex] = null;
+        return { ...panel, slots };
+      });
+
+      return withoutSource.map((panel) => {
+        if (panel.id !== panelId) return panel;
+        return {
+          ...panel,
+          slots: insertIntoSlots(panel.slots, slotIndex, imageId),
+        };
+      });
+    });
+  };
+
+  const placeImageIntoPanel = (
+    panelId: string,
+    slotIndex: number,
+    imageId: string,
+    source?: { panelId: string; slotIndex: number },
+  ) => {
+    if (isImageAlreadyUsed(imageId, source)) {
+      toast.info("Shot already used in this storyboard.");
+      return;
+    }
+    insertImageIntoPanel(panelId, slotIndex, imageId, source);
+  };
+
+  const clearSlot = (panelId: string, slotIndex: number) => {
+    markDirty();
+    setPanels((current) =>
+      current.map((panel) => {
+        if (panel.id !== panelId) return panel;
+        const slots = [...panel.slots];
+        slots[slotIndex] = null;
+        return { ...panel, slots };
+      }),
+    );
+  };
+
+  const handleShotDragStart = (
+    event: React.DragEvent<HTMLElement>,
+    imageId: string,
+  ) => {
+    event.dataTransfer.effectAllowed = "copyMove";
+    event.dataTransfer.setData(
+      "application/x-pindeck-shot",
+      JSON.stringify({ kind: "shot", imageId }),
+    );
+  };
+
+  const handleSlotDragStart = (
+    event: React.DragEvent<HTMLElement>,
+    panelId: string,
+    slotIndex: number,
+    imageId: string,
+  ) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(
+      "application/x-pindeck-shot",
+      JSON.stringify({ kind: "slot", panelId, slotIndex, imageId }),
+    );
+  };
+
+  const handleDrop = (
+    event: React.DragEvent<HTMLElement>,
+    panelId: string,
+    slotIndex: number,
+  ) => {
+    event.preventDefault();
+    const payload = readStoryboardDragPayload(event);
+    setDropTarget(null);
+    if (!payload?.imageId) return;
+    placeImageIntoPanel(
+      panelId,
+      slotIndex,
+      payload.imageId,
+      payload.kind === "slot"
+        ? { panelId: payload.panelId, slotIndex: payload.slotIndex }
+        : undefined,
+    );
+  };
+
+  const saveLayout = async () => {
+    setSaveState("saving");
+    try {
+      await saveBoardLayout({
+        boardId,
+        title: `${boardName} Storyboard`,
+        frames: panels.map((panel) => ({
+          id: panel.id,
+          style: panel.style,
+          gridSize: panel.gridSize,
+          collapsed: panel.collapsed,
+          note: panel.note,
+          slots: panel.slots.map((slot) => slot as Id<"images"> | null),
+        })),
+      });
+      setSaveState("saved");
+      toast.success("Storyboard locked to this board.");
+    } catch (error) {
+      console.error("Failed to save storyboard:", error);
+      setSaveState("idle");
+      toast.error("Could not lock storyboard.");
+    }
+  };
+
+  return (
+    <div className="pd-board-workspace">
+      <section className="pd-board-shot-rail" aria-label="Board shots">
+        <div className="pd-board-section-head">
+          <div>
+            <div className="pd-board-section-title">Shots</div>
+            <div className="pd-board-section-meta">{images.length} selected</div>
+          </div>
+        </div>
+        <div className="pd-board-shot-grid">
+          {images.map((image) => {
+            const imageId = String(image._id);
+            const isUsed = usedImageIds.has(imageId);
+            return (
+              <button
+                key={image._id}
+                type="button"
+                draggable
+                className={[
+                  "pd-board-shot-thumb",
+                  selectedShotId === imageId ? "is-selected" : "",
+                  isUsed ? "is-used" : "",
+                ].filter(Boolean).join(" ")}
+                onClick={() => {
+                  setSelectedShotId(imageId);
+                  onOpenImage(image);
+                }}
+                onDragStart={(event) => handleShotDragStart(event, imageId)}
+                aria-label={`${isUsed ? "Used shot" : "Open"} ${image.title || "board shot"}`}
+                title={isUsed ? "Used in this storyboard" : image.title || "Board shot"}
+              >
+                <img src={pickBoardImageUrl(image)} alt="" draggable={false} />
+                {isUsed && (
+                  <span className="pd-board-shot-used" aria-hidden="true">
+                    <PinIcon name="close" size={34} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="pd-storyboard-builder" aria-label="Storyboard builder">
+        <div className="pd-board-section-head">
+          <div>
+            <div className="pd-board-section-title">Storyboard</div>
+            <div className="pd-board-section-meta">{panels.length} frames</div>
+          </div>
+          <div className="pd-board-builder-actions">
+            <button
+              type="button"
+              className="pd-board-save-layout"
+              onClick={() => void saveLayout()}
+              disabled={saveState === "saving"}
+            >
+              <PinIcon name={saveState === "saved" ? "check" : "lock"} size={13} />
+              {saveState === "saving" ? "Locking" : saveState === "saved" ? "Locked" : "Lock Board"}
+            </button>
+            <button type="button" className="pd-board-add-panel" onClick={addPanel}>
+              <PinIcon name="plus" size={13} />
+              Add
+            </button>
+          </div>
+        </div>
+
+        <div className="pd-storyboard-stack">
+          {panels.map((panel, panelIndex) => (
+            <article key={panel.id} className="pd-storyboard-panel">
+              <div className="pd-storyboard-toolbar">
+                <div className="pd-storyboard-panel-label">
+                  <span className="pd-mono">{String(panelIndex + 1).padStart(2, "0")}</span>
+                </div>
+                <div className="pd-storyboard-control-group" aria-label="Storyboard style">
+                  {STORYBOARD_STYLE_OPTIONS.map((style) => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      aria-pressed={panel.style === style.id}
+                      className={panel.style === style.id ? "is-active" : ""}
+                      onClick={() => updatePanelLayout(panel.id, { style: style.id })}
+                    >
+                      <PinIcon name={style.icon} size={12} />
+                      {style.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="pd-storyboard-control-group" aria-label="Storyboard grid size">
+                  {STORYBOARD_GRID_OPTIONS.map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      aria-pressed={panel.gridSize === size}
+                      className={panel.gridSize === size ? "is-active" : ""}
+                      onClick={() => updatePanelLayout(panel.id, { gridSize: size })}
+                    >
+                      {size}x{size}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="pd-storyboard-collapse-button"
+                  onClick={() => togglePanelCollapsed(panel.id)}
+                >
+                  <PinIcon name={panel.collapsed ? "expand" : "eye-off"} size={12} />
+                  {panel.collapsed ? "Expand" : "Minimize"}
+                </button>
+              </div>
+
+              {panel.collapsed ? (
+                <StoryboardMinimizedPanel
+                  panel={panel}
+                  panelIndex={panelIndex}
+                  imageById={imageById}
+                  onOpenImage={onOpenImage}
+                  onNoteChange={updatePanelNote}
+                />
+              ) : (
+                <div
+                  className={`pd-storyboard-frame pd-storyboard-${panel.style}`}
+                  style={storyboardGridStyle(panel)}
+                >
+                  {panel.slots.map((imageId, slotIndex) => {
+                    const image = imageId ? imageById.get(imageId) : null;
+                    const targetKey = `${panel.id}:${slotIndex}`;
+                    return (
+                      <div
+                        key={`${panel.id}-${slotIndex}`}
+                        role="button"
+                        tabIndex={0}
+                        draggable={Boolean(image)}
+                        className={[
+                          "pd-storyboard-slot",
+                          image ? "is-filled" : "",
+                          dropTarget === targetKey ? "is-hot" : "",
+                        ].filter(Boolean).join(" ")}
+                        style={storyboardSlotStyle(panel, slotIndex)}
+                        onClick={() => {
+                          if (!image && selectedShotId) {
+                            placeImageIntoPanel(panel.id, slotIndex, selectedShotId);
+                            return;
+                          }
+                          if (image) onOpenImage(image);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Delete" || event.key === "Backspace") {
+                            if (image) clearSlot(panel.id, slotIndex);
+                            return;
+                          }
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          if (!image && selectedShotId) {
+                            placeImageIntoPanel(panel.id, slotIndex, selectedShotId);
+                            return;
+                          }
+                          if (image) onOpenImage(image);
+                        }}
+                        onDoubleClick={() => image && clearSlot(panel.id, slotIndex)}
+                        onDragStart={(event) => {
+                          if (!image) return;
+                          handleSlotDragStart(event, panel.id, slotIndex, imageId!);
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setDropTarget(targetKey);
+                        }}
+                        onDragLeave={() => {
+                          setDropTarget((current) => current === targetKey ? null : current);
+                        }}
+                        onDrop={(event) => handleDrop(event, panel.id, slotIndex)}
+                        aria-label={
+                          image
+                            ? `Open ${image.title || "storyboard shot"}`
+                            : selectedShotId
+                              ? "Place selected shot"
+                              : "Empty storyboard slot"
+                        }
+                      >
+                        {image ? (
+                          <>
+                            <img src={pickBoardImageUrl(image)} alt="" draggable={false} />
+                            <button
+                              type="button"
+                              className="pd-storyboard-slot-remove"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                clearSlot(panel.id, slotIndex);
+                              }}
+                              aria-label={`Remove ${image.title || "storyboard shot"}`}
+                              title="Remove from storyboard"
+                            >
+                              <PinIcon name="close" size={12} />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="pd-storyboard-empty-mark">
+                            <PinIcon name="plus" size={14} />
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function createStoryboardPanel(
+  index: number,
+  options: { style: StoryboardStyle; gridSize: StoryboardGridSize },
+): StoryboardPanel {
+  return {
+    id: `storyboard-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+    style: options.style,
+    gridSize: options.gridSize,
+    slots: Array(storyboardSlotCount(options.style, options.gridSize)).fill(null),
+    collapsed: false,
+    note: "",
+  };
+}
+
+function StoryboardMinimizedPanel({
+  panel,
+  panelIndex,
+  imageById,
+  onOpenImage,
+  onNoteChange,
+}: {
+  panel: StoryboardPanel;
+  panelIndex: number;
+  imageById: Map<string, any>;
+  onOpenImage: (image: any) => void;
+  onNoteChange: (panelId: string, note: string) => void;
+}) {
+  const representativeImageId = panel.slots.find(Boolean);
+  const representativeImage = representativeImageId
+    ? imageById.get(representativeImageId)
+    : null;
+
+  return (
+    <div className="pd-storyboard-minimized">
+      <button
+        type="button"
+        className="pd-storyboard-mini-thumb"
+        onClick={() => representativeImage && onOpenImage(representativeImage)}
+        aria-label={
+          representativeImage
+            ? `Open ${representativeImage.title || "storyboard cover shot"}`
+            : `Storyboard ${panelIndex + 1} has no cover shot`
+        }
+      >
+        {representativeImage ? (
+          <img src={pickBoardImageUrl(representativeImage)} alt="" draggable={false} />
+        ) : (
+          <span>
+            <PinIcon name="image" size={16} />
+          </span>
+        )}
+      </button>
+      <textarea
+        className="pd-storyboard-note"
+        value={panel.note}
+        onChange={(event) => onNoteChange(panel.id, event.target.value)}
+        placeholder="Add notes..."
+        aria-label={`Notes for storyboard ${panelIndex + 1}`}
+      />
+    </div>
+  );
+}
+
+function storyboardSlotCount(style: StoryboardStyle, gridSize: StoryboardGridSize) {
+  if (style === "hero") return gridSize * 2;
+  if (style === "strip") return gridSize + 1;
+  return gridSize * gridSize;
+}
+
+function isStoryboardStyle(value: unknown): value is StoryboardStyle {
+  return value === "grid" || value === "hero" || value === "strip";
+}
+
+function isStoryboardGridSize(value: unknown): value is StoryboardGridSize {
+  return value === 2 || value === 3 || value === 4 || value === 5;
+}
+
+function resizeSlots(slots: Array<string | null>, nextLength: number) {
+  const resized = slots.slice(0, nextLength);
+  while (resized.length < nextLength) resized.push(null);
+  return resized;
+}
+
+function insertIntoSlots(slots: Array<string | null>, slotIndex: number, imageId: string) {
+  const next = [...slots];
+  if (next[slotIndex] === null) {
+    next[slotIndex] = imageId;
+    return next;
+  }
+  for (let index = next.length - 1; index > slotIndex; index -= 1) {
+    next[index] = next[index - 1];
+  }
+  next[slotIndex] = imageId;
+  return next;
+}
+
+function pickBoardImageUrl(image: any) {
+  return image.derivativeUrls?.medium || image.previewUrl || image.imageUrl;
+}
+
+function readStoryboardDragPayload(event: React.DragEvent) {
+  try {
+    const raw = event.dataTransfer.getData("application/x-pindeck-shot");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as
+      | { kind: "shot"; imageId: string }
+      | { kind: "slot"; imageId: string; panelId: string; slotIndex: number };
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function storyboardGridStyle(panel: StoryboardPanel): React.CSSProperties {
+  if (panel.style === "strip") {
+    return {
+      gridTemplateColumns: `repeat(${panel.gridSize}, minmax(0, 1fr))`,
+      gridTemplateRows: "2.1fr 1fr",
+    };
+  }
+  return {
+    gridTemplateColumns: `repeat(${panel.gridSize}, minmax(0, 1fr))`,
+    gridTemplateRows: `repeat(${panel.gridSize}, minmax(0, 1fr))`,
+  };
+}
+
+function storyboardSlotStyle(panel: StoryboardPanel, slotIndex: number): React.CSSProperties {
+  if (panel.style === "hero" && slotIndex === 0) {
+    const span = Math.max(1, panel.gridSize - 1);
+    return {
+      gridColumn: `span ${span}`,
+      gridRow: `span ${span}`,
+    };
+  }
+  if (panel.style === "strip" && slotIndex === 0) {
+    return {
+      gridColumn: "1 / -1",
+    };
+  }
+  return {};
 }
 
 function EmptyBoardDetail({ copy, action }: { copy: string; action?: React.ReactNode }) {

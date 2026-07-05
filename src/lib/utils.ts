@@ -103,12 +103,46 @@ export function getPaletteTagColor(
   return palette[index % palette.length];
 }
 
+function hashText(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export function getPaletteTagColorForLabel(
+  colors: string[] | undefined,
+  label: string,
+  fallbackIndex = 0
+): string {
+  const palette = sortColorsDarkToLight(colors ?? []);
+  if (palette.length === 0) return "#6b7280";
+  const key = label.trim().toLowerCase();
+  const hash = key ? hashText(key) : fallbackIndex;
+  return palette[hash % palette.length];
+}
+
 export function getPaletteTagStyle(
   colors: string[] | undefined,
   index: number,
   totalCount = 1
 ): CSSProperties {
   const accent = getPaletteTagColor(colors, index, totalCount);
+  return getPaletteTagStyleFromColor(accent);
+}
+
+export function getPaletteTagStyleForLabel(
+  colors: string[] | undefined,
+  label: string,
+  fallbackIndex = 0
+): CSSProperties {
+  const accent = getPaletteTagColorForLabel(colors, label, fallbackIndex);
+  return getPaletteTagStyleFromColor(accent);
+}
+
+function getPaletteTagStyleFromColor(accent: string): CSSProperties {
   const brightness = getBrightness(accent);
   const isLightAccent = brightness > 0.66;
   const textColor = isLightAccent

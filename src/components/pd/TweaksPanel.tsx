@@ -35,10 +35,30 @@ const ACCENTS = [
 ];
 
 const FONTS = [
-  { id: "geist", label: "Geist × Geist Mono", css: "'Geist', sans-serif", mono: "'Geist Mono', monospace" },
-  { id: "inter", label: "Inter × JetBrains", css: "'Inter', sans-serif", mono: "'JetBrains Mono', monospace" },
-  { id: "archivo", label: "Archivo × DM Mono", css: "'Archivo', sans-serif", mono: "'DM Mono', monospace" },
-  { id: "space", label: "Space Grotesk × Mono", css: "'Space Grotesk', sans-serif", mono: "'JetBrains Mono', monospace" },
+  {
+    id: "geist",
+    label: "Geist × Geist Mono",
+    css: "'Geist', sans-serif",
+    mono: "'Geist Mono', monospace",
+  },
+  {
+    id: "inter",
+    label: "Inter × JetBrains",
+    css: "'Inter', sans-serif",
+    mono: "'JetBrains Mono', monospace",
+  },
+  {
+    id: "archivo",
+    label: "Archivo × DM Mono",
+    css: "'Archivo', sans-serif",
+    mono: "'DM Mono', monospace",
+  },
+  {
+    id: "space",
+    label: "Space Grotesk × Mono",
+    css: "'Space Grotesk', sans-serif",
+    mono: "'JetBrains Mono', monospace",
+  },
 ];
 
 interface TweaksPanelProps {
@@ -54,7 +74,12 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
   };
 
   const row = (label: string, children: React.ReactNode) => (
-    <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--pd-glass-line)" }}>
+    <div
+      style={{
+        padding: "10px 12px",
+        borderBottom: "1px solid var(--pd-glass-line)",
+      }}
+    >
       <PinLabel>{label}</PinLabel>
       {children}
     </div>
@@ -103,7 +128,13 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
 
       {row(
         "Accent",
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: 4 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(8,1fr)",
+            gap: 4,
+          }}
+        >
           {ACCENTS.map((a) => (
             <button
               key={a.id}
@@ -114,13 +145,16 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
                 background: a.id,
                 borderRadius: 3,
                 border: "1.5px solid",
-                borderColor: tweaks.accent === a.id ? "var(--pd-ink)" : "transparent",
+                borderColor:
+                  tweaks.accent === a.id ? "var(--pd-ink)" : "transparent",
                 boxShadow:
-                  tweaks.accent === a.id ? `0 0 0 2px rgba(0,0,0,0.8) inset` : "none",
+                  tweaks.accent === a.id
+                    ? `0 0 0 2px rgba(0,0,0,0.8) inset`
+                    : "none",
               }}
             />
           ))}
-        </div>
+        </div>,
       )}
 
       {row(
@@ -128,13 +162,20 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
         <div style={{ display: "flex", gap: 4 }}>
           {(
             [
-              { id: "dense", label: "dense" },
-              { id: "cozy", label: "cozy" },
-              { id: "comfortable", label: "airy" },
+              { id: "dense", label: "3×" },
+              { id: "cozy", label: "2×" },
+              { id: "comfortable", label: "1×" },
             ] as const
           ).map((d) => (
             <button
               key={d.id}
+              title={
+                d.id === "dense"
+                  ? "Dense — show more thumbnails"
+                  : d.id === "cozy"
+                    ? "Cozy — balanced thumbnail size"
+                    : "Airy — larger cards"
+              }
               onClick={() => set("density", d.id)}
               style={{
                 flex: 1,
@@ -142,26 +183,39 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
                 borderRadius: 3,
                 fontSize: 11,
                 border: "1px solid",
-                borderColor: tweaks.density === d.id ? "transparent" : "var(--pd-line-strong)",
-                background: tweaks.density === d.id ? "var(--pd-accent-soft)" : "transparent",
-                color: tweaks.density === d.id ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+                borderColor:
+                  tweaks.density === d.id
+                    ? "transparent"
+                    : "var(--pd-line-strong)",
+                background:
+                  tweaks.density === d.id
+                    ? "var(--pd-accent-soft)"
+                    : "transparent",
+                color:
+                  tweaks.density === d.id
+                    ? "var(--pd-accent-ink)"
+                    : "var(--pd-ink-dim)",
               }}
             >
               {d.label}
             </button>
           ))}
-        </div>
+        </div>,
       )}
 
       {row(
         "Card style",
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-          {([
-            { id: "bordered", label: "Bordered" },
-            { id: "bare", label: "Bare" },
-            { id: "glass", label: "Glass" },
-            { id: "filmstrip", label: "Filmstrip" },
-          ] as const).map((c) => (
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}
+        >
+          {(
+            [
+              { id: "bordered", label: "Bordered" },
+              { id: "bare", label: "Bare" },
+              { id: "glass", label: "Glass" },
+              { id: "filmstrip", label: "Filmstrip" },
+            ] as const
+          ).map((c) => (
             <button
               key={c.id}
               onClick={() => set("cardStyle", c.id)}
@@ -171,15 +225,23 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
                 fontSize: 11,
                 border: "1px solid",
                 borderColor:
-                  tweaks.cardStyle === c.id ? "transparent" : "var(--pd-line-strong)",
-                background: tweaks.cardStyle === c.id ? "var(--pd-accent-soft)" : "transparent",
-                color: tweaks.cardStyle === c.id ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+                  tweaks.cardStyle === c.id
+                    ? "transparent"
+                    : "var(--pd-line-strong)",
+                background:
+                  tweaks.cardStyle === c.id
+                    ? "var(--pd-accent-soft)"
+                    : "transparent",
+                color:
+                  tweaks.cardStyle === c.id
+                    ? "var(--pd-accent-ink)"
+                    : "var(--pd-ink-dim)",
               }}
             >
               {c.label}
             </button>
           ))}
-        </div>
+        </div>,
       )}
 
       {row(
@@ -196,21 +258,35 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
                 textAlign: "left",
                 border: "1px solid",
                 borderColor:
-                  tweaks.typography === f.id ? "transparent" : "var(--pd-line-strong)",
-                background: tweaks.typography === f.id ? "var(--pd-accent-soft)" : "transparent",
-                color: tweaks.typography === f.id ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+                  tweaks.typography === f.id
+                    ? "transparent"
+                    : "var(--pd-line-strong)",
+                background:
+                  tweaks.typography === f.id
+                    ? "var(--pd-accent-soft)"
+                    : "transparent",
+                color:
+                  tweaks.typography === f.id
+                    ? "var(--pd-accent-ink)"
+                    : "var(--pd-ink-dim)",
                 fontFamily: f.css,
               }}
             >
               {f.label}
             </button>
           ))}
-        </div>
+        </div>,
       )}
 
       {row(
         "Hover",
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4,1fr)",
+            gap: 4,
+          }}
+        >
           {(["lift", "tilt", "zoom", "flip"] as const).map((h) => (
             <button
               key={h}
@@ -220,17 +296,21 @@ export function TweaksPanel({ tweaks, setTweaks, onClose }: TweaksPanelProps) {
                 borderRadius: 3,
                 fontSize: 11,
                 border: "1px solid",
-                borderColor: tweaks.hover === h ? "transparent" : "var(--pd-line-strong)",
-                background: tweaks.hover === h ? "var(--pd-accent-soft)" : "transparent",
-                color: tweaks.hover === h ? "var(--pd-accent-ink)" : "var(--pd-ink-dim)",
+                borderColor:
+                  tweaks.hover === h ? "transparent" : "var(--pd-line-strong)",
+                background:
+                  tweaks.hover === h ? "var(--pd-accent-soft)" : "transparent",
+                color:
+                  tweaks.hover === h
+                    ? "var(--pd-accent-ink)"
+                    : "var(--pd-ink-dim)",
               }}
             >
               {h}
             </button>
           ))}
-        </div>
+        </div>,
       )}
-
     </div>
   );
 }

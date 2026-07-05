@@ -38,7 +38,8 @@ const BOOKMARK_SAVED = "rgba(96, 165, 250, 0.88)";
 const BOOKMARK_OUTLINE = "rgba(255, 255, 255, 0.88)";
 const ACTION_BG = "rgba(0,0,0,0.5)";
 /** Same blue family as `--pd-accent-soft`, slightly tuned for menu rows */
-const BOARD_ITEM_ACTIVE_BG = "color-mix(in srgb, var(--pd-accent) 16%, transparent)";
+const BOARD_ITEM_ACTIVE_BG =
+  "color-mix(in srgb, var(--pd-accent) 16%, transparent)";
 /** VAR chip: softer background/border/text than before */
 const VAR_BADGE_BG = "rgba(0,0,0,0.52)";
 const VAR_BADGE_BORDER = "rgba(58,123,255,0.2)";
@@ -91,20 +92,36 @@ function stableRandomRank(id: string) {
   return hash >>> 0;
 }
 
-export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displayMode, images: imagesProp, onNavigateToBoards }: GalleryViewProps) {
-  const queriedImages = useQuery(api.images.list, imagesProp === undefined ? { limit: 1000 } : "skip");
+export function GalleryView({
+  search,
+  tweaks,
+  onOpenImage,
+  libraryFilter,
+  displayMode,
+  images: imagesProp,
+  onNavigateToBoards,
+}: GalleryViewProps) {
+  const queriedImages = useQuery(
+    api.images.list,
+    imagesProp === undefined ? { limit: 1000 } : "skip",
+  );
   const images = imagesProp ?? queriedImages;
   const boards = useQuery(api.boards.list);
   const toggleLike = useMutation(api.images.toggleLike);
   const addImageToBoard = useMutation(api.boards.addImage);
 
   const [createBoardModalOpen, setCreateBoardModalOpen] = useState(false);
-  const [createBoardImageId, setCreateBoardImageId] = useState<Id<"images"> | null>(null);
+  const [createBoardImageId, setCreateBoardImageId] =
+    useState<Id<"images"> | null>(null);
   const [lightboxImage, setLightboxImage] = useState<any | null>(null);
   /** Instant feedback while Convex syncs */
-  const [likeOptimistic, setLikeOptimistic] = useState<Partial<Record<Id<"images">, boolean>>>({});
+  const [likeOptimistic, setLikeOptimistic] = useState<
+    Partial<Record<Id<"images">, boolean>>
+  >({});
   /** Keeps tile actions visible while board menu is open (portal steals hover from `.group`). */
-  const [bookmarkMenuFor, setBookmarkMenuFor] = useState<Id<"images"> | null>(null);
+  const [bookmarkMenuFor, setBookmarkMenuFor] = useState<Id<"images"> | null>(
+    null,
+  );
 
   const imageIdsOnBoards = useMemo(() => {
     const s = new Set<string>();
@@ -120,23 +137,31 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
     let rows = applyLibraryFilters(images, libraryFilter);
     if (!search) return rows;
     const q = search.toLowerCase();
-    rows = rows.filter((im) =>
-      im.title.toLowerCase().includes(q) ||
-      im.tags?.some((t: string) => t.toLowerCase().includes(q)) ||
-      im.sref?.toLowerCase().includes(q),
+    rows = rows.filter(
+      (im) =>
+        im.title.toLowerCase().includes(q) ||
+        im.tags?.some((t: string) => t.toLowerCase().includes(q)) ||
+        im.sref?.toLowerCase().includes(q),
     );
     return rows;
   }, [images, search, libraryFilter]);
 
   const randomRows = useMemo(
-    () => [...filtered].sort((a, b) => stableRandomRank(String(a._id)) - stableRandomRank(String(b._id))),
+    () =>
+      [...filtered].sort(
+        (a, b) =>
+          stableRandomRank(String(a._id)) - stableRandomRank(String(b._id)),
+      ),
     [filtered],
   );
 
   const projectRows = useMemo(() => {
     const groups = new Map<string, typeof filtered>();
     for (const image of filtered) {
-      const key = image.projectName?.trim() || (image.sourceType === "discord" && image.title?.trim()) || "Unassigned Project";
+      const key =
+        image.projectName?.trim() ||
+        (image.sourceType === "discord" && image.title?.trim()) ||
+        "Unassigned Project";
       groups.set(key, [...(groups.get(key) ?? []), image]);
     }
     return Array.from(groups, ([name, rows]) => ({
@@ -144,9 +169,17 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
       rows: rows.sort((a, b) => {
         const orderA = (a as any).projectOrder ?? 9999;
         const orderB = (b as any).projectOrder ?? 9999;
-        return orderA - orderB || String(a.title).localeCompare(String(b.title));
+        return (
+          orderA - orderB || String(a.title).localeCompare(String(b.title))
+        );
       }),
-    })).sort((a, b) => (a.name === "Unassigned Project" ? 1 : b.name === "Unassigned Project" ? -1 : a.name.localeCompare(b.name)));
+    })).sort((a, b) =>
+      a.name === "Unassigned Project"
+        ? 1
+        : b.name === "Unassigned Project"
+          ? -1
+          : a.name.localeCompare(b.name),
+    );
   }, [filtered]);
 
   const srefRows = useMemo(() => {
@@ -154,32 +187,64 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
     for (const image of filtered) {
       const ids = parseSrefIds(image.sref);
       const keys = ids.length ? ids.map((id) => `--sref ${id}`) : ["No SREF"];
-      for (const key of keys) groups.set(key, [...(groups.get(key) ?? []), image]);
+      for (const key of keys)
+        groups.set(key, [...(groups.get(key) ?? []), image]);
     }
-    return Array.from(groups, ([name, rows]) => ({ name, rows }))
-      .sort((a, b) => (a.name === "No SREF" ? 1 : b.name === "No SREF" ? -1 : a.name.localeCompare(b.name)));
+    return Array.from(groups, ([name, rows]) => ({ name, rows })).sort(
+      (a, b) =>
+        a.name === "No SREF"
+          ? 1
+          : b.name === "No SREF"
+            ? -1
+            : a.name.localeCompare(b.name),
+    );
   }, [filtered]);
 
   const densityLayout = {
-    dense: { cols: 6, gap: 5 },
-    cozy: { cols: 5, gap: 6 },
-    comfortable: { cols: 4, gap: 10 },
+    dense: { cols: 6, mobileCols: 3, gap: 5, mobileGap: 5, rowWidth: 136 },
+    cozy: { cols: 5, mobileCols: 2, gap: 6, mobileGap: 7, rowWidth: 180 },
+    comfortable: {
+      cols: 4,
+      mobileCols: 1,
+      gap: 10,
+      mobileGap: 10,
+      rowWidth: 260,
+    },
   } as const;
-  const { cols, gap } = densityLayout[tweaks.density];
+  const { cols, mobileCols, gap, mobileGap, rowWidth } =
+    densityLayout[tweaks.density];
 
-  const hoverClass = {
-    lift: "pd-card-lift",
-    tilt: "pd-card-tilt",
-    zoom: "pd-card-zoom",
-    flip: "pd-card-flip",
-  }[tweaks.hover] || "pd-card-lift";
+  const hoverClass =
+    {
+      lift: "pd-card-lift",
+      tilt: "pd-card-tilt",
+      zoom: "pd-card-zoom",
+      flip: "pd-card-flip",
+    }[tweaks.hover] || "pd-card-lift";
 
   const cardStyle = {
-    bordered: { background: "var(--pd-panel)", border: "1px solid var(--pd-line)", borderRadius: 4 },
+    bordered: {
+      background: "var(--pd-panel)",
+      border: "1px solid var(--pd-line)",
+      borderRadius: 4,
+    },
     bare: { background: "transparent", border: "0", borderRadius: 2 },
-    glass: { background: "rgba(255,255,255,0.02)", border: "1px solid var(--pd-line-strong)", borderRadius: 6 },
-    filmstrip: { background: "#000", border: "1px solid var(--pd-line-strong)", borderRadius: 2, padding: "8px 0" },
-  }[tweaks.cardStyle] || { background: "var(--pd-panel)", border: "1px solid var(--pd-line)", borderRadius: 4 };
+    glass: {
+      background: "rgba(255,255,255,0.02)",
+      border: "1px solid var(--pd-line-strong)",
+      borderRadius: 6,
+    },
+    filmstrip: {
+      background: "#000",
+      border: "1px solid var(--pd-line-strong)",
+      borderRadius: 2,
+      padding: "8px 0",
+    },
+  }[tweaks.cardStyle] || {
+    background: "var(--pd-panel)",
+    border: "1px solid var(--pd-line)",
+    borderRadius: 4,
+  };
 
   const renderTile = (img: any, i: number, compact = false) => {
     const isAi = !!img.parentImageId;
@@ -209,31 +274,79 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
           breakInside: "avoid",
           marginBottom: compact ? 0 : gap,
           animationDelay: `${i * 18}ms`,
-          width: compact ? 210 : undefined,
-          flex: compact ? "0 0 210px" : undefined,
+          width: compact ? rowWidth : undefined,
+          flex: compact ? `0 0 ${rowWidth}px` : undefined,
         }}
       >
         <div className="pd-flip-inner" style={{ height: "100%" }}>
           {tweaks.cardStyle === "filmstrip" && (
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "0 10px 6px", fontSize: 9 }} className="pd-mono">
-              <span style={{ color: "var(--pd-ink-mute)" }}>○ {String(i + 1).padStart(3, "0")}</span>
-              <span style={{ color: "var(--pd-ink-faint)" }}>{img.sref || "—"}</span>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "0 10px 6px",
+                fontSize: 9,
+              }}
+              className="pd-mono"
+            >
+              <span style={{ color: "var(--pd-ink-mute)" }}>
+                ○ {String(i + 1).padStart(3, "0")}
+              </span>
+              <span style={{ color: "var(--pd-ink-faint)" }}>
+                {img.sref || "—"}
+              </span>
             </div>
           )}
-          <div style={{ position: "relative", aspectRatio: "16/9", background: "#000", overflow: "hidden" }}>
-            <SmartImage image={img} variant="card" alt={img.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <div
+            style={{
+              position: "relative",
+              aspectRatio: "16/9",
+              background: "#000",
+              overflow: "hidden",
+            }}
+          >
+            <SmartImage
+              image={img}
+              variant="card"
+              alt={img.title}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
 
-            <div style={{ position: "absolute", top: 6, left: 6, display: "flex", gap: 4, alignItems: "center", zIndex: 2, maxWidth: "calc(100% - 88px)" }}>
+            <div
+              style={{
+                position: "absolute",
+                top: 6,
+                left: 6,
+                display: "flex",
+                gap: 4,
+                alignItems: "center",
+                zIndex: 2,
+                maxWidth: "calc(100% - 88px)",
+              }}
+            >
               {isAi && (
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 3,
-                  padding: "2px 5px", borderRadius: 2, fontSize: 9, fontWeight: 600,
-                  background: VAR_BADGE_BG,
-                  color: "var(--pd-accent-ink)",
-                  border: `1px solid ${VAR_BADGE_BORDER}`,
-                  letterSpacing: "0.04em",
-                  opacity: 0.88,
-                }} className="pd-mono">
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "2px 5px",
+                    borderRadius: 2,
+                    fontSize: 9,
+                    fontWeight: 600,
+                    background: VAR_BADGE_BG,
+                    color: "var(--pd-accent-ink)",
+                    border: `1px solid ${VAR_BADGE_BORDER}`,
+                    letterSpacing: "0.04em",
+                    opacity: 0.88,
+                  }}
+                  className="pd-mono"
+                >
                   <PinIcon name="sparkle" size={8} stroke={2.2} /> VAR
                 </span>
               )}
@@ -244,15 +357,26 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
               align="center"
               className={
                 bookmarkMenuFor === img._id
-                  ? "absolute right-2 top-2 z-20 opacity-100 pointer-events-auto transition-opacity duration-200"
-                  : "absolute right-2 top-2 z-20 opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                  ? "pd-tile-actions absolute right-2 top-2 z-20 opacity-100 pointer-events-auto transition-opacity duration-200"
+                  : "pd-tile-actions absolute right-2 top-2 z-20 opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
               }
             >
-              <ActionIconButton label={liked ? "Unlike" : "Like"} onClick={(e) => void handleLike(img, e)}>
+              <ActionIconButton
+                label={liked ? "Unlike" : "Like"}
+                onClick={(e) => void handleLike(img, e)}
+              >
                 {liked ? (
-                  <HeartFilledIcon width={ICON_SIZE} height={ICON_SIZE} color={HEART_FILL} />
+                  <HeartFilledIcon
+                    width={ICON_SIZE}
+                    height={ICON_SIZE}
+                    color={HEART_FILL}
+                  />
                 ) : (
-                  <HeartIcon width={ICON_SIZE} height={ICON_SIZE} color={HEART_OUTLINE} />
+                  <HeartIcon
+                    width={ICON_SIZE}
+                    height={ICON_SIZE}
+                    color={HEART_OUTLINE}
+                  />
                 )}
               </ActionIconButton>
 
@@ -270,16 +394,28 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
                 label="Download high-res"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (downloadImage(img)) toast.success("Started high-res download.");
+                  if (downloadImage(img))
+                    toast.success("Started high-res download.");
                   else toast.error("No downloadable image URL found.");
                 }}
               >
-                <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.88)", fontSize: 13, lineHeight: 1 }}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    color: "rgba(255,255,255,0.88)",
+                    fontSize: 13,
+                    lineHeight: 1,
+                  }}
+                >
                   ↓
                 </span>
               </ActionIconButton>
 
-              <DropdownMenu.Root onOpenChange={(open) => setBookmarkMenuFor(open ? img._id : null)}>
+              <DropdownMenu.Root
+                onOpenChange={(open) =>
+                  setBookmarkMenuFor(open ? img._id : null)
+                }
+              >
                 <DropdownMenu.Trigger asChild>
                   <button
                     type="button"
@@ -297,13 +433,24 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
                     }}
                   >
                     {savedToBoard ? (
-                      <BookmarkFilledIcon width={ICON_SIZE} height={ICON_SIZE} color={BOOKMARK_SAVED} />
+                      <BookmarkFilledIcon
+                        width={ICON_SIZE}
+                        height={ICON_SIZE}
+                        color={BOOKMARK_SAVED}
+                      />
                     ) : (
-                      <BookmarkIcon width={ICON_SIZE} height={ICON_SIZE} color={BOOKMARK_OUTLINE} />
+                      <BookmarkIcon
+                        width={ICON_SIZE}
+                        height={ICON_SIZE}
+                        color={BOOKMARK_OUTLINE}
+                      />
                     )}
                   </button>
                 </DropdownMenu.Trigger>
-                <DropdownMenu.Content size="2" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu.Content
+                  size="2"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {boards && boards.length > 0 ? (
                     <>
                       {boards.map((board) => {
@@ -311,7 +458,11 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
                         return (
                           <DropdownMenu.Item
                             key={board._id}
-                            style={onThisBoard ? { background: BOARD_ITEM_ACTIVE_BG } : undefined}
+                            style={
+                              onThisBoard
+                                ? { background: BOARD_ITEM_ACTIVE_BG }
+                                : undefined
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               void handleQuickSave(board._id, img._id);
@@ -324,7 +475,9 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
                       <DropdownMenu.Separator />
                     </>
                   ) : (
-                    <DropdownMenu.Item disabled>No boards yet</DropdownMenu.Item>
+                    <DropdownMenu.Item disabled>
+                      No boards yet
+                    </DropdownMenu.Item>
                   )}
                   <DropdownMenu.Item
                     onClick={(e) => {
@@ -344,7 +497,8 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
             <div
               className="pointer-events-none absolute inset-0 z-[1] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
               style={{
-                background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.45))",
+                background:
+                  "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.45))",
               }}
             />
           </div>
@@ -354,7 +508,10 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
   };
 
   const handleLike = useCallback(
-    async (img: { _id: Id<"images">; isLiked?: boolean }, e: React.MouseEvent) => {
+    async (
+      img: { _id: Id<"images">; isLiked?: boolean },
+      e: React.MouseEvent,
+    ) => {
       e.stopPropagation();
       const id = img._id;
       setLikeOptimistic((s) => {
@@ -378,7 +535,10 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
     [toggleLike],
   );
 
-  const handleQuickSave = async (boardId: Id<"collections">, imageId: Id<"images">) => {
+  const handleQuickSave = async (
+    boardId: Id<"collections">,
+    imageId: Id<"images">,
+  ) => {
     try {
       await addImageToBoard({ boardId, imageId });
       toast.success("Saved to board");
@@ -394,58 +554,156 @@ export function GalleryView({ search, tweaks, onOpenImage, libraryFilter, displa
 
   if (images === undefined) {
     return (
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--pd-ink-faint)" }}>
-        <div className="pd-skeleton" style={{ width: 200, height: 20, borderRadius: 4 }} />
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--pd-ink-faint)",
+        }}
+      >
+        <div
+          className="pd-skeleton"
+          style={{ width: 200, height: 20, borderRadius: 4 }}
+        />
       </div>
     );
   }
 
   return (
     <>
-      <div className="pd-scroll pd-fade-in" style={{ flex: 1, overflow: "auto", padding: "12px", position: "relative" }}>
+      <div
+        className="pd-scroll pd-fade-in pd-gallery-scroll"
+        style={{
+          flex: 1,
+          overflow: "auto",
+          padding: "12px",
+          position: "relative",
+          ["--pd-gallery-mobile-cols" as string]: mobileCols,
+          ["--pd-gallery-mobile-gap" as string]: `${mobileGap}px`,
+          ["--pd-gallery-row-card-width" as string]: `${rowWidth}px`,
+        }}
+      >
         {displayMode === "project-rows" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div
+            className="pd-gallery-grouped"
+            style={{ display: "flex", flexDirection: "column", gap: 18 }}
+          >
             {projectRows.map((row) => (
               <section key={row.name} style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                  <h2 style={{ margin: 0, fontSize: 15, fontWeight: 650, color: "var(--pd-ink)", letterSpacing: 0 }}>
+                <div
+                  className="pd-gallery-section-heading"
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: 15,
+                      fontWeight: 650,
+                      color: "var(--pd-ink)",
+                      letterSpacing: 0,
+                    }}
+                  >
                     {row.name}
                   </h2>
-                  <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
-                    {row.rows.length} {row.rows.length === 1 ? "image" : "images"}
+                  <span
+                    className="pd-mono"
+                    style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}
+                  >
+                    {row.rows.length}{" "}
+                    {row.rows.length === 1 ? "image" : "images"}
                   </span>
                 </div>
-                <div className="pd-scroll" style={{ display: "flex", gap, overflowX: "auto", paddingBottom: 8 }}>
+                <div
+                  className="pd-gallery-row-wrap"
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap,
+                    overflowX: "hidden",
+                    paddingBottom: 8,
+                  }}
+                >
                   {row.rows.map((img, index) => renderTile(img, index, true))}
                 </div>
               </section>
             ))}
           </div>
         ) : displayMode === "sref-rows" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div
+            className="pd-gallery-grouped"
+            style={{ display: "flex", flexDirection: "column", gap: 18 }}
+          >
             {srefRows.map((row) => (
               <section key={row.name} style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                  <h2 className="pd-mono" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--pd-ink)", letterSpacing: "0.03em" }}>
+                <div
+                  className="pd-gallery-section-heading"
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <h2
+                    className="pd-mono"
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--pd-ink)",
+                      letterSpacing: "0.03em",
+                    }}
+                  >
                     {row.name}
                   </h2>
-                  <span className="pd-mono" style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}>
-                    {row.rows.length} {row.rows.length === 1 ? "match" : "matches"}
+                  <span
+                    className="pd-mono"
+                    style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}
+                  >
+                    {row.rows.length}{" "}
+                    {row.rows.length === 1 ? "match" : "matches"}
                   </span>
                 </div>
-                <div className="pd-scroll" style={{ display: "flex", gap, overflowX: "auto", paddingBottom: 8 }}>
+                <div
+                  className="pd-scroll pd-gallery-row-scroll"
+                  style={{
+                    display: "flex",
+                    gap,
+                    overflowX: "auto",
+                    paddingBottom: 8,
+                  }}
+                >
                   {row.rows.map((img, index) => renderTile(img, index, true))}
                 </div>
               </section>
             ))}
           </div>
         ) : (
-          <div style={{ columnCount: cols, columnGap: gap, maxWidth: "100%" }}>
+          <div
+            className="pd-gallery-masonry"
+            style={{ columnCount: cols, columnGap: gap, maxWidth: "100%" }}
+          >
             {randomRows.map((img, i) => renderTile(img, i))}
           </div>
         )}
         {filtered.length === 0 && (
-          <div style={{ minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--pd-ink-faint)", fontSize: 12 }}>
+          <div
+            style={{
+              minHeight: 220,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--pd-ink-faint)",
+              fontSize: 12,
+            }}
+          >
             No images match this view.
           </div>
         )}

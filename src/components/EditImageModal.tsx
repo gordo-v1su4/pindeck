@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   compactImageTagClass,
-  getPaletteTagStyle,
+  getPaletteTagStyleForLabel,
 } from "../lib/utils";
 
 const fieldClassName =
@@ -204,7 +204,7 @@ export function EditImageModal({ open, onOpenChange, imageId }: EditImageModalPr
                     key={tag}
                     variant="outline"
                     className={`${compactImageTagClass} cursor-pointer border-0`}
-                    style={getPaletteTagStyle(image.colors, index, tags.length)}
+                    style={getPaletteTagStyleForLabel(image.colors, tag, index)}
                     onClick={() => handleRemoveTag(tag)}
                   >
                     {tag} <span className="ml-1 text-current/70">x</span>

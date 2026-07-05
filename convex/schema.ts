@@ -116,6 +116,21 @@ const applicationTables = {
     title: v.string(),
     templateId: v.string(),
     sourceImageIds: v.array(v.id("images")),
+    layoutState: v.optional(
+      v.object({
+        version: v.number(),
+        frames: v.array(
+          v.object({
+            id: v.string(),
+            style: v.string(),
+            gridSize: v.number(),
+            collapsed: v.boolean(),
+            note: v.string(),
+            slots: v.array(v.union(v.id("images"), v.null())),
+          })
+        ),
+      })
+    ),
     panels: v.array(
       v.object({
         imageId: v.id("images"),
@@ -124,6 +139,7 @@ const applicationTables = {
       })
     ),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_board", ["boardId"]),

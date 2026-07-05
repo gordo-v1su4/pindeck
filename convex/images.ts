@@ -7,6 +7,7 @@ import { preferredImageUrlForSampling } from "./colorExtractionUrls";
 const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
+const MAX_SOURCE_LINEAGE_DEPTH = 12;
 const CANONICAL_NEXTCLOUD_PUBLIC_TOKEN = "afc53c40a68aade";
 const RUSTFS_PUBLIC_HOST = "s3.v1su4.dev";
 
@@ -158,7 +159,7 @@ function normalizeExternalImageUrl(rawUrl: unknown): string {
   if (value.startsWith("<") && value.endsWith(">")) {
     return value.slice(1, -1).trim();
   }
-  return value;
+  return value.replace(/[>\]),.;!?]+$/g, "").trim();
 }
 
 function parseUrlHost(rawUrl: unknown): string | undefined {
@@ -198,6 +199,22 @@ function looksLikeHttpUrl(rawUrl: unknown): rawUrl is string {
 
 function pickBackfillSourceUrl(image: any): string | undefined {
   const candidates = [image?.imageUrl, image?.previewUrl, image?.sourceUrl];
+  for (const candidate of candidates) {
+    if (!looksLikeHttpUrl(candidate)) continue;
+    return candidate;
+  }
+  return undefined;
+}
+
+function pickMediaRepairSourceUrl(image: any): string | undefined {
+  const candidates = [
+    image?.derivativeUrls?.large,
+    image?.derivativeUrls?.medium,
+    image?.previewUrl,
+    image?.imageUrl,
+    image?.derivativeUrls?.small,
+    image?.sourceUrl,
+  ];
   for (const candidate of candidates) {
     if (!looksLikeHttpUrl(candidate)) continue;
     return candidate;
@@ -267,6 +284,20 @@ async function isDiscordLineage(ctx: any, image: any) {
   }
 
   return false;
+}
+
+async function resolveModeratedLineageSource(ctx: any, image: any) {
+  let current = image;
+  let depth = 0;
+
+  while (current && depth < MAX_SOURCE_LINEAGE_DEPTH) {
+    if (isModeratedImportSource(current.sourceType)) return current.sourceType;
+    if (!current.parentImageId) return undefined;
+    current = await ctx.db.get(current.parentImageId);
+    depth += 1;
+  }
+
+  return undefined;
 }
 
 export const list = query({
@@ -550,6 +581,41 @@ export const enqueueMetadataRefresh = mutation({
   },
 });
 
+/** Rebuild the selected image's durable original/preview/derivative media through RustFS. */
+export const enqueueMediaRepair = mutation({
+  args: {
+    imageId: v.id("images"),
+  },
+  returns: v.object({ scheduled: v.boolean() }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const image = await ctx.db.get(args.imageId);
+    if (!image || image.uploadedBy !== userId) {
+      throw new Error("Image not found or not yours");
+    }
+
+    const sourceUrl = pickMediaRepairSourceUrl(image);
+    if (!sourceUrl) {
+      throw new Error("No recoverable image URL found for media regeneration");
+    }
+
+    await ctx.db.patch(args.imageId, {
+      storagePersistStatus: "pending",
+      storagePersistError: undefined,
+      nextcloudPersistStatus: "pending",
+      nextcloudPersistError: undefined,
+    });
+    await ctx.scheduler.runAfter(0, internalApi.images.internalRepairImageMedia, {
+      imageId: args.imageId,
+      userId,
+    });
+
+    return { scheduled: true };
+  },
+});
+
 export const internalRefreshMetadataAfterPalette = internalAction({
   args: {
     imageId: v.id("images"),
@@ -615,6 +681,62 @@ export const internalRefreshMetadataAfterPalette = internalAction({
     });
 
     return { paletteOk: true, metadataRan: true };
+  },
+});
+
+export const internalRepairImageMedia = internalAction({
+  args: {
+    imageId: v.id("images"),
+    userId: v.id("users"),
+  },
+  returns: v.object({ ok: v.boolean(), imageUrl: v.optional(v.string()) }),
+  handler: async (ctx, args): Promise<{ ok: boolean; imageUrl?: string }> => {
+    const image: any = await ctx.runQuery(internalApi.images.internalGetMediaRepairPayload, {
+      imageId: args.imageId,
+      userId: args.userId,
+    });
+    if (!image) return { ok: false };
+
+    const sourceUrl = pickMediaRepairSourceUrl(image);
+    if (!sourceUrl) {
+      await ctx.runMutation(internalApi.images.internalRecordNextcloudBackfillFailure, {
+        imageId: args.imageId,
+        error: "No recoverable image URL found for media regeneration",
+      });
+      return { ok: false };
+    }
+
+    try {
+      const persisted: any = await ctx.runAction(internalApi.mediaStorage.persistExternalImageFromUrl, {
+        sourceUrl,
+        title: image.title,
+      });
+      await ctx.runMutation(internalApi.images.internalApplyNextcloudUpload, {
+        imageId: args.imageId,
+        imageUrl: persisted.imageUrl,
+        previewUrl: persisted.previewUrl,
+        storageProvider: persisted.bucket ? "rustfs" : undefined,
+        storageBucket: persisted.bucket,
+        storagePath: persisted.storagePath,
+        previewStoragePath: persisted.previewStoragePath,
+        colors: persisted.colors,
+        derivativeUrls: persisted.derivativeUrls,
+        derivativeStoragePaths: persisted.derivativeStoragePaths,
+      });
+
+      await ctx.runAction(internalApi.colorExtraction.internalExtractAndStoreColors, {
+        imageId: args.imageId,
+        imageUrl: preferredImageUrlForSampling(persisted) ?? persisted.imageUrl,
+      });
+
+      return { ok: true, imageUrl: persisted.imageUrl };
+    } catch (error: any) {
+      await ctx.runMutation(internalApi.images.internalRecordNextcloudBackfillFailure, {
+        imageId: args.imageId,
+        error: error?.message || "Media regeneration failed",
+      });
+      return { ok: false };
+    }
   },
 });
 
@@ -1232,10 +1354,15 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
       if (image.storagePath) {
         const published =
           refreshVariants && variantsNeedRefresh
-            ? await ctx.runAction((internal as any).mediaStorage.reprocessStoredImagePaths, {
-                storagePath: image.storagePath,
-                title: image.title,
-              })
+            ? image.storageProvider === "rustfs" || isRustfsUrl(image.imageUrl)
+              ? await ctx.runAction((internal as any).mediaStorage.persistExternalImageFromUrl, {
+                  sourceUrl: pickMediaRepairSourceUrl(image) ?? image.imageUrl,
+                  title: image.title,
+                })
+              : await ctx.runAction((internal as any).mediaStorage.reprocessStoredImagePaths, {
+                  storagePath: image.storagePath,
+                  title: image.title,
+                })
             : await ctx.runAction((internal as any).mediaStorage.publishStoredImagePaths, {
                 storagePath: image.storagePath,
                 previewStoragePath: image.previewStoragePath,
@@ -2456,6 +2583,26 @@ export const internalGetMetadataRefreshPayload = internalQuery({
   },
 });
 
+export const internalGetMediaRepairPayload = internalQuery({
+  args: {
+    imageId: v.id("images"),
+    userId: v.id("users"),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const image = await ctx.db.get(args.imageId);
+    if (!image || image.uploadedBy !== args.userId) return null;
+    return {
+      _id: image._id,
+      title: image.title,
+      imageUrl: image.imageUrl,
+      previewUrl: image.previewUrl,
+      derivativeUrls: image.derivativeUrls,
+      sourceUrl: image.sourceUrl,
+    };
+  },
+});
+
 export const backfillNextcloudFailedUploads = mutation({
   args: {
     limit: v.optional(v.number()),
@@ -2795,7 +2942,9 @@ export const internalSaveGeneratedImages = internalMutation({
     if (!originalImage) return;
     const root = await resolveLineageRoot(ctx, originalImage);
     const discordLineage = await isDiscordLineage(ctx, originalImage);
-    const inheritedSourceType = discordLineage ? "discord" : "ai";
+    const moderatedLineageSource = await resolveModeratedLineageSource(ctx, originalImage);
+    const inheritedSourceType = moderatedLineageSource || "ai";
+    const shouldReturnToModeration = Boolean(moderatedLineageSource);
 
     for (const img of args.images) {
       const childImageId = await ctx.db.insert("images", {
@@ -2836,7 +2985,7 @@ export const internalSaveGeneratedImages = internalMutation({
         // Carry sref from root/parent so child variations preserve the same reference lineage
         sref: originalImage.sref || root?.sref,
         parentImageId: args.originalImageId, // Link back to parent image (lineage tracking)
-        status: discordLineage ? "pending" : "active",
+        status: shouldReturnToModeration ? "pending" : "active",
         aiStatus: "processing",
         uploadedAt: Date.now(),
       });
