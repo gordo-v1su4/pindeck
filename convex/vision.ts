@@ -1045,15 +1045,50 @@ export const internalSmartAnalyzeImage = internalAction({
 });
 
 export const smartAnalyzeImage = httpAction(async (ctx, request) => {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const apiKey = process.env.INGEST_API_KEY;
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
+
+  if (!apiKey || token !== apiKey) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   try {
-    const { 
+    const {
       storageId, imageUrl, imageId, userId, title, description, tags, category, source, sref,
-      variationCount, modificationMode, variationType, variationDetail 
+      variationCount, modificationMode, variationType, variationDetail,
     } = await request.json();
 
     if (!imageId || !userId || (!storageId && !imageUrl)) {
       return new Response(JSON.stringify({ error: "imageId, userId, and storageId or imageUrl are required" }), {
         status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const image = await ctx.runQuery(internal.images.internalGetImageForAnalysis, {
+      imageId,
+    });
+    if (!image) {
+      return new Response(JSON.stringify({ error: "Image not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const allowed = await ctx.runQuery(internal.images.internalCanModifyImage, {
+      imageId,
+      userId,
+    });
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Not authorized for this image" }), {
+        status: 403,
         headers: { "Content-Type": "application/json" },
       });
     }

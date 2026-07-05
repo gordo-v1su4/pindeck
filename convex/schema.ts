@@ -169,8 +169,11 @@ const applicationTables = {
         locked: v.boolean(),
         kind: v.string(),
         variant: v.string(),
+        content: v.optional(v.string()),
       })
     )),
+    overlayVariation: v.optional(v.number()),
+    overlaySeed: v.optional(v.number()),
     sourceImageIds: v.array(v.id("images")),
     slides: v.array(
       v.object({

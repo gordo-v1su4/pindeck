@@ -1449,6 +1449,28 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
   );
 });
 
+export const internalGetImageForAnalysis = internalQuery({
+  args: { imageId: v.id("images") },
+  returns: v.union(v.null(), v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db.get("images", args.imageId);
+  },
+});
+
+export const internalCanModifyImage = internalQuery({
+  args: {
+    imageId: v.id("images"),
+    userId: v.id("users"),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const image = await ctx.db.get("images", args.imageId);
+    if (!image) return false;
+    const { canModifyImage } = await import("./lib/authz");
+    return canModifyImage(ctx, image, args.userId);
+  },
+});
+
 export const internalListDiscordQueue = internalQuery({
   args: {
     userId: v.id("users"),
@@ -2254,8 +2276,8 @@ export const remove = mutation({
       throw new Error("Image not found");
     }
 
-    const isVisibleLibraryImage = image.status === "active" || image.status === undefined;
-    if (image.uploadedBy !== userId && !isVisibleLibraryImage) {
+    const { canModifyImage } = await import("./lib/authz");
+    if (!(await canModifyImage(ctx, image, userId))) {
       throw new Error("Not authorized to delete this image");
     }
 
@@ -2274,12 +2296,13 @@ export const removeMany = mutation({
       throw new Error("Not authenticated");
     }
 
+    const { isAdminUser } = await import("./lib/authz");
+    const isAdmin = await isAdminUser(ctx, userId);
     let removed = 0;
     let skipped = 0;
     for (const id of args.ids) {
       const image = await ctx.db.get(id);
-      const isVisibleLibraryImage = image?.status === "active" || image?.status === undefined;
-      if (!image || (image.uploadedBy !== userId && !isVisibleLibraryImage)) {
+      if (!image || (image.uploadedBy !== userId && !isAdmin)) {
         skipped += 1;
         continue;
       }
@@ -2303,8 +2326,15 @@ export const getLineage = query({
       return { parent: null, children: [] };
     }
 
+    const { isActiveLibraryImage } = await import("./lib/authz");
     const image = await ctx.db.get(args.imageId);
-    if (!image || image.uploadedBy !== userId) {
+    if (!image) {
+      return { parent: null, children: [] };
+    }
+
+    const canViewLineage =
+      image.uploadedBy === userId || isActiveLibraryImage(image);
+    if (!canViewLineage) {
       return { parent: null, children: [] };
     }
 
@@ -2314,9 +2344,13 @@ export const getLineage = query({
       .withIndex("by_parent", (q) => q.eq("parentImageId", args.imageId))
       .collect();
 
+    const visible = (row: typeof image | null) =>
+      row &&
+      (row.uploadedBy === userId || isActiveLibraryImage(row));
+
     return {
-      parent: parent && parent.uploadedBy === userId ? parent : null,
-      children: children.filter((child) => child.uploadedBy === userId),
+      parent: visible(parent) ? parent : null,
+      children: children.filter((child) => visible(child)),
     };
   },
 });
@@ -2802,8 +2836,11 @@ export const updateImageMetadata = mutation({
     if (!image) {
       throw new Error("Image not found");
     }
-    // Allow any authenticated user to edit image metadata (tags, title, description, etc.)
-    // This is a curation tool, so users should be able to organize any images
+
+    const { canModifyImage } = await import("./lib/authz");
+    if (!(await canModifyImage(ctx, image, userId))) {
+      throw new Error("Not authorized to edit this image");
+    }
 
     const patch: any = {};
     if (args.title !== undefined) patch.title = args.title;

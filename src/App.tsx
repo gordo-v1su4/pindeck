@@ -5,6 +5,7 @@ import React, {
   useLayoutEffect,
   lazy,
   Suspense,
+  useRef,
 } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -174,6 +175,7 @@ export default function App() {
         localStorage.getItem("pindeck_gallery_display_mode"),
       ),
     );
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const libraryImages = useQuery(
     api.images.list,
@@ -264,11 +266,19 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
       if (
         e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      )
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) {
         return;
+      }
       if (e.key === "Escape") {
         setSelectedImage(null);
         setTweaksOpen(false);
@@ -367,6 +377,7 @@ export default function App() {
   }
 
   return (
+    <AppErrorBoundary>
     <div
       className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""} ${
         sidebarCollapsed ? "pd-sidebar-collapsed" : "pd-sidebar-open"
@@ -419,6 +430,7 @@ export default function App() {
         <Topbar
           search={search}
           setSearch={setSearch}
+          searchInputRef={searchInputRef}
           view={view}
           setView={selectView}
           docsUrl={`${DOCS_URL}?accent=${encodeURIComponent(tweaks.accent)}&typography=${encodeURIComponent(tweaks.typography)}`}
@@ -457,6 +469,7 @@ export default function App() {
                 onOpenImage={setSelectedImage}
                 libraryFilter={libraryFilter}
                 displayMode={galleryDisplayMode}
+                images={libraryImages}
                 onNavigateToBoards={() => selectView("boards")}
               />
             )}
@@ -465,6 +478,7 @@ export default function App() {
                 search={search}
                 onOpenImage={setSelectedImage}
                 libraryFilter={libraryFilter}
+                images={libraryImages}
                 visibleColumns={tableVisibleColumns}
               />
             )}
@@ -545,6 +559,7 @@ export default function App() {
 
       <PindeckToaster />
     </div>
+    </AppErrorBoundary>
   );
 }
 
@@ -566,6 +581,61 @@ function PindeckToaster() {
       }}
     />
   );
+}
+
+
+/** Catch unexpected render errors in the authenticated shell. */
+class AppErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.error("[Pindeck] App render error", error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="pd-theme" style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--pd-bg)",
+          color: "var(--pd-ink)",
+          padding: 24,
+        }}>
+          <div style={{ maxWidth: 420, textAlign: "center" }}>
+            <PinIcon name="film" size={28} stroke={1.2} />
+            <div style={{ marginTop: 12, fontSize: 16, fontWeight: 600 }}>Something went wrong</div>
+            <p style={{ marginTop: 8, fontSize: 12, color: "var(--pd-ink-faint)", lineHeight: 1.5 }}>
+              Pindeck hit an unexpected error. Reload the page to continue.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                marginTop: 16,
+                padding: "8px 14px",
+                borderRadius: 6,
+                border: "1px solid var(--pd-line)",
+                background: "var(--pd-bg-2)",
+                color: "var(--pd-ink)",
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 /** When `libraryAggregations` errors (e.g. Convex not redeployed), don't blank the shell. */
@@ -1293,6 +1363,7 @@ function Sidebar({
 function Topbar({
   search,
   setSearch,
+  searchInputRef,
   view,
   setView,
   docsUrl,
@@ -1306,6 +1377,7 @@ function Topbar({
 }: {
   search: string;
   setSearch: (s: string) => void;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   view: string;
   setView: (v: string) => void;
   docsUrl: string;
@@ -1405,6 +1477,7 @@ function Topbar({
       >
         <PinIcon name="search" size={12} />
         <input
+          ref={searchInputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search titles, tags, srefs…"

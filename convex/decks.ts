@@ -8,6 +8,22 @@ const DECK_TEMPLATE = {
   layout: "single-image",
 };
 
+const deckBlockValidator = v.object({
+  id: v.string(),
+  label: v.string(),
+  on: v.boolean(),
+  locked: v.boolean(),
+  kind: v.string(),
+  variant: v.string(),
+  content: v.optional(v.string()),
+});
+
+const deckSlideValidator = v.object({
+  imageId: v.id("images"),
+  layout: v.string(),
+  order: v.number(),
+});
+
 function canUseImageInSelection(image: { uploadedBy: string; status?: string }, userId: string) {
   return image.uploadedBy === userId || image.status === "active" || image.status === undefined;
 }
@@ -24,6 +40,20 @@ async function requireDeckCreator(ctx: any) {
   }
 
   return userId;
+}
+
+async function requireDeckOwner(ctx: any, deckId: Id<"decks">) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Must be logged in to modify decks");
+  }
+
+  const deck = await ctx.db.get(deckId);
+  if (!deck || deck.userId !== userId) {
+    throw new Error("Deck not found");
+  }
+
+  return { userId, deck };
 }
 
 async function imagePreviewUrl(
@@ -275,17 +305,47 @@ export const deleteDeck = mutation({
   args: { deckId: v.id("decks") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to delete decks");
-    }
-
-    const deck = await ctx.db.get(args.deckId);
-    if (!deck || deck.userId !== userId) {
-      throw new Error("Deck not found");
-    }
-
+    await requireDeckOwner(ctx, args.deckId);
     await ctx.db.delete(args.deckId);
+    return null;
+  },
+});
+
+export const update = mutation({
+  args: {
+    deckId: v.id("decks"),
+    title: v.optional(v.string()),
+    subtitle: v.optional(v.string()),
+    templateName: v.optional(v.string()),
+    scrollFx: v.optional(v.string()),
+    overlay: v.optional(v.number()),
+    overlayVariation: v.optional(v.number()),
+    overlaySeed: v.optional(v.number()),
+    palette: v.optional(v.array(v.string())),
+    fontFamily: v.optional(v.string()),
+    blocks: v.optional(v.array(deckBlockValidator)),
+    slides: v.optional(v.array(deckSlideValidator)),
+    sourceImageIds: v.optional(v.array(v.id("images"))),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireDeckOwner(ctx, args.deckId);
+
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.subtitle !== undefined) patch.subtitle = args.subtitle;
+    if (args.templateName !== undefined) patch.templateName = args.templateName;
+    if (args.scrollFx !== undefined) patch.scrollFx = args.scrollFx;
+    if (args.overlay !== undefined) patch.overlay = args.overlay;
+    if (args.overlayVariation !== undefined) patch.overlayVariation = args.overlayVariation;
+    if (args.overlaySeed !== undefined) patch.overlaySeed = args.overlaySeed;
+    if (args.palette !== undefined) patch.palette = args.palette;
+    if (args.fontFamily !== undefined) patch.fontFamily = args.fontFamily;
+    if (args.blocks !== undefined) patch.blocks = args.blocks;
+    if (args.slides !== undefined) patch.slides = args.slides;
+    if (args.sourceImageIds !== undefined) patch.sourceImageIds = args.sourceImageIds;
+
+    await ctx.db.patch(args.deckId, patch);
     return null;
   },
 });

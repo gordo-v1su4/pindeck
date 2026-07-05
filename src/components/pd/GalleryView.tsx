@@ -26,6 +26,8 @@ interface GalleryViewProps {
   onOpenImage: (img: any) => void;
   libraryFilter: LibraryFilters;
   displayMode: "random" | "project-rows" | "sref-rows";
+  /** When provided, avoids a duplicate `images.list` subscription. */
+  images?: any[] | undefined;
   /** Called after creating a board from the gallery flow (matches CreateBoardModal behavior). */
   onNavigateToBoards?: () => void;
 }
@@ -96,9 +98,14 @@ export function GalleryView({
   onOpenImage,
   libraryFilter,
   displayMode,
+  images: imagesProp,
   onNavigateToBoards,
 }: GalleryViewProps) {
-  const images = useQuery(api.images.list, { limit: 200 });
+  const queriedImages = useQuery(
+    api.images.list,
+    imagesProp === undefined ? { limit: 1000 } : "skip",
+  );
+  const images = imagesProp ?? queriedImages;
   const boards = useQuery(api.boards.list);
   const toggleLike = useMutation(api.images.toggleLike);
   const addImageToBoard = useMutation(api.boards.addImage);

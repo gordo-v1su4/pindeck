@@ -22,6 +22,15 @@ Rules:
 - Include follow-ups only when actionable.
 - Prefer one section per day.
 
+## 2026-07-05
+
+- **Deck composer persistence**: [`decks.update`](convex/decks.ts) saves composer state (blocks, palette, scroll FX, overlay, typography, slides) to Convex with debounced autosave + **Saving… / Saved** indicator in [`DeckComposer`](src/components/deck/DeckComposer.tsx); legacy `localStorage` is a UI-only cache for selection index.
+- **Image delete/edit auth**: [`images.remove`](convex/images.ts) / **`removeMany`** / **`updateImageMetadata`** require **`uploadedBy === userId`** or admin (`ADMIN_USER_IDS` / `ADMIN_EMAILS` env); shared active library images are no longer deletable by any signed-in user.
+- **HTTP security**: [`/smartAnalyzeImage`](convex/vision.ts) requires **`INGEST_API_KEY`** Bearer auth and verifies image ownership before scheduling analysis.
+- **Lineage**: [`getLineage`](convex/images.ts) returns parent/children for **active library** images, not owner-only.
+- **Library query**: Gallery + Table share one **`images.list` limit 1000** subscription from [`App.tsx`](src/App.tsx).
+- **App shell**: top-level **`AppErrorBoundary`**; **⌘K** focuses search; removed dead Topbar Filters/Sort buttons.
+
 ## 2026-04-28
 
 - **Auth UI**: Login brand **DECK** + `.auth-*` accents use **`var(--pd-accent*)`** (aligned with sidebar / Tweaks **`#3a7bff`** default); removed legacy **`#1f8fe5`** on **`.site-brand-word-accent`** and auth helpers in [`index.css`](src/index.css).
