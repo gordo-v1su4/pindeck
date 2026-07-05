@@ -7,6 +7,7 @@ import { preferredImageUrlForSampling } from "./colorExtractionUrls";
 const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
+const MAX_SOURCE_LINEAGE_DEPTH = 12;
 const CANONICAL_NEXTCLOUD_PUBLIC_TOKEN = "afc53c40a68aade";
 const RUSTFS_PUBLIC_HOST = "s3.v1su4.dev";
 
@@ -283,6 +284,20 @@ async function isDiscordLineage(ctx: any, image: any) {
   }
 
   return false;
+}
+
+async function resolveModeratedLineageSource(ctx: any, image: any) {
+  let current = image;
+  let depth = 0;
+
+  while (current && depth < MAX_SOURCE_LINEAGE_DEPTH) {
+    if (isModeratedImportSource(current.sourceType)) return current.sourceType;
+    if (!current.parentImageId) return undefined;
+    current = await ctx.db.get(current.parentImageId);
+    depth += 1;
+  }
+
+  return undefined;
 }
 
 export const list = query({
@@ -2890,7 +2905,9 @@ export const internalSaveGeneratedImages = internalMutation({
     if (!originalImage) return;
     const root = await resolveLineageRoot(ctx, originalImage);
     const discordLineage = await isDiscordLineage(ctx, originalImage);
-    const inheritedSourceType = discordLineage ? "discord" : "ai";
+    const moderatedLineageSource = await resolveModeratedLineageSource(ctx, originalImage);
+    const inheritedSourceType = moderatedLineageSource || "ai";
+    const shouldReturnToModeration = Boolean(moderatedLineageSource);
 
     for (const img of args.images) {
       const childImageId = await ctx.db.insert("images", {
@@ -2931,7 +2948,7 @@ export const internalSaveGeneratedImages = internalMutation({
         // Carry sref from root/parent so child variations preserve the same reference lineage
         sref: originalImage.sref || root?.sref,
         parentImageId: args.originalImageId, // Link back to parent image (lineage tracking)
-        status: discordLineage ? "pending" : "active",
+        status: shouldReturnToModeration ? "pending" : "active",
         aiStatus: "processing",
         uploadedAt: Date.now(),
       });
