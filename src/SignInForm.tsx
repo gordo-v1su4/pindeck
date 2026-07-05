@@ -4,7 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { GitBranchIcon, UserRoundIcon } from "lucide-react";
+import { UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, FieldSeparator } from "@/components/ui/field";
@@ -50,18 +50,6 @@ function authToastMessage(flow: AuthFlow, error: unknown) {
   return flow === "signIn"
     ? "Could not sign in. Please try again."
     : "Could not sign up. Please try again.";
-}
-
-function GoogleMark() {
-  return (
-    <span
-      className="auth-google-mark"
-      data-icon="inline-start"
-      aria-hidden="true"
-    >
-      G
-    </span>
-  );
 }
 
 export function SignInForm() {
@@ -151,19 +139,6 @@ export function SignInForm() {
       setSignInStarted(false);
       setSubmitting(false);
     }
-  };
-
-  const handleProviderSignIn = (
-    provider: "google" | "github",
-    label: string,
-  ) => {
-    setSubmitting(true);
-    void signIn(provider).catch((error) => {
-      const message = rawAuthMessage(error);
-      toast.error(`${label} sign-in failed: ${message}`);
-      setSubmitting(false);
-      setSignInStarted(false);
-    });
   };
 
   const handleAnonymousSignIn = async () => {
@@ -281,32 +256,8 @@ export function SignInForm() {
             </Button>
           </form>
 
-          <FieldSeparator className="auth-panel-separator">
-            Or continue with
-          </FieldSeparator>
+          <FieldSeparator className="auth-panel-separator">Or</FieldSeparator>
 
-          <div className="auth-provider-stack-panel">
-            <Button
-              type="button"
-              size="lg"
-              className="auth-panel-secondary"
-              onClick={() => handleProviderSignIn("github", "GitHub")}
-              disabled={submitting}
-            >
-              <GitBranchIcon data-icon="inline-start" />
-              GitHub
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              className="auth-panel-secondary"
-              onClick={() => handleProviderSignIn("google", "Google")}
-              disabled={submitting}
-            >
-              <GoogleMark />
-              Google
-            </Button>
-          </div>
           <Button
             type="button"
             variant="ghost"

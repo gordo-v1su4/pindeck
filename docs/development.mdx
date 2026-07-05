@@ -11,7 +11,7 @@ Set up the Pindeck development environment on your machine.
 
 - [Bun](https://bun.sh) runtime
 - Access to the self-hosted Pindeck Convex deployment
-- Google or GitHub OAuth app credentials
+- (Optional) Google or GitHub OAuth app credentials — only needed if enabling OAuth in Convex env
 
 ## Setup
 
@@ -75,9 +75,9 @@ Set these in the Convex Project Settings:
 | `MEDIA_GATEWAY_TOKEN` | Bearer token for RustFS media API writes |
 | `MEDIA_GATEWAY_BUCKET` | RustFS bucket (`pindeck`) |
 | `MEDIA_GATEWAY_UPLOAD_PREFIX` | Object key prefix (`media-uploads`) |
-| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth credentials |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth credentials |
-| `SITE_URL` | Public app URL for OAuth callbacks |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Optional Google OAuth credentials (backend-only; not shown in sign-in UI until enabled) |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | Optional GitHub OAuth credentials (backend-only; not shown in sign-in UI until enabled) |
+| `SITE_URL` | Public app URL for OAuth callbacks (required if OAuth env is set) |
 
 ## Useful scripts
 

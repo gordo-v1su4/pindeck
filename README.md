@@ -85,9 +85,9 @@ Set in Convex Project Settings:
 - `MEDIA_GATEWAY_USER_ID=pindeck`
 - `MEDIA_GATEWAY_UPLOAD_PREFIX=media-uploads`
 - `PINDECK_STORAGE_PROVIDER=rustfs`
-- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` (for Google OAuth)
-- `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` (for GitHub OAuth)
-- `SITE_URL` (public app URL for OAuth redirect/callback)
+- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` (optional; Google OAuth — backend-only until env + UI are enabled)
+- `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` (optional; GitHub OAuth — backend-only until env + UI are enabled)
+- `SITE_URL` (public app URL for OAuth redirect/callback; required if OAuth env is set)
 
 ### Local / Vercel Frontend
 
@@ -201,7 +201,7 @@ Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_
 
 - Tweaks persisted in `localStorage` (`pindeck_tweaks`) drive **`applyPindeckTweaksToDocument`** in [`src/lib/pdTheme.ts`](src/lib/pdTheme.ts): `--pd-accent`, derived `--pd-accent-ink`, `--pd-accent-soft`, `--pd-accent-hover`, `--pd-accent-contrast-text`, plus TMP-compatible `--accent*` aliases on `document.documentElement`.
 - The static prototype reference lives under [`TMP/`](TMP/) (see [`TMP/HANDOFF.md`](TMP/HANDOFF.md)); larger deck deltas vs [`claude/redesign`](branch) are summarized in [`docs/guides/redesign-deck-port-inventory.md`](docs/guides/redesign-deck-port-inventory.md).
-- Sign-in ([`src/SignInForm.tsx`](src/SignInForm.tsx)) uses the same CSS variables so primary actions match the Tweaks accent (aligned with [`claude/redesign`](branch) semantics).
+- Sign-in ([`src/SignInForm.tsx`](src/SignInForm.tsx)) supports **email/password** and **guest**; Google/GitHub OAuth providers remain in [`convex/auth.ts`](convex/auth.ts) but are hidden until OAuth env is configured. Sign-in uses the same CSS variables so primary actions match the Tweaks accent (aligned with [`claude/redesign`](branch) semantics).
 
 **Gotcha:** Do not re-declare `--pd-accent`, `--pd-accent-ink`, `--pd-accent-soft`, `--pd-font-*`, etc. on `.pd-theme` — they would override `document.documentElement` and break Tweaks until you move those variables to `:root` defaults only (see [`src/index.css`](src/index.css)).
 

@@ -24,6 +24,7 @@ Rules:
 
 ## 2026-07-05
 
+- **Auth UI**: Removed Google/GitHub sign-in buttons from [`SignInForm`](src/SignInForm.tsx); OAuth env vars are not configured. Email/password and guest sign-in remain. Backend OAuth providers stay in [`convex/auth.ts`](convex/auth.ts) for future enablement.
 - **Deck composer persistence**: [`decks.update`](convex/decks.ts) saves composer state (blocks, palette, scroll FX, overlay, typography, slides) to Convex with debounced autosave + **Saving… / Saved** indicator in [`DeckComposer`](src/components/deck/DeckComposer.tsx); legacy `localStorage` is a UI-only cache for selection index.
 - **Image delete/edit auth**: [`images.remove`](convex/images.ts) / **`removeMany`** / **`updateImageMetadata`** require **`uploadedBy === userId`** or admin (`ADMIN_USER_IDS` / `ADMIN_EMAILS` env); shared active library images are no longer deletable by any signed-in user.
 - **HTTP security**: [`/smartAnalyzeImage`](convex/vision.ts) requires **`INGEST_API_KEY`** Bearer auth and verifies image ownership before scheduling analysis.
