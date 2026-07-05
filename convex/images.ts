@@ -2326,8 +2326,9 @@ export const getLineage = query({
       return { parent: null, children: [] };
     }
 
-    const { isActiveLibraryImage } = await import("./lib/authz");
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("images", args.imageId);
+    const isActiveLibraryImage = (row: { status?: string }) =>
+      row.status === "active" || row.status === undefined;
     if (!image) {
       return { parent: null, children: [] };
     }
@@ -2338,7 +2339,7 @@ export const getLineage = query({
       return { parent: null, children: [] };
     }
 
-    const parent = image.parentImageId ? await ctx.db.get(image.parentImageId) : null;
+    const parent = image.parentImageId ? await ctx.db.get("images", image.parentImageId) : null;
     const children = await ctx.db
       .query("images")
       .withIndex("by_parent", (q) => q.eq("parentImageId", args.imageId))

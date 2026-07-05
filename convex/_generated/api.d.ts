@@ -20,6 +20,7 @@ import type * as discordNotifications from "../discordNotifications.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
+import type * as lib_authz from "../lib/authz.js";
 import type * as maintenance from "../maintenance.js";
 import type * as mediaStorage from "../mediaStorage.js";
 import type * as seed from "../seed.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   generations: typeof generations;
   http: typeof http;
   images: typeof images;
+  "lib/authz": typeof lib_authz;
   maintenance: typeof maintenance;
   mediaStorage: typeof mediaStorage;
   seed: typeof seed;
