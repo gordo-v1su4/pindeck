@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
   DragHandleDots2Icon,
   EyeNoneIcon,
@@ -27,6 +29,17 @@ import {
   paletteFromDominantHexes,
 } from "./utils/colorExtractor";
 import type { Id } from "../../../convex/_generated/dataModel";
+import {
+  blocksFromSchema,
+  blocksToSchema,
+  paletteFromSchema,
+  paletteToSchema,
+  parseFontStyle,
+  parseLayoutVariant,
+  parseScrollFx,
+  parseStyleVariant,
+  slidesFromReferenceImages,
+} from "./deckPersistence";
 
 type DeckSlide = {
   imageId: Id<"images">;
@@ -52,6 +65,23 @@ export type DeckDetail = {
   boardName?: string | null;
   createdAt: number;
   slides: DeckSlide[];
+  subtitle?: string;
+  templateName?: string;
+  scrollFx?: string;
+  overlay?: number;
+  overlayVariation?: number;
+  overlaySeed?: number;
+  palette?: string[];
+  fontFamily?: string;
+  blocks?: Array<{
+    id: string;
+    label: string;
+    on: boolean;
+    locked: boolean;
+    kind: string;
+    variant: string;
+    content?: string;
+  }>;
 };
 
 type ScrollFx = "parallax" | "snap" | "kinetic" | "dolly" | "sequence";
@@ -547,8 +577,10 @@ export function DeckComposer({
   const [overlayVariation, setOverlayVariation] = useState(32);
   const [overlaySeed, setOverlaySeed] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const hydratedRef = useRef(false);
+  const updateDeck = useMutation(api.decks.update);
 
   const resetToDeckDefaults = useCallback(() => {
     setTitle(deck.title);
@@ -591,69 +623,125 @@ export function DeckComposer({
     document.head.appendChild(link);
   }, []);
 
+  const urlToSlide = useMemo(() => {
+    const map = new Map<string, { imageId: Id<"images">; layout: string }>();
+    for (const slide of sourceSlides) {
+      const url = slide.image?.imageUrl;
+      if (!url) continue;
+      map.set(url, { imageId: slide.imageId, layout: slide.layout });
+    }
+    return map;
+  }, [sourceSlides]);
+
   useEffect(() => {
-    const run = async () => {
+    hydratedRef.current = false;
+    setSaveStatus("idle");
+
+    const defaultBlocks = buildDeckBlocks(deck.title, sourceImageTitles);
+    const defaultImages = sourceImages.slice(0, 10);
+    let uiCache: { activeImageIndex?: number; selectedBlockId?: string } = {};
+
+    try {
+      const savedRaw = localStorage.getItem(storageKey);
+      if (savedRaw) {
+        uiCache = JSON.parse(savedRaw);
+      }
+    } catch {
+      uiCache = {};
+    }
+
+    const hasConvexState =
+      Boolean(deck.blocks?.length) ||
+      Boolean(deck.palette?.length) ||
+      deck.templateName ||
+      deck.subtitle ||
+      deck.scrollFx ||
+      deck.overlay !== undefined ||
+      deck.fontFamily;
+
+    if (hasConvexState) {
+      setTitle(deck.title);
+      setReferenceImages(defaultImages);
+      setBlocks(blocksFromSchema(deck.blocks, defaultBlocks));
+      setStyleVariant(parseStyleVariant(deck.templateName));
+      setLayoutVariant(parseLayoutVariant(deck.subtitle));
+      setFontStyle(parseFontStyle(deck.fontFamily));
+      setScrollFx(parseScrollFx(deck.scrollFx));
+      setOverlayStrength(typeof deck.overlay === "number" ? deck.overlay : 58);
+      setOverlayVariation(
+        typeof deck.overlayVariation === "number" ? deck.overlayVariation : 32,
+      );
+      setOverlaySeed(typeof deck.overlaySeed === "number" ? deck.overlaySeed : 0);
+      setColors(
+        paletteFromSchema(deck.palette, stylePresets[parseStyleVariant(deck.templateName)]),
+      );
+    } else {
       try {
         const savedRaw = localStorage.getItem(storageKey);
-        if (!savedRaw) {
+        if (savedRaw) {
+          const saved = JSON.parse(savedRaw);
+          if (saved.version === STORAGE_VERSION || saved.blocks || saved.referenceImages) {
+            setReferenceImages(
+              Array.isArray(saved.referenceImages)
+                ? saved.referenceImages.slice(0, 10)
+                : defaultImages,
+            );
+            setTitle(typeof saved.title === "string" ? saved.title : deck.title);
+            setBlocks(
+              Array.isArray(saved.blocks)
+                ? saved.blocks.map((block: BlockData) =>
+                    saved.version === STORAGE_VERSION || block.type !== "theme"
+                      ? block
+                      : { ...block, visible: false },
+                  )
+                : defaultBlocks,
+            );
+            setStyleVariant(saved.styleVariant ?? "cinematic");
+            setFontStyle(saved.fontStyle ?? "agency");
+            setLayoutVariant(saved.layoutVariant ?? "editorial");
+            setScrollFx(saved.scrollFx ?? "parallax");
+            setOverlayStrength(
+              typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58,
+            );
+            setOverlayVariation(
+              typeof saved.overlayVariation === "number" ? saved.overlayVariation : 32,
+            );
+            setOverlaySeed(typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0);
+          } else {
+            resetToDeckDefaults();
+          }
+        } else {
           resetToDeckDefaults();
-          return;
         }
-
-        const saved = JSON.parse(savedRaw);
-        setReferenceImages(
-          Array.isArray(saved.referenceImages)
-            ? saved.referenceImages.slice(0, 10)
-            : sourceImages.slice(0, 10),
-        );
-        setTitle(typeof saved.title === "string" ? saved.title : deck.title);
-        setActiveImageIndex(
-          typeof saved.activeImageIndex === "number"
-            ? saved.activeImageIndex
-            : 0,
-        );
-        /* Colors come from hero `images.colors` or client extraction — not localStorage. */
-        setBlocks(
-          Array.isArray(saved.blocks)
-            ? saved.blocks.map((block: BlockData) =>
-                saved.version === STORAGE_VERSION || block.type !== "theme"
-                  ? block
-                  : { ...block, visible: false },
-              )
-            : buildDeckBlocks(deck.title, sourceImageTitles),
-        );
-        setStyleVariant(saved.styleVariant ?? "cinematic");
-        setSelectedBlockId(
-          typeof saved.selectedBlockId === "string"
-            ? saved.selectedBlockId
-            : "1",
-        );
-        setFontStyle(saved.fontStyle ?? "agency");
-        setLayoutVariant(saved.layoutVariant ?? "editorial");
-        setScrollFx(saved.scrollFx ?? "parallax");
-        setOverlayStrength(
-          typeof saved.overlayStrength === "number" ? saved.overlayStrength : 58,
-        );
-        setOverlayVariation(
-          typeof saved.overlayVariation === "number"
-            ? saved.overlayVariation
-            : 32,
-        );
-        setOverlaySeed(
-          typeof saved.overlaySeed === "number" ? saved.overlaySeed : 0,
-        );
       } catch {
         resetToDeckDefaults();
       }
-    };
+    }
 
-    void run();
+    setActiveImageIndex(
+      typeof uiCache.activeImageIndex === "number" ? uiCache.activeImageIndex : 0,
+    );
+    setSelectedBlockId(
+      typeof uiCache.selectedBlockId === "string" ? uiCache.selectedBlockId : "1",
+    );
+
+    hydratedRef.current = true;
   }, [
     storageKey,
     resetToDeckDefaults,
     sourceImages,
     sourceImageTitles,
+    deck._id,
     deck.title,
+    deck.blocks,
+    deck.palette,
+    deck.templateName,
+    deck.subtitle,
+    deck.scrollFx,
+    deck.overlay,
+    deck.overlayVariation,
+    deck.overlaySeed,
+    deck.fontFamily,
   ]);
 
   /**
@@ -698,36 +786,49 @@ export function DeckComposer({
   ]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            version: STORAGE_VERSION,
+    if (!hydratedRef.current) return;
+
+    setSaveStatus("idle");
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setSaveStatus("saving");
+        try {
+          const slides = slidesFromReferenceImages(referenceImages, urlToSlide);
+          await updateDeck({
+            deckId: deck._id,
             title,
-            referenceImages,
-            activeImageIndex,
-            blocks,
-            styleVariant,
-            fontStyle,
-            layoutVariant,
+            templateName: styleVariant,
+            subtitle: layoutVariant,
             scrollFx,
-            overlayStrength,
+            overlay: overlayStrength,
             overlayVariation,
             overlaySeed,
-            selectedBlockId,
-          }),
-        );
-        setHasUnsavedChanges(false);
-      } catch {
-        // no-op
-      }
-    }, 500);
+            palette: paletteToSchema(colors),
+            fontFamily: fontStyle,
+            blocks: blocksToSchema(blocks),
+            slides,
+            sourceImageIds: slides.map((slide) => slide.imageId),
+          });
+          try {
+            localStorage.setItem(
+              storageKey,
+              JSON.stringify({ activeImageIndex, selectedBlockId }),
+            );
+          } catch {
+            // no-op
+          }
+          setSaveStatus("saved");
+        } catch (error) {
+          console.error("Failed to save deck", error);
+          setSaveStatus("error");
+        }
+      })();
+    }, 800);
 
-    setHasUnsavedChanges(true);
-    return () => clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [
     storageKey,
+    deck._id,
     title,
     referenceImages,
     activeImageIndex,
@@ -740,6 +841,9 @@ export function DeckComposer({
     overlayVariation,
     overlaySeed,
     selectedBlockId,
+    colors,
+    urlToSlide,
+    updateDeck,
   ]);
 
   useEffect(() => {
@@ -1719,8 +1823,23 @@ export function DeckComposer({
                 {visibleBlocks.length} BLOCKS
               </span>
               <div className="flex-1" />
-              {hasUnsavedChanges ? (
+              {saveStatus === "saving" ? (
+                <span className="text-[10px] uppercase tracking-[0.22em] text-white/45">
+                  Saving...
+                </span>
+              ) : null}
+              {saveStatus === "saved" ? (
                 <span className="text-[10px] uppercase tracking-[0.22em] text-[var(--pd-accent-ink)]">
+                  Saved
+                </span>
+              ) : null}
+              {saveStatus === "error" ? (
+                <span className="text-[10px] uppercase tracking-[0.22em] text-red-300/80">
+                  Save failed
+                </span>
+              ) : null}
+              {saveStatus === "idle" ? (
+                <span className="text-[10px] uppercase tracking-[0.22em] text-white/28">
                   Unsaved
                 </span>
               ) : null}

@@ -44,10 +44,13 @@ interface TableViewProps {
   search: string;
   onOpenImage: (img: any) => void;
   libraryFilter: LibraryFilters;
+  /** When provided, avoids a duplicate `images.list` subscription. */
+  images?: any[] | undefined;
 }
 
-export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps) {
-  const images = useQuery(api.images.list, { limit: 1000 });
+export function TableView({ search, onOpenImage, libraryFilter, images: imagesProp }: TableViewProps) {
+  const queriedImages = useQuery(api.images.list, imagesProp === undefined ? { limit: 1000 } : "skip");
+  const images = imagesProp ?? queriedImages;
   const loggedInUser = useQuery(api.auth.loggedInUser);
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
   const removeMany = useMutation(api.images.removeMany);
@@ -298,11 +301,14 @@ export function TableView({ search, onOpenImage, libraryFilter }: TableViewProps
         toast.success(`Deleted ${r.removed} image(s).`);
       }
       if (r.skipped > 0) {
-        toast.warning(`${r.skipped} image(s) were skipped because they were missing or no longer visible.`);
+        toast.warning(
+          `${r.skipped} image(s) were skipped — you can only delete images you uploaded unless you are an admin.`,
+        );
       }
     } catch (e) {
       console.error(e);
-      toast.error("Could not delete selection.");
+      const message = e instanceof Error ? e.message : "Could not delete selection.";
+      toast.error(message.includes("authorized") ? "You can only delete images you uploaded." : message);
     } finally {
       setSelectionBusy(false);
     }
