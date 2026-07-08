@@ -5,11 +5,15 @@ EXPECTED_CLOUD_URL="https://convex.serving.cloud"
 EXPECTED_SITE_URL="https://convex-site.serving.cloud"
 EXPECTED_SELF_HOSTED_URL="https://convex.serving.cloud"
 
-env_file=".env.local"
+env_file=".env"
 if [[ -f "$env_file" ]]; then
   # shellcheck disable=SC1090
   source "$env_file"
 fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./convex-env.sh
+source "${SCRIPT_DIR}/convex-env.sh"
 
 fail() {
   echo "ERROR: $1" >&2
@@ -28,7 +32,7 @@ self_hosted_target_present() {
   return 0
 }
 
-# Vercel CI does not have .env.local. The client bundle only needs
+# Vercel CI does not have .env. The client bundle only needs
 # VITE_CONVEX_* at build time. Pindeck production is self-hosted, so
 # CONVEX_DEPLOYMENT must remain unset; deploy with CONVEX_SELF_HOSTED_*.
 is_ci_build() {
@@ -50,7 +54,7 @@ if is_ci_build; then
 fi
 
 [[ -z "${CONVEX_DEPLOYMENT:-}" ]] || fail "CONVEX_DEPLOYMENT must be unset when targeting self-hosted Convex."
-self_hosted_target_present || fail "CONVEX_SELF_HOSTED_URL must be '$EXPECTED_SELF_HOSTED_URL' and CONVEX_SELF_HOSTED_ADMIN_KEY must be set."
+self_hosted_target_present || fail "CONVEX_SELF_HOSTED_URL must be '$EXPECTED_SELF_HOSTED_URL' and CONVEX_SELF_HOSTED_ADMIN_KEY or PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY must be set."
 vite_urls_match || fail "VITE_CONVEX_URL must be '$EXPECTED_CLOUD_URL' and VITE_CONVEX_SITE_URL must be '$EXPECTED_SITE_URL'."
 
 echo "Convex target check passed: self-hosted production ($EXPECTED_SELF_HOSTED_URL)"

@@ -26,8 +26,10 @@ VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud
 CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud
 ```
 
-`CONVEX_SELF_HOSTED_ADMIN_KEY` must be present in the local shell or Vercel
-environment for deployments, but never commit or print its value.
+`PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY` should be present in the local shell or
+Vercel environment for deployments. The local scripts map it to the generic
+`CONVEX_SELF_HOSTED_ADMIN_KEY` expected by the Convex CLI. Never commit or print
+either value.
 
 ## SSH Access
 
@@ -121,7 +123,7 @@ loaded:
 
 ```bash
 set -a
-source .env.local
+source .env
 set +a
 bunx convex run images:libraryAggregations
 ```
@@ -134,7 +136,7 @@ Safe-ish dry run:
 
 ```bash
 set -a
-source .env.local
+source .env
 set +a
 bunx convex deploy --dry-run --typecheck disable --codegen disable
 ```
@@ -255,7 +257,7 @@ Upgrade commands, after choosing and pinning an image:
 
 ```bash
 set -a
-source .env.local
+source .env
 set +a
 bunx convex export --path /tmp/pindeck-convex-export.zip
 

@@ -34,10 +34,10 @@ bun install
 
 2. Configure env:
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
-3. Set self-hosted production Convex URLs in `.env.local`:
+3. Set self-hosted production Convex URLs in `.env`:
 ```bash
 VITE_CONVEX_URL=https://convex.serving.cloud
 VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud
@@ -97,7 +97,8 @@ Set for frontend build/runtime:
 
 For Convex function deploys:
 - `CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud`
-- `CONVEX_SELF_HOSTED_ADMIN_KEY=<self-hosted admin key>`
+- `PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY=<Pindeck self-hosted admin key>`
+- `CONVEX_SELF_HOSTED_ADMIN_KEY=<self-hosted admin key>` is also accepted by the Convex CLI, but prefer the Pindeck-prefixed name in Bitwarden so it cannot be confused with Review Room / Unfold.
 - Do **not** set `CONVEX_DEPLOYMENT` for Pindeck production.
 
 Vercel production builds deploy Convex when `CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY` are configured. Preview builds without those deploy secrets run as frontend-only builds, so PR checks can still validate the UI without backend deploy credentials.
@@ -141,7 +142,7 @@ The Discord bot and media gateway are hosted/deployed from a separate repo:
   - Convex HTTP actions (`/ingestExternal`, `/discordQueue`, `/discordModerate`)
   - Media gateway endpoint/env wiring (`MEDIA_GATEWAY_URL`, token-based auth)
 
-Typical setup in `.env.local`:
+Typical setup in `.env`:
 - `DISCORD_TOKEN`
 - `DISCORD_CLIENT_ID`
 - `DISCORD_GUILD_ID`
@@ -176,11 +177,11 @@ Notes:
 bun run deploy:convex
 ```
 
-This requires `.env.local` or the shell environment to include:
+This requires `.env` or the shell environment to include:
 
 ```bash
 CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud
-CONVEX_SELF_HOSTED_ADMIN_KEY=...
+PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY=...
 ```
 
 Do **not** set `CONVEX_DEPLOYMENT`; the old Convex Cloud project has been deleted and Pindeck production uses the self-hosted Convex target above.
@@ -193,9 +194,9 @@ agent access commands, see [`docs/self-hosted-convex-ops.md`](docs/self-hosted-c
 
 Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bun run build`, and `scripts/build.sh` runs `bunx convex deploy --cmd 'bun run build:frontend'` on production builds when the self-hosted Convex deploy secrets are present. Preview builds without those secrets skip Convex deploy and run the frontend build only.
 
-**Vercel builds** do not use `.env.local`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` to **`https://convex.serving.cloud`** when unset, so previews deploy without extra env. Set `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud` when code needs the HTTP/actions URL.
+**Vercel builds** do not use `.env`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` to **`https://convex.serving.cloud`** when unset, so previews deploy without extra env. Set `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud` when code needs the HTTP/actions URL.
 
-Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_HOSTED_URL`**, and **`CONVEX_SELF_HOSTED_ADMIN_KEY`** in **`.env.local`** so `dev` / `deploy:convex` match production (see `.env.example`). Keep **`CONVEX_DEPLOYMENT` unset**.
+Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_HOSTED_URL`**, and **`PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY`** in **`.env`** so `dev` / `deploy:convex` match production (see `.env.example`). Keep **`CONVEX_DEPLOYMENT` unset**.
 
 ## Unified UI / design tokens (Tweaks)
 

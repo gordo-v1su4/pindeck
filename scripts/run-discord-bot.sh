@@ -5,10 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BOT_DIR="${ROOT_DIR}/services/discord-bot"
 
-if [ -f "${ROOT_DIR}/.env.local" ]; then
+if [ -f "${ROOT_DIR}/.env" ]; then
   set -a
   # shellcheck disable=SC1090
-  source "${ROOT_DIR}/.env.local"
+  source "${ROOT_DIR}/.env"
   set +a
 fi
 
@@ -17,7 +17,7 @@ if [ -z "${DISCORD_TOKEN:-}" ] && [ -n "${DISCORD_BOT_TOKEN:-}" ]; then
 fi
 
 if [ -z "${DISCORD_TOKEN:-}" ]; then
-  echo "DISCORD_TOKEN is not set. Add it to .env.local before starting the Discord bot." >&2
+  echo "DISCORD_TOKEN is not set. Add it to .env before starting the Discord bot." >&2
   exit 1
 fi
 

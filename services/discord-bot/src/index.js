@@ -75,11 +75,8 @@ function loadEnvFile(filePath) {
 function loadLocalEnv() {
   const cwd = process.cwd();
   const candidates = [
-    path.resolve(cwd, ".env.local"),
     path.resolve(cwd, ".env"),
-    path.resolve(cwd, "../../.env.local"),
     path.resolve(cwd, "../../.env"),
-    path.resolve(cwd, "../.env.local"),
     path.resolve(cwd, "../.env"),
   ];
 
@@ -1282,7 +1279,7 @@ if (dryRun) {
           if (!ingestEndpoint || !ingestApiKey) {
             await interaction.reply({
               content:
-                "Ingest is not configured. Set PINDECK_INGEST_URL (or CONVEX_SITE_URL) and INGEST_API_KEY in .env.local.",
+                "Ingest is not configured. Set PINDECK_INGEST_URL (or CONVEX_SITE_URL) and INGEST_API_KEY in .env.",
               ephemeral: true,
             });
             return;
