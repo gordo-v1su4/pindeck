@@ -23,8 +23,10 @@ import type * as images from "../images.js";
 import type * as lib_authz from "../lib/authz.js";
 import type * as maintenance from "../maintenance.js";
 import type * as mediaStorage from "../mediaStorage.js";
+import type * as orchestration from "../orchestration.js";
 import type * as seed from "../seed.js";
 import type * as storyboards from "../storyboards.js";
+import type * as triggerDispatch from "../triggerDispatch.js";
 import type * as vision from "../vision.js";
 
 import type {
@@ -49,8 +51,10 @@ declare const fullApi: ApiFromModules<{
   "lib/authz": typeof lib_authz;
   maintenance: typeof maintenance;
   mediaStorage: typeof mediaStorage;
+  orchestration: typeof orchestration;
   seed: typeof seed;
   storyboards: typeof storyboards;
+  triggerDispatch: typeof triggerDispatch;
   vision: typeof vision;
 }>;
 
