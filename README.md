@@ -109,6 +109,18 @@ Vercel production builds deploy Convex when `CONVEX_SELF_HOSTED_URL` and `CONVEX
 - `bun run build` - Local production frontend build (`vite build`); on Vercel production builds with deploy secrets, this deploys Convex first, then builds the frontend.
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
 - `bun run deploy:convex` - Deploy Convex functions with `bunx convex deploy`
+- `bun run trigger:dev` - Run Pindeck Trigger tasks against the V1SU4 self-hosted control plane
+- `bun run trigger:deploy` - Deploy the configured Pindeck Trigger project
+
+## Trigger.dev Orchestration
+
+Long-running Pindeck work is moving to the shared self-hosted Trigger.dev
+control plane under its own Pindeck project and queues. The first feature-flagged
+path is palette plus cinematic metadata refresh. Keep the flag disabled until
+the Proxmox memory recovery gate passes and the task is deployed and tested.
+
+See [Trigger.dev orchestration](docs/trigger-orchestration.md) for the queue,
+secret, callback, rollout, and verification contract.
 
 ## Media Upload Pipeline (Convex -> RustFS)
 

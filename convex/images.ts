@@ -573,13 +573,22 @@ export const enqueueMetadataRefresh = mutation({
       }
 
       await ctx.db.patch(img._id, { aiStatus: "processing" });
-      await ctx.scheduler.runAfter(delay, (internal as any).images.internalRefreshMetadataAfterPalette, {
-        imageId: img._id,
-        userId,
-        paletteUrl,
-        forcePalette: plan.forcePalette,
-        runMetadata: plan.runMetadata,
-      });
+      if (process.env.PINDECK_TRIGGER_ORCHESTRATION_ENABLED === "true") {
+        await ctx.scheduler.runAfter(delay, (internal as any).triggerDispatch.dispatchImageMetadataRefresh, {
+          imageId: img._id,
+          userId,
+          forcePalette: plan.forcePalette,
+          runMetadata: plan.runMetadata,
+        });
+      } else {
+        await ctx.scheduler.runAfter(delay, (internal as any).images.internalRefreshMetadataAfterPalette, {
+          imageId: img._id,
+          userId,
+          paletteUrl,
+          forcePalette: plan.forcePalette,
+          runMetadata: plan.runMetadata,
+        });
+      }
       delay += stagger;
       paletteScheduled += 1;
       if (plan.runMetadata) metadataScheduled += 1;
@@ -2629,7 +2638,7 @@ export const internalGetMetadataRefreshPayload = internalQuery({
   returns: v.any(),
   handler: async (ctx, args) => {
     const image = await ctx.db.get(args.imageId);
-    if (!image) return null;
+    if (!image || image.uploadedBy !== args.userId) return null;
     return {
       _id: image._id,
       storageId: image.storageId,

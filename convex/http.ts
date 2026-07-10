@@ -1,6 +1,7 @@
 import { auth } from "./auth";
 import { httpRouter } from "convex/server";
 import { smartAnalyzeImage } from "./vision";
+import { imageRefreshHttp } from "./orchestration";
 import {
   backfillNextcloudHttp,
   discordModerateHttp,
@@ -10,6 +11,12 @@ import {
 } from "./images";
 
 const http = httpRouter();
+
+http.route({
+  path: "/orchestration/image-refresh",
+  method: "POST",
+  handler: imageRefreshHttp,
+});
 
 http.route({
   path: "/smartAnalyzeImage",
