@@ -1,7 +1,7 @@
 "use node";
 
 import { createHash } from "node:crypto";
-import { tasks } from "@trigger.dev/sdk/v3";
+import { runs, tasks } from "@trigger.dev/sdk/v3";
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -25,6 +25,7 @@ export const dispatchImageMetadataRefresh = internalAction({
         maxAttempts: 2,
         tags: ["pindeck", "image-refresh", "analysis"],
       });
+      await reconcileReusedRun(ctx, args.imageId, handle.id);
       return { runId: handle.id };
     } catch (error) {
       await ctx.runMutation((internal as any).images.internalSetAiStatus, {
@@ -35,6 +36,30 @@ export const dispatchImageMetadataRefresh = internalAction({
     }
   },
 });
+
+async function reconcileReusedRun(ctx: any, imageId: string, runId: string) {
+  try {
+    const run = await runs.retrieve(runId);
+    const status = aiStatusForTerminalTriggerRun(run.status);
+    if (!status) return;
+    await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+      imageId,
+      status,
+    });
+  } catch (error) {
+    // Dispatch succeeded. A transient read-after-write failure must not mark a
+    // newly queued run failed; the task callback remains authoritative.
+    console.warn("Unable to reconcile Pindeck Trigger run state", { runId, error });
+  }
+}
+
+export function aiStatusForTerminalTriggerRun(status: string) {
+  if (status === "COMPLETED") return "completed";
+  if (["CANCELED", "FAILED", "CRASHED", "SYSTEM_FAILURE", "EXPIRED", "TIMED_OUT"].includes(status)) {
+    return "failed";
+  }
+  return undefined;
+}
 
 export function createImageRefreshIdempotencyKey(args: {
   imageId: string;
