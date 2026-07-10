@@ -4,6 +4,10 @@ Pindeck uses the V1SU4 self-hosted Trigger.dev control plane at
 `https://trigger.v1su4.dev`, but it must have a separate Trigger.dev project
 from Project Stack Structure.
 
+- Trigger project: `Pindeck`
+- Project ref: `proj_znbdggczxwkeviflncnx`
+- Dashboard: `https://trigger.v1su4.dev/orgs/v1su4-91d9/projects/pindeck-gT25`
+
 ## Current first path
 
 The first migrated workflow is image metadata refresh:
@@ -56,8 +60,10 @@ verification.
 
 After the hardware gate passes:
 
-1. Create the `Pindeck` project in the V1SU4 Trigger.dev organization.
-2. Put its project ref in local `TRIGGER_PROJECT_REF`.
+1. Confirm the `Pindeck` project still uses project ref
+   `proj_znbdggczxwkeviflncnx`.
+2. Override `TRIGGER_PROJECT_REF` locally only when intentionally targeting a
+   different Pindeck project.
 3. Configure the production secrets above.
 4. Run `bun run trigger:deploy`.
 5. Confirm an unauthenticated callback returns `401`:
