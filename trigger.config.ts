@@ -1,7 +1,7 @@
 import { defineConfig } from "@trigger.dev/sdk/v3";
 
 export default defineConfig({
-  project: process.env.TRIGGER_PROJECT_REF || "proj_pindeck_pending",
+  project: process.env.TRIGGER_PROJECT_REF || "proj_znbdggczxwkeviflncnx",
   runtime: "node",
   logLevel: "log",
   maxDuration: 600,
