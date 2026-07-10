@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { createImageRefreshIdempotencyKey } from "../convex/triggerDispatch";
+import {
+  aiStatusForTerminalTriggerRun,
+  createImageRefreshIdempotencyKey,
+} from "../convex/triggerDispatch";
 
 describe("Pindeck Trigger orchestration", () => {
   test("creates stable scoped idempotency keys without exposing Convex ids", () => {
@@ -24,5 +27,12 @@ describe("Pindeck Trigger orchestration", () => {
     expect(createImageRefreshIdempotencyKey(base)).not.toBe(
       createImageRefreshIdempotencyKey({ ...base, forcePalette: true }),
     );
+  });
+
+  test("reconciles idempotently reused terminal runs", () => {
+    expect(aiStatusForTerminalTriggerRun("COMPLETED")).toBe("completed");
+    expect(aiStatusForTerminalTriggerRun("FAILED")).toBe("failed");
+    expect(aiStatusForTerminalTriggerRun("TIMED_OUT")).toBe("failed");
+    expect(aiStatusForTerminalTriggerRun("EXECUTING")).toBeUndefined();
   });
 });

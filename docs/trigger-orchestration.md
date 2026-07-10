@@ -81,5 +81,7 @@ After the hardware gate passes:
 Never enable both the old heavy-work scheduler path and a second Trigger
 dispatcher for the same request. The feature flag selects exactly one path.
 Repeated identical refresh clicks are deduplicated for five minutes; later
-explicit refreshes create a new run. A dispatch failure marks the image failed
-instead of leaving it indefinitely in the processing state.
+explicit refreshes create a new run. If Trigger reuses an already-terminal run,
+the dispatcher restores the matching completed or failed image status. A
+dispatch failure marks the image failed instead of leaving it indefinitely in
+the processing state.
