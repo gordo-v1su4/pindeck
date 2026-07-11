@@ -154,6 +154,21 @@ line; treating the entire stdout stream as the value creates a false mismatch.
 
 ## Deployment and verification
 
+Current frozen handoff (2026-07-11):
+
+- Convex callbacks/schema are deployed; all five unauthenticated callback
+  probes return `401` rather than the pre-deploy `404`.
+- Trigger deployment `20260711.2` / `7z8h1zec` was built on VM100 Linux and
+  exposes all five task IDs.
+- Metadata refresh, upload finalization, `removeMany`, external ingest, and
+  media repair passed production end-to-end smokes. The successful media-repair
+  run used the configured `medium-1x` allocation (1 vCPU / 2 GB RAM).
+- Temporary smoke rows were removed. The orchestration feature flag is `true`.
+- Paid FAL variation generation remains intentionally unexecuted until an
+  explicit one-image paid smoke is approved.
+- Leave this deployment frozen at `20260711.2` for the next maintenance window;
+  do not install or build additional Pindeck runtime components meanwhile.
+
 1. Confirm the self-hosted platform image is `v4.5.2` and the Pindeck CLI/SDK
    packages are `4.5.2`.
 2. Confirm the two Trigger production environment variable names exist.
