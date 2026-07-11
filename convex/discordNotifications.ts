@@ -18,10 +18,14 @@ export const postStatus = internalAction({
     imageUrl: v.optional(v.string()),
     parentImageId: v.optional(v.id("images")),
   },
-  returns: v.null(),
+  returns: v.object({
+    ok: v.boolean(),
+    skipped: v.boolean(),
+    error: v.optional(v.string()),
+  }),
   handler: async (_ctx, args) => {
     const webhookUrl = process.env.DISCORD_STATUS_WEBHOOK_URL;
-    if (!webhookUrl) return null;
+    if (!webhookUrl) return { ok: true, skipped: true };
 
     const emojiByEvent: Record<
       "queued" | "approved" | "rejected" | "generation_started" | "generated",
@@ -74,15 +78,25 @@ export const postStatus = internalAction({
         ];
       }
 
-      await fetch(webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!response.ok) {
+        const error = `Discord webhook failed with HTTP ${response.status}`;
+        console.warn(error);
+        return { ok: false, skipped: false, error };
+      }
     } catch (error) {
       console.warn("Failed to post Discord status webhook", error);
+      return {
+        ok: false,
+        skipped: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
 
-    return null;
+    return { ok: true, skipped: false };
   },
 });

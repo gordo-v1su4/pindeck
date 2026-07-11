@@ -16,6 +16,10 @@ const MAX_SOURCE_LINEAGE_DEPTH = 12;
 const CANONICAL_NEXTCLOUD_PUBLIC_TOKEN = "afc53c40a68aade";
 const RUSTFS_PUBLIC_HOST = "s3.v1su4.dev";
 
+function triggerOrchestrationEnabled() {
+  return process.env.PINDECK_TRIGGER_ORCHESTRATION_ENABLED === "true";
+}
+
 /**
  * Reject paths that contain traversal sequences or absolute path components.
  * Throws if the path is unsafe.
@@ -573,7 +577,7 @@ export const enqueueMetadataRefresh = mutation({
       }
 
       await ctx.db.patch(img._id, { aiStatus: "processing" });
-      if (process.env.PINDECK_TRIGGER_ORCHESTRATION_ENABLED === "true") {
+      if (triggerOrchestrationEnabled()) {
         await ctx.scheduler.runAfter(delay, (internal as any).triggerDispatch.dispatchImageMetadataRefresh, {
           imageId: img._id,
           userId,
@@ -625,7 +629,10 @@ export const enqueueMediaRepair = mutation({
       nextcloudPersistStatus: "pending",
       nextcloudPersistError: undefined,
     });
-    await ctx.scheduler.runAfter(0, internalApi.images.internalRepairImageMedia, {
+    const repairAction = triggerOrchestrationEnabled()
+      ? internalApi.triggerDispatch.dispatchMediaRepair
+      : internalApi.images.internalRepairImageMedia;
+    await ctx.scheduler.runAfter(0, repairAction, {
       imageId: args.imageId,
       userId,
     });
@@ -668,9 +675,12 @@ export const enqueueMediaRepairMany = mutation({
         nextcloudPersistStatus: "pending",
         nextcloudPersistError: undefined,
       });
+      const repairAction = triggerOrchestrationEnabled()
+        ? internalApi.triggerDispatch.dispatchMediaRepair
+        : internalApi.images.internalRepairImageMedia;
       await ctx.scheduler.runAfter(
         scheduled * stagger,
-        internalApi.images.internalRepairImageMedia,
+        repairAction,
         { imageId: image._id, userId },
       );
       scheduled += 1;
@@ -681,7 +691,7 @@ export const enqueueMediaRepairMany = mutation({
   },
 });
 
-export const internalRefreshMetadataAfterPalette = internalAction({
+export const internalRefreshMetadataAfterPalette: any = internalAction({
   args: {
     imageId: v.id("images"),
     userId: v.id("users"),
@@ -692,13 +702,27 @@ export const internalRefreshMetadataAfterPalette = internalAction({
   returns: v.object({
     paletteOk: v.boolean(),
     metadataRan: v.boolean(),
+    metadataOk: v.boolean(),
+    error: v.optional(v.string()),
   }),
-  handler: async (ctx, args) => {
-    const image = await ctx.runQuery((internal as any).images.internalGetMetadataRefreshPayload, {
+  handler: async (ctx, args): Promise<{
+    paletteOk: boolean;
+    metadataRan: boolean;
+    metadataOk: boolean;
+    error?: string;
+  }> => {
+    const image: any = await ctx.runQuery((internal as any).images.internalGetMetadataRefreshPayload, {
       imageId: args.imageId,
       userId: args.userId,
     });
-    if (!image) return { paletteOk: false, metadataRan: false };
+    if (!image) {
+      return {
+        paletteOk: false,
+        metadataRan: false,
+        metadataOk: false,
+        error: "Image not found or not owned by user",
+      };
+    }
 
     let paletteOk = Boolean(image.colors?.length) && args.forcePalette !== true;
     if (!paletteOk) {
@@ -714,7 +738,12 @@ export const internalRefreshMetadataAfterPalette = internalAction({
         imageId: args.imageId,
         status: "failed",
       });
-      return { paletteOk: false, metadataRan: false };
+      return {
+        paletteOk: false,
+        metadataRan: false,
+        metadataOk: false,
+        error: "Palette extraction did not complete",
+      };
     }
 
     if (args.runMetadata === false) {
@@ -722,10 +751,12 @@ export const internalRefreshMetadataAfterPalette = internalAction({
         imageId: args.imageId,
         status: "completed",
       });
-      return { paletteOk: true, metadataRan: false };
+      return { paletteOk: true, metadataRan: false, metadataOk: true };
     }
 
-    await ctx.runAction((internal as any).vision.internalSmartAnalyzeImage, {
+    const metadata: { ok: boolean; error?: string } = await ctx.runAction(
+      (internal as any).vision.internalSmartAnalyzeImage,
+      {
       storageId: image.storageId,
       imageUrl: image.imageUrl,
       imageId: image._id,
@@ -743,9 +774,15 @@ export const internalRefreshMetadataAfterPalette = internalAction({
       modificationMode: image.modificationMode ?? "shot-variation",
       variationType: image.variationType,
       variationDetail: image.variationDetail,
-    });
+      },
+    );
 
-    return { paletteOk: true, metadataRan: true };
+    return {
+      paletteOk: true,
+      metadataRan: true,
+      metadataOk: metadata.ok,
+      error: metadata.error,
+    };
   },
 });
 
@@ -754,13 +791,17 @@ export const internalRepairImageMedia = internalAction({
     imageId: v.id("images"),
     userId: v.id("users"),
   },
-  returns: v.object({ ok: v.boolean(), imageUrl: v.optional(v.string()) }),
-  handler: async (ctx, args): Promise<{ ok: boolean; imageUrl?: string }> => {
+  returns: v.object({
+    ok: v.boolean(),
+    imageUrl: v.optional(v.string()),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args): Promise<{ ok: boolean; imageUrl?: string; error?: string }> => {
     const image: any = await ctx.runQuery(internalApi.images.internalGetMediaRepairPayload, {
       imageId: args.imageId,
       userId: args.userId,
     });
-    if (!image) return { ok: false };
+    if (!image) return { ok: false, error: "Image not found or not owned by user" };
 
     const sourceUrls = pickMediaRepairSourceUrls(image);
     if (sourceUrls.length === 0) {
@@ -768,7 +809,7 @@ export const internalRepairImageMedia = internalAction({
         imageId: args.imageId,
         error: "No recoverable image URL found for media regeneration",
       });
-      return { ok: false };
+      return { ok: false, error: "No recoverable image URL found for media regeneration" };
     }
 
     try {
@@ -810,11 +851,12 @@ export const internalRepairImageMedia = internalAction({
 
       return { ok: true, imageUrl: persisted.imageUrl };
     } catch (error: any) {
+      const message = error?.message || "Media regeneration failed";
       await ctx.runMutation(internalApi.images.internalRecordNextcloudBackfillFailure, {
         imageId: args.imageId,
-        error: error?.message || "Media regeneration failed",
+        error: message,
       });
-      return { ok: false };
+      return { ok: false, error: message };
     }
   },
 });
@@ -1150,8 +1192,13 @@ export const ingestExternal = internalMutation({
     ),
     sourceUrl: v.optional(v.string()),
     importBatchId: v.optional(v.id("importBatches")),
+    deferProcessing: v.optional(v.boolean()),
   },
-  returns: v.id("images"),
+  returns: v.object({
+    imageId: v.id("images"),
+    created: v.boolean(),
+    needsProcessing: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     if (args.externalId) {
       const existing = await ctx.db
@@ -1162,7 +1209,11 @@ export const ingestExternal = internalMutation({
         if ((!existing.colors || existing.colors.length === 0) && args.colors?.length) {
           await ctx.db.patch(existing._id, { colors: args.colors });
         }
-        return existing._id;
+        return {
+          imageId: existing._id,
+          created: false,
+          needsProcessing: existing.storagePersistStatus !== "succeeded" || !existing.storagePath,
+        };
       }
     }
 
@@ -1175,7 +1226,12 @@ export const ingestExternal = internalMutation({
       if ((!existingByUrl[0].colors || existingByUrl[0].colors.length === 0) && args.colors?.length) {
         await ctx.db.patch(existingByUrl[0]._id, { colors: args.colors });
       }
-      return existingByUrl[0]._id;
+      return {
+        imageId: existingByUrl[0]._id,
+        created: false,
+        needsProcessing:
+          existingByUrl[0].storagePersistStatus !== "succeeded" || !existingByUrl[0].storagePath,
+      };
     }
 
     const title = args.title || "Untitled";
@@ -1208,8 +1264,8 @@ export const ingestExternal = internalMutation({
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       colors: args.colors ?? [],
-      nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
-      storagePersistStatus: args.storagePath ? "succeeded" : undefined,
+      nextcloudPersistStatus: args.deferProcessing ? "pending" : args.storagePath ? "succeeded" : undefined,
+      storagePersistStatus: args.deferProcessing ? "pending" : args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
       sourceType: args.sourceType,
       sourceUrl: args.sourceUrl,
@@ -1217,7 +1273,7 @@ export const ingestExternal = internalMutation({
       ingestedAt: Date.now(),
     });
 
-    if (args.sourceType === "discord") {
+    if (!args.deferProcessing && args.sourceType === "discord") {
       try {
         await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
           event: "queued",
@@ -1233,7 +1289,7 @@ export const ingestExternal = internalMutation({
       }
     }
 
-    if (!isModeratedImport) {
+    if (!args.deferProcessing && !isModeratedImport) {
       await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
         imageId,
         userId: args.userId,
@@ -1248,7 +1304,11 @@ export const ingestExternal = internalMutation({
       });
     }
 
-    return imageId;
+    return {
+      imageId,
+      created: true,
+      needsProcessing: args.deferProcessing === true,
+    };
   },
 });
 
@@ -1288,6 +1348,44 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     return new Response("Missing required fields: imageUrl", { status: 400 });
   }
 
+  if (triggerOrchestrationEnabled()) {
+    const queued = await ctx.runMutation(internal.images.ingestExternal, {
+      userId: resolvedUserId,
+      title: body.title || "External Import",
+      description: body.description,
+      imageUrl: sourceImageUrl,
+      tags: body.tags,
+      category: body.category,
+      source: body.source,
+      sref: body.sref,
+      externalId: body.externalId,
+      sourceType: body.sourceType,
+      sourceUrl: body.sourceUrl || sourceImageUrl,
+      importBatchId: body.importBatchId,
+      deferProcessing: true,
+    });
+
+    if (queued.needsProcessing) {
+      await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchExternalIngest, {
+        imageId: queued.imageId,
+        userId: resolvedUserId,
+      });
+    }
+
+    return new Response(
+      JSON.stringify({
+        imageId: queued.imageId,
+        userId: resolvedUserId,
+        queued: queued.needsProcessing,
+        duplicate: !queued.created,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   let persistedImage;
   try {
     persistedImage = await ctx.runAction(internalApi.mediaStorage.persistExternalImageFromUrl, {
@@ -1307,7 +1405,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     );
   }
 
-  const imageId = await ctx.runMutation(internal.images.ingestExternal, {
+  const ingestResult = await ctx.runMutation(internal.images.ingestExternal, {
     userId: resolvedUserId,
     title: body.title || "Discord Import",
     description: body.description,
@@ -1329,6 +1427,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     sourceUrl: body.sourceUrl || sourceImageUrl,
     importBatchId: body.importBatchId,
   });
+  const imageId = ingestResult.imageId;
 
   // Pixel-accurate server-side color sampling. Runs against the persisted
   // RustFS URL so we don't depend on cdn.discordapp.com CORS.
@@ -1620,7 +1719,8 @@ export const internalModerateDiscordImage = internalMutation({
         aiStatus: shouldRunAnalysis ? "processing" : image.aiStatus,
       });
 
-      if (!image.colors || image.colors.length === 0) {
+      const triggerEnabled = triggerOrchestrationEnabled();
+      if ((!image.colors || image.colors.length === 0) && !triggerEnabled) {
         await ctx.scheduler.runAfter(
           0,
           internalApi.colorExtraction.internalExtractAndStoreColors,
@@ -1632,18 +1732,27 @@ export const internalModerateDiscordImage = internalMutation({
       }
 
       if (shouldRunAnalysis) {
-        await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-          imageId: image._id,
-          userId: args.userId,
-          imageUrl: image.imageUrl,
-          title: image.title,
-          description: image.description,
-          tags: image.tags,
-          category: image.category,
-          source: image.source,
-          sref: image.sref,
-          variationCount: 0,
-        });
+        if (triggerEnabled) {
+          await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchImageMetadataRefresh, {
+            imageId: image._id,
+            userId: args.userId,
+            forcePalette: !image.colors?.length,
+            runMetadata: true,
+          });
+        } else {
+          await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+            imageId: image._id,
+            userId: args.userId,
+            imageUrl: image.imageUrl,
+            title: image.title,
+            description: image.description,
+            tags: image.tags,
+            category: image.category,
+            source: image.source,
+            sref: image.sref,
+            variationCount: 0,
+          });
+        }
       }
 
       if (await isDiscordLineage(ctx, image)) {
@@ -1715,22 +1824,33 @@ export const internalModerateDiscordImage = internalMutation({
       variationDetail: args.variationDetail,
     });
 
-    await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
-      originalImageId: args.imageId,
-      storageId: image.storageId,
-      imageUrl: image.imageUrl,
-      description: image.description || "",
-      category: image.category,
-      style: image.style,
-      title: image.title,
-      aspectRatio: args.aspectRatio,
-      group: image.group,
-      sref: image.sref,
-      colors: image.colors,
-      variationCount,
-      modificationMode,
-      variationDetail: args.variationDetail,
-    });
+    if (triggerOrchestrationEnabled()) {
+      await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchVariationGeneration, {
+        imageId: args.imageId,
+        userId: args.userId,
+        variationCount,
+        modificationMode,
+        variationDetail: args.variationDetail,
+        aspectRatio: args.aspectRatio,
+      });
+    } else {
+      await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
+        originalImageId: args.imageId,
+        storageId: image.storageId,
+        imageUrl: image.imageUrl,
+        description: image.description || "",
+        category: image.category,
+        style: image.style,
+        title: image.title,
+        aspectRatio: args.aspectRatio,
+        group: image.group,
+        sref: image.sref,
+        colors: image.colors,
+        variationCount,
+        modificationMode,
+        variationDetail: args.variationDetail,
+      });
+    }
 
     if (await isDiscordLineage(ctx, image)) {
       const root = await resolveLineageRoot(ctx, image);
@@ -2037,22 +2157,29 @@ export const uploadMultiple = mutation({
         });
 
         try {
-          await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
-            storageId: upload.storageId,
-            imageId: imageId,
-            userId,
-            group: upload.group,
-            projectName: upload.projectName,
-            moodboardName: upload.moodboardName,
-            title: upload.title,
-            description: upload.description,
-            tags: upload.tags,
-            category: upload.category,
-            source: upload.source,
-            sref: upload.sref || undefined,
-            variationCount: upload.variationCount,
-            sourceType: "upload",
-          });
+          if (triggerOrchestrationEnabled()) {
+            await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchFinalizeUpload, {
+              imageId,
+              userId,
+            });
+          } else {
+            await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
+              storageId: upload.storageId,
+              imageId,
+              userId,
+              group: upload.group,
+              projectName: upload.projectName,
+              moodboardName: upload.moodboardName,
+              title: upload.title,
+              description: upload.description,
+              tags: upload.tags,
+              category: upload.category,
+              source: upload.source,
+              sref: upload.sref || undefined,
+              variationCount: upload.variationCount,
+              sourceType: "upload",
+            });
+          }
         } catch (err) {
           console.error("Failed to schedule Nextcloud finalize action:", err);
           await ctx.db.patch("images", imageId, { aiStatus: "failed" });
@@ -2257,7 +2384,8 @@ export const approveImage = mutation({
       aiStatus: shouldRunAnalysis ? "processing" : image.aiStatus,
     });
 
-    if (!image.colors || image.colors.length === 0) {
+    const triggerEnabled = triggerOrchestrationEnabled();
+    if ((!image.colors || image.colors.length === 0) && !triggerEnabled) {
       await ctx.scheduler.runAfter(
         0,
         (internalApi as any).colorExtraction.internalExtractAndStoreColors,
@@ -2270,18 +2398,27 @@ export const approveImage = mutation({
     }
 
     if (shouldRunAnalysis) {
-      await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-        imageId: image._id,
-        userId,
-        imageUrl: image.imageUrl,
-        title: image.title,
-        description: image.description,
-        tags: image.tags,
-        category: image.category,
-        source: image.source,
-        sref: image.sref,
-        variationCount: 0,
-      });
+      if (triggerEnabled) {
+        await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchImageMetadataRefresh, {
+          imageId: image._id,
+          userId,
+          forcePalette: !image.colors?.length,
+          runMetadata: true,
+        });
+      } else {
+        await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
+          imageId: image._id,
+          userId,
+          imageUrl: image.imageUrl,
+          title: image.title,
+          description: image.description,
+          tags: image.tags,
+          category: image.category,
+          source: image.source,
+          sref: image.sref,
+          variationCount: 0,
+        });
+      }
     }
 
     if (await isDiscordLineage(ctx, image)) {
@@ -2496,6 +2633,143 @@ export const internalSetAiStatus = internalMutation({
   },
 });
 
+export const internalClaimOrchestrationDispatch = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    task: v.string(),
+    idempotencyKey: v.string(),
+    dispatchId: v.string(),
+  },
+  returns: v.object({
+    claimed: v.boolean(),
+    dispatchId: v.optional(v.string()),
+    existingRunId: v.optional(v.string()),
+    leaseExpired: v.optional(v.boolean()),
+  }),
+  handler: async (ctx, args) => {
+    const image = await ctx.db.get(args.imageId);
+    if (!image) return { claimed: false };
+    const now = Date.now();
+    const active =
+      image.orchestrationStatus === "queued" || image.orchestrationStatus === "running";
+    const liveLease = active && (image.orchestrationLeaseExpiresAt ?? 0) > now;
+    const liveDeduplicationWindow =
+      image.orchestrationIdempotencyKey === args.idempotencyKey &&
+      (image.orchestrationClaimedAt ?? 0) + 60 * 60 * 1000 > now;
+    if (liveLease && image.orchestrationIdempotencyKey !== args.idempotencyKey) {
+      return { claimed: false, existingRunId: image.orchestrationRunId };
+    }
+    if (active && !liveLease && image.orchestrationRunId) {
+      return {
+        claimed: false,
+        dispatchId: image.orchestrationDispatchId,
+        existingRunId: image.orchestrationRunId,
+        leaseExpired: true,
+      };
+    }
+    if (liveLease && liveDeduplicationWindow && image.orchestrationDispatchId) {
+      return {
+        claimed: true,
+        dispatchId: image.orchestrationDispatchId,
+        existingRunId: image.orchestrationRunId,
+      };
+    }
+    if (!active && liveDeduplicationWindow && image.orchestrationDispatchId) {
+      return {
+        claimed: true,
+        dispatchId: image.orchestrationDispatchId,
+        existingRunId: image.orchestrationRunId,
+      };
+    }
+    await ctx.db.patch(args.imageId, {
+      orchestrationTask: args.task,
+      orchestrationIdempotencyKey: args.idempotencyKey,
+      orchestrationDispatchId: args.dispatchId,
+      orchestrationClaimedAt: now,
+      orchestrationLeaseExpiresAt: now + 15 * 60 * 1000,
+      orchestrationRunId: undefined,
+      orchestrationStatus: "queued",
+      orchestrationError: undefined,
+      orchestrationStep: undefined,
+      orchestrationResult: undefined,
+      orchestrationUpdatedAt: now,
+    });
+    return {
+      claimed: true,
+      dispatchId: args.dispatchId,
+    };
+  },
+});
+
+export const internalSetOrchestrationState = internalMutation({
+  args: {
+    imageId: v.id("images"),
+    task: v.string(),
+    runId: v.optional(v.string()),
+    dispatchId: v.optional(v.string()),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    error: v.optional(v.string()),
+    requireRunIdMatch: v.optional(v.boolean()),
+    requireDispatchIdMatch: v.optional(v.boolean()),
+    step: v.optional(v.string()),
+    resultJson: v.optional(v.string()),
+    clearProgress: v.optional(v.boolean()),
+    clearRunId: v.optional(v.boolean()),
+    preserveAdvancedStatus: v.optional(v.boolean()),
+    aiStatus: v.optional(v.string()),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const image = await ctx.db.get(args.imageId);
+    if (!image) return false;
+    if (
+      args.requireRunIdMatch &&
+      (!args.runId ||
+        image.orchestrationRunId !== args.runId ||
+        image.orchestrationTask !== args.task)
+    ) {
+      return false;
+    }
+    if (
+      args.requireDispatchIdMatch &&
+      (!args.dispatchId || image.orchestrationDispatchId !== args.dispatchId)
+    ) {
+      return false;
+    }
+    const preserveStatus =
+      args.preserveAdvancedStatus &&
+      args.status === "queued" &&
+      (image.orchestrationStatus === "running" || image.orchestrationStatus === "completed");
+    const patch: Record<string, unknown> = {
+      orchestrationTask: args.task,
+      orchestrationRunId: args.runId ?? image.orchestrationRunId,
+      orchestrationDispatchId: args.dispatchId ?? image.orchestrationDispatchId,
+      orchestrationStatus: preserveStatus ? image.orchestrationStatus : args.status,
+      orchestrationError: args.error,
+      orchestrationUpdatedAt: Date.now(),
+      orchestrationLeaseExpiresAt:
+        args.status === "queued" || args.status === "running"
+          ? Date.now() + 15 * 60 * 1000
+          : undefined,
+    };
+    if (args.aiStatus !== undefined) patch.aiStatus = args.aiStatus;
+    if (args.clearProgress) {
+      patch.orchestrationStep = undefined;
+      patch.orchestrationResult = undefined;
+    }
+    if (args.clearRunId) patch.orchestrationRunId = undefined;
+    if (args.step !== undefined) patch.orchestrationStep = args.step;
+    if (args.resultJson !== undefined) patch.orchestrationResult = args.resultJson;
+    await ctx.db.patch(args.imageId, patch);
+    return true;
+  },
+});
+
 export const internalApplyNextcloudUpload = internalMutation({
   args: {
     imageId: v.id("images"),
@@ -2630,6 +2904,45 @@ export const internalListBackfillCandidates = internalQuery({
   },
 });
 
+export const internalGetUploadFinalizePayload = internalQuery({
+  args: {
+    imageId: v.id("images"),
+    userId: v.id("users"),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const image = await ctx.db.get(args.imageId);
+    if (!image || image.uploadedBy !== args.userId || image.sourceType !== "upload") {
+      return null;
+    }
+    return {
+      imageId: image._id,
+      userId: args.userId,
+      storageId: image.storageId,
+      title: image.title,
+      description: image.description,
+      tags: image.tags,
+      category: image.category,
+      source: image.source,
+      sref: image.sref,
+      group: image.group,
+      projectName: image.projectName,
+      moodboardName: image.moodboardName,
+      variationCount: image.variationCount,
+      sourceType: image.sourceType,
+      imageUrl: image.imageUrl,
+      storagePath: image.storagePath,
+      storagePersistStatus: image.storagePersistStatus,
+      orchestrationRunId: image.orchestrationRunId,
+      orchestrationDispatchId: image.orchestrationDispatchId,
+      orchestrationTask: image.orchestrationTask,
+      orchestrationStatus: image.orchestrationStatus,
+      orchestrationStep: image.orchestrationStep,
+      orchestrationResult: image.orchestrationResult,
+    };
+  },
+});
+
 export const internalGetMetadataRefreshPayload = internalQuery({
   args: {
     imageId: v.id("images"),
@@ -2656,6 +2969,18 @@ export const internalGetMetadataRefreshPayload = internalQuery({
       variationType: image.variationType,
       variationDetail: image.variationDetail,
       colors: image.colors,
+      sourceType: image.sourceType,
+      sourceUrl: image.sourceUrl,
+      status: image.status,
+      aiStatus: image.aiStatus,
+      storagePath: image.storagePath,
+      storagePersistStatus: image.storagePersistStatus,
+      orchestrationRunId: image.orchestrationRunId,
+      orchestrationDispatchId: image.orchestrationDispatchId,
+      orchestrationTask: image.orchestrationTask,
+      orchestrationStatus: image.orchestrationStatus,
+      orchestrationStep: image.orchestrationStep,
+      orchestrationResult: image.orchestrationResult,
     };
   },
 });
@@ -2676,6 +3001,8 @@ export const internalGetMediaRepairPayload = internalQuery({
       previewUrl: image.previewUrl,
       derivativeUrls: image.derivativeUrls,
       sourceUrl: image.sourceUrl,
+      storagePath: image.storagePath,
+      storagePersistStatus: image.storagePersistStatus,
     };
   },
 });
@@ -2706,22 +3033,29 @@ export const backfillNextcloudFailedUploads = mutation({
 
     let scheduled = 0;
     for (const image of images) {
-      await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
-        storageId: image.storageId!,
-        imageId: image._id,
-        userId,
-        group: image.group,
-        projectName: image.projectName,
-        moodboardName: image.moodboardName,
-        title: image.title,
-        description: image.description,
-        tags: image.tags,
-        category: image.category,
-        source: image.source,
-        sref: image.sref,
-        variationCount: image.variationCount,
-        sourceType: image.sourceType,
-      });
+      if (triggerOrchestrationEnabled()) {
+        await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchFinalizeUpload, {
+          imageId: image._id,
+          userId,
+        });
+      } else {
+        await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
+          storageId: image.storageId!,
+          imageId: image._id,
+          userId,
+          group: image.group,
+          projectName: image.projectName,
+          moodboardName: image.moodboardName,
+          title: image.title,
+          description: image.description,
+          tags: image.tags,
+          category: image.category,
+          source: image.source,
+          sref: image.sref,
+          variationCount: image.variationCount,
+          sourceType: image.sourceType,
+        });
+      }
       scheduled += 1;
     }
 
@@ -3066,21 +3400,30 @@ export const internalSaveGeneratedImages = internalMutation({
         uploadedAt: Date.now(),
       });
 
-      await ctx.scheduler.runAfter(
-        0,
-        internalApi.images.internalRefreshMetadataAfterPalette,
-        {
+      if (triggerOrchestrationEnabled()) {
+        await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchImageMetadataRefresh, {
           imageId: childImageId,
           userId: originalImage.uploadedBy,
-          paletteUrl:
-            preferredImageUrlForSampling({
-              imageUrl: img.url,
-              derivativeUrls: img.derivativeUrls,
-            }) ?? img.url,
           forcePalette: true,
           runMetadata: true,
-        }
-      );
+        });
+      } else {
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.images.internalRefreshMetadataAfterPalette,
+          {
+            imageId: childImageId,
+            userId: originalImage.uploadedBy,
+            paletteUrl:
+              preferredImageUrlForSampling({
+                imageUrl: img.url,
+                derivativeUrls: img.derivativeUrls,
+              }) ?? img.url,
+            forcePalette: true,
+            runMetadata: true,
+          },
+        );
+      }
 
       if (discordLineage) {
         try {

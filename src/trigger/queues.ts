@@ -1,4 +1,4 @@
-import { queue } from "@trigger.dev/sdk/v3";
+import { queue } from "@trigger.dev/sdk";
 
 export const pindeckAnalysisQueue = queue({
   name: "pindeck-analysis",

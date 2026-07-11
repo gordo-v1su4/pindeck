@@ -1,10 +1,11 @@
-import { logger, task } from "@trigger.dev/sdk/v3";
+import { AbortTaskRunError, logger, metadata, task } from "@trigger.dev/sdk";
 
 import { pindeckAnalysisQueue } from "./queues";
 
 export type PindeckImageRefreshPayload = {
   imageId: string;
   userId: string;
+  dispatchId: string;
   forcePalette?: boolean;
   runMetadata?: boolean;
 };
@@ -21,6 +22,7 @@ export const pindeckImageRefreshTask = task({
     randomize: true,
   },
   run: async (payload: PindeckImageRefreshPayload, { ctx }) => {
+    metadata.set("stage", "analysis").set("imageId", payload.imageId);
     const siteUrl = requireEnv("PINDECK_CONVEX_SITE_URL").replace(/\/+$/, "");
     const token = requireEnv("PINDECK_ORCHESTRATION_TOKEN");
     const response = await fetch(`${siteUrl}/orchestration/image-refresh`, {
@@ -29,12 +31,16 @@ export const pindeckImageRefreshTask = task({
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, runId: ctx.run.id }),
       signal: AbortSignal.timeout(540_000),
     });
     const text = await response.text();
     if (!response.ok) {
-      throw new Error(`Pindeck image refresh failed (${response.status}): ${text.slice(0, 500)}`);
+      const message = `Pindeck image refresh failed (${response.status}): ${text.slice(0, 500)}`;
+      if (response.status >= 400 && response.status < 500) {
+        throw new AbortTaskRunError(message);
+      }
+      throw new Error(message);
     }
 
     const result = JSON.parse(text) as {
@@ -48,6 +54,7 @@ export const pindeckImageRefreshTask = task({
       paletteOk: result.paletteOk,
       metadataRan: result.metadataRan,
     });
+    metadata.set("stage", "completed").set("paletteOk", result.paletteOk);
     return result;
   },
 });

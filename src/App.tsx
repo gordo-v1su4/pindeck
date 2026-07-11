@@ -817,11 +817,41 @@ function SidebarFilterControls({
           type="checkbox"
           checked={libraryFilter.originalsOnly}
           onChange={(e) =>
-            setLibraryFilter((f) => ({ ...f, originalsOnly: e.target.checked }))
+            setLibraryFilter((f) => ({
+              ...f,
+              originalsOnly: e.target.checked,
+              noOriginals: e.target.checked ? false : f.noOriginals,
+            }))
           }
         />
         <span className="pd-filter-checkbox-box" aria-hidden="true" />
         Originals only
+      </label>
+      <label
+        className="pd-filter-checkbox"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "3px 0",
+          fontSize: 11.5,
+          color: "var(--pd-ink-dim)",
+          cursor: "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={libraryFilter.noOriginals}
+          onChange={(e) =>
+            setLibraryFilter((f) => ({
+              ...f,
+              noOriginals: e.target.checked,
+              originalsOnly: e.target.checked ? false : f.originalsOnly,
+            }))
+          }
+        />
+        <span className="pd-filter-checkbox-box" aria-hidden="true" />
+        Variations only
       </label>
       <label
         className="pd-filter-checkbox"
@@ -1601,11 +1631,38 @@ function Topbar({
                     setLibraryFilter((f) => ({
                       ...f,
                       originalsOnly: e.target.checked,
+                      noOriginals: e.target.checked ? false : f.noOriginals,
                     }))
                   }
                 />
                 <span className="pd-filter-checkbox-box" aria-hidden="true" />
                 Originals only
+              </label>
+              <label
+                className="pd-filter-checkbox"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "3px 0",
+                  fontSize: 11.5,
+                  color: "var(--pd-ink-dim)",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={libraryFilter.noOriginals}
+                  onChange={(e) =>
+                    setLibraryFilter((f) => ({
+                      ...f,
+                      noOriginals: e.target.checked,
+                      originalsOnly: e.target.checked ? false : f.originalsOnly,
+                    }))
+                  }
+                />
+                <span className="pd-filter-checkbox-box" aria-hidden="true" />
+                Variations only
               </label>
               <label
                 className="pd-filter-checkbox"

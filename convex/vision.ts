@@ -583,7 +583,12 @@ export const internalGenerateRelatedImages = internalAction({
     variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
     variationDetail: v.optional(v.string()),
   },
-  returns: v.null(),
+  returns: v.object({
+    ok: v.boolean(),
+    requested: v.number(),
+    generated: v.number(),
+    error: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const falKey = process.env.FAL_KEY;
     if (!falKey) {
@@ -592,7 +597,7 @@ export const internalGenerateRelatedImages = internalAction({
         imageId: args.originalImageId, 
         status: "failed" 
       });
-      return;
+      return { ok: false, requested: args.variationCount ?? 0, generated: 0, error: "FAL_KEY not set" };
     }
 
     fal.config({ credentials: falKey });
@@ -606,7 +611,12 @@ export const internalGenerateRelatedImages = internalAction({
         imageId: args.originalImageId, 
         status: "failed" 
       });
-      return;
+      return {
+        ok: false,
+        requested: args.variationCount ?? 0,
+        generated: 0,
+        error: "Failed to get image URL from storage",
+      };
     }
 
     // Use user's count or default to 0 (NO AUTO-GENERATION)
@@ -618,7 +628,7 @@ export const internalGenerateRelatedImages = internalAction({
         imageId: args.originalImageId, 
         status: "completed" 
       });
-      return;
+      return { ok: true, requested: 0, generated: 0 };
     }
 
     const mode = args.modificationMode || "shot-variation";
@@ -686,7 +696,12 @@ export const internalGenerateRelatedImages = internalAction({
         imageId: args.originalImageId, 
         status: "failed" 
       });
-      return;
+      return {
+        ok: false,
+        requested: count,
+        generated: 0,
+        error: "No valid images generated",
+      };
     }
 
     const parentTitle = args.title || "Untitled";
@@ -730,7 +745,12 @@ export const internalGenerateRelatedImages = internalAction({
         imageId: args.originalImageId,
         status: "failed",
       });
-      return null;
+      return {
+        ok: false,
+        requested: count,
+        generated: 0,
+        error: "Generated images could not be persisted",
+      };
     }
 
     await ctx.runMutation(internal.images.internalSaveGeneratedImages, {
@@ -738,7 +758,7 @@ export const internalGenerateRelatedImages = internalAction({
       images: generatedImages,
     });
     
-    return null;
+    return { ok: true, requested: count, generated: generatedImages.length };
   },
 });
 
@@ -773,23 +793,33 @@ export const generateVariations = mutation({
       variationDetail: args.variationDetail,
     });
 
-    // Schedule the generation
-    await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
-      originalImageId: args.imageId,
-      storageId: image.storageId,
-      imageUrl: image.imageUrl,
-      description: image.description || "",
-      category: image.category,
-      style: image.style,
-      title: image.title,
-      aspectRatio: args.aspectRatio,
-      group: image.group,
-      sref: image.sref,
-      colors: image.colors,
-      variationCount: args.variationCount,
-      modificationMode: args.modificationMode,
-      variationDetail: args.variationDetail,
-    });
+    if (process.env.PINDECK_TRIGGER_ORCHESTRATION_ENABLED === "true") {
+      await ctx.scheduler.runAfter(0, (internal as any).triggerDispatch.dispatchVariationGeneration, {
+        imageId: args.imageId,
+        userId,
+        variationCount: args.variationCount,
+        modificationMode: args.modificationMode,
+        variationDetail: args.variationDetail,
+        aspectRatio: args.aspectRatio,
+      });
+    } else {
+      await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
+        originalImageId: args.imageId,
+        storageId: image.storageId,
+        imageUrl: image.imageUrl,
+        description: image.description || "",
+        category: image.category,
+        style: image.style,
+        title: image.title,
+        aspectRatio: args.aspectRatio,
+        group: image.group,
+        sref: image.sref,
+        colors: image.colors,
+        variationCount: args.variationCount,
+        modificationMode: args.modificationMode,
+        variationDetail: args.variationDetail,
+      });
+    }
 
     return { success: true };
   },
@@ -848,14 +878,21 @@ export const internalSmartAnalyzeImage = internalAction({
     variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
     variationDetail: v.optional(v.string()),
   },
-  returns: v.null(),
+  returns: v.object({
+    ok: v.boolean(),
+    error: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const imageUrl =
       args.imageUrl ||
       (args.storageId ? await ctx.storage.getUrl(args.storageId) : null);
     if (!imageUrl) {
       console.error("Image not found in storage");
-      return;
+      await ctx.runMutation(internal.images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "failed",
+      });
+      return { ok: false, error: "Image not found in storage" };
     }
 
     const openRouterKey = process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
@@ -865,8 +902,13 @@ export const internalSmartAnalyzeImage = internalAction({
         imageId: args.imageId, 
         status: "failed" 
       });
-      return;
+      return { ok: false, error: "OPENROUTER_API_KEY not set" };
     }
+
+    await ctx.runMutation(internal.images.internalSetAiStatus, {
+      imageId: args.imageId,
+      status: "processing",
+    });
 
     const vlmModel = process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
 
@@ -1031,7 +1073,7 @@ export const internalSmartAnalyzeImage = internalAction({
         });
       }
       
-      return null;
+      return { ok: true };
 
     } catch (err: any) {
       console.error("Smart analysis failed:", err?.message || err);
@@ -1039,7 +1081,7 @@ export const internalSmartAnalyzeImage = internalAction({
         imageId: args.imageId, 
         status: "failed" 
       });
-      return null;
+      return { ok: false, error: err?.message || String(err) };
     }
   },
 });

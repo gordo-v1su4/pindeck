@@ -70,4 +70,5 @@ preview_app.py
 
 # Skills
 .agent*
+.trigger/
 .vercel

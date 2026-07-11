@@ -753,6 +753,7 @@ export const finalizeUploadedImage = internalAction({
     projectName: v.optional(v.string()),
     moodboardName: v.optional(v.string()),
     variationCount: v.optional(v.number()),
+    scheduleAnalysis: v.optional(v.boolean()),
     sourceType: v.optional(
       v.union(
         v.literal("upload"),
@@ -800,31 +801,34 @@ export const finalizeUploadedImage = internalAction({
         console.warn("Failed to delete temporary Convex storage file", storageDeleteError);
       }
 
-      // Pixel-accurate color sampling (runs in parallel with VLM analyze).
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any).colorExtraction.internalExtractAndStoreColors,
-        {
-          imageId: args.imageId,
-          imageUrl: preferredImageUrlForSampling(uploaded) ?? uploaded.imageUrl,
-        }
-      );
+      if (args.scheduleAnalysis !== false) {
+        // Pixel-accurate color sampling runs in parallel with VLM analysis on
+        // the legacy Convex path. Trigger callbacks run the same steps inline.
+        await ctx.scheduler.runAfter(
+          0,
+          (internal as any).colorExtraction.internalExtractAndStoreColors,
+          {
+            imageId: args.imageId,
+            imageUrl: preferredImageUrlForSampling(uploaded) ?? uploaded.imageUrl,
+          }
+        );
 
-      await ctx.scheduler.runAfter(0, (internal as any).vision.internalSmartAnalyzeImage, {
-        imageId: args.imageId,
-        userId: args.userId,
-        imageUrl: uploaded.imageUrl,
-        title: args.title,
-        description: args.description,
-        tags: args.tags,
-        category: args.category,
-        source: args.source,
-        sref: args.sref,
-        group: args.group,
-        projectName: args.projectName,
-        moodboardName: args.moodboardName,
-        variationCount: Math.max(0, Math.min(args.variationCount ?? 2, 12)),
-      });
+        await ctx.scheduler.runAfter(0, (internal as any).vision.internalSmartAnalyzeImage, {
+          imageId: args.imageId,
+          userId: args.userId,
+          imageUrl: uploaded.imageUrl,
+          title: args.title,
+          description: args.description,
+          tags: args.tags,
+          category: args.category,
+          source: args.source,
+          sref: args.sref,
+          group: args.group,
+          projectName: args.projectName,
+          moodboardName: args.moodboardName,
+          variationCount: Math.max(0, Math.min(args.variationCount ?? 2, 12)),
+        });
+      }
 
       return { ok: true, imageUrl: uploaded.imageUrl } as const;
     } catch (error: any) {
@@ -833,6 +837,16 @@ export const finalizeUploadedImage = internalAction({
         imageId: args.imageId,
         error: error?.message || "Failed to finalize upload",
       });
+      if (args.scheduleAnalysis === false) {
+        await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+          imageId: args.imageId,
+          status: "failed",
+        });
+        return {
+          ok: false,
+          error: error?.message || "Failed to finalize upload",
+        } as const;
+      }
       try {
         const fallbackUrl = await ctx.storage.getUrl(args.storageId);
         if (!fallbackUrl) {

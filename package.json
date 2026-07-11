@@ -17,8 +17,8 @@
     "build:frontend": "bun run check:prod-target && vite build",
     "serve": "bun run check:prod-target && PORT=4173 bun run kill-port && vite preview --host 0.0.0.0 --port 4173",
     "deploy:convex": "bash ./scripts/deploy-convex.sh",
-    "trigger:dev": "bunx trigger.dev@4.5.2 dev --profile v1su4-selfhosted --api-url https://trigger.v1su4.dev",
-    "trigger:deploy": "bunx trigger.dev@4.5.2 deploy --profile v1su4-selfhosted --api-url https://trigger.v1su4.dev --skip-update-check",
+    "trigger:dev": "npx trigger.dev@4.5.2 dev --profile v1su4-selfhosted --api-url https://trigger.v1su4.dev",
+    "trigger:deploy": "bash ./scripts/deploy-trigger-vm100.sh",
     "lint": "bun run check:prod-target && tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && bunx convex dev --once && vite build"
   },
   "dependencies": {

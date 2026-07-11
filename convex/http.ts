@@ -1,7 +1,13 @@
 import { auth } from "./auth";
 import { httpRouter } from "convex/server";
 import { smartAnalyzeImage } from "./vision";
-import { imageRefreshHttp } from "./orchestration";
+import {
+  externalIngestHttp,
+  imageRefreshHttp,
+  mediaFinalizeHttp,
+  mediaRepairHttp,
+  variationGenerationHttp,
+} from "./orchestration";
 import {
   backfillNextcloudHttp,
   discordModerateHttp,
@@ -16,6 +22,30 @@ http.route({
   path: "/orchestration/image-refresh",
   method: "POST",
   handler: imageRefreshHttp,
+});
+
+http.route({
+  path: "/orchestration/media-finalize",
+  method: "POST",
+  handler: mediaFinalizeHttp,
+});
+
+http.route({
+  path: "/orchestration/external-ingest",
+  method: "POST",
+  handler: externalIngestHttp,
+});
+
+http.route({
+  path: "/orchestration/media-repair",
+  method: "POST",
+  handler: mediaRepairHttp,
+});
+
+http.route({
+  path: "/orchestration/generate-variations",
+  method: "POST",
+  handler: variationGenerationHttp,
 });
 
 http.route({

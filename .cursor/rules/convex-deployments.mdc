@@ -2,79 +2,95 @@
 
 Current deployment guidance for this repo.
 
-## Deployments
+## Production
 
-| Environment | Deployment Name | URL |
-|---|---|---|
-| Production | `tremendous-jaguar-953` | `https://tremendous-jaguar-953.convex.site` |
+Pindeck uses the self-hosted Convex deployment on Hostinger:
 
-Notes:
-- Use `.convex.site` for app/HTTP endpoint traffic.
-- `.convex.cloud` may still appear in dashboard tooling; both can exist.
+| Surface | URL |
+|---|---|
+| Convex API and WebSocket | `https://convex.serving.cloud` |
+| Convex HTTP actions | `https://convex-site.serving.cloud` |
 
-## Production-First Local Workflow
+The former `tremendous-jaguar-953.convex.cloud` / `.convex.site` deployment is
+retired guidance and must not be used for Pindeck production work.
 
-If working against production:
+## Production-first local workflow
 
-```bash
-CONVEX_DEPLOYMENT=prod:tremendous-jaguar-953
-VITE_CONVEX_URL=https://tremendous-jaguar-953.convex.cloud
-VITE_CONVEX_SITE_URL=https://tremendous-jaguar-953.convex.site
+The ignored `.env.local` should contain:
+
+```text
+CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud
+VITE_CONVEX_URL=https://convex.serving.cloud
+VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud
 ```
 
-Run frontend only:
+Load `CONVEX_SELF_HOSTED_ADMIN_KEY` from BWS secret
+`PROXMOX_HOME_HOSTINGER_CONVEX_CURRENT_ADMIN_KEY` or the gitignored
+`proxmox-home/secrets/credentials.private.md`. Do not put its value in tracked
+files, chat, or logs.
+
+Run the frontend only:
 
 ```bash
 bun run dev:frontend
 ```
 
-Avoid:
-- `convex dev` while targeting production, since it can overwrite local env defaults.
+Avoid `convex dev` while targeting production because it can overwrite local
+environment defaults.
 
-## Deploy Backend Changes
+## Deploy backend changes
 
-After editing `convex/*`:
+After editing `convex/*`, load the self-hosted URL/admin key and run:
 
 ```bash
 bun run deploy:convex
 ```
 
-(`package.json` maps this to `convex deploy`)
+`package.json` maps this to `convex deploy`.
 
-## Vercel Build Notes
+## Trigger.dev split
+
+Convex production runtime owns these server-only values:
+
+- `TRIGGER_API_URL=https://trigger.v1su4.dev`
+- `TRIGGER_SECRET_KEY` from BWS `PINDECK_TRIGGER_SECRET_KEY`
+- `PINDECK_ORCHESTRATION_TOKEN` from BWS `PINDECK_ORCHESTRATION_TOKEN`
+- `PINDECK_TRIGGER_ORCHESTRATION_ENABLED`
+
+Trigger.dev production owns:
+
+- `PINDECK_CONVEX_SITE_URL=https://convex-site.serving.cloud`
+- `PINDECK_ORCHESTRATION_TOKEN` with the same value as Convex/BWS
+
+The browser must never receive any Trigger secret, orchestration token, Convex
+admin key, or provider key.
+
+## Vercel build notes
 
 - Frontend build command is `bun run build` (Vite build only).
-- Do not run `convex dev --once` in Vercel build.
-- Convex deploy and Vercel deploy are separate steps.
+- Do not run `convex dev --once` in the Vercel build.
+- Convex, Trigger.dev, and Vercel deployments are separate operations.
 
-## Environment Variables Split
+## Other environment boundaries
 
-Convex env (backend/runtime):
+Convex backend/runtime:
+
 - `INGEST_API_KEY`
 - `DISCORD_STATUS_WEBHOOK_URL`
 - `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY`
 - `FAL_KEY`
 
-Frontend/Vercel env (build/runtime in browser):
-- `VITE_CONVEX_URL`
-- `VITE_CONVEX_SITE_URL` (if used by frontend tooling)
+Frontend/Vercel:
 
-Discord bot env (separate process):
+- `VITE_CONVEX_URL`
+- `VITE_CONVEX_SITE_URL`
+
+Discord worker:
+
 - `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`
 - `PINDECK_USER_ID`
 - `INGEST_API_KEY`
-- `CONVEX_SITE_URL` or explicit `PINDECK_INGEST_URL` / moderation URLs
+- `CONVEX_SITE_URL` or explicit Pindeck ingest/moderation URLs
 
-## Commands Reference
-
-| Command | Purpose |
-|---|---|
-| `bun run dev:frontend` | Frontend local dev |
-| `bun run build` | Frontend production build |
-| `bun run deploy:convex` | Deploy Convex backend |
-| `bun run discord:bot` | Run Discord bot process |
-
-## Caution
-
-- Vercel does not host the Discord bot websocket worker.
-- Discord bot must run as an always-on separate worker service.
+Vercel does not host the Discord websocket worker; it remains an always-on
+separate service.

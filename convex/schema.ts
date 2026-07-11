@@ -57,6 +57,24 @@ const applicationTables = {
       v.union(v.literal("pending"), v.literal("succeeded"), v.literal("failed"))
     ),
     storagePersistError: v.optional(v.string()),
+    orchestrationRunId: v.optional(v.string()),
+    orchestrationDispatchId: v.optional(v.string()),
+    orchestrationIdempotencyKey: v.optional(v.string()),
+    orchestrationClaimedAt: v.optional(v.number()),
+    orchestrationLeaseExpiresAt: v.optional(v.number()),
+    orchestrationTask: v.optional(v.string()),
+    orchestrationStatus: v.optional(
+      v.union(
+        v.literal("queued"),
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("failed")
+      )
+    ),
+    orchestrationError: v.optional(v.string()),
+    orchestrationStep: v.optional(v.string()),
+    orchestrationResult: v.optional(v.string()),
+    orchestrationUpdatedAt: v.optional(v.number()),
     storageMigration: v.optional(
       v.object({
         fromProvider: v.optional(v.string()),

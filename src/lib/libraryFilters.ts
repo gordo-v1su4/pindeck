@@ -6,6 +6,7 @@ export type LibraryFilters = {
   genre: string | null;
   style: string | null;
   originalsOnly: boolean;
+  noOriginals: boolean;
   hasSref: boolean;
   colorHex: string | null;
 };
@@ -16,6 +17,7 @@ export function defaultLibraryFilters(): LibraryFilters {
     genre: null,
     style: null,
     originalsOnly: false,
+    noOriginals: false,
     hasSref: false,
     colorHex: null,
   };
@@ -94,6 +96,7 @@ export function applyLibraryFilters<T extends {
     if (f.genre !== null && (im.genre?.trim() ?? "") !== f.genre) return false;
     if (f.style !== null && (im.style?.trim() ?? "") !== f.style) return false;
     if (f.originalsOnly && im.parentImageId) return false;
+    if (f.noOriginals && !im.parentImageId) return false;
     if (f.hasSref && !im.sref?.trim()) return false;
     if (f.colorHex && !hasNearbyColor(im.colors, f.colorHex)) return false;
     return true;
