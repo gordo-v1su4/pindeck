@@ -3,7 +3,12 @@ import { httpAction, query, mutation, internalMutation, internalQuery, internalA
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { preferredImageUrlForSampling } from "./colorExtractionUrls";
+import {
+  isLikelyDirectImageUrl,
+  normalizeImageSourceUrl,
+  preferredImageUrlForSampling,
+} from "./colorExtractionUrls";
+import { canModifyImage, isAdminUser } from "./lib/authz";
 const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
@@ -207,19 +212,23 @@ function pickBackfillSourceUrl(image: any): string | undefined {
 }
 
 function pickMediaRepairSourceUrl(image: any): string | undefined {
-  const candidates = [
+  return pickMediaRepairSourceUrls(image)[0];
+}
+
+function pickMediaRepairSourceUrls(image: any): string[] {
+  const externalCandidates = [image?.sourceUrl]
+    .map(normalizeImageSourceUrl)
+    .filter((candidate) => isLikelyDirectImageUrl(candidate));
+  const durableCandidates = [
     image?.derivativeUrls?.large,
     image?.derivativeUrls?.medium,
     image?.previewUrl,
     image?.imageUrl,
     image?.derivativeUrls?.small,
-    image?.sourceUrl,
-  ];
-  for (const candidate of candidates) {
-    if (!looksLikeHttpUrl(candidate)) continue;
-    return candidate;
-  }
-  return undefined;
+  ]
+    .map(normalizeImageSourceUrl)
+    .filter(looksLikeHttpUrl);
+  return [...new Set([...externalCandidates, ...durableCandidates])];
 }
 
 function hasCollapsedNextcloudVariants(image: any): boolean {
@@ -542,7 +551,7 @@ export const enqueueMetadataRefresh = mutation({
           metadataMissing,
           paletteMissing,
           runMetadata: args.forceAll === true || metadataMissing,
-          forcePalette: paletteMissing,
+          forcePalette: args.forceAll === true || paletteMissing,
         };
       })
       .filter((plan) => !onlyMissing || plan.metadataMissing || plan.paletteMissing);
@@ -613,6 +622,53 @@ export const enqueueMediaRepair = mutation({
     });
 
     return { scheduled: true };
+  },
+});
+
+/** Queue media repair for a set of images owned by the current user. */
+export const enqueueMediaRepairMany = mutation({
+  args: {
+    imageIds: v.array(v.id("images")),
+    staggerMs: v.optional(v.number()),
+  },
+  returns: v.object({
+    scheduled: v.number(),
+    skipped: v.number(),
+    scheduledImageIds: v.array(v.id("images")),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const stagger = Math.max(0, args.staggerMs ?? 1_000);
+    const images = (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
+      .filter((image): image is NonNullable<typeof image> => Boolean(image))
+      .filter((image) => image.uploadedBy === userId);
+    let scheduled = 0;
+    let skipped = 0;
+    const scheduledImageIds: Array<Doc<"images">["_id"]> = [];
+
+    for (const image of images) {
+      if (pickMediaRepairSourceUrls(image).length === 0) {
+        skipped += 1;
+        continue;
+      }
+      await ctx.db.patch(image._id, {
+        storagePersistStatus: "pending",
+        storagePersistError: undefined,
+        nextcloudPersistStatus: "pending",
+        nextcloudPersistError: undefined,
+      });
+      await ctx.scheduler.runAfter(
+        scheduled * stagger,
+        internalApi.images.internalRepairImageMedia,
+        { imageId: image._id, userId },
+      );
+      scheduled += 1;
+      scheduledImageIds.push(image._id);
+    }
+
+    return { scheduled, skipped, scheduledImageIds };
   },
 });
 
@@ -697,8 +753,8 @@ export const internalRepairImageMedia = internalAction({
     });
     if (!image) return { ok: false };
 
-    const sourceUrl = pickMediaRepairSourceUrl(image);
-    if (!sourceUrl) {
+    const sourceUrls = pickMediaRepairSourceUrls(image);
+    if (sourceUrls.length === 0) {
       await ctx.runMutation(internalApi.images.internalRecordNextcloudBackfillFailure, {
         imageId: args.imageId,
         error: "No recoverable image URL found for media regeneration",
@@ -707,10 +763,24 @@ export const internalRepairImageMedia = internalAction({
     }
 
     try {
-      const persisted: any = await ctx.runAction(internalApi.mediaStorage.persistExternalImageFromUrl, {
-        sourceUrl,
-        title: image.title,
-      });
+      let persisted: any;
+      let lastError: unknown;
+      for (const sourceUrl of sourceUrls) {
+        try {
+          persisted = await ctx.runAction(
+            internalApi.mediaStorage.persistExternalImageFromUrl,
+            { sourceUrl, title: image.title },
+          );
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (!persisted) {
+        throw lastError instanceof Error
+          ? lastError
+          : new Error("All media repair source URLs failed");
+      }
       await ctx.runMutation(internalApi.images.internalApplyNextcloudUpload, {
         imageId: args.imageId,
         imageUrl: persisted.imageUrl,
@@ -1466,7 +1536,6 @@ export const internalCanModifyImage = internalQuery({
   handler: async (ctx, args) => {
     const image = await ctx.db.get("images", args.imageId);
     if (!image) return false;
-    const { canModifyImage } = await import("./lib/authz");
     return canModifyImage(ctx, image, args.userId);
   },
 });
@@ -2276,7 +2345,6 @@ export const remove = mutation({
       throw new Error("Image not found");
     }
 
-    const { canModifyImage } = await import("./lib/authz");
     if (!(await canModifyImage(ctx, image, userId))) {
       throw new Error("Not authorized to delete this image");
     }
@@ -2296,7 +2364,6 @@ export const removeMany = mutation({
       throw new Error("Not authenticated");
     }
 
-    const { isAdminUser } = await import("./lib/authz");
     const isAdmin = await isAdminUser(ctx, userId);
     let removed = 0;
     let skipped = 0;
@@ -2838,7 +2905,6 @@ export const updateImageMetadata = mutation({
       throw new Error("Image not found");
     }
 
-    const { canModifyImage } = await import("./lib/authz");
     if (!(await canModifyImage(ctx, image, userId))) {
       throw new Error("Not authorized to edit this image");
     }

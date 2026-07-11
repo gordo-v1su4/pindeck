@@ -43,14 +43,20 @@ function looksLikeImageUrl(value: string | undefined): value is string {
   }
 }
 
+function normalizeSourceUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value.trim().replace(/[>\]),.;!?]+$/g, "").trim() || undefined;
+}
+
 export function getImageUrlCandidates(
   image: ImageWithVariants | null | undefined,
   variant: ImageUrlVariant
 ): string[] {
   if (!image) return [];
 
-  const sourceCandidate = looksLikeImageUrl(image.sourceUrl)
-    ? image.sourceUrl
+  const normalizedSourceUrl = normalizeSourceUrl(image.sourceUrl);
+  const sourceCandidate = looksLikeImageUrl(normalizedSourceUrl)
+    ? normalizedSourceUrl
     : undefined;
 
   if (variant === "dense") {

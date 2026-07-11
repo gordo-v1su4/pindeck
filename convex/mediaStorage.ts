@@ -582,15 +582,6 @@ function fileNameFromUrl(url: string): string | undefined {
   }
 }
 
-const PREVIEW_WIDTH = 640;
-const PREVIEW_HEIGHT = 360;
-
-const DERIVATIVE_DIMENSIONS = {
-  small: { width: 320, height: 180 },
-  medium: { width: 1280, height: 720 },
-  large: { width: 1920, height: 1080 },
-} as const;
-
 const uploadedImageReturnValidator = v.object({
   bucket: v.optional(v.string()),
   imageUrl: v.string(),
@@ -613,82 +604,6 @@ const uploadedImageReturnValidator = v.object({
     })
   ),
 });
-
-async function buildPreview(
-  buffer: Buffer,
-  fallbackContentType: string,
-  fallbackExtension: string
-): Promise<{ data: Buffer; contentType: string; extension: string }> {
-  const sharp = await loadSharp();
-  if (!sharp) {
-    return {
-      data: buffer,
-      contentType: fallbackContentType || "application/octet-stream",
-      extension: fallbackExtension || "jpg",
-    };
-  }
-  const previewData = await sharp(buffer)
-    .rotate()
-    .trim({ threshold: 10 })
-    .resize({
-      width: PREVIEW_WIDTH,
-      height: PREVIEW_HEIGHT,
-      fit: "cover",
-      position: "attention",
-      withoutEnlargement: false,
-    })
-    .webp({ quality: 78 })
-    .toBuffer();
-  return {
-    data: previewData,
-    contentType: "image/webp",
-    extension: "webp",
-  };
-}
-
-async function buildDerivative(
-  buffer: Buffer,
-  width: number,
-  height: number
-): Promise<Buffer> {
-  const sharp = await loadSharp();
-  if (!sharp) return buffer;
-  return await sharp(buffer)
-    .rotate()
-    .trim({ threshold: 10 })
-    .resize({
-      width,
-      height,
-      fit: "cover",
-      position: "attention",
-      withoutEnlargement: false,
-    })
-    .webp({ quality: 82 })
-    .toBuffer();
-}
-
-let sharpLoader: Promise<((input: Buffer) => any) | null> | null = null;
-let sharpWarnedUnavailable = false;
-
-async function loadSharp(): Promise<((input: Buffer) => any) | null> {
-  if (!sharpLoader) {
-    sharpLoader = (async () => {
-      try {
-        const mod: any = await import("sharp");
-        return (mod?.default || mod) as (input: Buffer) => any;
-      } catch {
-        if (!sharpWarnedUnavailable) {
-          sharpWarnedUnavailable = true;
-          console.warn(
-            "Sharp unavailable in runtime; using original buffer for preview/derivatives."
-          );
-        }
-        return null;
-      }
-    })();
-  }
-  return await sharpLoader;
-}
 
 async function persistImageBuffer(args: {
   fileBuffer: Buffer;
