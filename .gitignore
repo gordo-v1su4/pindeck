@@ -70,6 +70,8 @@ preview_app.py
 
 # Skills
 .agent*
+!.agents/
+!.agents/**
 .kilo/
 .kilocode/
 .trigger/
