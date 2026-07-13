@@ -70,5 +70,7 @@ preview_app.py
 
 # Skills
 .agent*
+.kilo/
+.kilocode/
 .trigger/
 .vercel
