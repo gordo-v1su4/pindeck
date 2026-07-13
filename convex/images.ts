@@ -9,6 +9,7 @@ import {
   preferredImageUrlForSampling,
 } from "./colorExtractionUrls";
 import { canModifyImage, isAdminUser } from "./lib/authz";
+import { canGenerateVariationFromImage } from "./lib/variationAccess";
 const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
@@ -1836,8 +1837,12 @@ export const internalModerateDiscordImage = internalMutation({
     } else {
       await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
         originalImageId: args.imageId,
+        requestedBy: args.userId,
         storageId: image.storageId,
         imageUrl: image.imageUrl,
+        previewUrl: image.previewUrl,
+        sourceUrl: image.sourceUrl,
+        derivativeUrls: image.derivativeUrls,
         description: image.description || "",
         category: image.category,
         style: image.style,
@@ -2947,15 +2952,24 @@ export const internalGetMetadataRefreshPayload = internalQuery({
   args: {
     imageId: v.id("images"),
     userId: v.id("users"),
+    allowActiveShared: v.optional(v.boolean()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
     const image = await ctx.db.get(args.imageId);
-    if (!image || image.uploadedBy !== args.userId) return null;
+    if (
+      !image ||
+      (image.uploadedBy !== args.userId &&
+        !(args.allowActiveShared && canGenerateVariationFromImage(image, args.userId)))
+    ) {
+      return null;
+    }
     return {
       _id: image._id,
       storageId: image.storageId,
       imageUrl: image.imageUrl,
+      previewUrl: image.previewUrl,
+      derivativeUrls: image.derivativeUrls,
       title: image.title,
       description: image.description,
       tags: image.tags,
@@ -3318,6 +3332,7 @@ export const setProjectRowOrder = mutation({
 export const internalSaveGeneratedImages = internalMutation({
   args: {
     originalImageId: v.id("images"),
+    requestedBy: v.id("users"),
     images: v.array(v.object({
       url: v.string(),
       sourceUrl: v.optional(v.string()),
@@ -3379,7 +3394,7 @@ export const internalSaveGeneratedImages = internalMutation({
         category: originalImage.category,
         tags: [...originalImage.tags, "generated", "variation"],
         colors: originalImage.colors?.length ? originalImage.colors : [],
-        uploadedBy: originalImage.uploadedBy,
+        uploadedBy: args.requestedBy,
         likes: 0,
         views: 0,
         source: "AI Generation",
@@ -3403,7 +3418,7 @@ export const internalSaveGeneratedImages = internalMutation({
       if (triggerOrchestrationEnabled()) {
         await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchImageMetadataRefresh, {
           imageId: childImageId,
-          userId: originalImage.uploadedBy,
+          userId: args.requestedBy,
           forcePalette: true,
           runMetadata: true,
         });
@@ -3413,7 +3428,7 @@ export const internalSaveGeneratedImages = internalMutation({
           internalApi.images.internalRefreshMetadataAfterPalette,
           {
             imageId: childImageId,
-            userId: originalImage.uploadedBy,
+            userId: args.requestedBy,
             paletteUrl:
               preferredImageUrlForSampling({
                 imageUrl: img.url,
@@ -3434,7 +3449,7 @@ export const internalSaveGeneratedImages = internalMutation({
             title: originalImage.title,
             sref: originalImage.sref || root?.sref,
             sourceUrl: originalImage.sourceUrl || root?.sourceUrl,
-            userId: originalImage.uploadedBy,
+            userId: args.requestedBy,
             imageUrl: img.url,
           });
         } catch (error) {

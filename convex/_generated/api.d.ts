@@ -21,6 +21,8 @@ import type * as generations from "../generations.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
 import type * as lib_authz from "../lib/authz.js";
+import type * as lib_generationSource from "../lib/generationSource.js";
+import type * as lib_variationAccess from "../lib/variationAccess.js";
 import type * as maintenance from "../maintenance.js";
 import type * as mediaStorage from "../mediaStorage.js";
 import type * as orchestration from "../orchestration.js";
@@ -49,6 +51,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   images: typeof images;
   "lib/authz": typeof lib_authz;
+  "lib/generationSource": typeof lib_generationSource;
+  "lib/variationAccess": typeof lib_variationAccess;
   maintenance: typeof maintenance;
   mediaStorage: typeof mediaStorage;
   orchestration: typeof orchestration;

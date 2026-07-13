@@ -5,10 +5,22 @@ EXPECTED_CLOUD_URL="https://convex.serving.cloud"
 EXPECTED_SITE_URL="https://convex-site.serving.cloud"
 EXPECTED_SELF_HOSTED_URL="https://convex.serving.cloud"
 
+load_env_value() {
+  local key="$1"
+  local env_file="$2"
+  local line
+  line="$(tr -d '\r' < "$env_file" | grep -m1 "^${key}=" || true)"
+  [[ -n "$line" ]] || return 0
+  printf -v "$key" '%s' "${line#*=}"
+  export "$key"
+}
+
 env_file=".env"
 if [[ -f "$env_file" ]]; then
-  # shellcheck disable=SC1090
-  source "$env_file"
+  # Read only deployment keys without evaluating secret values as shell.
+  for key in VITE_CONVEX_URL VITE_CONVEX_SITE_URL CONVEX_SELF_HOSTED_URL CONVEX_SELF_HOSTED_ADMIN_KEY PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY CONVEX_DEPLOYMENT; do
+    [[ -n "${!key:-}" ]] || load_env_value "$key" "$env_file"
+  done
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

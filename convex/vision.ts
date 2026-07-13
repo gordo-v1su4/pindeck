@@ -4,6 +4,8 @@ import { v } from "convex/values";
 import { fal } from "@fal-ai/client";
 import OpenAI from "openai";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { canGenerateVariationFromImage } from "./lib/variationAccess";
+import { generationSourceCandidates } from "./lib/generationSource";
 const internalApi = internal as any;
 
 // Shot types: camera position/angle and framing variety (mix of close/medium/wide and angles)
@@ -550,7 +552,7 @@ export const getVariationPromptsForImage = query({
 
     const image = await ctx.db.get(args.imageId);
     if (!image) throw new Error("Image not found");
-    if (image.uploadedBy !== userId) throw new Error("Not authorized");
+    if (!canGenerateVariationFromImage(image, userId)) throw new Error("Not authorized");
 
     return buildVariationPromptPlan({
       modificationMode: args.modificationMode,
@@ -567,8 +569,18 @@ export const getVariationPromptsForImage = query({
 export const internalGenerateRelatedImages = internalAction({
   args: {
     originalImageId: v.id("images"),
+    requestedBy: v.id("users"),
     storageId: v.optional(v.id("_storage")),
     imageUrl: v.optional(v.string()),
+    previewUrl: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    derivativeUrls: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      }),
+    ),
     description: v.string(),
     category: v.string(),
     style: v.optional(v.string()),
@@ -602,11 +614,17 @@ export const internalGenerateRelatedImages = internalAction({
 
     fal.config({ credentials: falKey });
 
-    const imageUrl =
-      args.imageUrl ||
-      (args.storageId ? await ctx.storage.getUrl(args.storageId) : null);
+    const storageUrl = args.storageId ? await ctx.storage.getUrl(args.storageId) : null;
+    const imageUrl = await firstReachableImageUrl(
+      generationSourceCandidates({
+        imageUrl: args.imageUrl || storageUrl || undefined,
+        previewUrl: args.previewUrl,
+        sourceUrl: args.sourceUrl,
+        derivativeUrls: args.derivativeUrls,
+      }),
+    );
     if (!imageUrl) {
-      console.error("Failed to get image URL from storage");
+      console.error("No reachable source image was available for generation");
       await ctx.runMutation(internal.images.internalSetAiStatus, { 
         imageId: args.originalImageId, 
         status: "failed" 
@@ -615,7 +633,7 @@ export const internalGenerateRelatedImages = internalAction({
         ok: false,
         requested: args.variationCount ?? 0,
         generated: 0,
-        error: "Failed to get image URL from storage",
+        error: "Source image media is unavailable; repair the image before generating variations",
       };
     }
 
@@ -755,6 +773,7 @@ export const internalGenerateRelatedImages = internalAction({
 
     await ctx.runMutation(internal.images.internalSaveGeneratedImages, {
       originalImageId: args.originalImageId,
+      requestedBy: args.requestedBy,
       images: generatedImages,
     });
     
@@ -777,7 +796,7 @@ export const generateVariations = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const image = await ctx.db.get(args.imageId);
-    if (!image || image.uploadedBy !== userId) {
+    if (!image || !canGenerateVariationFromImage(image, userId)) {
       throw new Error("Not authorized or image not found");
     }
 
@@ -805,8 +824,12 @@ export const generateVariations = mutation({
     } else {
       await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
         originalImageId: args.imageId,
+        requestedBy: userId,
         storageId: image.storageId,
         imageUrl: image.imageUrl,
+        previewUrl: image.previewUrl,
+        sourceUrl: image.sourceUrl,
+        derivativeUrls: image.derivativeUrls,
         description: image.description || "",
         category: image.category,
         style: image.style,
@@ -824,6 +847,22 @@ export const generateVariations = mutation({
     return { success: true };
   },
 });
+
+async function firstReachableImageUrl(candidates: string[]) {
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(10_000),
+      });
+      const contentType = response.headers.get("content-type") || "";
+      if (response.ok && contentType.toLowerCase().startsWith("image/")) return candidate;
+    } catch {
+      // Try the next stored or direct source candidate.
+    }
+  }
+  return null;
+}
 
 export const previewUploadMetadata = action({
   args: {
@@ -1052,6 +1091,7 @@ export const internalSmartAnalyzeImage = internalAction({
       if (requestedCount > 0) {
         await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
           originalImageId: args.imageId,
+          requestedBy: args.userId,
           storageId: args.storageId,
           imageUrl: args.imageUrl,
           description,

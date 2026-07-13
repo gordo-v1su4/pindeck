@@ -238,18 +238,19 @@ export const variationGenerationHttp = httpAction(async (ctx, request) => {
       task,
     );
     if (claim.cachedResult) return json(claim.cachedResult);
-    const image = await getImagePayload(ctx, body.imageId, body.userId);
-    if (!image?.imageUrl && !image?.storageId) {
-      throw new OrchestrationHttpError(
-        "Image not found, not owned by user, or missing a durable URL",
-        404,
-      );
+    const image = await getImagePayload(ctx, body.imageId, body.userId, true);
+    if (!image) {
+      throw new OrchestrationHttpError("Image not found or unavailable to this user", 404);
     }
 
     const result = await ctx.runAction((internal as any).vision.internalGenerateRelatedImages, {
       originalImageId: body.imageId,
+      requestedBy: body.userId,
       storageId: image.storageId,
       imageUrl: image.imageUrl,
+      previewUrl: image.previewUrl,
+      sourceUrl: image.sourceUrl,
+      derivativeUrls: image.derivativeUrls,
       description: image.description || "",
       category: image.category,
       style: image.style,
@@ -334,7 +335,12 @@ async function beginCallback(
   dispatchId: string,
   task: string,
 ) {
-  const image = await getImagePayload(ctx, imageId, userId);
+  const image = await getImagePayload(
+    ctx,
+    imageId,
+    userId,
+    task === "pindeck-generate-variations",
+  );
   if (!image) {
     throw new OrchestrationHttpError("Image not found or not owned by user", 404);
   }
@@ -485,10 +491,16 @@ async function runAnalysisOnce(
   return { ok: true, ...analysis };
 }
 
-async function getImagePayload(ctx: any, imageId: string, userId: string) {
+async function getImagePayload(
+  ctx: any,
+  imageId: string,
+  userId: string,
+  allowActiveShared = false,
+) {
   return await ctx.runQuery((internal as any).images.internalGetMetadataRefreshPayload, {
     imageId,
     userId,
+    allowActiveShared,
   });
 }
 
