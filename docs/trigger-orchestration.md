@@ -154,7 +154,7 @@ line; treating the entire stdout stream as the value creates a false mismatch.
 
 ## Deployment and verification
 
-Current frozen handoff (2026-07-11):
+Current production state (2026-07-13):
 
 - Convex callbacks/schema are deployed; all five unauthenticated callback
   probes return `401` rather than the pre-deploy `404`.
@@ -163,11 +163,15 @@ Current frozen handoff (2026-07-11):
 - Metadata refresh, upload finalization, `removeMany`, external ingest, and
   media repair passed production end-to-end smokes. The successful media-repair
   run used the configured `medium-1x` allocation (1 vCPU / 2 GB RAM).
-- Temporary smoke rows were removed. The orchestration feature flag is `true`.
-- Paid FAL variation generation remains intentionally unexecuted until an
-  explicit one-image paid smoke is approved.
-- Leave this deployment frozen at `20260711.2` for the next maintenance window;
-  do not install or build additional Pindeck runtime components meanwhile.
+- `main` includes the complete orchestration integration at commit `e489bdf`;
+  the matching Vercel production deployment completed successfully.
+- The orchestration feature flag is `true`, and the live Convex Trigger API key
+  and callback token match their BWS pointers.
+- A one-image Discord production smoke completed through
+  `pindeck-generate-variations` (`run_cmrjr6jvl000a3jt6034qxaef`): FAL returned
+  one requested/one generated variation. The generated child persisted to
+  RustFS with all three derivatives, then `pindeck-image-refresh`
+  (`run_cmrjr789p000c3jt69ubu6fcg`) completed metadata and palette refresh.
 
 1. Confirm the self-hosted platform image is `v4.5.2` and the Pindeck CLI/SDK
    packages are `4.5.2`.
