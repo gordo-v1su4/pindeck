@@ -6,10 +6,10 @@ Pindeck uses the V1SU4 self-hosted Trigger.dev control plane at
 - Trigger project: `Pindeck`
 - Project ref: `proj_znbdggczxwkeviflncnx`
 - Dashboard: `https://trigger.v1su4.dev/orgs/v1su4-91d9/projects/pindeck-gT25`
-- Platform, CLI, SDK, and build packages: `4.5.2`
+- Platform, CLI, SDK, and build packages: `4.5.3`
 - Task runtime: Bun (experimental), deployed Bun `1.3.3`
 
-The self-hosted platform is pinned to `v4.5.2`, so Pindeck must not upgrade its
+The self-hosted platform is pinned to `v4.5.3`, so Pindeck must not upgrade its
 Trigger CLI or `@trigger.dev/*` packages independently. Upgrade the platform
 images, CLI, SDK, and build package together.
 
@@ -136,7 +136,7 @@ bun run trigger:deploy -- --dry-run
 ```
 
 Production deploys run from the Pindeck checkout on VM100 Linux. The script
-logs into VM100's loopback-only registry and uses Trigger CLI 4.5.2's
+logs into VM100's loopback-only registry and uses Trigger CLI 4.5.3's
 `--local-build` flow, then pushes the emitted version tag into that registry,
 so the task image is built by the same Linux Docker host that runs the Trigger
 supervisor. Do not deploy from Docker Desktop: a Windows local
@@ -148,7 +148,7 @@ Registry credentials remain in the Trigger stack environment and are mirrored
 in BWS as `TRIGGER_VM100_REGISTRY_USERNAME` and
 `TRIGGER_VM100_REGISTRY_PASSWORD` for recovery and cross-checking.
 
-Trigger CLI 4.5.2 prints the Bun experimental-runtime warning to stdout even
+Trigger CLI 4.5.3 prints the Bun experimental-runtime warning to stdout even
 with `env get --raw`. Scripts comparing a value must select the final output
 line; treating the entire stdout stream as the value creates a false mismatch.
 
@@ -173,8 +173,8 @@ Current production state (2026-07-13):
   RustFS with all three derivatives, then `pindeck-image-refresh`
   (`run_cmrjr789p000c3jt69ubu6fcg`) completed metadata and palette refresh.
 
-1. Confirm the self-hosted platform image is `v4.5.2` and the Pindeck CLI/SDK
-   packages are `4.5.2`.
+1. Confirm the self-hosted platform image is `v4.5.3` and the Pindeck CLI/SDK
+   packages are `4.5.3`.
 2. Confirm the two Trigger production environment variable names exist.
 3. Keep the Convex feature flag `false`.
 4. Deploy Convex callbacks and schema.
