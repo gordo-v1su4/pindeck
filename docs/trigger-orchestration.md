@@ -158,12 +158,13 @@ Current production state (2026-07-13):
 
 - Convex callbacks/schema are deployed; all five unauthenticated callback
   probes return `401` rather than the pre-deploy `404`.
-- Trigger deployment `20260711.2` / `7z8h1zec` was built on VM100 Linux and
+- Trigger deployment `20260713.1` / `bc0aizly` was built on VM100 Linux and
   exposes all five task IDs.
 - Metadata refresh, upload finalization, `removeMany`, external ingest, and
   media repair passed production end-to-end smokes. The successful media-repair
   run used the configured `medium-1x` allocation (1 vCPU / 2 GB RAM).
-- `main` includes the complete orchestration integration at commit `e489bdf`;
+- `main` includes the complete orchestration integration and Trigger 4.5.3
+  alignment at commit `eb43c53`;
   the matching Vercel production deployment completed successfully.
 - The orchestration feature flag is `true`, and the live Convex Trigger API key
   and callback token match their BWS pointers.
