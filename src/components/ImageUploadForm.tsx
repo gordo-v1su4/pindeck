@@ -10,6 +10,10 @@ import {
 } from "../lib/utils";
 import { extractColorsFromImage } from "../lib/colorExtraction";
 import {
+  analyzeImageWithClientLfm,
+  isClientVisionPreferred,
+} from "../lib/clientVision/client";
+import {
   Card,
   Text,
   Flex,
@@ -482,12 +486,21 @@ export function ImageUploadForm() {
     void runWithConcurrency(newUploadFiles, ANALYSIS_UPLOAD_CONCURRENCY, async (uploadFile) => {
       try {
         const sampledColors = (await colorPromises.get(uploadFile.id)) ?? [];
-        const imageDataUrl = await fileToAnalysisDataUrl(uploadFile.preview);
-        const metadata = await previewUploadMetadata({
-          imageDataUrl,
-          fileName: uploadFile.file.name,
-          description: uploadFile.description || undefined,
-        });
+        const metadata = isClientVisionPreferred()
+          ? await analyzeImageWithClientLfm(uploadFile.file).catch(async (clientError) => {
+              console.warn("Client LFM analysis failed; using Qwen fallback", clientError);
+              const imageDataUrl = await fileToAnalysisDataUrl(uploadFile.preview);
+              return previewUploadMetadata({
+                imageDataUrl,
+                fileName: uploadFile.file.name,
+                description: uploadFile.description || undefined,
+              });
+            })
+          : await previewUploadMetadata({
+              imageDataUrl: await fileToAnalysisDataUrl(uploadFile.preview),
+              fileName: uploadFile.file.name,
+              description: uploadFile.description || undefined,
+            });
         setFiles(prev => prev.map((file) => {
           if (file.id !== uploadFile.id) return file;
           const resolvedTitle = file.title || metadata.title || uploadFile.file.name;
@@ -735,6 +748,32 @@ export function ImageUploadForm() {
 
   const handleApprove = async (imageId: Id<"images">) => {
     try {
+      const queuedImage = pendingImages?.find((image) => image._id === imageId);
+      if (queuedImage && isClientVisionPreferred()) {
+        try {
+          toast.info("Loading local Liquid LFM image description…");
+          const response = await fetch(queuedImage.imageUrl);
+          if (!response.ok) throw new Error(`Image fetch failed (${response.status})`);
+          const metadata = await analyzeImageWithClientLfm(await response.blob());
+          await updateImageMetadataMutation({
+            imageId,
+            title: metadata.title || queuedImage.title,
+            description: metadata.description || queuedImage.description,
+            tags: metadata.tags?.length ? metadata.tags : queuedImage.tags,
+            category: metadata.category || queuedImage.category,
+            group: metadata.group,
+            genre: metadata.genre,
+            style: metadata.style,
+            shot: metadata.shot,
+            projectName: metadata.projectName,
+            moodboardName: metadata.moodboardName,
+          });
+          await setAiStatusMutation({ imageId, status: "completed" });
+        } catch (clientError) {
+          console.warn("Client LFM approval analysis failed; preserving Qwen fallback", clientError);
+          toast.info("Local caption unavailable. Using the Qwen Trigger fallback.");
+        }
+      }
       await approveImage({ imageId });
       toast.success("Image approved and added to your review queue!");
     } catch (error) {
