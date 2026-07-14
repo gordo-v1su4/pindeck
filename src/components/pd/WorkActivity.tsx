@@ -215,10 +215,14 @@ function WorkActivitySubscription({
     skipColumns: ["payload", "output"],
     throttleInMs: 100,
   });
+  const snapshotKey = JSON.stringify(runs);
 
   useEffect(() => {
     onSnapshot(runs as unknown as ActivityRunInput[], error?.message);
-  }, [error?.message, onSnapshot, runs]);
+    // The Trigger hook may return a new array reference during a parent render.
+    // Depend on the serialized snapshot so an unchanged feed cannot create a
+    // parent/child update loop.
+  }, [error?.message, onSnapshot, snapshotKey]);
 
   return null;
 }

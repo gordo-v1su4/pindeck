@@ -766,11 +766,40 @@ function SidebarFilterControls({
     left: number;
     top: number;
   } | null>(null);
+  const sidebarColorControlRef = React.useRef<HTMLDivElement>(null);
   const sidebarColorLabelRef = React.useRef<HTMLLabelElement>(null);
+  const sidebarColorInputRef = React.useRef<HTMLInputElement>(null);
   const sidebarColorRows = React.useMemo(
     () => buildSidebarColorRows(images),
     [images],
   );
+
+  React.useEffect(() => {
+    if (!sidebarColorPickerOpen) return;
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        sidebarColorControlRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setSidebarColorPickerOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setSidebarColorPickerOpen(false);
+      sidebarColorInputRef.current?.focus();
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [sidebarColorPickerOpen]);
 
   const openSidebarColorPicker = () => {
     const rect = sidebarColorLabelRef.current?.getBoundingClientRect();
@@ -784,6 +813,7 @@ function SidebarFilterControls({
 
   const setColorFilter = (color: string | null) => {
     setLibraryFilter((f) => ({ ...f, colorHex: color }));
+    setSidebarColorPickerOpen(false);
   };
   const colorCheckboxChecked =
     Boolean(libraryFilter.colorHex) || sidebarColorPickerOpen;
@@ -902,7 +932,7 @@ function SidebarFilterControls({
         <span className="pd-filter-checkbox-box" aria-hidden="true" />
         Has sref
       </label>
-      <div style={{ position: "relative" }}>
+      <div ref={sidebarColorControlRef} style={{ position: "relative" }}>
         <label
           ref={sidebarColorLabelRef}
           className="pd-filter-checkbox"
@@ -917,6 +947,7 @@ function SidebarFilterControls({
           }}
         >
           <input
+            ref={sidebarColorInputRef}
             type="checkbox"
             checked={colorCheckboxChecked}
             onChange={(e) => {
@@ -1476,15 +1507,24 @@ function Topbar({
       setTopColumnsOpen(false);
       setTopColorPickerOpen(false);
     };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setTopFiltersOpen(false);
+      setTopColumnsOpen(false);
+      setTopColorPickerOpen(false);
+    };
 
     document.addEventListener("pointerdown", closeOnOutsidePointer);
-    return () =>
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
       document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, [topFiltersOpen, topColumnsOpen]);
 
   const setTopColorFilter = (color: string | null) => {
     setLibraryFilter((f) => ({ ...f, colorHex: color }));
-    if (color) setTopColorPickerOpen(false);
+    setTopColorPickerOpen(false);
   };
   const columnChipStyle = (active: boolean): React.CSSProperties => ({
     display: "inline-flex",
