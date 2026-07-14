@@ -14,3 +14,8 @@ export const pindeckGenerationQueue = queue({
   name: "pindeck-generation",
   concurrencyLimit: 1,
 });
+
+export const pindeckGenerationOrchestrationQueue = queue({
+  name: "pindeck-generation-orchestration",
+  concurrencyLimit: 2,
+});

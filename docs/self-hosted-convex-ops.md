@@ -7,11 +7,11 @@ tokens, webhook URLs, or raw verbose deploy output here.
 
 ## Production Targets
 
-| Role | Production name | URL |
-| --- | --- | --- |
-| Backend | Self-hosted Convex | `https://convex.serving.cloud` |
-| HTTP actions | Self-hosted Convex site | `https://convex-site.serving.cloud` |
-| Dashboard | Self-hosted Convex dashboard | `https://convex-dashboard.serving.cloud` |
+| Role         | Production name              | URL                                      |
+| ------------ | ---------------------------- | ---------------------------------------- |
+| Backend      | Self-hosted Convex           | `https://convex.serving.cloud`           |
+| HTTP actions | Self-hosted Convex site      | `https://convex-site.serving.cloud`      |
+| Dashboard    | Self-hosted Convex dashboard | `https://convex-dashboard.serving.cloud` |
 
 Do not use Convex Cloud deployment names such as `production` or
 `production-pindeck` for this repo. Those names are easy to confuse with
@@ -148,7 +148,7 @@ self-hosted deployments. The production target is selected by
 ## Deployment Notes
 
 Pushing to `main` triggers Vercel. Vercel runs `bun run build`, which runs
-`scripts/build.sh`; in Vercel, that wrapper runs:
+the Bun-native `scripts/build.ts` wrapper; in Vercel, that wrapper runs:
 
 ```bash
 bunx convex deploy --cmd 'bun run build:frontend'

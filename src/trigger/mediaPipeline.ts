@@ -14,14 +14,20 @@ export const pindeckFinalizeUploadTask = task({
   maxDuration: 600,
   retry: mediaRetry(3),
   run: async (payload: PindeckOwnedImagePayload, { ctx }) => {
-    metadata.set("stage", "persisting").set("imageId", payload.imageId);
-    const result = await invokeConvex("media-finalize", payload, ctx.run.id);
+    setMediaStage(
+      "persisting",
+      "Saving upload to durable storage",
+      payload.imageId,
+    );
+    const result = await logger.trace("Finalize upload in Convex", async () =>
+      invokeConvex("media-finalize", payload, ctx.run.id),
+    );
     logger.info("Pindeck upload finalized", {
       triggerRunId: ctx.run.id,
       imageId: payload.imageId,
       imageUrl: result.imageUrl,
     });
-    metadata.set("stage", "completed");
+    setMediaStage("completed", "Upload finalized", payload.imageId);
     return result;
   },
 });
@@ -32,14 +38,21 @@ export const pindeckExternalIngestTask = task({
   maxDuration: 600,
   retry: mediaRetry(3),
   run: async (payload: PindeckOwnedImagePayload, { ctx }) => {
-    metadata.set("stage", "ingesting").set("imageId", payload.imageId);
-    const result = await invokeConvex("external-ingest", payload, ctx.run.id);
+    setMediaStage(
+      "ingesting",
+      "Copying external image to Pindeck",
+      payload.imageId,
+    );
+    const result = await logger.trace(
+      "Ingest external image in Convex",
+      async () => invokeConvex("external-ingest", payload, ctx.run.id),
+    );
     logger.info("Pindeck external ingest persisted", {
       triggerRunId: ctx.run.id,
       imageId: payload.imageId,
       imageUrl: result.imageUrl,
     });
-    metadata.set("stage", "completed");
+    setMediaStage("completed", "External image imported", payload.imageId);
     return result;
   },
 });
@@ -50,14 +63,17 @@ export const pindeckMediaRepairTask = task({
   maxDuration: 600,
   retry: mediaRetry(2),
   run: async (payload: PindeckOwnedImagePayload, { ctx }) => {
-    metadata.set("stage", "repairing").set("imageId", payload.imageId);
-    const result = await invokeConvex("media-repair", payload, ctx.run.id);
+    setMediaStage("repairing", "Repairing durable media", payload.imageId);
+    const result = await logger.trace(
+      "Repair image media in Convex",
+      async () => invokeConvex("media-repair", payload, ctx.run.id),
+    );
     logger.info("Pindeck media repair completed", {
       triggerRunId: ctx.run.id,
       imageId: payload.imageId,
       imageUrl: result.imageUrl,
     });
-    metadata.set("stage", "completed");
+    setMediaStage("completed", "Media repair complete", payload.imageId);
     return result;
   },
 });
@@ -72,7 +88,19 @@ function mediaRetry(maxAttempts: number) {
   };
 }
 
-async function invokeConvex(path: string, payload: PindeckOwnedImagePayload, runId: string) {
+function setMediaStage(stage: string, stageLabel: string, imageId: string) {
+  metadata
+    .set("stage", stage)
+    .set("stageLabel", stageLabel)
+    .set("progressMode", "indeterminate")
+    .set("imageId", imageId);
+}
+
+async function invokeConvex(
+  path: string,
+  payload: PindeckOwnedImagePayload,
+  runId: string,
+) {
   const siteUrl = requireEnv("PINDECK_CONVEX_SITE_URL").replace(/\/+$/, "");
   const token = requireEnv("PINDECK_ORCHESTRATION_TOKEN");
   const response = await fetch(`${siteUrl}/orchestration/${path}`, {
@@ -92,7 +120,11 @@ async function invokeConvex(path: string, payload: PindeckOwnedImagePayload, run
     }
     throw new Error(message);
   }
-  return JSON.parse(text) as { ok: true; imageUrl?: string; alreadyCompleted?: boolean };
+  return JSON.parse(text) as {
+    ok: true;
+    imageUrl?: string;
+    alreadyCompleted?: boolean;
+  };
 }
 
 function requireEnv(name: string) {

@@ -1,4 +1,10 @@
-import { action, httpAction, internalAction, mutation, query } from "./_generated/server";
+import {
+  action,
+  httpAction,
+  internalAction,
+  mutation,
+  query,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { fal } from "@fal-ai/client";
@@ -61,7 +67,7 @@ const MODE_PROMPTS: Record<string, (detail?: string) => string> = {
       : `Later in the same scene. Same story, different moment – same person, different action or position.`,
 
   // Detail/object shots in the same world – things that could mean something
-  "coverage": (detail) =>
+  coverage: (detail) =>
     detail
       ? `${detail}. Same environment, no people.`
       : `Show something else in the same environment. A detail or object that could mean something – no people. Same world as the image.`,
@@ -78,11 +84,7 @@ function applyGroupContext(mode: string, prompt: string, group?: string) {
   if (group === "Commercial") {
     return `Later in the commercial. ${prompt}`;
   }
-  if (
-    group === "Film" ||
-    group === "TV Series" ||
-    group === "Web Series"
-  ) {
+  if (group === "Film" || group === "TV Series" || group === "Web Series") {
     // For shot-variation, the base prompt already starts with "Later in the scene."
     return mode === "action-shot" ? `Later in the scene. ${prompt}` : prompt;
   }
@@ -114,7 +116,7 @@ function applySrefContext(
     sref?: string;
     colors?: string[];
     style?: string;
-  }
+  },
 ) {
   if (!hasSrefReference(sref)) return prompt;
 
@@ -123,8 +125,12 @@ function applySrefContext(
   const styleNote = style?.trim();
   const context = [
     `Preserve the Midjourney style reference --sref ${cleanSref}.`,
-    palette ? `Keep the source color palette (${palette}).` : "Keep the source image's color palette.",
-    styleNote ? `Maintain its ${styleNote} visual style.` : "Maintain its lighting, texture, mood, composition language, and stylization.",
+    palette
+      ? `Keep the source color palette (${palette}).`
+      : "Keep the source image's color palette.",
+    styleNote
+      ? `Maintain its ${styleNote} visual style.`
+      : "Maintain its lighting, texture, mood, composition language, and stylization.",
     "Change only what the variation request asks for; the result should still feel like it belongs to the same SREF family.",
   ];
 
@@ -192,7 +198,10 @@ function extractMessageText(content: unknown): string {
 }
 
 function stripMarkdownFences(value: string): string {
-  return value.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+  return value
+    .replace(/```(?:json)?\s*/gi, "")
+    .replace(/```/g, "")
+    .trim();
 }
 
 function cleanJsonCandidate(value: string): string {
@@ -236,7 +245,7 @@ function parseJsonCandidate(value: string): unknown {
 
 function findVisionAnalysisObject(
   value: unknown,
-  depth = 0
+  depth = 0,
 ): Record<string, unknown> | undefined {
   if (depth > 4 || value == null) return undefined;
 
@@ -262,7 +271,15 @@ function findVisionAnalysisObject(
       return record;
     }
 
-    for (const nestedKey of ["response", "output", "result", "data", "analysis", "message", "content"]) {
+    for (const nestedKey of [
+      "response",
+      "output",
+      "result",
+      "data",
+      "analysis",
+      "message",
+      "content",
+    ]) {
       if (!(nestedKey in record)) continue;
       const found = findVisionAnalysisObject(record[nestedKey], depth + 1);
       if (found) return found;
@@ -284,8 +301,8 @@ function readStringArray(value: unknown): string[] {
       new Set(
         value
           .map((entry) => readString(entry))
-          .filter((entry): entry is string => Boolean(entry))
-      )
+          .filter((entry): entry is string => Boolean(entry)),
+      ),
     );
   }
 
@@ -295,8 +312,8 @@ function readStringArray(value: unknown): string[] {
         value
           .split(/[,\n]/)
           .map((entry) => entry.trim())
-          .filter(Boolean)
-      )
+          .filter(Boolean),
+      ),
     );
   }
 
@@ -304,9 +321,11 @@ function readStringArray(value: unknown): string[] {
 }
 
 function readHexColors(value: unknown): string[] {
-  return readStringArray(value).filter((color) => /^#?[0-9a-f]{6}$/i.test(color)).map((color) =>
-    color.startsWith("#") ? color.toUpperCase() : `#${color.toUpperCase()}`
-  );
+  return readStringArray(value)
+    .filter((color) => /^#?[0-9a-f]{6}$/i.test(color))
+    .map((color) =>
+      color.startsWith("#") ? color.toUpperCase() : `#${color.toUpperCase()}`,
+    );
 }
 
 function extractQuotedField(text: string, key: string): string | undefined {
@@ -329,7 +348,9 @@ function extractQuotedField(text: string, key: string): string | undefined {
 }
 
 function extractBracketField(text: string, key: string): unknown[] | undefined {
-  const match = text.match(new RegExp(`["']?${key}["']?\\s*:\\s*(\\[[\\s\\S]*?\\])`, "i"));
+  const match = text.match(
+    new RegExp(`["']?${key}["']?\\s*:\\s*(\\[[\\s\\S]*?\\])`, "i"),
+  );
   if (!match?.[1]) return undefined;
 
   const parsed = parseJsonCandidate(match[1]);
@@ -351,10 +372,30 @@ type VisionMetadataResult = {
 };
 
 const VISION_CATEGORIES = [
-  "Abstract", "Architecture", "Art", "Blockbuster Film", "Character Design",
-  "Cinematic", "Commercial", "Design", "Environment", "Fashion", "Film",
-  "Gaming", "Headshot", "Indy Film", "Illustration", "Interior", "Landscape",
-  "Photography", "Sci-Fi", "Streetwear", "Technology", "Texture", "UI/UX", "Vintage"
+  "Abstract",
+  "Architecture",
+  "Art",
+  "Blockbuster Film",
+  "Character Design",
+  "Cinematic",
+  "Commercial",
+  "Design",
+  "Environment",
+  "Fashion",
+  "Film",
+  "Gaming",
+  "Headshot",
+  "Indy Film",
+  "Illustration",
+  "Interior",
+  "Landscape",
+  "Photography",
+  "Sci-Fi",
+  "Streetwear",
+  "Technology",
+  "Texture",
+  "UI/UX",
+  "Vintage",
 ];
 
 function visionPrompt() {
@@ -372,7 +413,10 @@ function visionPrompt() {
 "moodboard_name" (if this is primarily a reference/moodboard plate, else null).`;
 }
 
-function parseVisionMetadata(rawContent: string, fallbackDescription?: string): VisionMetadataResult {
+function parseVisionMetadata(
+  rawContent: string,
+  fallbackDescription?: string,
+): VisionMetadataResult {
   let title: string | undefined;
   let description = fallbackDescription?.trim() || "";
   let tags: string[] = [];
@@ -397,12 +441,21 @@ function parseVisionMetadata(rawContent: string, fallbackDescription?: string): 
     visual_style = readString(parsed.visual_style);
     group = readString(parsed.group) || undefined;
     genre = canonGenre(readString(parsed.genre));
-    shot = canonShot(readString(parsed.shot) ?? readString(parsed.shot_framing));
-    project_name = readString(parsed.project_name) || readString(parsed.projectName) || undefined;
-    moodboard_name = readString(parsed.moodboard_name) || readString(parsed.moodboardName) || undefined;
+    shot = canonShot(
+      readString(parsed.shot) ?? readString(parsed.shot_framing),
+    );
+    project_name =
+      readString(parsed.project_name) ||
+      readString(parsed.projectName) ||
+      undefined;
+    moodboard_name =
+      readString(parsed.moodboard_name) ||
+      readString(parsed.moodboardName) ||
+      undefined;
   } else {
     title = extractQuotedField(cleanContent, "title");
-    description = extractQuotedField(cleanContent, "description") || description;
+    description =
+      extractQuotedField(cleanContent, "description") || description;
     tags = readStringArray(extractBracketField(cleanContent, "tags"));
     colors = readHexColors(extractBracketField(cleanContent, "colors"));
     category = extractQuotedField(cleanContent, "category");
@@ -410,8 +463,14 @@ function parseVisionMetadata(rawContent: string, fallbackDescription?: string): 
     group = extractQuotedField(cleanContent, "group") || undefined;
     genre = canonGenre(extractQuotedField(cleanContent, "genre"));
     shot = canonShot(extractQuotedField(cleanContent, "shot"));
-    project_name = extractQuotedField(cleanContent, "project_name") || extractQuotedField(cleanContent, "projectName") || undefined;
-    moodboard_name = extractQuotedField(cleanContent, "moodboard_name") || extractQuotedField(cleanContent, "moodboardName") || undefined;
+    project_name =
+      extractQuotedField(cleanContent, "project_name") ||
+      extractQuotedField(cleanContent, "projectName") ||
+      undefined;
+    moodboard_name =
+      extractQuotedField(cleanContent, "moodboard_name") ||
+      extractQuotedField(cleanContent, "moodboardName") ||
+      undefined;
   }
 
   return {
@@ -429,11 +488,16 @@ function parseVisionMetadata(rawContent: string, fallbackDescription?: string): 
   };
 }
 
-async function analyzeImageUrlWithOpenRouter(imageUrl: string, fallbackDescription?: string) {
-  const openRouterKey = process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
+async function analyzeImageUrlWithOpenRouter(
+  imageUrl: string,
+  fallbackDescription?: string,
+) {
+  const openRouterKey =
+    process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
   if (!openRouterKey) throw new Error("OPENROUTER_API_KEY not set");
 
-  const vlmModel = process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
+  const vlmModel =
+    process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
   const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey: openRouterKey,
@@ -446,7 +510,10 @@ async function analyzeImageUrlWithOpenRouter(imageUrl: string, fallbackDescripti
   const providerOptions: any = {};
   if (process.env.OPENROUTER_PROVIDER_SORT) {
     providerOptions.provider = {
-      sort: process.env.OPENROUTER_PROVIDER_SORT as "price" | "throughput" | "latency",
+      sort: process.env.OPENROUTER_PROVIDER_SORT as
+        | "price"
+        | "throughput"
+        | "latency",
     };
   }
 
@@ -464,7 +531,9 @@ async function analyzeImageUrlWithOpenRouter(imageUrl: string, fallbackDescripti
     ...providerOptions,
   });
 
-  const rawContent = extractMessageText(completion.choices[0]?.message?.content);
+  const rawContent = extractMessageText(
+    completion.choices[0]?.message?.content,
+  );
   if (!rawContent) throw new Error("No content in response");
   console.log(`VLM Analysis (${vlmModel}):`, rawContent);
   return parseVisionMetadata(rawContent, fallbackDescription);
@@ -499,14 +568,20 @@ function buildVariationPromptPlan({
     for (let i = 0; i < count; i++) {
       const shot = SHOT_TYPES[i % SHOT_TYPES.length];
       const prompt = promptBuilder(shot);
-      prompts.push(applySrefContext(applyGroupContext(mode, prompt, group), { sref, colors, style }));
+      prompts.push(
+        applySrefContext(applyGroupContext(mode, prompt, group), {
+          sref,
+          colors,
+          style,
+        }),
+      );
     }
     return prompts;
   }
 
   const prompt = applySrefContext(
     applyGroupContext(mode, promptBuilder(userDetail || undefined), group),
-    { sref, colors, style }
+    { sref, colors, style },
   );
   for (let i = 0; i < count; i++) prompts.push(prompt);
   return prompts;
@@ -552,7 +627,8 @@ export const getVariationPromptsForImage = query({
 
     const image = await ctx.db.get(args.imageId);
     if (!image) throw new Error("Image not found");
-    if (!canGenerateVariationFromImage(image, userId)) throw new Error("Not authorized");
+    if (!canGenerateVariationFromImage(image, userId))
+      throw new Error("Not authorized");
 
     return buildVariationPromptPlan({
       modificationMode: args.modificationMode,
@@ -563,6 +639,86 @@ export const getVariationPromptsForImage = query({
       colors: image.colors,
       style: image.style,
     });
+  },
+});
+
+const variationAspectRatioMap: Record<
+  string,
+  "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"
+> = {
+  "16:9": "16:9",
+  "9:16": "9:16",
+  "1:1": "1:1",
+  "4:3": "4:3",
+  "3:4": "3:4",
+};
+
+export const internalPrepareVariationGeneration = internalAction({
+  args: {
+    originalImageId: v.id("images"),
+    storageId: v.optional(v.id("_storage")),
+    imageUrl: v.optional(v.string()),
+    previewUrl: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    derivativeUrls: v.optional(
+      v.object({
+        small: v.string(),
+        medium: v.string(),
+        large: v.string(),
+      }),
+    ),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    aspectRatio: v.optional(v.string()),
+    group: v.optional(v.string()),
+    sref: v.optional(v.string()),
+    colors: v.optional(v.array(v.string())),
+    style: v.optional(v.string()),
+    variationCount: v.number(),
+    modificationMode: v.string(),
+    variationDetail: v.optional(v.string()),
+  },
+  returns: v.object({
+    imageUrl: v.string(),
+    prompts: v.array(v.string()),
+    aspectRatio: v.string(),
+    title: v.string(),
+    description: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const storageUrl = args.storageId
+      ? await ctx.storage.getUrl(args.storageId)
+      : null;
+    const imageUrl = await firstReachableImageUrl(
+      generationSourceCandidates({
+        imageUrl: args.imageUrl || storageUrl || undefined,
+        previewUrl: args.previewUrl,
+        sourceUrl: args.sourceUrl,
+        derivativeUrls: args.derivativeUrls,
+      }),
+    );
+    if (!imageUrl) {
+      throw new Error(
+        "Source image media is unavailable; repair the image before generating variations",
+      );
+    }
+    const count = Math.min(Math.max(args.variationCount, 0), 12);
+    return {
+      imageUrl,
+      prompts: buildVariationPromptPlan({
+        modificationMode: args.modificationMode,
+        variationCount: count,
+        variationDetail: args.variationDetail,
+        group: args.group,
+        sref: args.sref,
+        colors: args.colors,
+        style: args.style,
+      }),
+      aspectRatio:
+        variationAspectRatioMap[args.aspectRatio || "16:9"] || "16:9",
+      title: args.title || "Untitled",
+      description: args.description || "",
+    };
   },
 });
 
@@ -592,7 +748,9 @@ export const internalGenerateRelatedImages = internalAction({
     // User-configurable options
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
-    variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
+    variationType: v.optional(
+      v.union(v.literal("shot_type"), v.literal("style")),
+    ),
     variationDetail: v.optional(v.string()),
   },
   returns: v.object({
@@ -605,16 +763,23 @@ export const internalGenerateRelatedImages = internalAction({
     const falKey = process.env.FAL_KEY;
     if (!falKey) {
       console.error("FAL_KEY not set, skipping image generation");
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.originalImageId, 
-        status: "failed" 
+      await ctx.runMutation(internal.images.internalSetAiStatus, {
+        imageId: args.originalImageId,
+        status: "failed",
       });
-      return { ok: false, requested: args.variationCount ?? 0, generated: 0, error: "FAL_KEY not set" };
+      return {
+        ok: false,
+        requested: args.variationCount ?? 0,
+        generated: 0,
+        error: "FAL_KEY not set",
+      };
     }
 
     fal.config({ credentials: falKey });
 
-    const storageUrl = args.storageId ? await ctx.storage.getUrl(args.storageId) : null;
+    const storageUrl = args.storageId
+      ? await ctx.storage.getUrl(args.storageId)
+      : null;
     const imageUrl = await firstReachableImageUrl(
       generationSourceCandidates({
         imageUrl: args.imageUrl || storageUrl || undefined,
@@ -625,26 +790,27 @@ export const internalGenerateRelatedImages = internalAction({
     );
     if (!imageUrl) {
       console.error("No reachable source image was available for generation");
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.originalImageId, 
-        status: "failed" 
+      await ctx.runMutation(internal.images.internalSetAiStatus, {
+        imageId: args.originalImageId,
+        status: "failed",
       });
       return {
         ok: false,
         requested: args.variationCount ?? 0,
         generated: 0,
-        error: "Source image media is unavailable; repair the image before generating variations",
+        error:
+          "Source image media is unavailable; repair the image before generating variations",
       };
     }
 
     // Use user's count or default to 0 (NO AUTO-GENERATION)
     const count = Math.min(Math.max(args.variationCount ?? 0, 0), 12);
-    
+
     if (count === 0) {
       // No variations requested - just mark complete
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.originalImageId, 
-        status: "completed" 
+      await ctx.runMutation(internal.images.internalSetAiStatus, {
+        imageId: args.originalImageId,
+        status: "completed",
       });
       return { ok: true, requested: 0, generated: 0 };
     }
@@ -660,59 +826,60 @@ export const internalGenerateRelatedImages = internalAction({
       style: args.style,
     });
     console.log(
-      `[Gen Plan] image=${args.originalImageId} mode=${mode} count=${count} prompts=${JSON.stringify(prompts)}`
+      `[Gen Plan] image=${args.originalImageId} mode=${mode} count=${count} prompts=${JSON.stringify(prompts)}`,
     );
 
     // Map aspect ratio
-    const aspectRatioMap: Record<string, "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "auto"> = {
-      "16:9": "16:9", "9:16": "9:16", "1:1": "1:1", "4:3": "4:3", "3:4": "3:4",
-    };
-    const aspectRatio = aspectRatioMap[args.aspectRatio || "16:9"] || "16:9";
+    const aspectRatio =
+      variationAspectRatioMap[args.aspectRatio || "16:9"] || "16:9";
 
-    // Generate images
-    const generatePromises = prompts.map((prompt, i) => {
-      return (async () => {
-        try {
-          console.log(`[Gen ${i + 1}/${count}] Mode: ${mode}, Prompt: "${prompt}"`);
+    // The legacy rollback path is also serialized so disabling Trigger cannot
+    // recreate the provider burst that the render queue is designed to avoid.
+    const results: Array<string | null> = [];
+    for (let i = 0; i < prompts.length; i += 1) {
+      const prompt = prompts[i];
+      try {
+        console.log(
+          `[Gen ${i + 1}/${count}] Mode: ${mode}, Prompt: "${prompt}"`,
+        );
 
-          const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {
-            input: {
-              prompt,
-              image_urls: [imageUrl],
-              num_images: 1,
-              aspect_ratio: aspectRatio,
-              resolution: "2K",
-              output_format: "png",
-            },
-            logs: true,
-            onQueueUpdate: (update) => {
-              if (update.status === "IN_PROGRESS") {
-                update.logs?.map((log) => log.message).forEach(console.log);
-              }
-            },
-          });
+        const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {
+          input: {
+            prompt,
+            image_urls: [imageUrl],
+            num_images: 1,
+            aspect_ratio: aspectRatio,
+            resolution: "2K",
+            output_format: "png",
+          },
+          logs: true,
+          onQueueUpdate: (update) => {
+            if (update.status === "IN_PROGRESS") {
+              update.logs?.map((log) => log.message).forEach(console.log);
+            }
+          },
+        });
 
-          if (!result.data?.images?.[0]?.url) {
-            console.error(`[Gen ${i + 1}] No image returned`);
-            return null;
-          }
-
-          return result.data.images[0].url;
-        } catch (err) {
-          console.error(`[Gen ${i + 1}] Error:`, err);
-          return null;
+        const generatedUrl = result.data?.images?.[0]?.url;
+        if (!generatedUrl) {
+          console.error(`[Gen ${i + 1}] No image returned`);
+          results.push(null);
+          continue;
         }
-      })();
-    });
+        results.push(generatedUrl);
+      } catch (err) {
+        console.error(`[Gen ${i + 1}] Error:`, err);
+        results.push(null);
+      }
+    }
 
-    const results = await Promise.all(generatePromises);
     const validUrls = results.filter((r): r is string => r !== null);
 
     if (validUrls.length === 0) {
       console.error("No valid images generated");
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.originalImageId, 
-        status: "failed" 
+      await ctx.runMutation(internal.images.internalSetAiStatus, {
+        imageId: args.originalImageId,
+        status: "failed",
       });
       return {
         ok: false,
@@ -727,15 +894,23 @@ export const internalGenerateRelatedImages = internalAction({
 
     for (let i = 0; i < validUrls.length; i++) {
       try {
-        const persisted = await ctx.runAction(internalApi.mediaStorage.persistGeneratedImageFromUrl, {
-          sourceUrl: validUrls[i],
-          title: parentTitle,
-        });
+        const persisted = await ctx.runAction(
+          internalApi.mediaStorage.persistGeneratedImageFromUrl,
+          {
+            sourceUrl: validUrls[i],
+            title: parentTitle,
+          },
+        );
 
         if (!persisted.ok) {
-          const isNextcloudUnconfigured = /Missing Nextcloud env|Nextcloud not configured/i.test(persisted.error);
+          const isNextcloudUnconfigured =
+            /Missing Nextcloud env|Nextcloud not configured/i.test(
+              persisted.error,
+            );
           if (!isNextcloudUnconfigured) {
-            console.warn(`Failed to persist generated image ${i + 1}: ${persisted.error}`);
+            console.warn(
+              `Failed to persist generated image ${i + 1}: ${persisted.error}`,
+            );
           }
           continue;
         }
@@ -745,7 +920,9 @@ export const internalGenerateRelatedImages = internalAction({
           sourceUrl: validUrls[i],
           previewUrl: persisted.previewUrl,
           storagePath: persisted.storagePath,
-          storageProvider: persisted.bucket ? ("rustfs" as const) : ("nextcloud" as const),
+          storageProvider: persisted.bucket
+            ? ("rustfs" as const)
+            : ("nextcloud" as const),
           storageBucket: persisted.bucket,
           previewStoragePath: persisted.previewStoragePath,
           derivativeUrls: persisted.derivativeUrls,
@@ -776,7 +953,7 @@ export const internalGenerateRelatedImages = internalAction({
       requestedBy: args.requestedBy,
       images: generatedImages,
     });
-    
+
     return { ok: true, requested: count, generated: generatedImages.length };
   },
 });
@@ -813,35 +990,43 @@ export const generateVariations = mutation({
     });
 
     if (process.env.PINDECK_TRIGGER_ORCHESTRATION_ENABLED === "true") {
-      await ctx.scheduler.runAfter(0, (internal as any).triggerDispatch.dispatchVariationGeneration, {
-        imageId: args.imageId,
-        userId,
-        variationCount: args.variationCount,
-        modificationMode: args.modificationMode,
-        variationDetail: args.variationDetail,
-        aspectRatio: args.aspectRatio,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any).triggerDispatch.dispatchVariationGeneration,
+        {
+          imageId: args.imageId,
+          userId,
+          variationCount: args.variationCount,
+          modificationMode: args.modificationMode,
+          variationDetail: args.variationDetail,
+          aspectRatio: args.aspectRatio,
+        },
+      );
     } else {
-      await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
-        originalImageId: args.imageId,
-        requestedBy: userId,
-        storageId: image.storageId,
-        imageUrl: image.imageUrl,
-        previewUrl: image.previewUrl,
-        sourceUrl: image.sourceUrl,
-        derivativeUrls: image.derivativeUrls,
-        description: image.description || "",
-        category: image.category,
-        style: image.style,
-        title: image.title,
-        aspectRatio: args.aspectRatio,
-        group: image.group,
-        sref: image.sref,
-        colors: image.colors,
-        variationCount: args.variationCount,
-        modificationMode: args.modificationMode,
-        variationDetail: args.variationDetail,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.vision.internalGenerateRelatedImages,
+        {
+          originalImageId: args.imageId,
+          requestedBy: userId,
+          storageId: image.storageId,
+          imageUrl: image.imageUrl,
+          previewUrl: image.previewUrl,
+          sourceUrl: image.sourceUrl,
+          derivativeUrls: image.derivativeUrls,
+          description: image.description || "",
+          category: image.category,
+          style: image.style,
+          title: image.title,
+          aspectRatio: args.aspectRatio,
+          group: image.group,
+          sref: image.sref,
+          colors: image.colors,
+          variationCount: args.variationCount,
+          modificationMode: args.modificationMode,
+          variationDetail: args.variationDetail,
+        },
+      );
     }
 
     return { success: true };
@@ -856,7 +1041,8 @@ async function firstReachableImageUrl(candidates: string[]) {
         signal: AbortSignal.timeout(10_000),
       });
       const contentType = response.headers.get("content-type") || "";
-      if (response.ok && contentType.toLowerCase().startsWith("image/")) return candidate;
+      if (response.ok && contentType.toLowerCase().startsWith("image/"))
+        return candidate;
     } catch {
       // Try the next stored or direct source candidate.
     }
@@ -888,7 +1074,10 @@ export const previewUploadMetadata = action({
     if (!userId) {
       throw new Error("Not authenticated");
     }
-    const result = await analyzeImageUrlWithOpenRouter(args.imageDataUrl, args.description);
+    const result = await analyzeImageUrlWithOpenRouter(
+      args.imageDataUrl,
+      args.description,
+    );
     return {
       ...result,
       title: result.title || args.fileName,
@@ -914,7 +1103,9 @@ export const internalSmartAnalyzeImage = internalAction({
     // Variation settings - but we won't auto-generate anymore
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
-    variationType: v.optional(v.union(v.literal("shot_type"), v.literal("style"))),
+    variationType: v.optional(
+      v.union(v.literal("shot_type"), v.literal("style")),
+    ),
     variationDetail: v.optional(v.string()),
   },
   returns: v.object({
@@ -934,12 +1125,13 @@ export const internalSmartAnalyzeImage = internalAction({
       return { ok: false, error: "Image not found in storage" };
     }
 
-    const openRouterKey = process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
+    const openRouterKey =
+      process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
     if (!openRouterKey) {
       console.error("OPENROUTER_API_KEY not set");
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.imageId, 
-        status: "failed" 
+      await ctx.runMutation(internal.images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "failed",
       });
       return { ok: false, error: "OPENROUTER_API_KEY not set" };
     }
@@ -949,13 +1141,34 @@ export const internalSmartAnalyzeImage = internalAction({
       status: "processing",
     });
 
-    const vlmModel = process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
+    const vlmModel =
+      process.env.OPENROUTER_VLM_MODEL || "qwen/qwen3-vl-8b-instruct";
 
     const categories = [
-      "Abstract", "Architecture", "Art", "Blockbuster Film", "Character Design", 
-      "Cinematic", "Commercial", "Design", "Environment", "Fashion", "Film", 
-      "Gaming", "Headshot", "Indy Film", "Illustration", "Interior", "Landscape", 
-      "Photography", "Sci-Fi", "Streetwear", "Technology", "Texture", "UI/UX", "Vintage"
+      "Abstract",
+      "Architecture",
+      "Art",
+      "Blockbuster Film",
+      "Character Design",
+      "Cinematic",
+      "Commercial",
+      "Design",
+      "Environment",
+      "Fashion",
+      "Film",
+      "Gaming",
+      "Headshot",
+      "Indy Film",
+      "Illustration",
+      "Interior",
+      "Landscape",
+      "Photography",
+      "Sci-Fi",
+      "Streetwear",
+      "Technology",
+      "Texture",
+      "UI/UX",
+      "Vintage",
     ];
 
     try {
@@ -976,7 +1189,8 @@ export const internalSmartAnalyzeImage = internalAction({
         baseURL: "https://openrouter.ai/api/v1",
         apiKey: openRouterKey,
         defaultHeaders: {
-          "HTTP-Referer": process.env.CONVEX_SITE_URL || "http://localhost:3000",
+          "HTTP-Referer":
+            process.env.CONVEX_SITE_URL || "http://localhost:3000",
           "X-Title": "Visuals Image Gallery",
         },
       });
@@ -984,7 +1198,10 @@ export const internalSmartAnalyzeImage = internalAction({
       const providerOptions: any = {};
       if (process.env.OPENROUTER_PROVIDER_SORT) {
         providerOptions.provider = {
-          sort: process.env.OPENROUTER_PROVIDER_SORT as "price" | "throughput" | "latency",
+          sort: process.env.OPENROUTER_PROVIDER_SORT as
+            | "price"
+            | "throughput"
+            | "latency",
         };
       }
 
@@ -1034,8 +1251,7 @@ export const internalSmartAnalyzeImage = internalAction({
           group = readString(parsed.group) || undefined;
           genre = canonGenre(readString(parsed.genre));
           shot = canonShot(
-            readString(parsed.shot) ??
-              readString(parsed.shot_framing),
+            readString(parsed.shot) ?? readString(parsed.shot_framing),
           );
           project_name =
             readString(parsed.project_name) ||
@@ -1066,7 +1282,10 @@ export const internalSmartAnalyzeImage = internalAction({
             undefined;
         }
       } catch (jsonError) {
-        console.warn("JSON parse failed, preserving existing description", jsonError);
+        console.warn(
+          "JSON parse failed, preserving existing description",
+          jsonError,
+        );
       }
 
       await ctx.runMutation(internal.images.internalUpdateAnalysis, {
@@ -1087,39 +1306,42 @@ export const internalSmartAnalyzeImage = internalAction({
 
       // CHANGED: Only generate variations if user explicitly requested them (count > 0)
       const requestedCount = args.variationCount ?? 0;
-      
+
       if (requestedCount > 0) {
-        await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
-          originalImageId: args.imageId,
-          requestedBy: args.userId,
-          storageId: args.storageId,
-          imageUrl: args.imageUrl,
-          description,
-          category: category || args.category,
-          style: visual_style,
-          title,
-          group: group ?? undefined,
-          sref: args.sref,
-          variationCount: requestedCount,
-          modificationMode: args.modificationMode,
-          variationType: args.variationType,
-          variationDetail: args.variationDetail,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.vision.internalGenerateRelatedImages,
+          {
+            originalImageId: args.imageId,
+            requestedBy: args.userId,
+            storageId: args.storageId,
+            imageUrl: args.imageUrl,
+            description,
+            category: category || args.category,
+            style: visual_style,
+            title,
+            group: group ?? undefined,
+            sref: args.sref,
+            variationCount: requestedCount,
+            modificationMode: args.modificationMode,
+            variationType: args.variationType,
+            variationDetail: args.variationDetail,
+          },
+        );
       } else {
         // No variations requested - mark as completed immediately
-        await ctx.runMutation(internal.images.internalSetAiStatus, { 
-          imageId: args.imageId, 
-          status: "completed" 
+        await ctx.runMutation(internal.images.internalSetAiStatus, {
+          imageId: args.imageId,
+          status: "completed",
         });
       }
-      
-      return { ok: true };
 
+      return { ok: true };
     } catch (err: any) {
       console.error("Smart analysis failed:", err?.message || err);
-      await ctx.runMutation(internal.images.internalSetAiStatus, { 
-        imageId: args.imageId, 
-        status: "failed" 
+      await ctx.runMutation(internal.images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "failed",
       });
       return { ok: false, error: err?.message || String(err) };
     }
@@ -1143,20 +1365,40 @@ export const smartAnalyzeImage = httpAction(async (ctx, request) => {
 
   try {
     const {
-      storageId, imageUrl, imageId, userId, title, description, tags, category, source, sref,
-      variationCount, modificationMode, variationType, variationDetail,
+      storageId,
+      imageUrl,
+      imageId,
+      userId,
+      title,
+      description,
+      tags,
+      category,
+      source,
+      sref,
+      variationCount,
+      modificationMode,
+      variationType,
+      variationDetail,
     } = await request.json();
 
     if (!imageId || !userId || (!storageId && !imageUrl)) {
-      return new Response(JSON.stringify({ error: "imageId, userId, and storageId or imageUrl are required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "imageId, userId, and storageId or imageUrl are required",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
-    const image = await ctx.runQuery(internal.images.internalGetImageForAnalysis, {
-      imageId,
-    });
+    const image = await ctx.runQuery(
+      internal.images.internalGetImageForAnalysis,
+      {
+        imageId,
+      },
+    );
     if (!image) {
       return new Response(JSON.stringify({ error: "Image not found" }), {
         status: 404,
@@ -1169,22 +1411,36 @@ export const smartAnalyzeImage = httpAction(async (ctx, request) => {
       userId,
     });
     if (!allowed) {
-      return new Response(JSON.stringify({ error: "Not authorized for this image" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Not authorized for this image" }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
     await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-      storageId, imageUrl, imageId, userId, title, description, tags, category, source, sref,
-      variationCount, modificationMode, variationType, variationDetail,
+      storageId,
+      imageUrl,
+      imageId,
+      userId,
+      title,
+      description,
+      tags,
+      category,
+      source,
+      sref,
+      variationCount,
+      modificationMode,
+      variationType,
+      variationDetail,
     });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-
   } catch (error) {
     console.error("Error in smartAnalyzeImage:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
@@ -1215,7 +1471,7 @@ export const rerunSmartAnalysis = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    
+
     const image = await ctx.db.get(args.imageId);
     if (!image || image.uploadedBy !== userId) {
       throw new Error("Not authorized or image not found");

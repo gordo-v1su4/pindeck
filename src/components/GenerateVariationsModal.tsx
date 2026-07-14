@@ -5,7 +5,12 @@ import { Id } from "../../convex/_generated/dataModel";
 import { Button, TextField, Text, Flex, Box } from "@radix-ui/themes";
 import { MagicWandIcon } from "@radix-ui/react-icons";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const VARIATION_MODES: { id: string; label: string }[] = [
   { id: "shot-variation", label: "Shot Variation" },
@@ -30,7 +35,7 @@ const SHOT_CHIP_PRESETS: { label: string; detail: string }[] = [
 ];
 
 const ASPECT_OPTIONS = ["16:9", "9:16", "1:1", "4:3", "3:4"];
-const COUNT_OPTIONS = [1, 4, 8, 12];
+const COUNT_OPTIONS = [1, 2, 4, 8, 12];
 
 interface GenerateVariationsModalProps {
   imageId: Id<"images">;
@@ -38,13 +43,19 @@ interface GenerateVariationsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function GenerateVariationsModal({ imageId, open, onOpenChange }: GenerateVariationsModalProps) {
+export function GenerateVariationsModal({
+  imageId,
+  open,
+  onOpenChange,
+}: GenerateVariationsModalProps) {
   const generateVariations = useMutation(api.vision.generateVariations);
   const [variationCount, setVariationCount] = useState(1);
   const [modificationMode, setModificationMode] = useState("shot-variation");
   const [variationDetail, setVariationDetail] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
-  const modeTitle = VARIATION_MODES.find((mode) => mode.id === modificationMode)?.label ?? "Variation";
+  const modeTitle =
+    VARIATION_MODES.find((mode) => mode.id === modificationMode)?.label ??
+    "Variation";
   const chipBase: CSSProperties = {
     padding: "5px 8px",
     borderRadius: 4,
@@ -95,8 +106,20 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
         </Box>
 
         <Flex direction="column" gap="4" className="pd-glass-body px-5 py-4">
-          <Box style={{ background: "transparent", border: 0, borderRadius: 0, padding: 0 }}>
-            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Mode</Text>
+          <Box
+            style={{
+              background: "transparent",
+              border: 0,
+              borderRadius: 0,
+              padding: 0,
+            }}
+          >
+            <Text
+              size="1"
+              className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]"
+            >
+              Mode
+            </Text>
             <Box className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {VARIATION_MODES.map((mode) => (
                 <button
@@ -112,14 +135,24 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
           </Box>
 
           <Box>
-            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Shot type</Text>
+            <Text
+              size="1"
+              className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]"
+            >
+              Shot type
+            </Text>
             <Flex gap="2" wrap="wrap">
               {SHOT_CHIP_PRESETS.map((shot) => (
                 <button
                   key={shot.label}
                   type="button"
                   onClick={() => setVariationDetail(shot.detail)}
-                  style={variationDetail.trim().toLowerCase() === shot.detail.toLowerCase() ? chipSelected : chipBase}
+                  style={
+                    variationDetail.trim().toLowerCase() ===
+                    shot.detail.toLowerCase()
+                      ? chipSelected
+                      : chipBase
+                  }
                 >
                   {shot.label}
                 </button>
@@ -128,7 +161,12 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
           </Box>
 
           <Box>
-            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Aspect</Text>
+            <Text
+              size="1"
+              className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]"
+            >
+              Aspect
+            </Text>
             <Flex gap="2" wrap="wrap">
               {ASPECT_OPTIONS.map((aspect) => (
                 <button
@@ -144,7 +182,12 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
           </Box>
 
           <Box>
-            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Count</Text>
+            <Text
+              size="1"
+              className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]"
+            >
+              Count
+            </Text>
             <Flex gap="2" wrap="wrap">
               {COUNT_OPTIONS.map((count) => (
                 <button
@@ -160,7 +203,12 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
           </Box>
 
           <Box>
-            <Text size="1" className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]">Custom detail (optional)</Text>
+            <Text
+              size="1"
+              className="pd-mono mb-2 block uppercase tracking-[0.08em] text-[var(--pd-ink-faint)]"
+            >
+              Custom detail (optional)
+            </Text>
             <TextField.Root
               value={variationDetail}
               onChange={(e) => setVariationDetail(e.target.value)}
@@ -171,10 +219,19 @@ export function GenerateVariationsModal({ imageId, open, onOpenChange }: Generat
         </Flex>
 
         <Flex justify="end" gap="2" className="pd-glass-footer px-5 py-4">
-          <Button variant="soft" color="gray" className="pd-action-secondary" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="soft"
+            color="gray"
+            className="pd-action-secondary"
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button variant="soft" className="pd-action-primary" onClick={() => void handleGenerate()}>
+          <Button
+            variant="soft"
+            className="pd-action-primary"
+            onClick={() => void handleGenerate()}
+          >
             <MagicWandIcon /> Generate {variationCount} {modeTitle}
           </Button>
         </Flex>

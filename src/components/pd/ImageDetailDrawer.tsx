@@ -47,7 +47,7 @@ const ASPECT_OPTIONS: { label: string; value: string }[] = [
   { label: "4:3", value: "4:3" },
 ];
 
-const COUNT_OPTIONS = [1, 4, 8];
+const COUNT_OPTIONS = [1, 2, 4, 8];
 
 type EditDraft = {
   title: string;

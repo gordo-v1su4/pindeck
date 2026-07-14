@@ -28,6 +28,7 @@ import { GalleryView } from "@/components/pd/GalleryView";
 import { TableView } from "@/components/pd/TableView";
 import { BoardsView } from "@/components/pd/BoardsView";
 import { ImageDetailDrawer } from "@/components/pd/ImageDetailDrawer";
+import { WorkActivity } from "@/components/pd/WorkActivity";
 import type { Id } from "../convex/_generated/dataModel";
 import { applyPindeckTweaksToDocument } from "@/lib/pdTheme";
 import {
@@ -153,6 +154,7 @@ export default function App() {
     }
   });
   const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     shouldStartWithCollapsedSidebar,
   );
@@ -250,6 +252,7 @@ export default function App() {
     if (isAuthenticated) return;
     setSelectedImage(null);
     setTweaksOpen(false);
+    setActivityOpen(false);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -282,6 +285,7 @@ export default function App() {
       if (e.key === "Escape") {
         setSelectedImage(null);
         setTweaksOpen(false);
+        setActivityOpen(false);
       }
       if (e.key === "g") setView("gallery");
       if (e.key === "t") setView("table");
@@ -307,6 +311,7 @@ export default function App() {
   const closeTransientUi = () => {
     setSelectedImage(null);
     setTweaksOpen(false);
+    setActivityOpen(false);
   };
 
   const appShellStyle: React.CSSProperties = {
@@ -378,187 +383,198 @@ export default function App() {
 
   return (
     <AppErrorBoundary>
-    <div
-      className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""} ${
-        sidebarCollapsed ? "pd-sidebar-collapsed" : "pd-sidebar-open"
-      }`}
-      style={appShellStyle}
-    >
-      <Sidebar
-        activeView={view}
-        onView={selectView}
-        libraryFilter={libraryFilter}
-        setLibraryFilter={setLibraryFilter}
-        galleryDisplayMode={galleryDisplayMode}
-        setGalleryDisplayMode={setGalleryDisplayMode}
-        collapsed={sidebarCollapsed}
-        onToggleCollapsed={toggleSidebar}
-      />
-      {sidebarCollapsed ? (
-        <button
-          ref={expandButtonRef}
-          type="button"
-          className="pd-sidebar-handle"
-          aria-label="Expand sidebar"
-          aria-expanded="false"
-          aria-controls="pindeck-sidebar"
-          onClick={toggleSidebar}
-        >
-          <span className="pd-sidebar-handle-mark" aria-hidden="true" />
-          <span className="pd-sidebar-handle-label">Menu</span>
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="pd-sidebar-backdrop"
-          aria-label="Collapse sidebar"
-          aria-controls="pindeck-sidebar"
-          onClick={() => setSidebarCollapsed(true)}
-        />
-      )}
-
       <div
-        className="pd-main-shell"
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-          position: "relative",
-        }}
+        className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""} ${
+          sidebarCollapsed ? "pd-sidebar-collapsed" : "pd-sidebar-open"
+        }`}
+        style={appShellStyle}
       >
-        <Topbar
-          search={search}
-          setSearch={setSearch}
-          searchInputRef={searchInputRef}
-          view={view}
-          setView={selectView}
-          docsUrl={`${DOCS_URL}?accent=${encodeURIComponent(tweaks.accent)}&typography=${encodeURIComponent(tweaks.typography)}`}
-          tweaksOn={tweaksOpen}
-          onToggleTweaks={() => setTweaksOpen(!tweaksOpen)}
+        <Sidebar
+          activeView={view}
+          onView={selectView}
           libraryFilter={libraryFilter}
           setLibraryFilter={setLibraryFilter}
-          visibleColumns={tableVisibleColumns}
-          setVisibleColumns={setTableVisibleColumns}
-          accountActions={<SignOutButton onBeforeSignOut={closeTransientUi} />}
+          galleryDisplayMode={galleryDisplayMode}
+          setGalleryDisplayMode={setGalleryDisplayMode}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
         />
-
-        <div
-          className="pd-workspace"
-          style={{
-            flex: 1,
-            display: "flex",
-            minHeight: 0,
-            position: "relative",
-            alignItems: "stretch",
-          }}
-        >
-          <div
-            className="pd-view-stage"
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              minWidth: 0,
-            }}
+        {sidebarCollapsed ? (
+          <button
+            ref={expandButtonRef}
+            type="button"
+            className="pd-sidebar-handle"
+            aria-label="Expand sidebar"
+            aria-expanded="false"
+            aria-controls="pindeck-sidebar"
+            onClick={toggleSidebar}
           >
-            {view === "gallery" && (
-              <GalleryView
-                search={search}
-                tweaks={tweaks}
-                onOpenImage={setSelectedImage}
-                libraryFilter={libraryFilter}
-                displayMode={galleryDisplayMode}
-                images={libraryImages}
-                onNavigateToBoards={() => selectView("boards")}
-              />
-            )}
-            {view === "table" && (
-              <TableView
-                search={search}
-                onOpenImage={setSelectedImage}
-                libraryFilter={libraryFilter}
-                images={libraryImages}
-                visibleColumns={tableVisibleColumns}
-              />
-            )}
-            {view === "boards" && (
-              <BoardsView
-                onOpenDeck={openDeck}
-                onOpenImage={setSelectedImage}
-              />
-            )}
-            {view === "deck" && (
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <Suspense fallback={<Placeholder />}>
-                  <DeckView
-                    selectedDeckId={activeDeckId}
-                    onSelectDeck={setActiveDeckId}
-                    onStartFromGallery={() => setView("gallery")}
-                  />
-                </Suspense>
-              </div>
-            )}
-            {view === "upload" && (
-              <Suspense fallback={<Placeholder />}>
-                <ImageUploadForm />
-              </Suspense>
-            )}
-          </div>
-
-          {selectedImage && (
-            <ImageDetailDrawer
-              image={selectedImage}
-              onClose={() => setSelectedImage(null)}
-              tweaks={tweaks}
-              onOpenImage={setSelectedImage}
-            />
-          )}
-        </div>
-
-        {tweaksOpen && (
-          <TweaksPanel
-            tweaks={tweaks}
-            setTweaks={setTweaks}
-            onClose={() => setTweaksOpen(false)}
+            <span className="pd-sidebar-handle-mark" aria-hidden="true" />
+            <span className="pd-sidebar-handle-label">Menu</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="pd-sidebar-backdrop"
+            aria-label="Collapse sidebar"
+            aria-controls="pindeck-sidebar"
+            onClick={() => setSidebarCollapsed(true)}
           />
         )}
 
         <div
-          className="pd-mono pd-status-bar"
+          className="pd-main-shell"
           style={{
-            position: "fixed",
-            bottom: 0,
-            left: 208,
-            right: 0,
-            height: 22,
-            background: "var(--pd-bg-1)",
-            borderTop: "1px solid var(--pd-line)",
+            flex: 1,
             display: "flex",
-            alignItems: "center",
-            padding: "0 10px",
-            gap: 10,
-            fontSize: 10,
-            color: "var(--pd-ink-faint)",
-            zIndex: 5,
+            flexDirection: "column",
+            minWidth: 0,
+            position: "relative",
           }}
         >
-          <span>
-            <span style={{ color: "var(--pd-green)" }}>●</span> convex · live
-          </span>
-          <span>·</span>
-          <span>{view}</span>
-          <div style={{ flex: 1 }} />
-          <span>accent {tweaks.accent}</span>
-          <span>·</span>
-          <span>{tweaks.density}</span>
-          <span>·</span>
-          <span>{tweaks.cardStyle}</span>
-        </div>
-      </div>
+          <Topbar
+            search={search}
+            setSearch={setSearch}
+            searchInputRef={searchInputRef}
+            view={view}
+            setView={selectView}
+            docsUrl={`${DOCS_URL}?accent=${encodeURIComponent(tweaks.accent)}&typography=${encodeURIComponent(tweaks.typography)}`}
+            tweaksOn={tweaksOpen}
+            onToggleTweaks={() => {
+              setActivityOpen(false);
+              setTweaksOpen((open) => !open);
+            }}
+            activityOn={activityOpen}
+            onToggleActivity={() => {
+              setTweaksOpen(false);
+              setActivityOpen((open) => !open);
+            }}
+            onCloseActivity={() => setActivityOpen(false)}
+            libraryFilter={libraryFilter}
+            setLibraryFilter={setLibraryFilter}
+            visibleColumns={tableVisibleColumns}
+            setVisibleColumns={setTableVisibleColumns}
+            accountActions={
+              <SignOutButton onBeforeSignOut={closeTransientUi} />
+            }
+          />
 
-      <PindeckToaster />
-    </div>
+          <div
+            className="pd-workspace"
+            style={{
+              flex: 1,
+              display: "flex",
+              minHeight: 0,
+              position: "relative",
+              alignItems: "stretch",
+            }}
+          >
+            <div
+              className="pd-view-stage"
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 0,
+              }}
+            >
+              {view === "gallery" && (
+                <GalleryView
+                  search={search}
+                  tweaks={tweaks}
+                  onOpenImage={setSelectedImage}
+                  libraryFilter={libraryFilter}
+                  displayMode={galleryDisplayMode}
+                  images={libraryImages}
+                  onNavigateToBoards={() => selectView("boards")}
+                />
+              )}
+              {view === "table" && (
+                <TableView
+                  search={search}
+                  onOpenImage={setSelectedImage}
+                  libraryFilter={libraryFilter}
+                  images={libraryImages}
+                  visibleColumns={tableVisibleColumns}
+                />
+              )}
+              {view === "boards" && (
+                <BoardsView
+                  onOpenDeck={openDeck}
+                  onOpenImage={setSelectedImage}
+                />
+              )}
+              {view === "deck" && (
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                  <Suspense fallback={<Placeholder />}>
+                    <DeckView
+                      selectedDeckId={activeDeckId}
+                      onSelectDeck={setActiveDeckId}
+                      onStartFromGallery={() => setView("gallery")}
+                    />
+                  </Suspense>
+                </div>
+              )}
+              {view === "upload" && (
+                <Suspense fallback={<Placeholder />}>
+                  <ImageUploadForm />
+                </Suspense>
+              )}
+            </div>
+
+            {selectedImage && (
+              <ImageDetailDrawer
+                image={selectedImage}
+                onClose={() => setSelectedImage(null)}
+                tweaks={tweaks}
+                onOpenImage={setSelectedImage}
+              />
+            )}
+          </div>
+
+          {tweaksOpen && (
+            <TweaksPanel
+              tweaks={tweaks}
+              setTweaks={setTweaks}
+              onClose={() => setTweaksOpen(false)}
+            />
+          )}
+
+          <div
+            className="pd-mono pd-status-bar"
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 208,
+              right: 0,
+              height: 22,
+              background: "var(--pd-bg-1)",
+              borderTop: "1px solid var(--pd-line)",
+              display: "flex",
+              alignItems: "center",
+              padding: "0 10px",
+              gap: 10,
+              fontSize: 10,
+              color: "var(--pd-ink-faint)",
+              zIndex: 5,
+            }}
+          >
+            <span>
+              <span style={{ color: "var(--pd-green)" }}>●</span> convex · live
+            </span>
+            <span>·</span>
+            <span>{view}</span>
+            <div style={{ flex: 1 }} />
+            <span>accent {tweaks.accent}</span>
+            <span>·</span>
+            <span>{tweaks.density}</span>
+            <span>·</span>
+            <span>{tweaks.cardStyle}</span>
+          </div>
+        </div>
+
+        <PindeckToaster />
+      </div>
     </AppErrorBoundary>
   );
 }
@@ -583,7 +599,6 @@ function PindeckToaster() {
   );
 }
 
-
 /** Catch unexpected render errors in the authenticated shell. */
 class AppErrorBoundary extends Component<
   { children: React.ReactNode },
@@ -599,19 +614,31 @@ class AppErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="pd-theme" style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "var(--pd-bg)",
-          color: "var(--pd-ink)",
-          padding: 24,
-        }}>
+        <div
+          className="pd-theme"
+          style={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "var(--pd-bg)",
+            color: "var(--pd-ink)",
+            padding: 24,
+          }}
+        >
           <div style={{ maxWidth: 420, textAlign: "center" }}>
             <PinIcon name="film" size={28} stroke={1.2} />
-            <div style={{ marginTop: 12, fontSize: 16, fontWeight: 600 }}>Something went wrong</div>
-            <p style={{ marginTop: 8, fontSize: 12, color: "var(--pd-ink-faint)", lineHeight: 1.5 }}>
+            <div style={{ marginTop: 12, fontSize: 16, fontWeight: 600 }}>
+              Something went wrong
+            </div>
+            <p
+              style={{
+                marginTop: 8,
+                fontSize: 12,
+                color: "var(--pd-ink-faint)",
+                lineHeight: 1.5,
+              }}
+            >
               Pindeck hit an unexpected error. Reload the page to continue.
             </p>
             <button
@@ -1399,6 +1426,9 @@ function Topbar({
   docsUrl,
   tweaksOn,
   onToggleTweaks,
+  activityOn,
+  onToggleActivity,
+  onCloseActivity,
   libraryFilter,
   setLibraryFilter,
   visibleColumns,
@@ -1413,6 +1443,9 @@ function Topbar({
   docsUrl: string;
   tweaksOn: boolean;
   onToggleTweaks: () => void;
+  activityOn: boolean;
+  onToggleActivity: () => void;
+  onCloseActivity: () => void;
   libraryFilter: LibraryFilters;
   setLibraryFilter: React.Dispatch<React.SetStateAction<LibraryFilters>>;
   visibleColumns: Record<TableColumnKey, boolean>;
@@ -1894,6 +1927,12 @@ function Topbar({
         <span>Docs</span>
         <PinIcon name="external" size={10} stroke={1.5} />
       </a>
+
+      <WorkActivity
+        open={activityOn}
+        onToggle={onToggleActivity}
+        onClose={onCloseActivity}
+      />
 
       <button
         onClick={onToggleTweaks}

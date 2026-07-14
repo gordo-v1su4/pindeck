@@ -30,7 +30,7 @@ const applicationTables = {
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
     modificationMode: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
+      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs")),
     ),
     storageBucket: v.optional(v.string()),
     storagePath: v.optional(v.string()),
@@ -40,21 +40,29 @@ const applicationTables = {
         small: v.string(),
         medium: v.string(),
         large: v.string(),
-      })
+      }),
     ),
     derivativeStoragePaths: v.optional(
       v.object({
         small: v.string(),
         medium: v.string(),
         large: v.string(),
-      })
+      }),
     ),
     nextcloudPersistStatus: v.optional(
-      v.union(v.literal("pending"), v.literal("succeeded"), v.literal("failed"))
+      v.union(
+        v.literal("pending"),
+        v.literal("succeeded"),
+        v.literal("failed"),
+      ),
     ),
     nextcloudPersistError: v.optional(v.string()),
     storagePersistStatus: v.optional(
-      v.union(v.literal("pending"), v.literal("succeeded"), v.literal("failed"))
+      v.union(
+        v.literal("pending"),
+        v.literal("succeeded"),
+        v.literal("failed"),
+      ),
     ),
     storagePersistError: v.optional(v.string()),
     orchestrationRunId: v.optional(v.string()),
@@ -68,8 +76,8 @@ const applicationTables = {
         v.literal("queued"),
         v.literal("running"),
         v.literal("completed"),
-        v.literal("failed")
-      )
+        v.literal("failed"),
+      ),
     ),
     orchestrationError: v.optional(v.string()),
     orchestrationStep: v.optional(v.string()),
@@ -81,7 +89,7 @@ const applicationTables = {
         fromImageUrl: v.optional(v.string()),
         fromPreviewUrl: v.optional(v.string()),
         migratedAt: v.number(),
-      })
+      }),
     ),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
@@ -89,8 +97,8 @@ const applicationTables = {
         v.literal("upload"),
         v.literal("discord"),
         v.literal("pinterest"),
-        v.literal("ai")
-      )
+        v.literal("ai"),
+      ),
     ),
     sourceUrl: v.optional(v.string()),
     importBatchId: v.optional(v.id("importBatches")),
@@ -98,11 +106,14 @@ const applicationTables = {
     // AI variation metadata
     variationCount: v.optional(v.number()),
     variationType: v.optional(
-      v.union(v.literal("shot_type"), v.literal("style"))
+      v.union(v.literal("shot_type"), v.literal("style")),
     ),
     variationDetail: v.optional(v.string()),
     // Relationship to original image (for AI-generated variations)
     parentImageId: v.optional(v.id("images")),
+    // Stable Trigger dispatch/item correlation used to make generated-image
+    // persistence idempotent across retries and lost HTTP responses.
+    generationArtifactKey: v.optional(v.string()),
   })
     .index("by_category", ["category"])
     .index("by_uploaded_by", ["uploadedBy"])
@@ -114,6 +125,7 @@ const applicationTables = {
     .index("by_project_name", ["projectName"])
     .index("by_unique_id", ["uniqueId"])
     .index("by_parent", ["parentImageId"])
+    .index("by_generation_artifact", ["generationArtifactKey"])
     .index("by_external_id", ["externalId"])
     .searchIndex("search_content", {
       searchField: "title",
@@ -145,16 +157,16 @@ const applicationTables = {
             collapsed: v.boolean(),
             note: v.string(),
             slots: v.array(v.union(v.id("images"), v.null())),
-          })
+          }),
         ),
-      })
+      }),
     ),
     panels: v.array(
       v.object({
         imageId: v.id("images"),
         layout: v.string(),
         order: v.number(),
-      })
+      }),
     ),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
@@ -179,17 +191,19 @@ const applicationTables = {
     characterBody: v.optional(v.string()),
     outroTitle: v.optional(v.string()),
     outroEmail: v.optional(v.string()),
-    blocks: v.optional(v.array(
-      v.object({
-        id: v.string(),
-        label: v.string(),
-        on: v.boolean(),
-        locked: v.boolean(),
-        kind: v.string(),
-        variant: v.string(),
-        content: v.optional(v.string()),
-      })
-    )),
+    blocks: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          label: v.string(),
+          on: v.boolean(),
+          locked: v.boolean(),
+          kind: v.string(),
+          variant: v.string(),
+          content: v.optional(v.string()),
+        }),
+      ),
+    ),
     overlayVariation: v.optional(v.number()),
     overlaySeed: v.optional(v.number()),
     sourceImageIds: v.array(v.id("images")),
@@ -198,7 +212,7 @@ const applicationTables = {
         imageId: v.id("images"),
         layout: v.string(),
         order: v.number(),
-      })
+      }),
     ),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
@@ -236,7 +250,7 @@ const applicationTables = {
       v.literal("upload"),
       v.literal("discord"),
       v.literal("pinterest"),
-      v.literal("ai")
+      v.literal("ai"),
     ),
     sourceUrl: v.optional(v.string()),
     createdAt: v.number(),

@@ -19,13 +19,14 @@ Convex remains the canonical image database and RustFS remains durable storage.
 Trigger owns the long-running orchestration and calls protected Convex HTTP
 actions to perform work with the existing backend implementation.
 
-| Task | Queue | Entry points | Callback |
-| --- | --- | --- | --- |
-| `pindeck-finalize-upload` | `pindeck-media` | Browser and deck uploads, failed-upload retry | `/orchestration/media-finalize` |
-| `pindeck-external-ingest` | `pindeck-media` | Discord bot, Pinterest sidecar, `/ingestExternal` | `/orchestration/external-ingest` |
-| `pindeck-media-repair` | `pindeck-media` | Single and bulk media regeneration | `/orchestration/media-repair` |
-| `pindeck-image-refresh` | `pindeck-analysis` | Manual refresh, moderation approval, generated children | `/orchestration/image-refresh` |
-| `pindeck-generate-variations` | `pindeck-generation` | UI and Discord variation requests | `/orchestration/generate-variations` |
+| Task                              | Queue                              | Entry points                                            | Callback                                                |
+| --------------------------------- | ---------------------------------- | ------------------------------------------------------- | ------------------------------------------------------- |
+| `pindeck-finalize-upload`         | `pindeck-media`                    | Browser and deck uploads, failed-upload retry           | `/orchestration/media-finalize`                         |
+| `pindeck-external-ingest`         | `pindeck-media`                    | Discord bot, Pinterest sidecar, `/ingestExternal`       | `/orchestration/external-ingest`                        |
+| `pindeck-media-repair`            | `pindeck-media`                    | Single and bulk media regeneration                      | `/orchestration/media-repair`                           |
+| `pindeck-image-refresh`           | `pindeck-analysis`                 | Manual refresh, moderation approval, generated children | `/orchestration/image-refresh`                          |
+| `pindeck-generate-variations`     | `pindeck-generation-orchestration` | UI and Discord variation requests                       | `/orchestration/generate-variations/{prepare,complete}` |
+| `pindeck-generate-variation-item` | `pindeck-generation`               | Parent fan-out, one FAL render per run                  | `/orchestration/generate-variations/persist`            |
 
 The production flow is:
 
@@ -33,10 +34,19 @@ The production flow is:
 Pindeck mutation or ingest HTTP action
   -> small Convex dispatch action
   -> Trigger task with queue, retry cap, tags, metadata, and idempotency key
-  -> protected Convex callback
-  -> media gateway / RustFS / palette / OpenRouter / FAL work
+  -> protected Convex callback or preparation step
+  -> media gateway / RustFS / palette / OpenRouter work
   -> Convex image and orchestration terminal state
 ```
+
+Variation generation deliberately has a parent and a child task. The parent
+prepares an ownership-checked Convex request, then triggers and waits for one
+`pindeck-generate-variation-item` child at a time. Each child submits exactly
+one FAL request and persists exactly one durable artifact through the protected
+Convex endpoint. The render queue has concurrency `1`, so requests from
+different parents are serialized as well as the children within one parent.
+Convex remains authoritative for ownership, lineage, artifact idempotency,
+database state, and RustFS persistence.
 
 `PINDECK_TRIGGER_ORCHESTRATION_ENABLED` selects exactly one path. When it is
 `true`, heavy jobs dispatch to Trigger. When it is `false`, the legacy Convex
@@ -46,6 +56,7 @@ scheduler path remains available for rollback.
 
 - `pindeck-analysis`: concurrency `2`
 - `pindeck-media`: concurrency `2`
+- `pindeck-generation-orchestration`: concurrency `2`
 - `pindeck-generation`: concurrency `1`
 
 All Pindeck tasks use the `medium-1x` machine preset (1 vCPU, 2 GB RAM). The
@@ -56,9 +67,10 @@ smoke on VM100.
 
 Network, rate-limit, and server failures retry with capped exponential backoff.
 Permanent media failures such as source `404`, invalid image, unsupported
-media, or missing row abort without wasting retries. Paid FAL generation has
+media, or missing row abort without wasting retries. Paid FAL item runs have
 one attempt because a replay after provider acceptance could duplicate a
-charge.
+charge. Persistence uses a stable generation artifact key so a repeated
+callback cannot create a second Convex child or durable object.
 
 Dispatches use a one-hour Convex deduplication window. Convex atomically claims
 a request digest and assigns a nonce-derived dispatch correlation ID before it
@@ -82,12 +94,30 @@ atomically, checkpoints completed side effects before the next step, and
 returns the cached terminal result when Trigger retries after a lost HTTP
 response.
 
+## Realtime Work Activity
+
+Every dispatch includes exactly one `user:<convexUserId>` tag plus task and
+image correlation tags. The authenticated Convex
+`triggerDispatch.createWorkActivityToken` action issues a 15-minute Trigger
+public token whose read scope contains only the current user's tag. The
+frontend refreshes that token before expiry and subscribes through
+`@trigger.dev/react-hooks@4.5.3` against the self-hosted Trigger base URL.
+
+The Work Activity pop-down shows the last 24 hours and groups render-item runs
+beneath their generation parent. Task metadata uses `stage`, `stageLabel`,
+`progressMode`, item totals, provider status, and a safe provider message.
+Exact percentages are displayed only for measurable item counts. Provider
+work without a measurable percentage remains indeterminate. Queue wait,
+runtime, and total duration are computed from Trigger timestamps; active runs
+continue advancing even when Trigger temporarily reports `durationMs: 0`.
+
 ## Required environment
 
 Set in the Pindeck Trigger `prod` environment:
 
 - `PINDECK_CONVEX_SITE_URL=https://convex-site.serving.cloud`
 - `PINDECK_ORCHESTRATION_TOKEN=<private random token>`
+- `FAL_KEY=<private FAL credential>`
 
 Set in self-hosted Convex:
 
@@ -108,6 +138,7 @@ The durable BWS records live in project `hermes_keys`:
 - `PINDECK_ORCHESTRATION_TOKEN`
 - `PINDECK_TRIGGER_SECRET_KEY`
 - `PINDECK_TRIGGER_ORCHESTRATION_ENABLED`
+- `PINDECK_FAL_KEY`
 
 Live Convex and Trigger environment values are runtime truth; BWS is the
 durable secret/configuration source. Tracked files document names and endpoints
@@ -154,12 +185,13 @@ line; treating the entire stdout stream as the value creates a false mismatch.
 
 ## Deployment and verification
 
-Current production state (2026-07-13):
+Current production state (2026-07-14):
 
-- Convex callbacks/schema are deployed; all five unauthenticated callback
-  probes return `401` rather than the pre-deploy `404`.
-- Trigger deployment `20260713.1` / `bc0aizly` was built on VM100 Linux and
-  exposes all five task IDs.
+- Convex callbacks/schema are deployed; all eight unauthenticated callback
+  probes return `401` rather than `404`, including variation prepare, persist,
+  and complete.
+- Trigger deployment `20260714.1` / `srp5iee7` was built on VM100 Linux and
+  exposes all six task IDs. The dashboard worker inventory is runtime truth.
 - Metadata refresh, upload finalization, `removeMany`, external ingest, and
   media repair passed production end-to-end smokes. The successful media-repair
   run used the configured `medium-1x` allocation (1 vCPU / 2 GB RAM).
@@ -173,14 +205,20 @@ Current production state (2026-07-13):
   one requested/one generated variation. The generated child persisted to
   RustFS with all three derivatives, then `pindeck-image-refresh`
   (`run_cmrjr789p000c3jt69ubu6fcg`) completed metadata and palette refresh.
+- A two-item browser generation completed through parent run
+  `run_cmrjv95bb000e3fn1anjwr7f0` and serialized child runs
+  `run_cmrjv96z0000g3fn1c5o32q2m` and
+  `run_cmrjv9wlv000j3fn1yr67a8y6`. Both generated children persisted to
+  RustFS, returned real image reads, and appeared under the parent in Work
+  Activity.
 
 1. Confirm the self-hosted platform image is `v4.5.3` and the Pindeck CLI/SDK
    packages are `4.5.3`.
-2. Confirm the two Trigger production environment variable names exist.
+2. Confirm the three Trigger production environment variable names exist.
 3. Keep the Convex feature flag `false`.
 4. Deploy Convex callbacks and schema.
 5. Verify every unauthenticated `/orchestration/*` callback returns `401`.
-6. Run the Trigger deployment and confirm all five task IDs are registered.
+6. Run the Trigger deployment and confirm all six task IDs are registered.
 7. Trigger one selected metadata refresh and verify Trigger run, callback,
    image metadata, and Convex orchestration state reach `completed`.
 8. Enable `PINDECK_TRIGGER_ORCHESTRATION_ENABLED=true`.

@@ -1,5 +1,12 @@
 import { v } from "convex/values";
-import { httpAction, query, mutation, internalMutation, internalQuery, internalAction } from "./_generated/server";
+import {
+  httpAction,
+  query,
+  mutation,
+  internalMutation,
+  internalQuery,
+  internalAction,
+} from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -43,7 +50,8 @@ function collectNextcloudPaths(image: Partial<Doc<"images">>): string[] {
     image?.derivativeStoragePaths?.medium,
     image?.derivativeStoragePaths?.large,
   ].filter(
-    (path): path is string => typeof path === "string" && path.trim().length > 0
+    (path): path is string =>
+      typeof path === "string" && path.trim().length > 0,
   );
 }
 
@@ -54,7 +62,8 @@ function storageProviderFromPayload(args: {
   storagePath?: string;
 }) {
   if (args.storageProvider) return args.storageProvider;
-  if (args.storageBucket || parseUrlHost(args.imageUrl) === RUSTFS_PUBLIC_HOST) return "rustfs";
+  if (args.storageBucket || parseUrlHost(args.imageUrl) === RUSTFS_PUBLIC_HOST)
+    return "rustfs";
   if (args.storagePath) return "nextcloud";
   return undefined;
 }
@@ -64,19 +73,27 @@ async function scheduleStorageCleanup(ctx: any, image: any) {
   if (paths.length === 0) return;
   if (image.storageProvider === "rustfs" || image.storageBucket) {
     try {
-      await ctx.scheduler.runAfter(0, internalApi.mediaStorage.cleanupRustfsObjects, {
-        bucket: image.storageBucket || "pindeck",
-        paths,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internalApi.mediaStorage.cleanupRustfsObjects,
+        {
+          bucket: image.storageBucket || "pindeck",
+          paths,
+        },
+      );
     } catch (error) {
       console.warn("Failed to schedule RustFS cleanup", error);
     }
     return;
   }
   try {
-    await ctx.scheduler.runAfter(0, internalApi.mediaStorage.cleanupNextcloudPaths, {
-      paths,
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internalApi.mediaStorage.cleanupNextcloudPaths,
+      {
+        paths,
+      },
+    );
   } catch (error) {
     console.warn("Failed to schedule Nextcloud cleanup", error);
   }
@@ -101,11 +118,16 @@ async function cleanupImageReferences(ctx: any, image: Doc<"images">) {
     .withIndex("by_user", (q: any) => q.eq("userId", userId))
     .collect();
   for (const deck of decks) {
-    const sourceImageIds = deck.sourceImageIds.filter((id: any) => id !== image._id);
+    const sourceImageIds = deck.sourceImageIds.filter(
+      (id: any) => id !== image._id,
+    );
     const slides = deck.slides
       .filter((slide: any) => slide.imageId !== image._id)
       .map((slide: any, index: number) => ({ ...slide, order: index + 1 }));
-    if (sourceImageIds.length === deck.sourceImageIds.length && slides.length === deck.slides.length) {
+    if (
+      sourceImageIds.length === deck.sourceImageIds.length &&
+      slides.length === deck.slides.length
+    ) {
       continue;
     }
     await ctx.db.patch(deck._id, {
@@ -133,6 +155,16 @@ async function cleanupImageReferences(ctx: any, image: Doc<"images">) {
 }
 
 async function deleteImageRecord(ctx: any, image: Doc<"images">) {
+  const generatedChild = await ctx.db
+    .query("images")
+    .withIndex("by_parent", (q: any) => q.eq("parentImageId", image._id))
+    .first();
+  if (generatedChild) {
+    throw new Error(
+      "This image has generated variations. Delete its variations before deleting the source image.",
+    );
+  }
+
   await cleanupImageReferences(ctx, image);
 
   if (image.storageId) {
@@ -190,7 +222,7 @@ function isCanonicalCloudUrl(rawUrl: unknown): boolean {
     return (
       parsed.host.toLowerCase() === "cloud.v1su4.dev" &&
       parsed.pathname.startsWith(
-        `/public.php/dav/files/${CANONICAL_NEXTCLOUD_PUBLIC_TOKEN}/`
+        `/public.php/dav/files/${CANONICAL_NEXTCLOUD_PUBLIC_TOKEN}/`,
       )
     );
   } catch {
@@ -268,8 +300,13 @@ function isModeratedImportSource(sourceType?: string) {
   return sourceType === "discord" || sourceType === "pinterest";
 }
 
-function shouldQueueAnalysis(image: { sourceType?: string; aiStatus?: string }) {
-  return isModeratedImportSource(image.sourceType) && image.aiStatus === "queued";
+function shouldQueueAnalysis(image: {
+  sourceType?: string;
+  aiStatus?: string;
+}) {
+  return (
+    isModeratedImportSource(image.sourceType) && image.aiStatus === "queued"
+  );
 }
 
 async function resolveLineageRoot(ctx: any, image: any) {
@@ -323,12 +360,12 @@ export const list = query({
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    
+
     let images;
     const statusFilter = (q: any) =>
       q.or(
         q.eq(q.field("status"), "active"),
-        q.eq(q.field("status"), undefined)
+        q.eq(q.field("status"), undefined),
       );
 
     if (args.group && args.category) {
@@ -336,10 +373,7 @@ export const list = query({
         .query("images")
         .withIndex("by_group", (q) => q.eq("group", args.group))
         .filter((q) =>
-          q.and(
-            statusFilter(q),
-            q.eq(q.field("category"), args.category)
-          )
+          q.and(statusFilter(q), q.eq(q.field("category"), args.category)),
         )
         .order("desc")
         .take(args.limit || 50);
@@ -373,18 +407,18 @@ export const list = query({
         if (userId) {
           const like = await ctx.db
             .query("likes")
-            .withIndex("by_user_and_image", (q) => 
-              q.eq("userId", userId).eq("imageId", image._id)
+            .withIndex("by_user_and_image", (q) =>
+              q.eq("userId", userId).eq("imageId", image._id),
             )
             .unique();
           isLiked = !!like;
         }
-        
+
         return mapImageForDisplay({
           ...image,
           isLiked,
         });
-      })
+      }),
     );
 
     return imagesWithLikes;
@@ -405,7 +439,7 @@ export const libraryAggregations = query({
   handler: async (ctx) => {
     const all = await ctx.db.query("images").collect();
     const images = all.filter(
-      (img) => img.status === "active" || img.status === undefined
+      (img) => img.status === "active" || img.status === undefined,
     );
     const bump = (m: Map<string, number>, raw: string | undefined) => {
       const key = raw?.trim() ? raw.trim() : "";
@@ -455,11 +489,13 @@ export const enqueueCinematicMetadataBackfill = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const stagger = Math.max(500, args.staggerMs ?? 4500);
-    const onlyMissing = args.forceAll !== true && (args.onlyMissing !== false);
+    const onlyMissing = args.forceAll !== true && args.onlyMissing !== false;
 
     const mine = args.imageIds
-      ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
-          .filter((img): img is NonNullable<typeof img> => img !== null && img.uploadedBy === userId)
+      ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id)))).filter(
+          (img): img is NonNullable<typeof img> =>
+            img !== null && img.uploadedBy === userId,
+        )
       : await ctx.db
           .query("images")
           .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
@@ -487,25 +523,29 @@ export const enqueueCinematicMetadataBackfill = mutation({
         continue;
       }
 
-      await ctx.scheduler.runAfter(delay, internal.vision.internalSmartAnalyzeImage, {
-        storageId: sourceStorageId,
-        imageUrl: sourceImageUrl,
-        imageId: img._id,
-        userId,
-        title: img.title,
-        description: img.description || "",
-        tags: img.tags,
-        category: img.category,
-        source: img.source,
-        sref: img.sref,
-        group: img.group,
-        projectName: img.projectName,
-        moodboardName: img.moodboardName,
-        variationCount: 0,
-        modificationMode: img.modificationMode ?? "shot-variation",
-        variationType: img.variationType,
-        variationDetail: img.variationDetail,
-      });
+      await ctx.scheduler.runAfter(
+        delay,
+        internal.vision.internalSmartAnalyzeImage,
+        {
+          storageId: sourceStorageId,
+          imageUrl: sourceImageUrl,
+          imageId: img._id,
+          userId,
+          title: img.title,
+          description: img.description || "",
+          tags: img.tags,
+          category: img.category,
+          source: img.source,
+          sref: img.sref,
+          group: img.group,
+          projectName: img.projectName,
+          moodboardName: img.moodboardName,
+          variationCount: 0,
+          modificationMode: img.modificationMode ?? "shot-variation",
+          variationType: img.variationType,
+          variationDetail: img.variationDetail,
+        },
+      );
       delay += stagger;
       scheduled += 1;
     }
@@ -533,11 +573,12 @@ export const enqueueMetadataRefresh = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const stagger = Math.max(0, args.staggerMs ?? 0);
-    const onlyMissing = args.forceAll !== true && (args.onlyMissing !== false);
+    const onlyMissing = args.forceAll !== true && args.onlyMissing !== false;
 
     const mine = args.imageIds
-      ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
-          .filter((img): img is NonNullable<typeof img> => img !== null)
+      ? (await Promise.all(args.imageIds.map((id) => ctx.db.get(id)))).filter(
+          (img): img is NonNullable<typeof img> => img !== null,
+        )
       : await ctx.db
           .query("images")
           .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
@@ -559,7 +600,9 @@ export const enqueueMetadataRefresh = mutation({
           forcePalette: args.forceAll === true || paletteMissing,
         };
       })
-      .filter((plan) => !onlyMissing || plan.metadataMissing || plan.paletteMissing);
+      .filter(
+        (plan) => !onlyMissing || plan.metadataMissing || plan.paletteMissing,
+      );
 
     let delay = 0;
     let metadataScheduled = 0;
@@ -579,20 +622,28 @@ export const enqueueMetadataRefresh = mutation({
 
       await ctx.db.patch(img._id, { aiStatus: "processing" });
       if (triggerOrchestrationEnabled()) {
-        await ctx.scheduler.runAfter(delay, (internal as any).triggerDispatch.dispatchImageMetadataRefresh, {
-          imageId: img._id,
-          userId,
-          forcePalette: plan.forcePalette,
-          runMetadata: plan.runMetadata,
-        });
+        await ctx.scheduler.runAfter(
+          delay,
+          (internal as any).triggerDispatch.dispatchImageMetadataRefresh,
+          {
+            imageId: img._id,
+            userId,
+            forcePalette: plan.forcePalette,
+            runMetadata: plan.runMetadata,
+          },
+        );
       } else {
-        await ctx.scheduler.runAfter(delay, (internal as any).images.internalRefreshMetadataAfterPalette, {
-          imageId: img._id,
-          userId,
-          paletteUrl,
-          forcePalette: plan.forcePalette,
-          runMetadata: plan.runMetadata,
-        });
+        await ctx.scheduler.runAfter(
+          delay,
+          (internal as any).images.internalRefreshMetadataAfterPalette,
+          {
+            imageId: img._id,
+            userId,
+            paletteUrl,
+            forcePalette: plan.forcePalette,
+            runMetadata: plan.runMetadata,
+          },
+        );
       }
       delay += stagger;
       paletteScheduled += 1;
@@ -658,7 +709,9 @@ export const enqueueMediaRepairMany = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const stagger = Math.max(0, args.staggerMs ?? 1_000);
-    const images = (await Promise.all(args.imageIds.map((id) => ctx.db.get(id))))
+    const images = (
+      await Promise.all(args.imageIds.map((id) => ctx.db.get(id)))
+    )
       .filter((image): image is NonNullable<typeof image> => Boolean(image))
       .filter((image) => image.uploadedBy === userId);
     let scheduled = 0;
@@ -679,11 +732,10 @@ export const enqueueMediaRepairMany = mutation({
       const repairAction = triggerOrchestrationEnabled()
         ? internalApi.triggerDispatch.dispatchMediaRepair
         : internalApi.images.internalRepairImageMedia;
-      await ctx.scheduler.runAfter(
-        scheduled * stagger,
-        repairAction,
-        { imageId: image._id, userId },
-      );
+      await ctx.scheduler.runAfter(scheduled * stagger, repairAction, {
+        imageId: image._id,
+        userId,
+      });
       scheduled += 1;
       scheduledImageIds.push(image._id);
     }
@@ -706,16 +758,22 @@ export const internalRefreshMetadataAfterPalette: any = internalAction({
     metadataOk: v.boolean(),
     error: v.optional(v.string()),
   }),
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     paletteOk: boolean;
     metadataRan: boolean;
     metadataOk: boolean;
     error?: string;
   }> => {
-    const image: any = await ctx.runQuery((internal as any).images.internalGetMetadataRefreshPayload, {
-      imageId: args.imageId,
-      userId: args.userId,
-    });
+    const image: any = await ctx.runQuery(
+      (internal as any).images.internalGetMetadataRefreshPayload,
+      {
+        imageId: args.imageId,
+        userId: args.userId,
+      },
+    );
     if (!image) {
       return {
         paletteOk: false,
@@ -729,7 +787,7 @@ export const internalRefreshMetadataAfterPalette: any = internalAction({
     if (!paletteOk) {
       const palette = await ctx.runAction(
         (internal as any).colorExtraction.internalExtractAndStoreColors,
-        { imageId: args.imageId, imageUrl: args.paletteUrl }
+        { imageId: args.imageId, imageUrl: args.paletteUrl },
       );
       paletteOk = Boolean(palette?.ok && palette.colors?.length);
     }
@@ -758,23 +816,23 @@ export const internalRefreshMetadataAfterPalette: any = internalAction({
     const metadata: { ok: boolean; error?: string } = await ctx.runAction(
       (internal as any).vision.internalSmartAnalyzeImage,
       {
-      storageId: image.storageId,
-      imageUrl: image.imageUrl,
-      imageId: image._id,
-      userId: args.userId,
-      title: image.title,
-      description: image.description || "",
-      tags: image.tags,
-      category: image.category,
-      source: image.source,
-      sref: image.sref,
-      group: image.group,
-      projectName: image.projectName,
-      moodboardName: image.moodboardName,
-      variationCount: 0,
-      modificationMode: image.modificationMode ?? "shot-variation",
-      variationType: image.variationType,
-      variationDetail: image.variationDetail,
+        storageId: image.storageId,
+        imageUrl: image.imageUrl,
+        imageId: image._id,
+        userId: args.userId,
+        title: image.title,
+        description: image.description || "",
+        tags: image.tags,
+        category: image.category,
+        source: image.source,
+        sref: image.sref,
+        group: image.group,
+        projectName: image.projectName,
+        moodboardName: image.moodboardName,
+        variationCount: 0,
+        modificationMode: image.modificationMode ?? "shot-variation",
+        variationType: image.variationType,
+        variationDetail: image.variationDetail,
       },
     );
 
@@ -797,20 +855,33 @@ export const internalRepairImageMedia = internalAction({
     imageUrl: v.optional(v.string()),
     error: v.optional(v.string()),
   }),
-  handler: async (ctx, args): Promise<{ ok: boolean; imageUrl?: string; error?: string }> => {
-    const image: any = await ctx.runQuery(internalApi.images.internalGetMediaRepairPayload, {
-      imageId: args.imageId,
-      userId: args.userId,
-    });
-    if (!image) return { ok: false, error: "Image not found or not owned by user" };
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; imageUrl?: string; error?: string }> => {
+    const image: any = await ctx.runQuery(
+      internalApi.images.internalGetMediaRepairPayload,
+      {
+        imageId: args.imageId,
+        userId: args.userId,
+      },
+    );
+    if (!image)
+      return { ok: false, error: "Image not found or not owned by user" };
 
     const sourceUrls = pickMediaRepairSourceUrls(image);
     if (sourceUrls.length === 0) {
-      await ctx.runMutation(internalApi.images.internalRecordNextcloudBackfillFailure, {
-        imageId: args.imageId,
+      await ctx.runMutation(
+        internalApi.images.internalRecordNextcloudBackfillFailure,
+        {
+          imageId: args.imageId,
+          error: "No recoverable image URL found for media regeneration",
+        },
+      );
+      return {
+        ok: false,
         error: "No recoverable image URL found for media regeneration",
-      });
-      return { ok: false, error: "No recoverable image URL found for media regeneration" };
+      };
     }
 
     try {
@@ -845,18 +916,25 @@ export const internalRepairImageMedia = internalAction({
         derivativeStoragePaths: persisted.derivativeStoragePaths,
       });
 
-      await ctx.runAction(internalApi.colorExtraction.internalExtractAndStoreColors, {
-        imageId: args.imageId,
-        imageUrl: preferredImageUrlForSampling(persisted) ?? persisted.imageUrl,
-      });
+      await ctx.runAction(
+        internalApi.colorExtraction.internalExtractAndStoreColors,
+        {
+          imageId: args.imageId,
+          imageUrl:
+            preferredImageUrlForSampling(persisted) ?? persisted.imageUrl,
+        },
+      );
 
       return { ok: true, imageUrl: persisted.imageUrl };
     } catch (error: any) {
       const message = error?.message || "Media regeneration failed";
-      await ctx.runMutation(internalApi.images.internalRecordNextcloudBackfillFailure, {
-        imageId: args.imageId,
-        error: message,
-      });
+      await ctx.runMutation(
+        internalApi.images.internalRecordNextcloudBackfillFailure,
+        {
+          imageId: args.imageId,
+          error: message,
+        },
+      );
       return { ok: false, error: message };
     }
   },
@@ -874,9 +952,9 @@ export const search = query({
     const statusFilter = (q: any) =>
       q.or(
         q.eq(q.field("status"), "active"),
-        q.eq(q.field("status"), undefined)
+        q.eq(q.field("status"), undefined),
       );
-    
+
     let images;
     if (args.category && args.group) {
       const category = args.category;
@@ -884,7 +962,10 @@ export const search = query({
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) =>
-          q.search("title", args.searchTerm).eq("category", category).eq("group", group)
+          q
+            .search("title", args.searchTerm)
+            .eq("category", category)
+            .eq("group", group),
         )
         .filter(statusFilter)
         .take(50);
@@ -893,7 +974,7 @@ export const search = query({
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) =>
-          q.search("title", args.searchTerm).eq("category", category)
+          q.search("title", args.searchTerm).eq("category", category),
         )
         .filter(statusFilter)
         .take(50);
@@ -902,14 +983,16 @@ export const search = query({
       images = await ctx.db
         .query("images")
         .withSearchIndex("search_content", (q) =>
-          q.search("title", args.searchTerm).eq("group", group)
+          q.search("title", args.searchTerm).eq("group", group),
         )
         .filter(statusFilter)
         .take(50);
     } else {
       images = await ctx.db
         .query("images")
-        .withSearchIndex("search_content", (q) => q.search("title", args.searchTerm))
+        .withSearchIndex("search_content", (q) =>
+          q.search("title", args.searchTerm),
+        )
         .filter(statusFilter)
         .take(50);
     }
@@ -920,18 +1003,18 @@ export const search = query({
         if (userId) {
           const like = await ctx.db
             .query("likes")
-            .withIndex("by_user_and_image", (q) => 
-              q.eq("userId", userId).eq("imageId", image._id)
+            .withIndex("by_user_and_image", (q) =>
+              q.eq("userId", userId).eq("imageId", image._id),
             )
             .unique();
           isLiked = !!like;
         }
-        
+
         return mapImageForDisplay({
           ...image,
           isLiked,
         });
-      })
+      }),
     );
 
     return imagesWithLikes;
@@ -944,15 +1027,15 @@ export const getById = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     const image = await ctx.db.get("images", args.id);
-    
+
     if (!image) return null;
 
     let isLiked = false;
     if (userId) {
       const like = await ctx.db
         .query("likes")
-        .withIndex("by_user_and_image", (q) => 
-          q.eq("userId", userId).eq("imageId", image._id)
+        .withIndex("by_user_and_image", (q) =>
+          q.eq("userId", userId).eq("imageId", image._id),
         )
         .unique();
       isLiked = !!like;
@@ -1005,7 +1088,7 @@ export const createExternal = mutation({
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
+      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs")),
     ),
     storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
@@ -1015,14 +1098,14 @@ export const createExternal = mutation({
         small: v.string(),
         medium: v.string(),
         large: v.string(),
-      })
+      }),
     ),
     derivativeStoragePaths: v.optional(
       v.object({
         small: v.string(),
         medium: v.string(),
         large: v.string(),
-      })
+      }),
     ),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
@@ -1030,8 +1113,8 @@ export const createExternal = mutation({
         v.literal("upload"),
         v.literal("discord"),
         v.literal("pinterest"),
-        v.literal("ai")
-      )
+        v.literal("ai"),
+      ),
     ),
     sourceUrl: v.optional(v.string()),
     importBatchId: v.optional(v.id("importBatches")),
@@ -1043,12 +1126,23 @@ export const createExternal = mutation({
       throw new Error("Must be logged in to create images");
     }
 
-    if (args.storagePath) assertSafeStoragePath(args.storagePath, "storagePath");
-    if (args.previewStoragePath) assertSafeStoragePath(args.previewStoragePath, "previewStoragePath");
+    if (args.storagePath)
+      assertSafeStoragePath(args.storagePath, "storagePath");
+    if (args.previewStoragePath)
+      assertSafeStoragePath(args.previewStoragePath, "previewStoragePath");
     if (args.derivativeStoragePaths) {
-      assertSafeStoragePath(args.derivativeStoragePaths.small, "derivativeStoragePaths.small");
-      assertSafeStoragePath(args.derivativeStoragePaths.medium, "derivativeStoragePaths.medium");
-      assertSafeStoragePath(args.derivativeStoragePaths.large, "derivativeStoragePaths.large");
+      assertSafeStoragePath(
+        args.derivativeStoragePaths.small,
+        "derivativeStoragePaths.small",
+      );
+      assertSafeStoragePath(
+        args.derivativeStoragePaths.medium,
+        "derivativeStoragePaths.medium",
+      );
+      assertSafeStoragePath(
+        args.derivativeStoragePaths.large,
+        "derivativeStoragePaths.large",
+      );
     }
 
     if (args.externalId) {
@@ -1057,7 +1151,10 @@ export const createExternal = mutation({
         .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId))
         .unique();
       if (existing) {
-        if ((!existing.colors || existing.colors.length === 0) && args.colors?.length) {
+        if (
+          (!existing.colors || existing.colors.length === 0) &&
+          args.colors?.length
+        ) {
           await ctx.db.patch(existing._id, { colors: args.colors });
         }
         return existing._id;
@@ -1070,7 +1167,10 @@ export const createExternal = mutation({
       .filter((q) => q.eq(q.field("imageUrl"), args.imageUrl))
       .take(1);
     if (existingByUrl[0]) {
-      if ((!existingByUrl[0].colors || existingByUrl[0].colors.length === 0) && args.colors?.length) {
+      if (
+        (!existingByUrl[0].colors || existingByUrl[0].colors.length === 0) &&
+        args.colors?.length
+      ) {
         await ctx.db.patch(existingByUrl[0]._id, { colors: args.colors });
       }
       return existingByUrl[0]._id;
@@ -1078,7 +1178,9 @@ export const createExternal = mutation({
 
     const title = args.title || "Untitled";
     const category = args.category || "General";
-    const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
+    const tags = args.tags
+      ? [...new Set([...args.tags, "original"])]
+      : ["original"];
     const isModeratedImport = isModeratedImportSource(args.sourceType);
     const storageProvider = storageProviderFromPayload(args);
     const projectName = args.sourceType === "ai" ? undefined : title;
@@ -1117,33 +1219,41 @@ export const createExternal = mutation({
 
     if (args.sourceType === "discord") {
       try {
-        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
-          event: "queued",
-          imageId,
-          title,
-          sref: args.sref,
-          sourceUrl: args.sourceUrl,
-          userId,
-          imageUrl: args.imageUrl,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.discordNotifications.postStatus,
+          {
+            event: "queued",
+            imageId,
+            title,
+            sref: args.sref,
+            sourceUrl: args.sourceUrl,
+            userId,
+            imageUrl: args.imageUrl,
+          },
+        );
       } catch (error) {
         console.warn("Failed to schedule Discord queued notification", error);
       }
     }
 
     if (!isModeratedImport) {
-      await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-        imageId,
-        userId,
-        imageUrl: args.imageUrl,
-        title,
-        description: args.description,
-        tags,
-        category,
-        source: args.source,
-        sref: args.sref,
-        variationCount: 0,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.vision.internalSmartAnalyzeImage,
+        {
+          imageId,
+          userId,
+          imageUrl: args.imageUrl,
+          title,
+          description: args.description,
+          tags,
+          category,
+          source: args.source,
+          sref: args.sref,
+          variationCount: 0,
+        },
+      );
     }
 
     return imageId;
@@ -1163,7 +1273,7 @@ export const ingestExternal = internalMutation({
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
+      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs")),
     ),
     storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
@@ -1173,14 +1283,14 @@ export const ingestExternal = internalMutation({
         small: v.string(),
         medium: v.string(),
         large: v.string(),
-      })
+      }),
     ),
     derivativeStoragePaths: v.optional(
       v.object({
         small: v.string(),
         medium: v.string(),
         large: v.string(),
-      })
+      }),
     ),
     externalId: v.optional(v.string()),
     sourceType: v.optional(
@@ -1188,8 +1298,8 @@ export const ingestExternal = internalMutation({
         v.literal("upload"),
         v.literal("discord"),
         v.literal("pinterest"),
-        v.literal("ai")
-      )
+        v.literal("ai"),
+      ),
     ),
     sourceUrl: v.optional(v.string()),
     importBatchId: v.optional(v.id("importBatches")),
@@ -1207,13 +1317,18 @@ export const ingestExternal = internalMutation({
         .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId))
         .unique();
       if (existing) {
-        if ((!existing.colors || existing.colors.length === 0) && args.colors?.length) {
+        if (
+          (!existing.colors || existing.colors.length === 0) &&
+          args.colors?.length
+        ) {
           await ctx.db.patch(existing._id, { colors: args.colors });
         }
         return {
           imageId: existing._id,
           created: false,
-          needsProcessing: existing.storagePersistStatus !== "succeeded" || !existing.storagePath,
+          needsProcessing:
+            existing.storagePersistStatus !== "succeeded" ||
+            !existing.storagePath,
         };
       }
     }
@@ -1224,20 +1339,26 @@ export const ingestExternal = internalMutation({
       .filter((q) => q.eq(q.field("imageUrl"), args.imageUrl))
       .take(1);
     if (existingByUrl[0]) {
-      if ((!existingByUrl[0].colors || existingByUrl[0].colors.length === 0) && args.colors?.length) {
+      if (
+        (!existingByUrl[0].colors || existingByUrl[0].colors.length === 0) &&
+        args.colors?.length
+      ) {
         await ctx.db.patch(existingByUrl[0]._id, { colors: args.colors });
       }
       return {
         imageId: existingByUrl[0]._id,
         created: false,
         needsProcessing:
-          existingByUrl[0].storagePersistStatus !== "succeeded" || !existingByUrl[0].storagePath,
+          existingByUrl[0].storagePersistStatus !== "succeeded" ||
+          !existingByUrl[0].storagePath,
       };
     }
 
     const title = args.title || "Untitled";
     const category = args.category || "General";
-    const tags = args.tags ? [...new Set([...args.tags, "original"])] : ["original"];
+    const tags = args.tags
+      ? [...new Set([...args.tags, "original"])]
+      : ["original"];
     const isModeratedImport = isModeratedImportSource(args.sourceType);
     const storageProvider = storageProviderFromPayload(args);
     const projectName = args.sourceType === "ai" ? undefined : title;
@@ -1265,8 +1386,16 @@ export const ingestExternal = internalMutation({
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       colors: args.colors ?? [],
-      nextcloudPersistStatus: args.deferProcessing ? "pending" : args.storagePath ? "succeeded" : undefined,
-      storagePersistStatus: args.deferProcessing ? "pending" : args.storagePath ? "succeeded" : undefined,
+      nextcloudPersistStatus: args.deferProcessing
+        ? "pending"
+        : args.storagePath
+          ? "succeeded"
+          : undefined,
+      storagePersistStatus: args.deferProcessing
+        ? "pending"
+        : args.storagePath
+          ? "succeeded"
+          : undefined,
       externalId: args.externalId,
       sourceType: args.sourceType,
       sourceUrl: args.sourceUrl,
@@ -1276,33 +1405,41 @@ export const ingestExternal = internalMutation({
 
     if (!args.deferProcessing && args.sourceType === "discord") {
       try {
-        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
-          event: "queued",
-          imageId,
-          title,
-          sref: args.sref,
-          sourceUrl: args.sourceUrl,
-          userId: args.userId,
-          imageUrl: args.imageUrl,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.discordNotifications.postStatus,
+          {
+            event: "queued",
+            imageId,
+            title,
+            sref: args.sref,
+            sourceUrl: args.sourceUrl,
+            userId: args.userId,
+            imageUrl: args.imageUrl,
+          },
+        );
       } catch (error) {
         console.warn("Failed to schedule Discord queued notification", error);
       }
     }
 
     if (!args.deferProcessing && !isModeratedImport) {
-      await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-        imageId,
-        userId: args.userId,
-        imageUrl: args.imageUrl,
-        title,
-        description: args.description,
-        tags,
-        category,
-        source: args.source,
-        sref: args.sref,
-        variationCount: 0,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.vision.internalSmartAnalyzeImage,
+        {
+          imageId,
+          userId: args.userId,
+          imageUrl: args.imageUrl,
+          title,
+          description: args.description,
+          tags,
+          category,
+          source: args.source,
+          sref: args.sref,
+          variationCount: 0,
+        },
+      );
     }
 
     return {
@@ -1335,13 +1472,14 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
   }
 
   const resolvedUserId =
-    typeof body.userId === "string" && body.userId.trim() ? body.userId : undefined;
+    typeof body.userId === "string" && body.userId.trim()
+      ? body.userId
+      : undefined;
 
   if (!resolvedUserId) {
-    return new Response(
-      "No target user found. Provide userId.",
-      { status: 400 }
-    );
+    return new Response("No target user found. Provide userId.", {
+      status: 400,
+    });
   }
 
   const sourceImageUrl = normalizeExternalImageUrl(body.imageUrl);
@@ -1367,10 +1505,14 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     });
 
     if (queued.needsProcessing) {
-      await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchExternalIngest, {
-        imageId: queued.imageId,
-        userId: resolvedUserId,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internalApi.triggerDispatch.dispatchExternalIngest,
+        {
+          imageId: queued.imageId,
+          userId: resolvedUserId,
+        },
+      );
     }
 
     return new Response(
@@ -1389,10 +1531,13 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
 
   let persistedImage;
   try {
-    persistedImage = await ctx.runAction(internalApi.mediaStorage.persistExternalImageFromUrl, {
-      sourceUrl: sourceImageUrl,
-      title: body.title || "Discord Import",
-    });
+    persistedImage = await ctx.runAction(
+      internalApi.mediaStorage.persistExternalImageFromUrl,
+      {
+        sourceUrl: sourceImageUrl,
+        title: body.title || "Discord Import",
+      },
+    );
   } catch (error: any) {
     console.error("RustFS persist failed during external ingest", error);
     return new Response(
@@ -1402,7 +1547,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
       {
         status: 502,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   }
 
@@ -1439,7 +1584,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
       imageId,
       imageUrl:
         preferredImageUrlForSampling(persistedImage) ?? persistedImage.imageUrl,
-    }
+    },
   );
 
   return new Response(JSON.stringify({ imageId, userId: resolvedUserId }), {
@@ -1462,14 +1607,19 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
   const body = await request.json().catch(() => ({}));
   const limit = Math.max(1, Math.min(Number(body?.limit ?? 200), 1000));
   const dryRun = Boolean(body?.dryRun);
-    const refreshVariants = Boolean(body?.refreshVariants);
-    const imageIds = Array.isArray(body?.imageIds)
-      ? body.imageIds.filter((id: unknown): id is string => typeof id === "string")
-      : undefined;
-    const images = await ctx.runQuery((internal as any).images.internalListBackfillCandidates, {
+  const refreshVariants = Boolean(body?.refreshVariants);
+  const imageIds = Array.isArray(body?.imageIds)
+    ? body.imageIds.filter(
+        (id: unknown): id is string => typeof id === "string",
+      )
+    : undefined;
+  const images = await ctx.runQuery(
+    (internal as any).images.internalListBackfillCandidates,
+    {
       limit,
       imageIds,
-    });
+    },
+  );
 
   let migrated = 0;
   let failed = 0;
@@ -1492,7 +1642,8 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
 
     const alreadyRustfs =
       image.storageProvider === "rustfs" ||
-      (isRustfsUrl(image.imageUrl) && (!image.previewUrl || isRustfsUrl(image.previewUrl)));
+      (isRustfsUrl(image.imageUrl) &&
+        (!image.previewUrl || isRustfsUrl(image.previewUrl)));
 
     if (alreadyRustfs && !(refreshVariants && variantsNeedRefresh)) {
       skipped += 1;
@@ -1534,51 +1685,71 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
         const published =
           refreshVariants && variantsNeedRefresh
             ? image.storageProvider === "rustfs" || isRustfsUrl(image.imageUrl)
-              ? await ctx.runAction((internal as any).mediaStorage.persistExternalImageFromUrl, {
-                  sourceUrl: pickMediaRepairSourceUrl(image) ?? image.imageUrl,
-                  title: image.title,
-                })
-              : await ctx.runAction((internal as any).mediaStorage.reprocessStoredImagePaths, {
+              ? await ctx.runAction(
+                  (internal as any).mediaStorage.persistExternalImageFromUrl,
+                  {
+                    sourceUrl:
+                      pickMediaRepairSourceUrl(image) ?? image.imageUrl,
+                    title: image.title,
+                  },
+                )
+              : await ctx.runAction(
+                  (internal as any).mediaStorage.reprocessStoredImagePaths,
+                  {
+                    storagePath: image.storagePath,
+                    title: image.title,
+                  },
+                )
+            : await ctx.runAction(
+                (internal as any).mediaStorage.publishStoredImagePaths,
+                {
                   storagePath: image.storagePath,
-                  title: image.title,
-                })
-            : await ctx.runAction((internal as any).mediaStorage.publishStoredImagePaths, {
-                storagePath: image.storagePath,
-                previewStoragePath: image.previewStoragePath,
-                derivativeStoragePaths: image.derivativeStoragePaths,
-              });
-        await ctx.runMutation((internal as any).images.internalApplyNextcloudUpload, {
-          imageId: image._id,
-          imageUrl: published.imageUrl,
-          previewUrl: published.previewUrl,
-          storageProvider: published.bucket ? "rustfs" : undefined,
-          storageBucket: published.bucket,
-          storagePath: published.storagePath ?? image.storagePath,
-          previewStoragePath: published.previewStoragePath ?? image.previewStoragePath,
-          derivativeUrls: published.derivativeUrls,
-          derivativeStoragePaths:
-            published.derivativeStoragePaths ?? image.derivativeStoragePaths,
-        });
+                  previewStoragePath: image.previewStoragePath,
+                  derivativeStoragePaths: image.derivativeStoragePaths,
+                },
+              );
+        await ctx.runMutation(
+          (internal as any).images.internalApplyNextcloudUpload,
+          {
+            imageId: image._id,
+            imageUrl: published.imageUrl,
+            previewUrl: published.previewUrl,
+            storageProvider: published.bucket ? "rustfs" : undefined,
+            storageBucket: published.bucket,
+            storagePath: published.storagePath ?? image.storagePath,
+            previewStoragePath:
+              published.previewStoragePath ?? image.previewStoragePath,
+            derivativeUrls: published.derivativeUrls,
+            derivativeStoragePaths:
+              published.derivativeStoragePaths ?? image.derivativeStoragePaths,
+          },
+        );
       } else {
         const sourceUrl = pickBackfillSourceUrl(image);
         if (!sourceUrl) {
           throw new Error("No recoverable source URL");
         }
-        const persisted = await ctx.runAction((internal as any).mediaStorage.persistExternalImageFromUrl, {
-          sourceUrl,
-          title: image.title,
-        });
-        await ctx.runMutation((internal as any).images.internalApplyNextcloudUpload, {
-          imageId: image._id,
-          imageUrl: persisted.imageUrl,
-          previewUrl: persisted.previewUrl,
-          storageProvider: persisted.bucket ? "rustfs" : undefined,
-          storageBucket: persisted.bucket,
-          storagePath: persisted.storagePath,
-          previewStoragePath: persisted.previewStoragePath,
-          derivativeUrls: persisted.derivativeUrls,
-          derivativeStoragePaths: persisted.derivativeStoragePaths,
-        });
+        const persisted = await ctx.runAction(
+          (internal as any).mediaStorage.persistExternalImageFromUrl,
+          {
+            sourceUrl,
+            title: image.title,
+          },
+        );
+        await ctx.runMutation(
+          (internal as any).images.internalApplyNextcloudUpload,
+          {
+            imageId: image._id,
+            imageUrl: persisted.imageUrl,
+            previewUrl: persisted.previewUrl,
+            storageProvider: persisted.bucket ? "rustfs" : undefined,
+            storageBucket: persisted.bucket,
+            storagePath: persisted.storagePath,
+            previewStoragePath: persisted.previewStoragePath,
+            derivativeUrls: persisted.derivativeUrls,
+            derivativeStoragePaths: persisted.derivativeStoragePaths,
+          },
+        );
       }
 
       migrated += 1;
@@ -1591,10 +1762,13 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
       }
     } catch (error: any) {
       failed += 1;
-      await ctx.runMutation((internal as any).images.internalRecordNextcloudBackfillFailure, {
-        imageId: image._id,
-        error: error?.message || "Backfill failed",
-      });
+      await ctx.runMutation(
+        (internal as any).images.internalRecordNextcloudBackfillFailure,
+        {
+          imageId: image._id,
+          error: error?.message || "Backfill failed",
+        },
+      );
       if (results.length < 50) {
         results.push({
           imageId: image._id,
@@ -1619,12 +1793,12 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
         results,
       },
       null,
-      2
+      2,
     ),
     {
       status: 200,
       headers: { "Content-Type": "application/json" },
-    }
+    },
   );
 });
 
@@ -1683,7 +1857,11 @@ export const internalModerateDiscordImage = internalMutation({
   args: {
     userId: v.id("users"),
     imageId: v.id("images"),
-    action: v.union(v.literal("approve"), v.literal("reject"), v.literal("generate")),
+    action: v.union(
+      v.literal("approve"),
+      v.literal("reject"),
+      v.literal("generate"),
+    ),
     variationCount: v.optional(v.number()),
     modificationMode: v.optional(v.string()),
     variationDetail: v.optional(v.string()),
@@ -1728,49 +1906,64 @@ export const internalModerateDiscordImage = internalMutation({
           {
             imageId: image._id,
             imageUrl: preferredImageUrlForSampling(image) ?? image.imageUrl,
-          }
+          },
         );
       }
 
       if (shouldRunAnalysis) {
         if (triggerEnabled) {
-          await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchImageMetadataRefresh, {
-            imageId: image._id,
-            userId: args.userId,
-            forcePalette: !image.colors?.length,
-            runMetadata: true,
-          });
+          await ctx.scheduler.runAfter(
+            0,
+            internalApi.triggerDispatch.dispatchImageMetadataRefresh,
+            {
+              imageId: image._id,
+              userId: args.userId,
+              forcePalette: !image.colors?.length,
+              runMetadata: true,
+            },
+          );
         } else {
-          await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-            imageId: image._id,
-            userId: args.userId,
-            imageUrl: image.imageUrl,
-            title: image.title,
-            description: image.description,
-            tags: image.tags,
-            category: image.category,
-            source: image.source,
-            sref: image.sref,
-            variationCount: 0,
-          });
+          await ctx.scheduler.runAfter(
+            0,
+            internal.vision.internalSmartAnalyzeImage,
+            {
+              imageId: image._id,
+              userId: args.userId,
+              imageUrl: image.imageUrl,
+              title: image.title,
+              description: image.description,
+              tags: image.tags,
+              category: image.category,
+              source: image.source,
+              sref: image.sref,
+              variationCount: 0,
+            },
+          );
         }
       }
 
       if (await isDiscordLineage(ctx, image)) {
         const root = await resolveLineageRoot(ctx, image);
         try {
-          await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
-            event: "approved",
-            imageId: image._id,
-            title: image.title,
-            sref: image.sref || root?.sref,
-            sourceUrl: image.sourceUrl || root?.sourceUrl,
-            userId: args.userId,
-            imageUrl: image.imageUrl,
-            parentImageId: image.parentImageId,
-          });
+          await ctx.scheduler.runAfter(
+            0,
+            internalApi.discordNotifications.postStatus,
+            {
+              event: "approved",
+              imageId: image._id,
+              title: image.title,
+              sref: image.sref || root?.sref,
+              sourceUrl: image.sourceUrl || root?.sourceUrl,
+              userId: args.userId,
+              imageUrl: image.imageUrl,
+              parentImageId: image.parentImageId,
+            },
+          );
         } catch (error) {
-          console.warn("Failed to schedule Discord approved notification", error);
+          console.warn(
+            "Failed to schedule Discord approved notification",
+            error,
+          );
         }
       }
 
@@ -1786,26 +1979,29 @@ export const internalModerateDiscordImage = internalMutation({
       if (await isDiscordLineage(ctx, image)) {
         const root = await resolveLineageRoot(ctx, image);
         try {
-          await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
-            event: "rejected",
-            imageId: image._id,
-            title: image.title,
-            sref: image.sref || root?.sref,
-            sourceUrl: image.sourceUrl || root?.sourceUrl,
-            userId: args.userId,
-            imageUrl: image.imageUrl,
-            parentImageId: image.parentImageId,
-          });
+          await ctx.scheduler.runAfter(
+            0,
+            internalApi.discordNotifications.postStatus,
+            {
+              event: "rejected",
+              imageId: image._id,
+              title: image.title,
+              sref: image.sref || root?.sref,
+              sourceUrl: image.sourceUrl || root?.sourceUrl,
+              userId: args.userId,
+              imageUrl: image.imageUrl,
+              parentImageId: image.parentImageId,
+            },
+          );
         } catch (error) {
-          console.warn("Failed to schedule Discord rejected notification", error);
+          console.warn(
+            "Failed to schedule Discord rejected notification",
+            error,
+          );
         }
       }
 
-      if (image.storageId) {
-        await ctx.storage.delete(image.storageId);
-      }
-      await scheduleStorageCleanup(ctx, image);
-      await ctx.db.delete(args.imageId);
+      await deleteImageRecord(ctx, image);
       return { ok: true, message: "Image rejected and deleted." };
     }
 
@@ -1826,52 +2022,67 @@ export const internalModerateDiscordImage = internalMutation({
     });
 
     if (triggerOrchestrationEnabled()) {
-      await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchVariationGeneration, {
-        imageId: args.imageId,
-        userId: args.userId,
-        variationCount,
-        modificationMode,
-        variationDetail: args.variationDetail,
-        aspectRatio: args.aspectRatio,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internalApi.triggerDispatch.dispatchVariationGeneration,
+        {
+          imageId: args.imageId,
+          userId: args.userId,
+          variationCount,
+          modificationMode,
+          variationDetail: args.variationDetail,
+          aspectRatio: args.aspectRatio,
+        },
+      );
     } else {
-      await ctx.scheduler.runAfter(0, internal.vision.internalGenerateRelatedImages, {
-        originalImageId: args.imageId,
-        requestedBy: args.userId,
-        storageId: image.storageId,
-        imageUrl: image.imageUrl,
-        previewUrl: image.previewUrl,
-        sourceUrl: image.sourceUrl,
-        derivativeUrls: image.derivativeUrls,
-        description: image.description || "",
-        category: image.category,
-        style: image.style,
-        title: image.title,
-        aspectRatio: args.aspectRatio,
-        group: image.group,
-        sref: image.sref,
-        colors: image.colors,
-        variationCount,
-        modificationMode,
-        variationDetail: args.variationDetail,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.vision.internalGenerateRelatedImages,
+        {
+          originalImageId: args.imageId,
+          requestedBy: args.userId,
+          storageId: image.storageId,
+          imageUrl: image.imageUrl,
+          previewUrl: image.previewUrl,
+          sourceUrl: image.sourceUrl,
+          derivativeUrls: image.derivativeUrls,
+          description: image.description || "",
+          category: image.category,
+          style: image.style,
+          title: image.title,
+          aspectRatio: args.aspectRatio,
+          group: image.group,
+          sref: image.sref,
+          colors: image.colors,
+          variationCount,
+          modificationMode,
+          variationDetail: args.variationDetail,
+        },
+      );
     }
 
     if (await isDiscordLineage(ctx, image)) {
       const root = await resolveLineageRoot(ctx, image);
       try {
-        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
-          event: "generation_started",
-          imageId: image._id,
-          title: image.title,
-          sref: image.sref || root?.sref,
-          sourceUrl: image.sourceUrl || root?.sourceUrl,
-          userId: args.userId,
-          imageUrl: image.imageUrl,
-          parentImageId: image.parentImageId,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.discordNotifications.postStatus,
+          {
+            event: "generation_started",
+            imageId: image._id,
+            title: image.title,
+            sref: image.sref || root?.sref,
+            sourceUrl: image.sourceUrl || root?.sourceUrl,
+            userId: args.userId,
+            imageUrl: image.imageUrl,
+            parentImageId: image.parentImageId,
+          },
+        );
       } catch (error) {
-        console.warn("Failed to schedule Discord generation-started notification", error);
+        console.warn(
+          "Failed to schedule Discord generation-started notification",
+          error,
+        );
       }
     }
 
@@ -1898,7 +2109,9 @@ export const discordQueueHttp = httpAction(async (ctx, request) => {
   const body = await request.json().catch(() => ({}));
   const resolvedUserId = parseUserIdFromBody(body);
   if (!resolvedUserId) {
-    return new Response("No target user found. Provide userId.", { status: 400 });
+    return new Response("No target user found. Provide userId.", {
+      status: 400,
+    });
   }
 
   const limitRaw = Number.parseInt(String(body?.limit ?? ""), 10);
@@ -1909,7 +2122,9 @@ export const discordQueueHttp = httpAction(async (ctx, request) => {
   });
 
   if (typeof body?.imageId === "string" && body.imageId.trim()) {
-    items = items.filter((item: any) => String(item._id) === body.imageId.trim());
+    items = items.filter(
+      (item: any) => String(item._id) === body.imageId.trim(),
+    );
   }
 
   return new Response(JSON.stringify({ items, userId: resolvedUserId }), {
@@ -1932,34 +2147,46 @@ export const discordModerateHttp = httpAction(async (ctx, request) => {
   const body = await request.json().catch(() => ({}));
   const resolvedUserId = parseUserIdFromBody(body);
   if (!resolvedUserId) {
-    return new Response("No target user found. Provide userId.", { status: 400 });
+    return new Response("No target user found. Provide userId.", {
+      status: 400,
+    });
   }
 
   const imageId =
-    typeof body?.imageId === "string" && body.imageId.trim() ? body.imageId.trim() : null;
+    typeof body?.imageId === "string" && body.imageId.trim()
+      ? body.imageId.trim()
+      : null;
   if (!imageId) {
     return new Response("Missing required field: imageId", { status: 400 });
   }
 
   const action = body?.action;
   if (action !== "approve" && action !== "reject" && action !== "generate") {
-    return new Response("Invalid action. Use approve, reject, or generate.", { status: 400 });
+    return new Response("Invalid action. Use approve, reject, or generate.", {
+      status: 400,
+    });
   }
 
   try {
-    const result = await ctx.runMutation(internalApi.images.internalModerateDiscordImage, {
-      userId: resolvedUserId,
-      imageId,
-      action,
-      variationCount: body?.variationCount,
-      modificationMode: body?.modificationMode,
-      variationDetail: body?.variationDetail,
-      aspectRatio: body?.aspectRatio,
-    });
-    return new Response(JSON.stringify({ ...result, imageId, userId: resolvedUserId }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    const result = await ctx.runMutation(
+      internalApi.images.internalModerateDiscordImage,
+      {
+        userId: resolvedUserId,
+        imageId,
+        action,
+        variationCount: body?.variationCount,
+        modificationMode: body?.modificationMode,
+        variationDetail: body?.variationDetail,
+        aspectRatio: body?.aspectRatio,
+      },
+    );
+    return new Response(
+      JSON.stringify({ ...result, imageId, userId: resolvedUserId }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   } catch (error: any) {
     return new Response(error?.message || "Moderation failed", { status: 400 });
   }
@@ -1998,8 +2225,8 @@ export const toggleLike = mutation({
 
     const existingLike = await ctx.db
       .query("likes")
-      .withIndex("by_user_and_image", (q) => 
-        q.eq("userId", userId).eq("imageId", args.imageId)
+      .withIndex("by_user_and_image", (q) =>
+        q.eq("userId", userId).eq("imageId", args.imageId),
       )
       .unique();
 
@@ -2034,7 +2261,7 @@ export const incrementViews = mutation({
   handler: async (ctx, args) => {
     const image = await ctx.db.get("images", args.imageId);
     if (!image) return null;
-    
+
     await ctx.db.patch("images", args.imageId, {
       views: image.views + 1,
     });
@@ -2044,8 +2271,14 @@ export const incrementViews = mutation({
 
 // Broad type (e.g. Type): Commercial, Film, Moodboard, etc.
 export const GROUPS = [
-  "Commercial", "Editorial", "Film", "Moodboard",
-  "Music Video", "TV Series", "Web Series", "Video Game Cinematic",
+  "Commercial",
+  "Editorial",
+  "Film",
+  "Moodboard",
+  "Music Video",
+  "TV Series",
+  "Web Series",
+  "Video Game Cinematic",
 ] as const;
 
 export const getGroups = query({
@@ -2059,16 +2292,39 @@ export const getCategories = query({
   returns: v.array(v.string()),
   handler: async (ctx) => {
     const images = await ctx.db.query("images").collect();
-    const existingCategories = new Set(images.map(img => img.category));
-    
+    const existingCategories = new Set(images.map((img) => img.category));
+
     const defaultCategories = [
-      "Abstract", "Architecture", "Art", "Blockbuster Film", "Character Design", 
-      "Cinematic", "Commercial", "Design", "Environment", "Fashion", "Film", 
-      "Gaming", "Headshot", "Indy Film", "Illustration", "Interior", "Landscape", 
-      "Photography", "Sci-Fi", "Streetwear", "Technology", "Texture", "UI/UX", "Vintage"
+      "Abstract",
+      "Architecture",
+      "Art",
+      "Blockbuster Film",
+      "Character Design",
+      "Cinematic",
+      "Commercial",
+      "Design",
+      "Environment",
+      "Fashion",
+      "Film",
+      "Gaming",
+      "Headshot",
+      "Indy Film",
+      "Illustration",
+      "Interior",
+      "Landscape",
+      "Photography",
+      "Sci-Fi",
+      "Streetwear",
+      "Technology",
+      "Texture",
+      "UI/UX",
+      "Vintage",
     ];
 
-    const allCategories = new Set([...defaultCategories, ...existingCategories]);
+    const allCategories = new Set([
+      ...defaultCategories,
+      ...existingCategories,
+    ]);
     return [...allCategories].sort();
   },
 });
@@ -2089,33 +2345,35 @@ export const generateUploadUrl = mutation({
     if (!userId) {
       throw new Error("Must be logged in to upload images");
     }
-    
+
     return await ctx.storage.generateUploadUrl();
   },
 });
 
 export const uploadMultiple = mutation({
   args: {
-    uploads: v.array(v.object({
-      storageId: v.id("_storage"),
-      originalFileName: v.optional(v.string()),
-      title: v.string(),
-      description: v.optional(v.string()),
-      tags: v.array(v.string()),
-      category: v.string(),
-      source: v.optional(v.string()),
-      sref: v.optional(v.string()),
+    uploads: v.array(
+      v.object({
+        storageId: v.id("_storage"),
+        originalFileName: v.optional(v.string()),
+        title: v.string(),
+        description: v.optional(v.string()),
+        tags: v.array(v.string()),
+        category: v.string(),
+        source: v.optional(v.string()),
+        sref: v.optional(v.string()),
         colors: v.optional(v.array(v.string())),
         group: v.optional(v.string()),
         genre: v.optional(v.string()),
         style: v.optional(v.string()),
         shot: v.optional(v.string()),
         projectName: v.optional(v.string()),
-      moodboardName: v.optional(v.string()),
-      uniqueId: v.optional(v.string()),
-      // Variation count for auto-generation right after smart analysis.
-      variationCount: v.optional(v.number()),
-    })),
+        moodboardName: v.optional(v.string()),
+        uniqueId: v.optional(v.string()),
+        // Variation count for auto-generation right after smart analysis.
+        variationCount: v.optional(v.number()),
+      }),
+    ),
   },
   returns: v.array(v.id("images")),
   handler: async (ctx, args) => {
@@ -2141,12 +2399,12 @@ export const uploadMultiple = mutation({
           category: upload.category,
           source: upload.source,
           sref: upload.sref,
-            colors: upload.colors ?? [],
-            group: upload.group,
-            genre: upload.genre,
-            style: upload.style,
-            shot: upload.shot,
-            projectName: upload.projectName,
+          colors: upload.colors ?? [],
+          group: upload.group,
+          genre: upload.genre,
+          style: upload.style,
+          shot: upload.shot,
+          projectName: upload.projectName,
           moodboardName: upload.moodboardName,
           uniqueId: upload.uniqueId,
           uploadedBy: userId,
@@ -2163,27 +2421,35 @@ export const uploadMultiple = mutation({
 
         try {
           if (triggerOrchestrationEnabled()) {
-            await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchFinalizeUpload, {
-              imageId,
-              userId,
-            });
+            await ctx.scheduler.runAfter(
+              0,
+              internalApi.triggerDispatch.dispatchFinalizeUpload,
+              {
+                imageId,
+                userId,
+              },
+            );
           } else {
-            await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
-              storageId: upload.storageId,
-              imageId,
-              userId,
-              group: upload.group,
-              projectName: upload.projectName,
-              moodboardName: upload.moodboardName,
-              title: upload.title,
-              description: upload.description,
-              tags: upload.tags,
-              category: upload.category,
-              source: upload.source,
-              sref: upload.sref || undefined,
-              variationCount: upload.variationCount,
-              sourceType: "upload",
-            });
+            await ctx.scheduler.runAfter(
+              0,
+              internalApi.mediaStorage.finalizeUploadedImage,
+              {
+                storageId: upload.storageId,
+                imageId,
+                userId,
+                group: upload.group,
+                projectName: upload.projectName,
+                moodboardName: upload.moodboardName,
+                title: upload.title,
+                description: upload.description,
+                tags: upload.tags,
+                category: upload.category,
+                source: upload.source,
+                sref: upload.sref || undefined,
+                variationCount: upload.variationCount,
+                sourceType: "upload",
+              },
+            );
           }
         } catch (err) {
           console.error("Failed to schedule Nextcloud finalize action:", err);
@@ -2191,7 +2457,7 @@ export const uploadMultiple = mutation({
         }
 
         return imageId;
-      })
+      }),
     );
 
     return results;
@@ -2322,7 +2588,7 @@ export const backfillGenerationsFromAiImages = mutation({
     const generated = images.filter(
       (img) =>
         img.source === "AI Generation" ||
-        (Array.isArray(img.tags) && img.tags.includes("generated"))
+        (Array.isArray(img.tags) && img.tags.includes("generated")),
     );
 
     let inserted = 0;
@@ -2396,49 +2662,60 @@ export const approveImage = mutation({
         (internalApi as any).colorExtraction.internalExtractAndStoreColors,
         {
           imageId: image._id,
-          imageUrl:
-            preferredImageUrlForSampling(image) ?? image.imageUrl,
-        }
+          imageUrl: preferredImageUrlForSampling(image) ?? image.imageUrl,
+        },
       );
     }
 
     if (shouldRunAnalysis) {
       if (triggerEnabled) {
-        await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchImageMetadataRefresh, {
-          imageId: image._id,
-          userId,
-          forcePalette: !image.colors?.length,
-          runMetadata: true,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.triggerDispatch.dispatchImageMetadataRefresh,
+          {
+            imageId: image._id,
+            userId,
+            forcePalette: !image.colors?.length,
+            runMetadata: true,
+          },
+        );
       } else {
-        await ctx.scheduler.runAfter(0, internal.vision.internalSmartAnalyzeImage, {
-          imageId: image._id,
-          userId,
-          imageUrl: image.imageUrl,
-          title: image.title,
-          description: image.description,
-          tags: image.tags,
-          category: image.category,
-          source: image.source,
-          sref: image.sref,
-          variationCount: 0,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.vision.internalSmartAnalyzeImage,
+          {
+            imageId: image._id,
+            userId,
+            imageUrl: image.imageUrl,
+            title: image.title,
+            description: image.description,
+            tags: image.tags,
+            category: image.category,
+            source: image.source,
+            sref: image.sref,
+            variationCount: 0,
+          },
+        );
       }
     }
 
     if (await isDiscordLineage(ctx, image)) {
       const root = await resolveLineageRoot(ctx, image);
       try {
-        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
-          event: "approved",
-          imageId: image._id,
-          title: image.title,
-          sref: image.sref || root?.sref,
-          sourceUrl: image.sourceUrl || root?.sourceUrl,
-          userId,
-          imageUrl: image.imageUrl,
-          parentImageId: image.parentImageId,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.discordNotifications.postStatus,
+          {
+            event: "approved",
+            imageId: image._id,
+            title: image.title,
+            sref: image.sref || root?.sref,
+            sourceUrl: image.sourceUrl || root?.sourceUrl,
+            userId,
+            imageUrl: image.imageUrl,
+            parentImageId: image.parentImageId,
+          },
+        );
       } catch (error) {
         console.warn("Failed to schedule Discord approved notification", error);
       }
@@ -2462,16 +2739,20 @@ export const rejectImage = mutation({
     if (await isDiscordLineage(ctx, image)) {
       const root = await resolveLineageRoot(ctx, image);
       try {
-        await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
-          event: "rejected",
-          imageId: image._id,
-          title: image.title,
-          sref: image.sref || root?.sref,
-          sourceUrl: image.sourceUrl || root?.sourceUrl,
-          userId,
-          imageUrl: image.imageUrl,
-          parentImageId: image.parentImageId,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.discordNotifications.postStatus,
+          {
+            event: "rejected",
+            imageId: image._id,
+            title: image.title,
+            sref: image.sref || root?.sref,
+            sourceUrl: image.sourceUrl || root?.sourceUrl,
+            userId,
+            imageUrl: image.imageUrl,
+            parentImageId: image.parentImageId,
+          },
+        );
       } catch (error) {
         console.warn("Failed to schedule Discord rejected notification", error);
       }
@@ -2557,15 +2838,16 @@ export const getLineage = query({
       return { parent: null, children: [] };
     }
 
-    const parent = image.parentImageId ? await ctx.db.get("images", image.parentImageId) : null;
+    const parent = image.parentImageId
+      ? await ctx.db.get("images", image.parentImageId)
+      : null;
     const children = await ctx.db
       .query("images")
       .withIndex("by_parent", (q) => q.eq("parentImageId", args.imageId))
       .collect();
 
     const visible = (row: typeof image | null) =>
-      row &&
-      (row.uploadedBy === userId || isActiveLibraryImage(row));
+      row && (row.uploadedBy === userId || isActiveLibraryImage(row));
 
     return {
       parent: visible(parent) ? parent : null,
@@ -2616,8 +2898,10 @@ export const internalUpdateAnalysis = internalMutation({
     if (args.style !== undefined) patch.style = args.style;
     if (args.shot !== undefined) patch.shot = args.shot;
     if (args.projectName !== undefined) patch.projectName = args.projectName;
-    else if (shouldSyncProjectName && args.title) patch.projectName = args.title;
-    if (args.moodboardName !== undefined) patch.moodboardName = args.moodboardName;
+    else if (shouldSyncProjectName && args.title)
+      patch.projectName = args.title;
+    if (args.moodboardName !== undefined)
+      patch.moodboardName = args.moodboardName;
     // Preserve sref if provided, otherwise don't overwrite existing value
     if (args.sref !== undefined) patch.sref = args.sref;
 
@@ -2656,12 +2940,16 @@ export const internalClaimOrchestrationDispatch = internalMutation({
     if (!image) return { claimed: false };
     const now = Date.now();
     const active =
-      image.orchestrationStatus === "queued" || image.orchestrationStatus === "running";
+      image.orchestrationStatus === "queued" ||
+      image.orchestrationStatus === "running";
     const liveLease = active && (image.orchestrationLeaseExpiresAt ?? 0) > now;
     const liveDeduplicationWindow =
       image.orchestrationIdempotencyKey === args.idempotencyKey &&
       (image.orchestrationClaimedAt ?? 0) + 60 * 60 * 1000 > now;
-    if (liveLease && image.orchestrationIdempotencyKey !== args.idempotencyKey) {
+    if (
+      liveLease &&
+      image.orchestrationIdempotencyKey !== args.idempotencyKey
+    ) {
       return { claimed: false, existingRunId: image.orchestrationRunId };
     }
     if (active && !liveLease && image.orchestrationRunId) {
@@ -2749,12 +3037,15 @@ export const internalSetOrchestrationState = internalMutation({
     const preserveStatus =
       args.preserveAdvancedStatus &&
       args.status === "queued" &&
-      (image.orchestrationStatus === "running" || image.orchestrationStatus === "completed");
+      (image.orchestrationStatus === "running" ||
+        image.orchestrationStatus === "completed");
     const patch: Record<string, unknown> = {
       orchestrationTask: args.task,
       orchestrationRunId: args.runId ?? image.orchestrationRunId,
       orchestrationDispatchId: args.dispatchId ?? image.orchestrationDispatchId,
-      orchestrationStatus: preserveStatus ? image.orchestrationStatus : args.status,
+      orchestrationStatus: preserveStatus
+        ? image.orchestrationStatus
+        : args.status,
       orchestrationError: args.error,
       orchestrationUpdatedAt: Date.now(),
       orchestrationLeaseExpiresAt:
@@ -2769,7 +3060,8 @@ export const internalSetOrchestrationState = internalMutation({
     }
     if (args.clearRunId) patch.orchestrationRunId = undefined;
     if (args.step !== undefined) patch.orchestrationStep = args.step;
-    if (args.resultJson !== undefined) patch.orchestrationResult = args.resultJson;
+    if (args.resultJson !== undefined)
+      patch.orchestrationResult = args.resultJson;
     await ctx.db.patch(args.imageId, patch);
     return true;
   },
@@ -2781,7 +3073,7 @@ export const internalApplyNextcloudUpload = internalMutation({
     imageUrl: v.string(),
     previewUrl: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
+      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs")),
     ),
     storageBucket: v.optional(v.string()),
     storagePath: v.string(),
@@ -2792,14 +3084,14 @@ export const internalApplyNextcloudUpload = internalMutation({
         small: v.string(),
         medium: v.string(),
         large: v.string(),
-      })
+      }),
     ),
     derivativeStoragePaths: v.optional(
       v.object({
         small: v.string(),
         medium: v.string(),
         large: v.string(),
-      })
+      }),
     ),
   },
   returns: v.null(),
@@ -2917,7 +3209,11 @@ export const internalGetUploadFinalizePayload = internalQuery({
   returns: v.any(),
   handler: async (ctx, args) => {
     const image = await ctx.db.get(args.imageId);
-    if (!image || image.uploadedBy !== args.userId || image.sourceType !== "upload") {
+    if (
+      !image ||
+      image.uploadedBy !== args.userId ||
+      image.sourceType !== "upload"
+    ) {
       return null;
     }
     return {
@@ -2960,7 +3256,10 @@ export const internalGetMetadataRefreshPayload = internalQuery({
     if (
       !image ||
       (image.uploadedBy !== args.userId &&
-        !(args.allowActiveShared && canGenerateVariationFromImage(image, args.userId)))
+        !(
+          args.allowActiveShared &&
+          canGenerateVariationFromImage(image, args.userId)
+        ))
     ) {
       return null;
     }
@@ -3040,35 +3339,43 @@ export const backfillNextcloudFailedUploads = mutation({
         q.and(
           q.eq(q.field("sourceType"), "upload"),
           q.eq(q.field("storageProvider"), "convex"),
-          q.neq(q.field("storageId"), undefined)
-        )
+          q.neq(q.field("storageId"), undefined),
+        ),
       )
       .take(limit);
 
     let scheduled = 0;
     for (const image of images) {
       if (triggerOrchestrationEnabled()) {
-        await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchFinalizeUpload, {
-          imageId: image._id,
-          userId,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.triggerDispatch.dispatchFinalizeUpload,
+          {
+            imageId: image._id,
+            userId,
+          },
+        );
       } else {
-        await ctx.scheduler.runAfter(0, internalApi.mediaStorage.finalizeUploadedImage, {
-          storageId: image.storageId!,
-          imageId: image._id,
-          userId,
-          group: image.group,
-          projectName: image.projectName,
-          moodboardName: image.moodboardName,
-          title: image.title,
-          description: image.description,
-          tags: image.tags,
-          category: image.category,
-          source: image.source,
-          sref: image.sref,
-          variationCount: image.variationCount,
-          sourceType: image.sourceType,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.mediaStorage.finalizeUploadedImage,
+          {
+            storageId: image.storageId!,
+            imageId: image._id,
+            userId,
+            group: image.group,
+            projectName: image.projectName,
+            moodboardName: image.moodboardName,
+            title: image.title,
+            description: image.description,
+            tags: image.tags,
+            category: image.category,
+            source: image.source,
+            sref: image.sref,
+            variationCount: image.variationCount,
+            sourceType: image.sourceType,
+          },
+        );
       }
       scheduled += 1;
     }
@@ -3091,7 +3398,7 @@ export const quarantineBrokenNextcloudImages = mutation({
         imageId: v.id("images"),
         title: v.string(),
         status: v.string(),
-      })
+      }),
     ),
   }),
   handler: async (ctx, args) => {
@@ -3109,7 +3416,7 @@ export const quarantineBrokenNextcloudImages = mutation({
     const brokenImages = images.filter(
       (image) =>
         (image.status === "active" || image.status === undefined) &&
-        hasCollapsedNextcloudVariants(image)
+        hasCollapsedNextcloudVariants(image),
     );
 
     if (!dryRun) {
@@ -3136,55 +3443,63 @@ export const quarantineBrokenNextcloudImages = mutation({
   },
 });
 
-export const quarantineBrokenNextcloudHttp = httpAction(async (ctx, request) => {
-  if (request.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  const apiKey = process.env.INGEST_API_KEY;
-  const token = readBearerToken(request);
-  if (!apiKey || token !== apiKey) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const limit = Math.max(1, Math.min(Number(body?.limit ?? 200), 1000));
-  const dryRun = Boolean(body?.dryRun);
-  const images = await ctx.runQuery((internal as any).images.internalListBackfillCandidates, {
-    limit,
-  });
-
-  const brokenImages = images.filter(
-    (image: any) =>
-      (image.status === "active" || image.status === undefined) &&
-      hasCollapsedNextcloudVariants(image)
-  );
-
-  if (!dryRun) {
-    for (const image of brokenImages) {
-      await ctx.runMutation((internal as any).images.internalQuarantineBrokenImage, {
-        imageId: image._id,
-      });
+export const quarantineBrokenNextcloudHttp = httpAction(
+  async (ctx, request) => {
+    if (request.method !== "POST") {
+      return new Response("Method not allowed", { status: 405 });
     }
-  }
 
-  return new Response(
-    JSON.stringify({
-      scanned: images.length,
-      quarantined: brokenImages.length,
-      dryRun,
-      results: brokenImages.slice(0, 100).map((image: any) => ({
-        imageId: image._id,
-        title: image.title,
-        status: dryRun ? "would-quarantine" : "quarantined",
-      })),
-    }),
-    {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+    const apiKey = process.env.INGEST_API_KEY;
+    const token = readBearerToken(request);
+    if (!apiKey || token !== apiKey) {
+      return new Response("Unauthorized", { status: 401 });
     }
-  );
-});
+
+    const body = await request.json().catch(() => ({}));
+    const limit = Math.max(1, Math.min(Number(body?.limit ?? 200), 1000));
+    const dryRun = Boolean(body?.dryRun);
+    const images = await ctx.runQuery(
+      (internal as any).images.internalListBackfillCandidates,
+      {
+        limit,
+      },
+    );
+
+    const brokenImages = images.filter(
+      (image: any) =>
+        (image.status === "active" || image.status === undefined) &&
+        hasCollapsedNextcloudVariants(image),
+    );
+
+    if (!dryRun) {
+      for (const image of brokenImages) {
+        await ctx.runMutation(
+          (internal as any).images.internalQuarantineBrokenImage,
+          {
+            imageId: image._id,
+          },
+        );
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        scanned: images.length,
+        quarantined: brokenImages.length,
+        dryRun,
+        results: brokenImages.slice(0, 100).map((image: any) => ({
+          imageId: image._id,
+          title: image.title,
+          status: dryRun ? "would-quarantine" : "quarantined",
+        })),
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  },
+);
 
 export const internalQuarantineBrokenImage = internalMutation({
   args: {
@@ -3279,7 +3594,8 @@ export const updateImageMetadata = mutation({
     if (args.style !== undefined) patch.style = args.style;
     if (args.shot !== undefined) patch.shot = args.shot;
     if (args.projectName !== undefined) patch.projectName = args.projectName;
-    if (args.moodboardName !== undefined) patch.moodboardName = args.moodboardName;
+    if (args.moodboardName !== undefined)
+      patch.moodboardName = args.moodboardName;
     if (args.uniqueId !== undefined) patch.uniqueId = args.uniqueId;
 
     await ctx.db.patch("images", args.imageId, patch);
@@ -3333,33 +3649,41 @@ export const internalSaveGeneratedImages = internalMutation({
   args: {
     originalImageId: v.id("images"),
     requestedBy: v.id("users"),
-    images: v.array(v.object({
-      url: v.string(),
-      sourceUrl: v.optional(v.string()),
-      previewUrl: v.optional(v.string()),
-      storagePath: v.optional(v.string()),
-      storageProvider: v.optional(
-        v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs"))
-      ),
-      storageBucket: v.optional(v.string()),
-      previewStoragePath: v.optional(v.string()),
-      derivativeUrls: v.optional(
-        v.object({
-          small: v.string(),
-          medium: v.string(),
-          large: v.string(),
-        })
-      ),
-      derivativeStoragePaths: v.optional(
-        v.object({
-          small: v.string(),
-          medium: v.string(),
-          large: v.string(),
-        })
-      ),
-      title: v.string(),
-      description: v.string(),
-    })),
+    markParentComplete: v.optional(v.boolean()),
+    images: v.array(
+      v.object({
+        artifactKey: v.optional(v.string()),
+        url: v.string(),
+        sourceUrl: v.optional(v.string()),
+        previewUrl: v.optional(v.string()),
+        storagePath: v.optional(v.string()),
+        storageProvider: v.optional(
+          v.union(
+            v.literal("convex"),
+            v.literal("nextcloud"),
+            v.literal("rustfs"),
+          ),
+        ),
+        storageBucket: v.optional(v.string()),
+        previewStoragePath: v.optional(v.string()),
+        derivativeUrls: v.optional(
+          v.object({
+            small: v.string(),
+            medium: v.string(),
+            large: v.string(),
+          }),
+        ),
+        derivativeStoragePaths: v.optional(
+          v.object({
+            small: v.string(),
+            medium: v.string(),
+            large: v.string(),
+          }),
+        ),
+        title: v.string(),
+        description: v.string(),
+      }),
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -3367,11 +3691,23 @@ export const internalSaveGeneratedImages = internalMutation({
     if (!originalImage) return;
     const root = await resolveLineageRoot(ctx, originalImage);
     const discordLineage = await isDiscordLineage(ctx, originalImage);
-    const moderatedLineageSource = await resolveModeratedLineageSource(ctx, originalImage);
+    const moderatedLineageSource = await resolveModeratedLineageSource(
+      ctx,
+      originalImage,
+    );
     const inheritedSourceType = moderatedLineageSource || "ai";
     const shouldReturnToModeration = Boolean(moderatedLineageSource);
 
     for (const img of args.images) {
+      if (img.artifactKey) {
+        const existing = await ctx.db
+          .query("images")
+          .withIndex("by_generation_artifact", (q) =>
+            q.eq("generationArtifactKey", img.artifactKey),
+          )
+          .first();
+        if (existing) continue;
+      }
       const childImageId = await ctx.db.insert("images", {
         title: originalImage.title, // Inherit parent's exact title so they group together
         description: originalImage.description || img.description, // Inherit parent's full description
@@ -3410,18 +3746,23 @@ export const internalSaveGeneratedImages = internalMutation({
         // Carry sref from root/parent so child variations preserve the same reference lineage
         sref: originalImage.sref || root?.sref,
         parentImageId: args.originalImageId, // Link back to parent image (lineage tracking)
+        generationArtifactKey: img.artifactKey,
         status: shouldReturnToModeration ? "pending" : "active",
         aiStatus: "processing",
         uploadedAt: Date.now(),
       });
 
       if (triggerOrchestrationEnabled()) {
-        await ctx.scheduler.runAfter(0, internalApi.triggerDispatch.dispatchImageMetadataRefresh, {
-          imageId: childImageId,
-          userId: args.requestedBy,
-          forcePalette: true,
-          runMetadata: true,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internalApi.triggerDispatch.dispatchImageMetadataRefresh,
+          {
+            imageId: childImageId,
+            userId: args.requestedBy,
+            forcePalette: true,
+            runMetadata: true,
+          },
+        );
       } else {
         await ctx.scheduler.runAfter(
           0,
@@ -3442,24 +3783,65 @@ export const internalSaveGeneratedImages = internalMutation({
 
       if (discordLineage) {
         try {
-          await ctx.scheduler.runAfter(0, internalApi.discordNotifications.postStatus, {
-            event: "generated",
-            imageId: childImageId,
-            parentImageId: originalImage._id,
-            title: originalImage.title,
-            sref: originalImage.sref || root?.sref,
-            sourceUrl: originalImage.sourceUrl || root?.sourceUrl,
-            userId: args.requestedBy,
-            imageUrl: img.url,
-          });
+          await ctx.scheduler.runAfter(
+            0,
+            internalApi.discordNotifications.postStatus,
+            {
+              event: "generated",
+              imageId: childImageId,
+              parentImageId: originalImage._id,
+              title: originalImage.title,
+              sref: originalImage.sref || root?.sref,
+              sourceUrl: originalImage.sourceUrl || root?.sourceUrl,
+              userId: args.requestedBy,
+              imageUrl: img.url,
+            },
+          );
         } catch (error) {
-          console.warn("Failed to schedule Discord generated notification", error);
+          console.warn(
+            "Failed to schedule Discord generated notification",
+            error,
+          );
         }
       }
     }
 
-    // Mark original image processing as completed
-    await ctx.db.patch("images", args.originalImageId, { aiStatus: "completed" });
+    if (args.markParentComplete !== false) {
+      await ctx.db.patch("images", args.originalImageId, {
+        aiStatus: "completed",
+      });
+    }
     return null;
+  },
+});
+
+export const internalGetGeneratedArtifactByKey = internalQuery({
+  args: {
+    originalImageId: v.id("images"),
+    requestedBy: v.id("users"),
+    artifactKey: v.string(),
+  },
+  returns: v.union(
+    v.object({
+      imageId: v.id("images"),
+      imageUrl: v.string(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const image = await ctx.db
+      .query("images")
+      .withIndex("by_generation_artifact", (q) =>
+        q.eq("generationArtifactKey", args.artifactKey),
+      )
+      .first();
+    if (
+      !image ||
+      image.parentImageId !== args.originalImageId ||
+      image.uploadedBy !== args.requestedBy
+    ) {
+      return null;
+    }
+    return { imageId: image._id, imageUrl: image.imageUrl };
   },
 });

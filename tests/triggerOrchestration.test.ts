@@ -7,6 +7,8 @@ import {
   createDispatchId,
   createVariationGenerationIdempotencyKey,
   orchestrationStatusForTerminalTriggerRun,
+  workActivityReadScopeForUser,
+  workActivityTagForUser,
 } from "../convex/triggerDispatch";
 
 describe("Pindeck Trigger orchestration", () => {
@@ -39,14 +41,22 @@ describe("Pindeck Trigger orchestration", () => {
     expect(aiStatusForTerminalTriggerRun("INTERRUPTED")).toBe("failed");
     expect(aiStatusForTerminalTriggerRun("TIMED_OUT")).toBe("failed");
     expect(aiStatusForTerminalTriggerRun("EXECUTING")).toBeUndefined();
-    expect(orchestrationStatusForTerminalTriggerRun("COMPLETED")).toBe("completed");
+    expect(orchestrationStatusForTerminalTriggerRun("COMPLETED")).toBe(
+      "completed",
+    );
     expect(orchestrationStatusForTerminalTriggerRun("CRASHED")).toBe("failed");
   });
 
   test("scopes media task keys by operation without exposing ids", () => {
     const input = { imageId: "private-image", userId: "private-user" };
-    const finalize = createOwnedImageTaskIdempotencyKey("pindeck-finalize-upload", input);
-    const repair = createOwnedImageTaskIdempotencyKey("pindeck-media-repair", input);
+    const finalize = createOwnedImageTaskIdempotencyKey(
+      "pindeck-finalize-upload",
+      input,
+    );
+    const repair = createOwnedImageTaskIdempotencyKey(
+      "pindeck-media-repair",
+      input,
+    );
     expect(finalize).toMatch(/^pindeck-finalize-upload:[a-f0-9]{64}$/);
     expect(finalize).not.toContain(input.imageId);
     expect(finalize).not.toBe(repair);
@@ -63,7 +73,9 @@ describe("Pindeck Trigger orchestration", () => {
     const key = createVariationGenerationIdempotencyKey(input);
     expect(key).toMatch(/^pindeck-generate-variations:[a-f0-9]{64}$/);
     expect(key).not.toContain(input.imageId);
-    expect(key).not.toBe(createVariationGenerationIdempotencyKey({ ...input, variationCount: 3 }));
+    expect(key).not.toBe(
+      createVariationGenerationIdempotencyKey({ ...input, variationCount: 3 }),
+    );
   });
 
   test("creates a stable dispatch correlation from the idempotency key", () => {
@@ -77,5 +89,16 @@ describe("Pindeck Trigger orchestration", () => {
     expect(dispatchId).toMatch(/^pindeck-dispatch:[a-f0-9]{64}$/);
     expect(dispatchId).not.toContain("image-123");
     expect(dispatchId).not.toContain("user-456");
+  });
+
+  test("scopes realtime activity to exactly one authenticated user tag", () => {
+    expect(workActivityTagForUser("user-a")).toBe("user:user-a");
+    expect(workActivityTagForUser("user-a")).not.toBe(
+      workActivityTagForUser("user-b"),
+    );
+    expect(() => workActivityTagForUser(" ")).toThrow();
+    expect(workActivityReadScopeForUser("user-a")).toEqual({
+      read: { tags: ["user:user-a"] },
+    });
   });
 });

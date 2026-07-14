@@ -22,18 +22,28 @@ export const pindeckImageRefreshTask = task({
     randomize: true,
   },
   run: async (payload: PindeckImageRefreshPayload, { ctx }) => {
-    metadata.set("stage", "analysis").set("imageId", payload.imageId);
+    metadata
+      .set("stage", "analysis")
+      .set("stageLabel", "Analyzing image metadata")
+      .set("progressMode", "indeterminate")
+      .set("imageId", payload.imageId);
     const siteUrl = requireEnv("PINDECK_CONVEX_SITE_URL").replace(/\/+$/, "");
     const token = requireEnv("PINDECK_ORCHESTRATION_TOKEN");
-    const response = await fetch(`${siteUrl}/orchestration/image-refresh`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const response = await logger.trace(
+      "Analyze image in Convex",
+      async (span) => {
+        span.setAttribute("pindeck.imageId", payload.imageId);
+        return await fetch(`${siteUrl}/orchestration/image-refresh`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ...payload, runId: ctx.run.id }),
+          signal: AbortSignal.timeout(540_000),
+        });
       },
-      body: JSON.stringify({ ...payload, runId: ctx.run.id }),
-      signal: AbortSignal.timeout(540_000),
-    });
+    );
     const text = await response.text();
     if (!response.ok) {
       const message = `Pindeck image refresh failed (${response.status}): ${text.slice(0, 500)}`;
@@ -54,7 +64,10 @@ export const pindeckImageRefreshTask = task({
       paletteOk: result.paletteOk,
       metadataRan: result.metadataRan,
     });
-    metadata.set("stage", "completed").set("paletteOk", result.paletteOk);
+    metadata
+      .set("stage", "completed")
+      .set("stageLabel", "Image analysis complete")
+      .set("paletteOk", result.paletteOk);
     return result;
   },
 });

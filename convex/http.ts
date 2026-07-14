@@ -6,7 +6,10 @@ import {
   imageRefreshHttp,
   mediaFinalizeHttp,
   mediaRepairHttp,
+  variationGenerationCompleteHttp,
   variationGenerationHttp,
+  variationGenerationPersistHttp,
+  variationGenerationPrepareHttp,
 } from "./orchestration";
 import {
   backfillNextcloudHttp,
@@ -46,6 +49,24 @@ http.route({
   path: "/orchestration/generate-variations",
   method: "POST",
   handler: variationGenerationHttp,
+});
+
+http.route({
+  path: "/orchestration/generate-variations/prepare",
+  method: "POST",
+  handler: variationGenerationPrepareHttp,
+});
+
+http.route({
+  path: "/orchestration/generate-variations/persist",
+  method: "POST",
+  handler: variationGenerationPersistHttp,
+});
+
+http.route({
+  path: "/orchestration/generate-variations/complete",
+  method: "POST",
+  handler: variationGenerationCompleteHttp,
 });
 
 http.route({
