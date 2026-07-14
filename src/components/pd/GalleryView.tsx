@@ -7,6 +7,7 @@ import type { Tweaks } from "./TweaksPanel";
 import type { LibraryFilters } from "@/lib/libraryFilters";
 import { applyLibraryFilters } from "@/lib/libraryFilters";
 import { downloadImage } from "@/lib/imageDownload";
+import { formatProjectRowLabel } from "@/lib/projectRowLabels";
 import { ImageLightbox } from "@/components/pd/ImageLightbox";
 import {
   HeartIcon,
@@ -610,7 +611,7 @@ export function GalleryView({
                       letterSpacing: 0,
                     }}
                   >
-                    {row.name}
+                    {formatProjectRowLabel(row.name)}
                   </h2>
                   <span
                     className="pd-mono"

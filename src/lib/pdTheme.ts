@@ -4,10 +4,26 @@
  */
 
 export const PD_FONT_STACKS = [
-  { id: "geist", css: "'Geist', sans-serif", mono: "'Geist Mono', monospace" },
-  { id: "inter", css: "'Inter', sans-serif", mono: "'JetBrains Mono', monospace" },
-  { id: "archivo", css: "'Archivo', sans-serif", mono: "'DM Mono', monospace" },
-  { id: "space", css: "'Space Grotesk', sans-serif", mono: "'JetBrains Mono', monospace" },
+  {
+    id: "geist",
+    css: "'Geist', 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif",
+    mono: "'Geist Mono', 'JetBrains Mono', ui-monospace, Consolas, monospace",
+  },
+  {
+    id: "inter",
+    css: "'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif",
+    mono: "'JetBrains Mono', ui-monospace, Consolas, monospace",
+  },
+  {
+    id: "archivo",
+    css: "'Archivo', 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif",
+    mono: "'DM Mono', 'JetBrains Mono', ui-monospace, Consolas, monospace",
+  },
+  {
+    id: "space",
+    css: "'Space Grotesk', 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif",
+    mono: "'JetBrains Mono', ui-monospace, Consolas, monospace",
+  },
 ] as const;
 
 export type PindeckTypographyId = (typeof PD_FONT_STACKS)[number]["id"];
@@ -46,7 +62,11 @@ export function accentInkFromAccentHex(hex: string): string {
   const wr = 248;
   const wg = 250;
   const wb = 252;
-  return rgbToHex(r * (1 - t) + wr * t, g * (1 - t) + wg * t, b * (1 - t) + wb * t);
+  return rgbToHex(
+    r * (1 - t) + wr * t,
+    g * (1 - t) + wg * t,
+    b * (1 - t) + wb * t,
+  );
 }
 
 /** Hover / pressed states for solid accent buttons */
@@ -66,7 +86,9 @@ export function accentContrastText(hex: string): string {
 /** 8-digit hex overlay on dark UI (#RRGGBBAA); ~14% opacity for soft washes */
 export function accentSoftHexFromAccent(hex: string): string {
   const normalized = /^#?[0-9a-fA-F]{6}$/.test(hex.replace("#", ""))
-    ? (hex.startsWith("#") ? hex : `#${hex}`)
+    ? hex.startsWith("#")
+      ? hex
+      : `#${hex}`
     : "#3a7bff";
   return `${normalized.startsWith("#") ? normalized : `#${normalized}`}24`;
 }
@@ -106,7 +128,9 @@ export function applyPindeckTweaksToDocument(opts: {
   root.style.setProperty("--accent-soft", soft);
   root.style.setProperty("--accent-ink", ink);
 
-  const typo = PD_FONT_STACKS.find((x) => x.id === opts.typography) ?? PD_FONT_STACKS.find((x) => x.id === "geist");
+  const typo =
+    PD_FONT_STACKS.find((x) => x.id === opts.typography) ??
+    PD_FONT_STACKS.find((x) => x.id === "geist");
   if (typo) {
     root.style.setProperty("--pd-font-sans", typo.css);
     root.style.setProperty("--pd-font-mono", typo.mono);
