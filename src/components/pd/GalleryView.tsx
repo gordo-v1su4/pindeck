@@ -603,12 +603,10 @@ export function GalleryView({
                   }}
                 >
                   <h2
+                    className="pd-gallery-section-title"
                     style={{
                       margin: 0,
-                      fontSize: 15,
-                      fontWeight: 650,
                       color: "var(--pd-ink)",
-                      letterSpacing: 0,
                     }}
                   >
                     {formatProjectRowLabel(row.name)}

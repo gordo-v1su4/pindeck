@@ -1257,6 +1257,20 @@ body {
   letter-spacing: 0 !important;
 }
 
+/* Project rows are labels, not page titles. Keep their hierarchy quieter than
+   the Boards/Decks page headings so dense image groups remain easy to scan. */
+.pd-gallery-section-title {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--pd-font-sans);
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pd-action-primary {
   border-color: transparent !important;
   background: var(--pd-accent-soft) !important;
