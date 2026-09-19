@@ -14,6 +14,7 @@ import {
   resolveLineageRoot,
   shouldQueueAnalysis,
   triggerOrchestrationEnabled,
+  reconcileOrchestrationAiStatusDrift,
 } from "./shared";
 
 export const internalListDiscordQueue = internalQuery({
@@ -115,6 +116,14 @@ export const internalModerateDiscordImage = internalMutation({
               runMetadata: true,
             },
           );
+          await ctx.scheduler.runAfter(
+            90_000,
+            internal.images.internalFallbackModeratedAnalysisIfStuck,
+            {
+              imageId: image._id,
+              userId: args.userId,
+            },
+          );
         } else {
           await ctx.scheduler.runAfter(
             0,
@@ -201,7 +210,11 @@ export const internalModerateDiscordImage = internalMutation({
     if (image.status !== "active" && image.status !== "draft") {
       throw new Error("Image must be approved before generating variations.");
     }
-    if (image.aiStatus === "processing") {
+    const readyForGenerate = await reconcileOrchestrationAiStatusDrift(
+      ctx,
+      image,
+    );
+    if (readyForGenerate.aiStatus === "processing") {
       throw new Error("Image is already processing.");
     }
 

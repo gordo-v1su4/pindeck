@@ -1,58 +1,59 @@
 ---
 title: Decks
-description: Build slide presentations from your image collections
+description: Slide decks from boards — gallery, composer, present, PDF
 ---
 
 # Decks
 
-Decks turn your image collections into slide presentations. Choose a template, arrange your slides, and present directly from Pindeck.
+Decks are **presentations** built from images. Slide content comes from a **board that already has pins**—you do not pick images inside the deck gallery first.
+
+<Warning>
+**Gallery → board → deck.** Bookmark images from **Gallery** (blue **Save to board**) onto a board **before** **Convert to Deck →**. An empty deck strip almost always means the board had no pins yet, not a broken app.
+</Warning>
+
+<Note>
+If **Decks** shows only **Loading…** briefly, wait for the lazy-loaded deck module. If you see **+ BLANK** and no decks, go to [Gallery](/guides/product-workflow#step-4--build-a-board-required-before-decks), bookmark pins to a [board](/guides/boards), then **Convert to Deck →**.
+</Note>
 
 ## Create a deck
 
-1. Open a board
-2. Click **Create Deck**
-3. Select a template that defines slide layout and transitions
-4. Your board's images are automatically placed as slides
+<Steps>
+  <Step title="Bookmark pins in Gallery">
+    Hover tiles → **Save to board** (blue bookmark). Repeat until the board has the images you want on slides.
+  </Step>
+  <Step title="Prepare the board">
+    Sidebar **Boards** (`B`) — confirm pin count on the card. Optionally double-click → storyboard → **Lock Board**.
+  </Step>
+  <Step title="Convert">
+    From **Boards**, use **Convert to Deck →** on a board card, or open the board → **Decks** tab → **Convert to Deck →**.
+  </Step>
+  <Step title="Open Decks">
+    Sidebar **Decks** (`D`) lists decks with strip previews. Click one to open the composer.
+  </Step>
+</Steps>
 
-## Deck structure
+**+ BLANK** in the deck gallery starts a new deck from the gallery without using a board (different workflow).
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `boardId` | ID | Parent collection |
-| `title` | string | Deck title |
-| `templateId` | string | Slide template identifier |
-| `slides` | object[] | Array of `{ imageId, layout, order }` |
-| `sourceImageIds` | ID[] | Available images for slide assignment |
+## Deck composer
 
-## Edit slides
+- **Slides** — horizontal strip tied to board/library images and palette.
+- **Blocks** — hero, logline, story, tone, etc., with live preview.
+- **Autosave** — edits persist to Convex (`decks.update`).
+- **Present** — fullscreen presentation mode.
+- **PDF** — exports slide pages to a downloadable PDF (client-side).
 
-- **Reorder** — Drag and drop slides to change the sequence
-- **Change layout** — Select a different layout per slide (full image, split, caption overlay)
-- **Swap image** — Replace a slide's image with another from the source collection
-- **Add/remove** — Insert new slides or delete existing ones
+Composer chrome uses your Tweaks accent tokens; slide canvas content follows deck styling.
 
-## Templates
+## Guest vs signed-in
 
-Templates define the visual structure of each slide:
+Guest users may see messaging that saved decks do not persist. Sign in to sync decks and boards to your account.
 
-| Template | Description |
-|----------|-------------|
-| Full bleed | Image fills the entire slide |
-| Caption | Image with a title/description overlay |
-| Split | Image on one side, text on the other |
-| Comparison | Two images side by side |
+## Reference fields
 
-## Present
+| Field | Description |
+| --- | --- |
+| `boardId` | Source board (when created via convert) |
+| `title` | Deck name |
+| `slides` | Slide sequence and block content (stored on deck document) |
 
-Click **Present** to enter fullscreen presentation mode. Navigate with arrow keys or click.
-
-## Generations
-
-When you create a deck, a generation record is saved with the template details. This lets you rebuild or modify the deck later from the same starting point.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `type` | `deck` | Generation type identifier |
-| `templateId` | string | Template used |
-| `templateName` | string | Human-readable template name |
-| `content` | string | Serialized deck content |
+For step order in the app, see [Product workflow](/guides/product-workflow).

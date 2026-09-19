@@ -5,14 +5,47 @@ description: How to upload and manage images in Pindeck
 
 # Uploading images
 
-Upload images to Pindeck via drag-and-drop, file picker, or the Discord ingest pipeline.
+Images enter Pindeck through **Upload** in the app (sidebar `U` or top bar). Every source converges on the same library record and storage path.
 
-## Upload workflow
+## Ingest paths
 
-1. Click **Upload** in the gallery or drag files onto the page
-2. Files are stored in Convex file storage first
-3. A background action persists the file to RustFS through the media API
-4. Derivatives (preview, small, medium, large) are generated and stored alongside the original
+```mermaid
+flowchart TB
+  subgraph ui["Upload screen tabs"]
+    L[Local Upload]
+    D[Discord queue]
+    P[Pinterest]
+    A[Automation]
+  end
+  subgraph backend["Backend"]
+    CVX[(Convex images)]
+    TRG[Trigger finalize]
+    RFS[(RustFS media)]
+  end
+  L --> CVX
+  D --> CVX
+  P --> CVX
+  A --> CVX
+  CVX --> TRG --> RFS
+  TRG --> CVX
+```
+
+| Tab | What you do | Notes |
+| --- | --- | --- |
+| **Local Upload** | Drag or pick files on the drop zone | Review/finalize in UI until **Gallery** shows the image |
+| **Discord** | Review queued imports | Approve/deny before full pipeline ([Discord bot](/guides/discord-bot)) |
+| **Pinterest** | Import from boards / RSS | Same metadata and storage as other sources |
+| **Automation** | Agent or scripted ingest | Uses HTTP ingest with API key |
+
+For step order in the product, see [Product workflow](/guides/product-workflow). For the full backend diagram, see [Architecture overview](/guides/architecture-overview).
+
+## What happens after upload
+
+1. Convex stores the upload handle and creates an **images** row.
+2. **Trigger** (when enabled) runs **finalize upload**: persist to RustFS, generate preview/webp derivatives.
+3. **Palette extraction** fills `images.colors`.
+4. **VLM analysis** (OpenRouter) fills group, genre, shot, style, and tags when configured.
+5. Status becomes **active** — the image appears in Gallery and Table.
 
 ### RustFS object path format
 
@@ -24,7 +57,7 @@ pindeck/media-uploads/YYYY/MM_DD/high/<filename>-w768.webp
 pindeck/media-uploads/YYYY/MM_DD/high/<filename>-w1280.webp
 ```
 
-Objects are written through the RustFS media API under the `pindeck` bucket.
+Objects are written through the RustFS media API under the `pindeck` bucket. See [RustFS storage](/guides/rustfs-storage).
 
 ## Image metadata
 
@@ -68,9 +101,17 @@ This targets images where `sourceType = "upload"`, `storageProvider = "convex"`,
 
 ## Sources
 
-Images can come from multiple sources:
+- **Direct upload** — **Upload** → **Local Upload** tab
+- **Discord** — Bot emoji / commands → review queue ([Discord bot](/guides/discord-bot))
+- **Pinterest** — Import tab or RSS sidecar
+- **AI** — Variations from the image drawer ([AI generation](/guides/ai-generation))
 
-- **Direct upload** — User-initiated from the gallery UI
-- **Discord** — Ingested via the Discord bot emoji trigger (see [Discord bot](/guides/discord-bot))
-- **Pinterest** — Imported from Pinterest boards
-- **AI** — Generated as variations of existing images (see [AI generation](/guides/ai-generation))
+## Next steps in the app
+
+```mermaid
+flowchart LR
+  ACT[Active image] --> G[Gallery / Table]
+  ACT --> B[Save to board]
+  ACT --> V[Variations tab]
+  B --> D[Deck via Convert]
+```

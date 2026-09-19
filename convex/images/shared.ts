@@ -38,6 +38,8 @@ function attachImagesInternalShim(api: Record<string, unknown>) {
       nested["images/lifecycle"].internalQuarantineBrokenImage,
     internalGetMetadataRefreshPayload:
       nested["images/analysis"].internalGetMetadataRefreshPayload,
+    internalFallbackModeratedAnalysisIfStuck:
+      nested["images/analysis"].internalFallbackModeratedAnalysisIfStuck,
     internalSaveGeneratedImages:
       nested["images/generation"].internalSaveGeneratedImages,
     internalGetGeneratedArtifactByKey:
@@ -65,6 +67,33 @@ const CANONICAL_NEXTCLOUD_PUBLIC_TOKEN = "afc53c40a68aade";
 
 export function triggerOrchestrationEnabled() {
   return process.env.PINDECK_TRIGGER_ORCHESTRATION_ENABLED === "true";
+}
+
+export const ORCHESTRATION_TASKS_SYNCING_AI_STATUS = new Set([
+  "pindeck-image-refresh",
+  "pindeck-generate-variations",
+  "pindeck-finalize-upload",
+]);
+
+/** Upload reads aiStatus; Work reads Trigger runs — align when orchestration is terminal. */
+export async function reconcileOrchestrationAiStatusDrift(
+  ctx: MutationCtx,
+  image: Doc<"images">,
+): Promise<Doc<"images">> {
+  if (image.aiStatus !== "processing") return image;
+  const task = image.orchestrationTask;
+  if (!task || !ORCHESTRATION_TASKS_SYNCING_AI_STATUS.has(task)) {
+    return image;
+  }
+  if (image.orchestrationStatus === "completed") {
+    await ctx.db.patch("images", image._id, { aiStatus: "completed" });
+    return { ...image, aiStatus: "completed" };
+  }
+  if (image.orchestrationStatus === "failed") {
+    await ctx.db.patch("images", image._id, { aiStatus: "failed" });
+    return { ...image, aiStatus: "failed" };
+  }
+  return image;
 }
 
 /**

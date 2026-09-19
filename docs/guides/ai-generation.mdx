@@ -1,30 +1,56 @@
 ---
 title: AI generation
-description: Generate image variations with fal.ai and OpenRouter VLM
+description: Generate image variations with fal.ai, OpenRouter VLM, and Trigger orchestration
 ---
 
 # AI generation
 
-Pindeck uses AI to generate variations of your images. Choose between shot-type changes and style transformations.
+Pindeck generates **child images** from library originals using fal.ai, with optional VLM analysis via OpenRouter. Runs are orchestrated through **Trigger** on app-vm; progress appears under **Work** in the app top bar.
 
-## How it works
+## In the app
 
-1. Select an image in the gallery
-2. Click **Generate Variation**
-3. Choose a variation type and detail
-4. The system sends the image to fal.ai for generation
-5. The result is saved as a new child image linked to the original
+<Steps>
+  <Step title="Open an active library image">
+    **Gallery** or **Table** → click to open the detail drawer.
+  </Step>
+  <Step title="Variations tab">
+    Choose a mode (e.g. **Action Shot**), framing, and count—not a separate “Generate Variation” button on the tile.
+  </Step>
+  <Step title="Generate">
+    Click **Generate …** to queue work. Watch **Work** for Trigger status.
+  </Step>
+  <Step title="Lineage">
+    New images appear in the library with **VAR** styling; **Lineage** in the drawer shows parent and children.
+  </Step>
+</Steps>
 
-### Variation types
+## Pipeline
 
-| Type | Description | Example |
-|------|-------------|---------|
-| `shot_type` | Changes camera angle/framing | Close-up, wide shot, overhead |
-| `style` | Applies a visual style transformation | Noir, pastel, high contrast |
+```mermaid
+flowchart TD
+  UI[Drawer: Variations] --> CVX[Convex mutation]
+  CVX --> TRG[Trigger: generate-variations]
+  TRG --> PREP[Prepare plan + ownership]
+  PREP --> ITEM[Per-item fal.ai render]
+  ITEM --> PERSIST[Persist child + RustFS]
+  PERSIST --> CVX
+  CVX --> LIB[Library + Lineage]
+```
+
+| Stage | Responsibility |
+| --- | --- |
+| **Convex** | Auth, ownership, `parentImageId`, lineage, orchestration leases |
+| **Trigger** | Long-running prepare / render / persist callbacks |
+| **fal.ai** | Image edit / variation render |
+| **OpenRouter VLM** | Smart analysis and metadata backfill (also via table **Backfill metadata**) |
+
+### Variation modes (UI)
+
+Modes are labeled in **Title Case** in the drawer (e.g. Action Shot, Close-Up). Each run creates one or more **child** rows with `sourceType: ai` and a link to the parent.
 
 ## Configuration
 
-AI generation requires two API keys set in the Convex dashboard:
+Set these in the **Convex** project settings:
 
 | Variable | Description |
 |----------|-------------|
@@ -33,26 +59,33 @@ AI generation requires two API keys set in the Convex dashboard:
 | `OPENROUTER_VLM_MODEL` | Optional model override for vision analysis |
 | `OPENROUTER_PROVIDER_SORT` | Optional provider sorting preference |
 
-## Smart analysis
+Orchestration toggle: `PINDECK_TRIGGER_ORCHESTRATION_ENABLED` — when `true`, heavy jobs use Trigger (see [Architecture overview](/guides/architecture-overview)).
 
-The `/smartAnalyzeImage` endpoint uses an OpenRouter VLM (vision-language model) to analyze your image before generation. This analysis helps select appropriate variation parameters.
+## Smart analysis HTTP
 
-See [Smart Analyze endpoint](/api-reference/endpoint/smart-analyze) in the API reference.
+The `/smartAnalyzeImage` endpoint uses OpenRouter VLM for analysis before or alongside generation. Requires `INGEST_API_KEY` Bearer auth and image ownership checks.
+
+See [Smart Analyze endpoint](/api-reference/endpoint/smart-analyze).
 
 ## Variation metadata
-
-Generated images track their relationship to the original:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `parentImageId` | ID | Reference to the source image |
-| `variationCount` | number | Number of variations generated |
-| `variationType` | string | `shot_type` or `style` |
-| `variationDetail` | string | Specific variation applied (e.g., "close-up") |
-| `sourceType` | string | Set to `ai` for generated images |
+| `variationCount` | number | Number of variations requested |
+| `variationType` | string | Mode / shot / style category |
+| `variationDetail` | string | Specific variation applied |
+| `sourceType` | string | `ai` for generated images |
+| `sref` | string (optional) | Style reference propagated from lineage |
 
 ## Rate limits and costs
 
 - fal.ai charges per generation — monitor usage in your fal.ai dashboard
 - OpenRouter charges per VLM analysis call
-- Generation time varies (typically 5–15 seconds per image)
+- Generation time varies (often tens of seconds per image; **Work** shows live status)
+
+## Related
+
+- [Product workflow](/guides/product-workflow) — step 3 optional branch  
+- [Architecture overview](/guides/architecture-overview) — sequence diagram for variations  
+- [Trigger orchestration (repo)](https://github.com/gordo-v1su4/pindeck/blob/main/docs/trigger-orchestration.md) — task names and queues

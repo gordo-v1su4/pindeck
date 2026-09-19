@@ -1,60 +1,63 @@
 ---
 title: Quickstart
-description: Get started with Pindeck in minutes
+description: First session on pindeck.dev — sign in, upload, board, variation, deck
 ---
 
 # Quickstart
 
-Get Pindeck up and running — sign up, upload your first image, and generate an AI variation.
+Follow these steps in order on [www.pindeck.dev](https://www.pindeck.dev). For a full map of every screen, see **[Product workflow](/guides/product-workflow)**. For backend diagrams, see **[Architecture overview](/guides/architecture-overview)**.
 
-## 1. Create an account
+```mermaid
+flowchart LR
+  A[Sign in] --> B[Upload]
+  B --> C[Save to board]
+  C --> D[Storyboard]
+  D --> E[Deck · PDF]
+  B -.-> F[Variation optional]
+  F --> B
+```
 
-1. Go to [www.pindeck.dev](https://www.pindeck.dev)
-2. Sign in with email/password or **Continue as guest**
-3. Your profile is created automatically on first login
+<Warning>
+Use **email sign-in**, not guest, if you want boards and decks to persist.
+</Warning>
 
-## 2. Upload your first image
+## 1. Sign in
 
-1. Click **Upload** or drag and drop an image onto the gallery
-2. Add a title, description, and tags
-3. Choose a category (e.g., Commercial, Film, Moodboard)
-4. The image is stored in Convex and automatically persisted to RustFS
+1. Open [www.pindeck.dev](https://www.pindeck.dev).
+2. Sign in with email and password.
+3. Confirm the library shell loads (sidebar + gallery or table)—not an empty black main view.
 
-### Upload metadata
+## 2. Upload an image
 
-Each image supports:
+1. Sidebar **Upload** (`U`).
+2. **Local Upload** tab → click or drag a file onto the drop zone.
+3. Complete any review/finalize steps shown in the upload UI until the image appears under **Gallery**.
 
-| Field | Description |
-|-------|-------------|
-| Title | Display name for the image |
-| Category | Classification group (Commercial, Film, etc.) |
-| Tags | Searchable keywords |
-| Group | Project group (e.g., Commercial, Spec Music Video) |
-| Project name | Specific project within a group |
+See [Uploading](/guides/uploading) for Discord, Pinterest, and automation tabs.
 
-## 3. Organize into a board
+## 3. Save to a board (Gallery — blue bookmark)
 
-1. Select images from the gallery
-2. Click **Add to Board** → create a new board or add to an existing one
-3. Boards support drag-and-drop reordering
+1. **Gallery** (`G`) — stay on the gallery, not Boards yet.
+2. Hover a tile → **Save to board** (top-right bookmark; it turns **blue** when saved).
+3. Create a board or add to an existing one.
+4. Repeat for every image you want on a future deck (often 10–12 references).
 
-## 4. Generate an AI variation
+You cannot skip this and go straight to **Decks** with slide images—the deck is built **from a board that already has these pins**.
 
-1. Open an image and click **Generate Variation**
-2. Choose a variation type:
-   - **Shot type** — Changes the camera angle/framing (e.g., close-up, wide shot)
-   - **Style** — Applies a visual style transformation
-3. The variation is generated via fal.ai and saved as a child image linked to the original
+## 4. Generate a variation (optional)
 
-## 5. Create a deck
+1. Open the image drawer → **Variations**.
+2. Choose a mode (e.g. **Action Shot**) and options → **Generate …**
+3. Watch **Work** in the top bar for Trigger progress.
 
-1. Open a board and click **Create Deck**
-2. Select a template
-3. Rearrange slides and layouts
-4. Present directly from Pindeck
+## 5. Storyboard and deck
+
+1. **Boards** → **double-click** your board to open the storyboard workspace.
+2. Drag shots into frames; **Lock Board** when the layout is set.
+3. **Convert to Deck →** on the board card or **Decks** tab inside the board.
+4. **Decks** → open the deck → edit, **Present**, or **PDF** export.
 
 ## What's next?
 
-- [Uploading](/guides/uploading) — Detailed upload workflow
-- [Boards](/guides/boards) — Advanced board features
-- [AI generation](/guides/ai-generation) — All variation options
+- [Product workflow](/guides/product-workflow) — what each step is for  
+- [Boards](/guides/boards) · [Decks](/guides/decks) · [AI generation](/guides/ai-generation)

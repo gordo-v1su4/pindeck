@@ -8,7 +8,7 @@ import {
 } from "../_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "../_generated/api";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { preferredImageUrlForSampling } from "../colorExtractionUrls";
 import { canModifyImage, isAdminUser } from "../lib/authz";
 import {
@@ -620,6 +620,129 @@ export const internalGetMediaRepairPayload = internalQuery({
       storagePath: image.storagePath,
       storagePersistStatus: image.storagePersistStatus,
     };
+  },
+});
+
+function isAutomatedE2eRow(image: Doc<"images">) {
+  if (image.externalId?.startsWith("e2e-")) return true;
+  if (image.title?.startsWith("E2E ")) return true;
+  if (image.tags?.includes("e2e")) return true;
+  return false;
+}
+
+function isUploadLaneRow(image: Doc<"images">) {
+  return (
+    image.status === "pending" ||
+    image.status === "draft" ||
+    image.aiStatus === "processing" ||
+    image.aiStatus === "queued"
+  );
+}
+
+/** Ops: remove smoke/E2E rows stuck in Upload (pending/draft/processing) — not active library. */
+export const internalPurgeUploadClutterForUser = internalMutation({
+  args: { userId: v.id("users") },
+  returns: v.object({
+    removed: v.number(),
+    remainingUploadClutter: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    let removed = 0;
+
+    async function purgeSubtree(imageId: Id<"images">) {
+      const children = await ctx.db
+        .query("images")
+        .withIndex("by_parent", (q) => q.eq("parentImageId", imageId))
+        .collect();
+      for (const child of children) {
+        if (isAutomatedE2eRow(child) || isUploadLaneRow(child)) {
+          await purgeSubtree(child._id);
+        }
+      }
+      const image = await ctx.db.get("images", imageId);
+      if (!image || image.uploadedBy !== args.userId) return;
+      if (!isAutomatedE2eRow(image) || !isUploadLaneRow(image)) return;
+      await deleteImageRecord(ctx, image);
+      removed += 1;
+    }
+
+    const batch = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", args.userId))
+      .collect();
+
+    for (const row of batch) {
+      if (!isAutomatedE2eRow(row) || !isUploadLaneRow(row)) continue;
+      await purgeSubtree(row._id);
+    }
+
+    const remainingUploadClutter = (
+      await ctx.db
+        .query("images")
+        .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", args.userId))
+        .collect()
+    ).filter((row) => isAutomatedE2eRow(row) && isUploadLaneRow(row)).length;
+
+    return { removed, remainingUploadClutter };
+  },
+});
+
+/** Ops-only: delete every image row owned by a user (children before parents). */
+export const internalPurgeAllImagesForUser = internalMutation({
+  args: { userId: v.id("users") },
+  returns: v.object({
+    removed: v.number(),
+    remaining: v.number(),
+    rounds: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    let removed = 0;
+
+    async function purgeSubtree(imageId: Id<"images">) {
+      const children = await ctx.db
+        .query("images")
+        .withIndex("by_parent", (q) => q.eq("parentImageId", imageId))
+        .collect();
+      for (const child of children) {
+        await purgeSubtree(child._id);
+      }
+      const image = await ctx.db.get("images", imageId);
+      if (!image) return;
+      await deleteImageRecord(ctx, image);
+      removed += 1;
+    }
+
+    const batch = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", args.userId))
+      .collect();
+    const ownedIds = new Set(batch.map((row) => String(row._id)));
+    const roots = batch.filter(
+      (row) =>
+        !row.parentImageId || !ownedIds.has(String(row.parentImageId)),
+    );
+    for (const root of roots) {
+      await purgeSubtree(root._id);
+    }
+
+    let rounds = 0;
+    for (rounds = 0; rounds < 8; rounds += 1) {
+      const stragglers = await ctx.db
+        .query("images")
+        .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", args.userId))
+        .collect();
+      if (stragglers.length === 0) break;
+      for (const row of stragglers) {
+        await purgeSubtree(row._id);
+      }
+    }
+
+    const remaining = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", args.userId))
+      .collect();
+
+    return { removed, remaining: remaining.length, rounds };
   },
 });
 

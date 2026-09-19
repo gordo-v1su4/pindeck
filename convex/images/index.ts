@@ -77,6 +77,7 @@ export {
   internalCanModifyImage,
   internalUpdateAnalysis,
   internalSetAiStatus,
+  internalFallbackModeratedAnalysisIfStuck,
   internalGetMetadataRefreshPayload,
   updateAnalysis,
   updateImageMetadata,

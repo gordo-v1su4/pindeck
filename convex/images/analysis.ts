@@ -395,6 +395,54 @@ export const internalSetAiStatus = internalMutation({
   },
 });
 
+/** Safety net when Trigger metadata refresh never finishes after moderation approve. */
+export const internalFallbackModeratedAnalysisIfStuck = internalAction({
+  args: {
+    imageId: v.id("images"),
+    userId: v.id("users"),
+  },
+  returns: v.object({ outcome: v.string() }),
+  handler: async (ctx, args) => {
+    const image = await ctx.runQuery(
+      internalApi.images.internalGetImageForAnalysis,
+      { imageId: args.imageId },
+    );
+    if (!image || image.uploadedBy !== args.userId) {
+      return { outcome: "missing" };
+    }
+    if (image.aiStatus !== "processing") {
+      return { outcome: "not_processing" };
+    }
+    if (image.orchestrationStatus === "completed") {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "completed",
+      });
+      return { outcome: "reconciled_completed" };
+    }
+    if (
+      image.orchestrationStatus === "running" ||
+      image.orchestrationStatus === "queued"
+    ) {
+      return { outcome: "orchestration_in_flight" };
+    }
+
+    await ctx.runAction(internal.vision.internalSmartAnalyzeImage, {
+      imageId: args.imageId,
+      userId: args.userId,
+      imageUrl: image.imageUrl,
+      title: image.title,
+      description: image.description,
+      tags: image.tags,
+      category: image.category,
+      source: image.source,
+      sref: image.sref,
+      variationCount: 0,
+    });
+    return { outcome: "legacy_vision" };
+  },
+});
+
 export const internalGetMetadataRefreshPayload = internalQuery({
   args: {
     imageId: v.id("images"),

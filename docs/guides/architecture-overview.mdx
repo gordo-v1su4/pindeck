@@ -1,0 +1,159 @@
+---
+title: Architecture overview
+description: How images move through Pindeck — upload, storage, analysis, display, and background jobs
+---
+
+# Architecture overview
+
+Pindeck splits **what you click** (React on Vercel) from **what runs in the background** (Convex, Trigger on app-vm, RustFS media). This page is for anyone who wants the backend story without reading the whole repo.
+
+<Info>
+Deep ops detail lives in the GitHub repo: [platform topology](https://github.com/gordo-v1su4/pindeck/blob/main/docs/architecture/platform-topology.md) and [Trigger orchestration](https://github.com/gordo-v1su4/pindeck/blob/main/docs/trigger-orchestration.md).
+</Info>
+
+## Production map
+
+```mermaid
+flowchart LR
+  subgraph client["Browser"]
+    U[You]
+    FE[pindeck.dev]
+  end
+  subgraph backend["Backend"]
+    CVX["Convex<br/>convex.serving.cloud"]
+    SITE["HTTP actions<br/>convex-site.serving.cloud"]
+    TRG["Trigger<br/>trigger.v1su4.dev"]
+    RFS["RustFS<br/>media.v1su4.dev"]
+  end
+  U --> FE
+  FE --> CVX
+  CVX --> RFS
+  FE --> TRG
+  TRG --> SITE
+  SITE --> CVX
+  CVX --> RFS
+```
+
+| Layer | Role |
+| --- | --- |
+| **Frontend** | Gallery, boards, decks, upload UI; real-time Convex subscriptions |
+| **Convex** | Image records, auth, boards/decks, orchestration state, HTTP ingest |
+| **Trigger** | Long jobs: finalize upload, derivatives, VLM metadata, fal.ai variations |
+| **RustFS** | Durable originals + preview / webp derivatives |
+
+---
+
+## After an image arrives
+
+Every path ends in the same **library image** row, but entry differs:
+
+```mermaid
+flowchart TB
+  subgraph ingest["Ingest sources"]
+    LOC[Local upload]
+    DISC[Discord bot]
+    PIN[Pinterest / automation]
+  end
+  subgraph gate["Review"]
+    PEND[pending / draft]
+    ACT[active library]
+  end
+  subgraph use["What you can do next"]
+    GAL[Gallery & Table]
+    BRD[Save to board]
+    VAR[Generate variation]
+    MET[Edit metadata]
+  end
+  LOC --> PEND
+  DISC --> PEND
+  PIN --> PEND
+  PEND --> ACT
+  ACT --> GAL
+  ACT --> BRD
+  ACT --> VAR
+  ACT --> MET
+  BRD --> SB[Storyboard layout]
+  SB --> DCK[Deck & PDF]
+```
+
+<Note>
+**Decks need boards.** Board → storyboard → **Convert to Deck** copies image references into slides. Skipping the board step leaves nothing for the deck strip to show.
+</Note>
+
+---
+
+## Backend pipeline (one new image)
+
+What happens while you wait for an upload or ingest to appear in **Gallery**:
+
+```mermaid
+flowchart TD
+  A[Upload or /ingestExternal] --> B[Convex: image row + storage handle]
+  B --> C{Orchestration enabled?}
+  C -->|yes| D[Trigger: finalize / external-ingest]
+  C -->|no| E[Legacy Convex scheduler path]
+  D --> F[Persist to RustFS + derivatives]
+  E --> F
+  F --> G[Color palette extraction]
+  G --> H["VLM metadata<br/>group · genre · shot · style"]
+  H --> I[status: active · aiStatus: completed]
+  I --> J[Gallery / Table / API]
+```
+
+| Stage | What changes |
+| --- | --- |
+| **Store** | Original and sized previews land under `pindeck/media-uploads/…` on RustFS |
+| **Tag / describe** | OpenRouter VLM fills cinematic fields; you can edit in the drawer or table |
+| **Palette** | Dominant colors in `images.colors` (gallery swatches, table column, deck composer) |
+| **Display** | Active images join the shared library query; filters and aggregations update live |
+
+---
+
+## AI variation (optional branch)
+
+```mermaid
+sequenceDiagram
+  participant UI as App drawer
+  participant CVX as Convex
+  participant TRG as Trigger
+  participant FAL as fal.ai
+  participant RFS as RustFS
+  UI->>CVX: Request variation (mode, count)
+  CVX->>TRG: pindeck-generate-variations
+  TRG->>CVX: prepare (ownership + plan)
+  loop Each variation
+    TRG->>FAL: One render
+    TRG->>CVX: persist child image
+    CVX->>RFS: Store artifact
+  end
+  CVX-->>UI: New child rows (parentImageId, lineage)
+```
+
+Watch **Work** in the top bar for run progress. Children stay linked to the parent for **Lineage** in the drawer.
+
+---
+
+## External ingest (Discord / Pinterest)
+
+```mermaid
+flowchart LR
+  EXT[Bot or RSS sidecar] --> HTTP[/ingestExternal/]
+  HTTP --> SITE[convex-site]
+  SITE --> CVX[Convex queue]
+  CVX --> MOD{Moderation}
+  MOD -->|approve| TRG[Trigger external-ingest]
+  MOD -->|deny| X[Rejected]
+  TRG --> RFS[RustFS]
+  TRG --> CVX[Active library]
+```
+
+See [Discord bot](/guides/discord-bot) and [Uploading](/guides/uploading).
+
+---
+
+## Related
+
+- [Product workflow](/guides/product-workflow) — numbered steps in the UI  
+- [Uploading](/guides/uploading) — tabs, fields, storage paths  
+- [AI generation](/guides/ai-generation) — variation modes and env keys  
+- [Development](/development) — local build and deploy

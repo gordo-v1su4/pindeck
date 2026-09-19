@@ -38,9 +38,65 @@ SITE_URL="${SITE_URL%/}"
   exit 1
 }
 
-# Small public PNG — Convex actions fetch this for RustFS persist (non-Trigger path).
-TEST_IMAGE_URL="${E2E_TEST_IMAGE_URL:-https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/120px-PNG_transparency_demonstration_1.png}"
 RUN_ID="${E2E_RUN_ID:-$(date +%s)}"
+
+# Default fixture: a PNG from ~/Downloads (unique temp URL per run). Override with E2E_TEST_IMAGE_PATH or E2E_TEST_IMAGE_URL.
+resolve_e2e_png_path() {
+  if [[ -n "${E2E_TEST_IMAGE_PATH:-}" && -f "${E2E_TEST_IMAGE_PATH}" ]]; then
+    printf '%s' "${E2E_TEST_IMAGE_PATH}"
+    return 0
+  fi
+  local hooded="${HOME}/Downloads/_Hooded_Figures_Mask_Low-angle_fisheye_shot_-_The_hooded_figure_c7f4f8f0-125c-4029-bfaa-4ad33b2ddc73.png"
+  if [[ -f "$hooded" ]]; then
+    printf '%s' "$hooded"
+    return 0
+  fi
+  find "${HOME}/Downloads" -maxdepth 1 -type f -iname '*.png' -print0 2>/dev/null \
+    | xargs -0 ls -t 2>/dev/null \
+    | head -n 1
+}
+
+publish_local_png_url() {
+  local path="$1"
+  local base
+  base="$(basename "$path")"
+  local name="e2e-${RUN_ID}-${base}"
+  local url=""
+  url="$(curl -fsS -F "fileToUpload=@${path}" -F "reqtype=fileupload" "https://catbox.moe/user/api.php" 2>/dev/null || true)"
+  if [[ -n "$url" && "$url" == https://* ]]; then
+    printf '%s' "$url"
+    return 0
+  fi
+  url="$(curl -fsS -F "file=@${path};filename=${name}" "https://0x0.st/${name}" 2>/dev/null || true)"
+  if [[ -n "$url" && "$url" == https://* ]]; then
+    printf '%s' "$url"
+    return 0
+  fi
+  echo "ERROR: Could not publish local PNG (catbox + 0x0.st failed). Set E2E_TEST_IMAGE_URL." >&2
+  return 1
+}
+
+if [[ -n "${E2E_TEST_IMAGE_URL:-}" ]]; then
+  TEST_IMAGE_URL="$E2E_TEST_IMAGE_URL"
+else
+  LOCAL_PNG="$(resolve_e2e_png_path || true)"
+  if [[ -n "${LOCAL_PNG:-}" && -f "$LOCAL_PNG" ]]; then
+    echo "== E2E fixture from Downloads ==" >&2
+    echo "${LOCAL_PNG}" >&2
+    TEST_IMAGE_URL="$(publish_local_png_url "$LOCAL_PNG")"
+    echo "Published temp URL for ingest (this run only)" >&2
+  else
+    echo "WARN: No PNG in ~/Downloads; set E2E_TEST_IMAGE_PATH. Falling back to Wikimedia pool." >&2
+    E2E_IMAGE_POOL=(
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/120px-PNG_transparency_demonstration_1.png"
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/120px-Fronalpstock_big.jpg"
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/120px-Image_created_with_a_mobile_phone.png"
+    )
+    pool_seed="$(printf '%s' "$RUN_ID" | cksum | awk '{print $1}')"
+    pool_index=$((pool_seed % ${#E2E_IMAGE_POOL[@]}))
+    TEST_IMAGE_URL="${E2E_IMAGE_POOL[$pool_index]}"
+  fi
+fi
 
 echo "== Pindeck Convex health =="
 ./scripts/check-pindeck-convex.sh
@@ -135,17 +191,44 @@ ingest_source() {
     --arg userId "$PINDECK_USER_ID" \
     --arg imageId "$image_id" \
     '{userId:$userId,imageId:$imageId,action:"approve"}')"
-  post_json "/discordModerate" "$mod_payload" | jq . >&2
+  local approve_resp
+  approve_resp="$(post_json "/discordModerate" "$mod_payload")"
+  echo "$approve_resp" | jq . >&2
 
   if [[ "${E2E_GENERATE:-}" == "1" ]]; then
     echo "== discordModerate generate (E2E_GENERATE=1 — calls fal/OpenRouter) ==" >&2
-    echo "(waiting 45s for post-approve metadata refresh to finish before generate)" >&2
-    sleep 45
     mod_payload="$(jq -nc \
       --arg userId "$PINDECK_USER_ID" \
       --arg imageId "$image_id" \
       '{userId:$userId,imageId:$imageId,action:"generate"}')"
-    post_json "/discordModerate" "$mod_payload" | jq . >&2
+    max_wait="${E2E_GENERATE_MAX_WAIT_SEC:-240}"
+    interval="${E2E_GENERATE_POLL_SEC:-15}"
+    elapsed=0
+    generate_ok=0
+    while [[ "$elapsed" -lt "$max_wait" ]]; do
+      http_code="$(curl -sS -o /tmp/pindeck-e2e-generate.json -w '%{http_code}' -X POST "${SITE_URL}/discordModerate" \
+        -H "Content-Type: application/json" \
+        -H "$auth_header" \
+        -d "$mod_payload")"
+      if [[ "$http_code" == "200" ]]; then
+        jq . /tmp/pindeck-e2e-generate.json >&2
+        generate_ok=1
+        break
+      fi
+      err_msg="$(jq -r '.error // .message // empty' /tmp/pindeck-e2e-generate.json 2>/dev/null || cat /tmp/pindeck-e2e-generate.json)"
+      if [[ "$http_code" == "400" ]] && [[ "$err_msg" == *"already processing"* ]]; then
+        echo "(generate blocked — analysis still running; retry in ${interval}s, ${elapsed}/${max_wait}s)" >&2
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+        continue
+      fi
+      echo "ERROR: discordModerate generate failed (HTTP ${http_code}): ${err_msg}" >&2
+      exit 1
+    done
+    [[ "$generate_ok" == "1" ]] || {
+      echo "ERROR: generate did not succeed within ${max_wait}s (image still processing)" >&2
+      exit 1
+    }
   else
     echo "(skip variation generate; set E2E_GENERATE=1 to run fal pipeline)" >&2
   fi

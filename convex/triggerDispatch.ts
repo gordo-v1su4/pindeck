@@ -73,7 +73,17 @@ export const dispatchImageMetadataRefresh: any = internalAction({
       taskId,
       idempotencyKey,
     );
-    if (existingRunId) return { runId: existingRunId };
+    if (existingRunId) {
+      await reconcileReusedRun(
+        ctx,
+        args.imageId,
+        taskId,
+        dispatchId,
+        existingRunId,
+        true,
+      );
+      return { runId: existingRunId };
+    }
     try {
       const handle = await tasks.trigger(
         taskId,
@@ -159,7 +169,17 @@ export const dispatchVariationGeneration: any = internalAction({
       taskId,
       idempotencyKey,
     );
-    if (existingRunId) return { runId: existingRunId };
+    if (existingRunId) {
+      await reconcileReusedRun(
+        ctx,
+        args.imageId,
+        taskId,
+        dispatchId,
+        existingRunId,
+        true,
+      );
+      return { runId: existingRunId };
+    }
     try {
       const handle = await tasks.trigger(
         taskId,
@@ -231,7 +251,17 @@ function ownedImageDispatch(
         taskId,
         idempotencyKey,
       );
-      if (existingRunId) return { runId: existingRunId };
+      if (existingRunId) {
+        await reconcileReusedRun(
+          ctx,
+          args.imageId,
+          taskId,
+          dispatchId,
+          existingRunId,
+          false,
+        );
+        return { runId: existingRunId };
+      }
       try {
         const handle = await tasks.trigger(
           taskId,

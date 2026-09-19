@@ -24,6 +24,8 @@ Rules:
 
 ## 2026-09-19
 
+- **Upload-clutter purge (ops):** `internalPurgeUploadClutterForUser` removes E2E-tagged **pending/draft/processing** rows only; full account wipe requires `PURGE_MODE=entire-account` + explicit confirm (`scripts/purge-owner-library.sh`).
+- **E2E smoke fixture:** defaults to a PNG from `~/Downloads` (unique temp URL per run); Wikimedia pool is fallback only.
 - **Orchestration → Upload UI sync:** `completeCallback` and cached orchestration replays set `images.aiStatus` when Trigger finishes `pindeck-image-refresh` / `pindeck-generate-variations`; `reconcileMyOrchestrationAiStatus` backfills rows where orchestration is terminal but Upload still shows processing.
 - **Production black screen fix:** Restored wire path `images:list` via root [`convex/images.ts`](convex/images.ts) barrel after V1S-84 split (nested modules only had `images/library:list`). `check-pindeck-convex.sh` now fails if `images.js:list` is missing from deploy.
 - **Platform docs:** Single map [`docs/architecture/platform-topology.md`](docs/architecture/platform-topology.md); trimmed duplicates; removed stale [`docs/guides/redesign-deck-port-inventory.md`](docs/guides/redesign-deck-port-inventory.md).

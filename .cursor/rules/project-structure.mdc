@@ -36,7 +36,7 @@ Current behavior highlights:
 pindeck/
 ├── .cursor/rules/                 # Cursor rules/docs
 ├── convex/                        # Convex backend
-├── docs/                          # Session docs/notes
+├── docs/                          # Mintlify site (docs.pindeck.dev): MDX guides, docs.json, style.css, accent.js
 ├── scripts/                       # Run/deploy helper scripts
 ├── services/discord-bot/          # Discord bot service
 ├── src/                           # Frontend app

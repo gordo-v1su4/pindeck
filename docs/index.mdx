@@ -6,46 +6,91 @@ description: Operating notes and integration docs for Pindeck
 
 # Pindeck Docs
 
-Pindeck is the operating surface for ingesting, organizing, generating, and presenting visual references. These docs focus on the workflows that need to stay dependable: uploads, Discord and Pinterest ingest, board and deck creation, AI variation generation, and the self-hosted Convex/RustFS runtime.
+Pindeck is the operating surface for ingesting, organizing, generating, and presenting visual references. These docs match the production app at [pindeck.dev](https://pindeck.dev). Open **Docs** from the app top bar to sync your Tweaks accent on [docs.pindeck.dev](https://docs.pindeck.dev).
+
+## How work flows through the app
+
+```mermaid
+flowchart LR
+  subgraph step1["1 · Account"]
+    IN[Sign in]
+  end
+  subgraph step2["2 · Library"]
+    UP[Upload / ingest]
+    LIB[Gallery & Table]
+  end
+  subgraph step3["3 · Organize"]
+    PIN[Save to board]
+    ST[Storyboard + Lock]
+  end
+  subgraph step4["4 · Output"]
+    DV[Deck composer]
+    OUT[Present · PDF]
+  end
+  IN --> UP --> LIB
+  LIB --> PIN --> ST --> DV --> OUT
+  LIB -.->|optional| VAR[Variations]
+  VAR --> LIB
+```
+
+<Warning>
+Use **email sign-in** (not guest) when you need boards, decks, and uploads to persist. **Decks need boards, and boards need Gallery bookmarks:** hover tiles → blue **Save to board** → then **Convert to Deck →**. An empty **Decks** gallery usually means that bookmark step was skipped.
+</Warning>
 
 <CardGroup cols={2}>
+  <Card title="Product workflow" icon="route" href="/guides/product-workflow">
+    Six steps: what each screen does and in what order.
+  </Card>
+  <Card title="Architecture overview" icon="sitemap" href="/guides/architecture-overview">
+    Mermaid maps for ingest, storage, tagging, and Trigger jobs.
+  </Card>
   <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Sign in, upload a first image, organize it, and create a generated variation.
+    First session on pindeck.dev in under fifteen minutes.
   </Card>
   <Card title="Upload and review" icon="upload" href="/guides/uploading">
-    Understand the metadata, storage, and approval path behind incoming images.
+    Local, Discord, Pinterest — into the same library path.
   </Card>
-  <Card title="Discord ingest" icon="upload" href="/guides/discord-bot">
-    Route pinned Discord images into the same Pindeck review queue.
+  <Card title="Boards & storyboards" icon="layer-group" href="/guides/boards">
+    Bookmark pins, double-click a board, drag shots, lock layout.
   </Card>
   <Card title="Decks" icon="presentation" href="/guides/decks">
-    Build and present slide decks from approved library images.
+    From board to composer, Present mode, and PDF export.
+  </Card>
+  <Card title="AI variations" icon="sparkles" href="/guides/ai-generation">
+    Drawer **Variations** tab, fal.ai, and **Work** activity.
+  </Card>
+  <Card title="Development" icon="terminal" href="/development">
+    Local build, env, Convex deploy, and docs publishing.
   </Card>
 </CardGroup>
 
-## Core flows
+## After upload — your options
 
-- **Ingest** images from local upload, Discord, and Pinterest into a consistent review path.
-- **Describe** each image with titles, tags, cinematic metadata, project grouping, and palette data.
-- **Organize** approved images into boards and deck-ready selections.
-- **Generate** controlled AI variations while preserving source image context and style reference intent.
-- **Publish** durable media through Convex, RustFS, and the production Pindeck frontend.
+```mermaid
+flowchart TB
+  UP[Image active in library]
+  UP --> A[Browse Gallery / Table]
+  UP --> B[Open drawer · edit metadata]
+  UP --> C[Save to board]
+  UP --> D[Generate variation]
+  C --> E[Double-click board · storyboard]
+  E --> F[Convert to Deck]
+  F --> G[Composer · Present · PDF]
+  D --> UP
+```
 
-## Production map
+## Production surfaces
 
 | Surface | Location |
 | --- | --- |
 | App | [pindeck.dev](https://pindeck.dev) |
-| Docs | [docs.pindeck.dev](https://docs.pindeck.dev) |
-| Convex + HTTP | `convex.serving.cloud` / `convex-site.serving.cloud` (Hostinger `serving`) |
-| Trigger workers | [trigger.v1su4.dev](https://trigger.v1su4.dev) (Proxmox **app-vm**) |
+| Docs | [docs.pindeck.dev](https://docs.pindeck.dev) (Mintlify, `docs/` in repo) |
+| Convex + HTTP | `convex.serving.cloud` / `convex-site.serving.cloud` |
+| Trigger workers | [trigger.v1su4.dev](https://trigger.v1su4.dev) |
 | Media | [media.v1su4.dev](https://media.v1su4.dev) |
-| Discord bot | Separate `discord-bot` repo → HTTP ingest |
-
-Repo topology: `docs/architecture/platform-topology.md` on GitHub.
 
 ## Start here
 
-- [Quickstart](/quickstart) for the product flow.
-- [Development](/development) for local build and deployment expectations.
-- [API reference](/api-reference/introduction) for Convex HTTP endpoints.
+1. [Product workflow](/guides/product-workflow) — manual QA checklist in the live app  
+2. [Architecture overview](/guides/architecture-overview) — backend path in diagrams  
+3. [API reference](/api-reference/introduction) — Convex HTTP endpoints

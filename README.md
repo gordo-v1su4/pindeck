@@ -248,4 +248,5 @@ Unused Radix `ImageGrid`, `TableView`, `ImageModal`, `EditImageModal`, `Generate
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
 - Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.
 - Pinterest/FreshRSS automation runs from the standalone Discord worker repo at `discord-bot/services/pinterest-ingest`. It uses `gallery-dl` plus exported cookies to discover Pinterest images, exposes RSS feeds for FreshRSS, and sends new items to this app's `/ingestExternal` endpoint so Pindeck copies the files into RustFS before review.
+- **Docs (Mintlify):** [docs.pindeck.dev](https://docs.pindeck.dev) from repo `docs/` — `docs.json` loads `style.css` + `accent.js` (dark Pindeck chrome; **Docs** top bar passes `?accent=` from Tweaks). Start at **Product workflow** and **Architecture overview** (mermaid: ingest → RustFS → tag/display, board-before-deck).
 - `dev`, `build`, `serve`, `lint`, and `deploy:convex` enforce self-hosted production Convex targets (`https://convex.serving.cloud`) and fail fast otherwise.

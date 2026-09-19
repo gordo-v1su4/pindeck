@@ -88,9 +88,31 @@ Set these in the Convex Project Settings:
 | `bun run deploy:convex` | Deploy Convex functions |
 | `bun run check:prod-target` | Verify env points to production Convex |
 
+## Documentation site (Mintlify)
+
+User-facing docs live in the **`docs/`** folder and publish to [docs.pindeck.dev](https://docs.pindeck.dev).
+
+| Piece | Path |
+| --- | --- |
+| Navigation + theme | [`docs/docs.json`](https://github.com/gordo-v1su4/pindeck/blob/main/docs/docs.json) |
+| Pindeck dark styling | `docs/style.css` |
+| Accent from app Tweaks | `docs/accent.js` (`?accent=` query from pindeck.dev **Docs** link) |
+| Product + architecture pages | `docs/guides/*.mdx`, `docs/index.mdx` |
+
+After merging MDX or `docs.json` changes to **`main`**, Mintlify redeploys from the connected GitHub repo (same pindeck repository, `docs` root). Verify the home page cards and [Product workflow](/guides/product-workflow) / [Architecture overview](/guides/architecture-overview) mermaid blocks on the live site.
+
+Local preview (optional):
+
+```bash
+bunx mintlify dev --port 3333
+```
+
+Run from the repo root with `docs/` as the Mintlify content directory (per your Mintlify project settings).
+
 ## Production deployments
 
 - **Frontend production**: Vercel project `pindeck`, published at `https://pindeck.dev`
+- **Docs production**: Mintlify → `https://docs.pindeck.dev`
 - **Backend production**: self-hosted Convex at `https://convex.serving.cloud`
 - **HTTP/actions production**: self-hosted Convex site at `https://convex-site.serving.cloud`
 - **Discord bot**: Hosted separately — see [Discord bot guide](/guides/discord-bot)

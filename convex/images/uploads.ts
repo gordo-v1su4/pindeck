@@ -5,6 +5,7 @@ import {
   internalApi,
   mapImageForDisplay,
   triggerOrchestrationEnabled,
+  ORCHESTRATION_TASKS_SYNCING_AI_STATUS,
 } from "./shared";
 
 export const create = mutation({
@@ -226,12 +227,6 @@ export const finalizeUploads = mutation({
   },
 });
 
-const orchestrationTasksSyncingAiStatus = new Set([
-  "pindeck-image-refresh",
-  "pindeck-generate-variations",
-  "pindeck-finalize-upload",
-]);
-
 export const getProcessingImages = query({
   args: {},
   returns: v.array(v.any()),
@@ -255,7 +250,7 @@ export const getProcessingImages = query({
         if (
           img.orchestrationStatus === "completed" &&
           task &&
-          orchestrationTasksSyncingAiStatus.has(task)
+          ORCHESTRATION_TASKS_SYNCING_AI_STATUS.has(task)
         ) {
           return false;
         }
@@ -282,7 +277,7 @@ export const clearMyStaleProcessingImages = mutation({
 
     for (const image of stuck) {
       const task = image.orchestrationTask;
-      if (!task || !orchestrationTasksSyncingAiStatus.has(task)) continue;
+      if (!task || !ORCHESTRATION_TASKS_SYNCING_AI_STATUS.has(task)) continue;
       if (image.orchestrationStatus === "completed") {
         await ctx.db.patch("images", image._id, { aiStatus: "completed" });
       } else if (image.orchestrationStatus === "failed") {
@@ -327,7 +322,7 @@ export const reconcileMyOrchestrationAiStatus = mutation({
     let updated = 0;
     for (const image of stuck) {
       const task = image.orchestrationTask;
-      if (!task || !orchestrationTasksSyncingAiStatus.has(task)) continue;
+      if (!task || !ORCHESTRATION_TASKS_SYNCING_AI_STATUS.has(task)) continue;
       if (image.orchestrationStatus === "completed") {
         await ctx.db.patch("images", image._id, { aiStatus: "completed" });
         updated += 1;

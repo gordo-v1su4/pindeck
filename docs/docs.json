@@ -10,6 +10,12 @@
   "font": {
     "family": "Inter"
   },
+  "appearance": {
+    "default": "dark",
+    "strict": true
+  },
+  "css": ["/style.css"],
+  "js": ["/accent.js"],
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
@@ -20,6 +26,8 @@
             "group": "Getting started",
             "pages": [
               "index",
+              "guides/product-workflow",
+              "guides/architecture-overview",
               "quickstart",
               "development"
             ]

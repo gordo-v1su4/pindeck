@@ -1,55 +1,81 @@
 ---
 title: Boards
-description: Create and manage image collections and storyboards in Pindeck
+description: Collections, bookmarks, and the in-board storyboard builder
 ---
 
 # Boards
 
-Boards are collections of images you can organize, share, and use as the basis for storyboards and decks.
+Boards are **collections of library images** (pins). They are the required middle step before a deck: decks pull slide images from boards that already contain pins.
 
-## Create a board
+<Warning>
+**Start in Gallery, not Boards.** You cannot fill a board from the Boards screen alone. In **Gallery**, hover a tile and use the **blue bookmark** (**Save to board**) on each image you want. Only after those pins exist on a board can you open **Boards** and later **Convert to Deck →**.
+</Warning>
 
-1. Select one or more images from the gallery
-2. Click **Add to Board**
-3. Choose an existing board or create a new one with a name and description
-4. Set visibility to public or private
+## Order: bookmark first, deck second
 
-## Board structure
+```mermaid
+flowchart LR
+  G[Gallery] -->|hover · blue bookmark| B[Board has pins]
+  B -->|storyboard optional| B2[Lock layout]
+  B2 -->|Convert to Deck →| D[Deck composer]
+```
 
-A board contains:
+| Step | Where | Action |
+| --- | --- | --- |
+| 1 | **Gallery** | Hover tile → **Save to board** (bookmark turns blue when saved) |
+| 2 | **Boards** | Open board → storyboard / **Lock Board** (optional) |
+| 3 | **Boards** or board **Decks** tab | **Convert to Deck →** |
+| 4 | **Decks** | Open composer → Present / PDF |
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Board title |
-| `description` | string (optional) | Board description |
-| `isPublic` | boolean | Whether the board is publicly visible |
-| `imageIds` | ID[] | Ordered list of image references |
+## Create a board from the gallery
 
-## Storyboards
+<Steps>
+  <Step title="Open Gallery">
+    Sidebar **Gallery** (`G`). Images must be **active** in the library (after upload/ingest).
+  </Step>
+  <Step title="Save to board (blue bookmark)">
+    Hover a tile. Top-right **bookmark** → **Save to board**. Pick a board or **Create New Board**. The bookmark fills **blue** when that image is on at least one board.
+  </Step>
+  <Step title="Create or pick a board">
+    Choose an existing board or **Create New Board** (name, optional description, public/private).
+  </Step>
+  <Step title="Add more pins">
+    Repeat until the board has the set you want (often 10–12 references for a deck).
+  </Step>
+</Steps>
 
-A storyboard is a visual layout built from a board's images. Each storyboard has:
+Guest sessions see an empty or non-persistent boards experience—**sign in with email** to keep collections.
 
-- A **template** that defines panel layout and arrangement
-- **Panels** that map images to specific positions
-- **Source images** that can be swapped or reordered
+## Open a board and storyboard
 
-### Storyboard fields
+1. Sidebar **Boards** (`B`).
+2. **Double-click** a board card (tooltip: “Double-click to open …”) or press Enter/Space when focused.
+3. The **Board** tab shows:
+   - **Shots** — draggable thumbnails from the board.
+   - **Storyboard** — frames with Grid / Hero / Strip layouts and slot grids.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `boardId` | ID | Parent collection |
-| `title` | string | Storyboard title |
-| `templateId` | string | Layout template identifier |
-| `panels` | object[] | Array of `{ imageId, layout, order }` |
-| `sourceImageIds` | ID[] | Images available for panel assignment |
+### Storyboard actions
 
-## Managing boards
+| Action | What it does |
+| --- | --- |
+| Drag shot → slot | Places that library image in a frame cell. |
+| Style / grid size chips | Changes layout density per frame. |
+| **Add** | Adds another storyboard frame. |
+| **Lock Board** | Saves layout to Convex for this board (shows Locked when saved). |
 
-- **Reorder** — Drag and drop images within a board to rearrange
-- **Add/remove** — Add new images or remove existing ones at any time
-- **Duplicate** — Copy a board as a starting point for a new collection
-- **Share** — Public boards are accessible via a shared link
+There is no separate “convert to storyboard” button—the storyboard **is** the board detail view on the **Board** tab.
 
-## From board to deck
+## Decks tab on a board
 
-Boards are the foundation for decks. When you create a deck from a board, the board's images become slides. See [Decks](/guides/decks) for details.
+Switch to **Decks** inside an open board to see decks created from this board, or **Convert to Deck →** when the board has at least one pin.
+
+## Board data (reference)
+
+| Field | Description |
+| --- | --- |
+| `name` | Board title |
+| `description` | Optional subtitle |
+| `isPublic` | Public vs private visibility |
+| `imageIds` | Ordered list of library image IDs |
+
+See [Decks](/guides/decks) for the composer, present mode, and PDF export.
