@@ -38,6 +38,16 @@ import {
   type TableColumnKey,
 } from "@/components/shell";
 
+const ImageUploadForm = lazy(() =>
+  import("@/components/ImageUploadForm").then((mod) => ({
+    default: mod.ImageUploadForm,
+  })),
+);
+/** Decks UI from `claude/redesign` — library strip + composer (see `src/components/DeckView.tsx`). */
+const DeckView = lazy(() =>
+  import("@/components/DeckView").then((mod) => ({ default: mod.DeckView })),
+);
+
 const DOCS_URL = "https://docs.pindeck.dev";
 
 const TABLE_COLUMN_VISIBILITY_STORAGE_KEY = "pindeck_table_visible_columns";
