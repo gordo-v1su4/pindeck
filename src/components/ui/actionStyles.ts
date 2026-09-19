@@ -52,7 +52,7 @@ export const ACCENT_BADGE_CLASS = "creative-accent-badge";
 export const CODE_BADGE_CLASS = "creative-code-badge";
 export const PROGRESS_COPY_CLASS = "creative-progress-copy";
 
-// Swatch styling (shared by ImageModal + TableView)
+// Swatch styling (shared by library table + image detail surfaces)
 export const SWATCH_STYLE: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.12)",
   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",

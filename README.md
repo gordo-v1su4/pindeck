@@ -232,6 +232,17 @@ Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_
 
 **Gotcha:** Do not re-declare `--pd-accent`, `--pd-accent-ink`, `--pd-accent-soft`, `--pd-font-*`, etc. on `.pd-theme` — they would override `document.documentElement` and break Tweaks until you move those variables to `:root` defaults only (see [`src/index.css`](src/index.css)).
 
+## Library UI
+
+Production gallery and table are the pd-theme views:
+
+- **Gallery:** [`src/components/pd/GalleryView.tsx`](src/components/pd/GalleryView.tsx)
+- **Table:** [`src/components/pd/TableView.tsx`](src/components/pd/TableView.tsx) — custom table (not TanStack Table)
+- **Image details / variations / lineage:** [`src/components/pd/ImageDetailDrawer.tsx`](src/components/pd/ImageDetailDrawer.tsx)
+- **App chrome:** [`src/components/shell/`](src/components/shell/) (Topbar, Sidebar, view / filter / column hooks)
+
+Unused Radix `ImageGrid`, `TableView`, `ImageModal`, `EditImageModal`, `GenerateVariationsModal`, and `CategoryFilter` were removed (V1S-85), along with `@dnd-kit/*` and `@tanstack/react-table`. Architecture notes live in [`.cursor/rules/project-structure.mdc`](.cursor/rules/project-structure.mdc) and [`.cursor/rules/tech-stack.mdc`](.cursor/rules/tech-stack.mdc). This repo does not use `WARP.md`.
+
 ## Notes
 
 - **Deck composer** ([`src/components/deck/DeckComposer.tsx`](src/components/deck/DeckComposer.tsx)): edits autosave to Convex via **`decks.update`** (debounced ~800ms) with a **Saving… / Saved** indicator; legacy full-state `localStorage` is migrated on first Convex save. Only UI selection index stays in `localStorage`.
@@ -241,6 +252,7 @@ Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_
 - **Decks** ([`src/components/DeckView.tsx`](src/components/DeckView.tsx), [`src/components/deck/`](src/components/deck/)): Matches **`claude/redesign`** — sideways deck library strip, **`DeckComposer`** + **`DeckCanvasPage`**. Composer state **autosaves to Convex** via **`decks.update`** (blocks, palette, slides, FX, typography). **`convex/decks.list`** returns **`stripImageUrls`** + **`stripPalettes`** (**`images.colors[..5]`** per slide, same metadata as the **Table** `PinSwatches` column). Library cards use a **16:9 hero** still for the first slide and a **filmstrip** row for extras, each with **`PinSwatches`**. **Tweaks** **`--pd-accent*`** apply to **composer chrome**; composer **left swatches** client-sample the **active** strip image (Convex fallback by **`imageUrl`**). **`DeckCanvasPage`** slide frames have **no selection outline**; **editable-text** focus uses **`colors.accent`**. Deploy self-hosted Convex after **`decks.list`** / **`decks.update`** changes.
 - **Image palette / swatches:** Stored `colors` are **average RGB per quantized cluster** (not lattice corners), Lab-space dedup + warm-scene magenta/purple suppression (`src/lib/colorPaletteCore.ts`). Server prefers **`imageUrl`** (`convex/colorExtractionUrls.ts`). After changing extraction logic deploy self-hosted Convex, then Table **“Refresh metadata”** / **“Refresh selected”** → wait for scheduled actions → reload.
 - **Cinematic metadata (TYPE / Genre / Shot / Style):** VLM analysis (`convex/vision.ts`) writes `group`, `genre`, `shot`, and `style` on `images`. Table **“Refresh metadata”** schedules metadata and color refresh for **your** uploads; when rows are selected, **“Refresh selected”** only schedules the selected images. Sidebar filter chips use `libraryAggregations` + shared client filters (`src/lib/libraryFilters.ts`).
+- **Images Convex module:** `api.images.*` is re-exported from [`convex/images/index.ts`](convex/images/index.ts). Domain logic lives in `library`, `ingest`, `moderation`, `lifecycle`, `uploads`, `analysis`, `generation`, and `shared` under [`convex/images/`](convex/images/). HTTP routes still import handlers from `./images`.
 - Do not use `bunx convex dev` when targeting production.
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
 - Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.
