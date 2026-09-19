@@ -44,11 +44,13 @@ pindeck/
 
 Key files:
 - `schema.ts`: tables/indexes (`images`, `profiles`, `importBatches`, boards/decks/storyboards, etc.)
-- `images/`: image domain split. [`index.ts`](convex/images/index.ts) re-exports public `api.images.*`; cross-module **internal** calls use the `internalApi.images.*` shim in [`shared.ts`](convex/images/shared.ts) (maps nested `images/analysis`, `images/ingest`, …). Modules: `library.ts`, `ingest.ts`, `moderation.ts`, `lifecycle.ts`, `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts`.
+- `images/`: image domain split. [`index.ts`](convex/images/index.ts) re-exports public `api.images.*`; cross-module **internal** calls use the `internalApi.images.*` shim in [`shared.ts`](convex/images/shared.ts) (maps nested `images/analysis`, `images/ingest`, …). Modules: `library.ts`, `ingest.ts`, `moderation.ts`, `lifecycle.ts`, `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts`. Orchestration lease mutations live in [`orchestrationState.ts`](convex/orchestrationState.ts), not `analysis.ts`.
+- `orchestrationSeam.ts` / `orchestrationCore.ts` / `triggerDispatch.ts` / `orchestration.ts`: Trigger HTTP seam, Node idempotency/status helpers, SDK dispatch, protected callbacks.
+- `mediaAdapter.ts` + `lib/mediaAdapter.ts` + `mediaStorage.ts`: canonical storage paths / public URLs vs Node upload/cleanup actions.
 - `vision.ts`: analysis + variation generation flow and prompt planning
 - `colorExtraction.ts` + `colorExtractionUrls.ts` + `colorExtractionAdmin.ts` / `colorExtractionWrite.ts`: dominant image swatches (`images.colors`) via sharp + [colorPaletteCore](mdc:src/lib/colorPaletteCore.ts); admin mutations require auth (`reExtractAll` / `reExtractForImage`)
 - `discordNotifications.ts`: webhook status events to Discord channel
-- `http.ts`: public HTTP routes (`/ingestExternal`, `/discordQueue`, `/discordModerate`, `/smartAnalyzeImage`)
+- `http.ts`: public HTTP routes (`/ingestExternal`, `/discordQueue`, `/discordModerate`, `/smartAnalyzeImage`, `/orchestration/*`)
 - `decks.ts`, `storyboards.ts`: output/organization features; **`decks.update`** persists composer edits (blocks, palette, slides, FX)
 
 Important image fields:

@@ -9,8 +9,8 @@ Tracked in Linear project **Pindeck** (V1su4). GitHub remains the default issue 
 | **V1S-88** | [Arch-1b] App shell state hooks (view, filters, columns) | **Done** (merged to main) | https://linear.app/v1su4/issue/V1S-88 |
 | **V1S-84** | [Arch-2] Split convex/images.ts by domain seam | **Done** · [PR #38](https://github.com/gordo-v1su4/pindeck/pull/38) (`c5d2aa6`) | https://linear.app/v1su4/issue/V1S-84 |
 | **V1S-85** | [Arch-3] Retire legacy ImageGrid + Radix TableView | **Done** · [PR #38](https://github.com/gordo-v1su4/pindeck/pull/38) | https://linear.app/v1su4/issue/V1S-85 |
-| **V1S-86** | [Arch-4] Unify Trigger orchestration module interface | **Next** · Backlog | https://linear.app/v1su4/issue/V1S-86 |
-| **V1S-87** | [Arch-5] Storage-path adapter module (mediaStorage) | Backlog | https://linear.app/v1su4/issue/V1S-87 |
+| **V1S-86** | [Arch-4] Unify Trigger orchestration module interface | **In progress** (combined PR, `gordo/v1s-86-87-arch-4-and-5`) | https://linear.app/v1su4/issue/V1S-86 |
+| **V1S-87** | [Arch-5] Storage-path adapter module (mediaStorage) | **In progress** (combined PR, `gordo/v1s-86-87-arch-4-and-5`) | https://linear.app/v1su4/issue/V1S-87 |
 
 **Project:** https://linear.app/v1su4/project/pindeck-e51791bcf11f
 
@@ -18,7 +18,7 @@ Tracked in Linear project **Pindeck** (V1su4). GitHub remains the default issue 
 
 1. **V1S-83** → **V1S-88** (done)
 2. **V1S-85** + **V1S-84** (done together, PR #38)
-3. **V1S-86** → **V1S-87** — pickup **V1S-86** next (`gordo/v1s-86-arch-4-unify-trigger-orchestration-module-interface`)
+3. **V1S-86** + **V1S-87** (this combined PR)
 
 ## Pickup checklist
 
@@ -50,7 +50,7 @@ Split `convex/images.ts` into [`convex/images/`](../../convex/images/):
 | `moderation.ts` | pending queue, approve/deny, Discord HTTP |
 | `lifecycle.ts` | delete, cleanup, media repair, backfill/quarantine |
 | `uploads.ts` | upload URL, uploadMultiple, drafts/processing |
-| `analysis.ts` | metadata refresh, AI status, orchestration claim/set |
+| `analysis.ts` | metadata refresh, AI status (orchestration lease lives in `orchestrationState.ts`) |
 | `generation.ts` | save generated children + artifact lookup |
 | `shared.ts` | URL/storage/lineage helpers (no Convex wrappers) |
 
@@ -63,6 +63,24 @@ Threads: [`.filter`](https://github.com/gordo-v1su4/pindeck/pull/38#discussion_r
 3. **`ctx: any`:** fixed in `27bb6e4` (`MutationCtx` / `QueryCtx`). Greptile marked the note **addressed**; no further bot reply.
 
 **Follow-up (not V1S-86):** backfill omitted `images.status` → `"active"` and add `by_status`. Needs a Convex schema deploy. Do not fold into Trigger orchestration.
+
+## V1S-86 (Arch-4)
+
+Orchestration interface:
+
+| File | Responsibility |
+|------|----------------|
+| `orchestrationSeam.ts` | HTTP/worker path constants (Convex isolate-safe) |
+| `orchestrationCore.ts` | Idempotency keys, dispatch IDs, terminal status (Node) |
+| `orchestrationState.ts` | Lease claim + status mutations |
+| `triggerDispatch.ts` | Trigger SDK `tasks.trigger` only |
+| `orchestration.ts` | Protected HTTP callbacks |
+
+Trigger task payloads are unchanged — no Trigger deploy required.
+
+## V1S-87 (Arch-5)
+
+[`convex/mediaAdapter.ts`](../../convex/mediaAdapter.ts) is the path/URL interface (`normalizeStoragePath`, RustFS / Nextcloud / Convex adapters). [`convex/mediaStorage.ts`](../../convex/mediaStorage.ts) stays the Node upload/cleanup actions. Host checks in [`convex/images/shared.ts`](../../convex/images/shared.ts) go through the adapter.
 
 ## V1S-85 (Arch-3)
 

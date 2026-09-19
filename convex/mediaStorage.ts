@@ -4,6 +4,13 @@ import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { preferredImageUrlForSampling } from "./colorExtractionUrls";
+import {
+  encodeStoragePath as encodePath,
+  nextcloudPublicDavUrl,
+  normalizeStoragePath as normalizePath,
+  toKebabCase,
+  trimTrailingSlash,
+} from "./mediaAdapter";
 
 type NextcloudConfig = {
   baseUrl: string;
@@ -46,36 +53,6 @@ type UploadedImage = {
   };
 };
 
-
-function normalizePath(path: string): string {
-  return path
-    .split("/")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .join("/");
-}
-
-function encodePath(path: string): string {
-  return normalizePath(path)
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-}
-
-function toKebabCase(input: string): string {
-  const normalized = input
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 96);
-  return normalized || "image";
-}
-
-function trimTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, "");
-}
 
 function getNextcloudServerBaseUrl(rawUrl: string): string {
   const parsed = new URL(rawUrl);
@@ -201,15 +178,15 @@ function buildSharedFolderPublicUrl(
   shareConfig: NextcloudPublicShareConfig,
   relativePath: string
 ): string {
-  const normalized = normalizePath(relativePath);
-  const segments = getSharedRelativePath(shareConfig, normalized).split("/").filter(Boolean);
-  if (segments.length === 0) {
-    throw new Error(`Cannot build a public file URL for folder path ${normalized}`);
-  }
-  const encodedPath = segments.map((segment) => encodeURIComponent(segment)).join("/");
-  return `${shareConfig.publicBaseUrl}/public.php/dav/files/${encodeURIComponent(
-    shareConfig.token
-  )}/${encodedPath}`;
+  const sharedRelative = getSharedRelativePath(
+    shareConfig,
+    normalizePath(relativePath),
+  );
+  return nextcloudPublicDavUrl({
+    publicBaseUrl: shareConfig.publicBaseUrl,
+    token: shareConfig.token,
+    relativePath: sharedRelative,
+  });
 }
 
 function buildSharedFolderUploadUrl(
