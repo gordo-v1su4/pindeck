@@ -24,7 +24,7 @@ Rules:
 
 ## 2026-09-18
 
-- **Arch-3 (V1S-85):** removed unused Radix [`ImageGrid`](src/components/ImageGrid.tsx) + [`TableView`](src/components/TableView.tsx) and exclusive siblings (`ImageModal`, `EditImageModal`, `GenerateVariationsModal`, `CategoryFilter`). `App.tsx` still wires [`pd/GalleryView`](src/components/pd/GalleryView.tsx) + [`pd/TableView`](src/components/pd/TableView.tsx). Palette re-sample / parent lineage already live there and in [`ImageDetailDrawer`](src/components/pd/ImageDetailDrawer.tsx); dropped unused `@dnd-kit/*` + `@tanstack/react-table`.
+- **Arch-3 (V1S-85):** removed unused Radix `ImageGrid` + `TableView` and exclusive siblings (`ImageModal`, `EditImageModal`, `GenerateVariationsModal`, `CategoryFilter`). `App.tsx` still wires [`pd/GalleryView`](src/components/pd/GalleryView.tsx) + [`pd/TableView`](src/components/pd/TableView.tsx). Palette re-sample / parent lineage already live there and in [`ImageDetailDrawer`](src/components/pd/ImageDetailDrawer.tsx); dropped unused `@dnd-kit/*` + `@tanstack/react-table`.
 - **App shell (V1S-83 slice 1):** moved **Topbar** + **Sidebar** (filters, aggregations, color picker) to [`src/components/shell/`](src/components/shell/) with no behavior change; `App.tsx` still wires auth, library query, and routes.
 - **App shell (V1S-88):** view, library filters, and table column visibility live in [`src/components/shell/`](src/components/shell/) hooks (`useAppView`, `useLibraryFilterState`, `useTableColumnVisibility`); `App.tsx` remains the auth + route shell.
 - **Agents docs:** Committed `docs/agents/*` + `.agents/skills/implement/SKILL.md` + [`matt-pocock-workflow.md`](docs/agents/matt-pocock-workflow.md) so implement threads find ticket workflow without plugin-only skill paths.

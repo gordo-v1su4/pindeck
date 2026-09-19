@@ -14,19 +14,15 @@ alwaysApply: true
 After making ANY code changes, you MUST review and update ALL of the following:
 
 #### 1. README.md (`/README.md`)
-- ✅ Update **Features** section if new functionality added
-- ✅ Update **Project Structure** if files/folders changed
-- ✅ Update **Technology Stack** if dependencies changed
-- ✅ Update **Notes** section for important behavioral changes
-- ✅ Update **AI Features** section for AI-related changes
+- ✅ Update **Library UI** / **Notes** when frontend surfaces or dependencies change
+- ✅ Update **Notes** for important behavioral changes
+- ✅ This repo has no Features / Technology Stack / AI Features headings — put those facts in Notes or Library UI
+- ✅ This repo does **not** use `WARP.md`; do not create it
 
-#### 2. WARP.md (`/WARP.md`)
-- ✅ Update **Architecture** sections for schema/structure changes
-- ✅ Update **Database Schema** if tables/fields/indexes modified
-- ✅ Update **Key Development Patterns** for new patterns introduced
-- ✅ Update **AI Features Architecture** for AI-related changes
-- ✅ Update **Important Notes** for critical behavioral changes
-- ✅ Update **Common Operations** if new code patterns introduced
+#### 2. Architecture docs (not WARP.md)
+- ✅ **project-structure.mdc**: schema, frontend map, architecture patterns
+- ✅ **tech-stack.mdc**: dependencies and versions
+- ✅ **docs/agents/** when agent workflow or Linear backlog changes
 
 #### 3. Cursor Rules (`.cursor/rules/`)
 - ✅ **project-structure.mdc**: Update database schema, architecture patterns, AI features
@@ -39,30 +35,29 @@ After making ANY code changes, you MUST review and update ALL of the following:
 Before committing code changes, ASK yourself:
 
 1. **Did I add/modify database fields?**
-   → Update schema documentation in README, WARP.md, and project-structure.mdc
+   → Update schema documentation in README Notes and project-structure.mdc
 
 2. **Did I add a new feature?**
-   → Update Features section in README and relevant architecture sections in WARP.md
+   → Update README Library UI / Notes and project-structure.mdc
 
 3. **Did I add/change dependencies?**
-   → Update Technology Stack in README and tech-stack.mdc
+   → Update README Library UI / Notes and tech-stack.mdc
 
 4. **Did I discover new patterns or gotchas?**
    → Update relevant cursor rules files
 
 5. **Did I change how AI features work?**
-   → Update AI Features sections in README, WARP.md, and project-structure.mdc
+   → Update README Notes and project-structure.mdc
 
 6. **Did I add new common operations or code patterns?**
-   → Update Common Operations in WARP.md
+   → Update project-structure.mdc or docs/agents/
 
 ### Example: Recent Changes Requiring Documentation
 
 **Code Change**: Added `parentImageId` field and parent image lineage system
 
 **Required Documentation Updates**:
-- ✅ README.md: Added to Features, Notes
-- ✅ WARP.md: Updated Database Schema, AI Features Architecture, Important Notes
+- ✅ README.md: Added to Library UI / Notes
 - ✅ project-structure.mdc: Updated schema structure and AI Features Architecture
 
 ### Commit Message Pattern
@@ -75,7 +70,6 @@ feat: Add new feature
 
 Documentation Updates:
 - Updated README.md with [specific changes]
-- Updated WARP.md [specific sections]
 - Updated .cursor/rules/[specific files]
 
 Co-Authored-By: Warp <agent@warp.dev>
@@ -83,7 +77,7 @@ Co-Authored-By: Warp <agent@warp.dev>
 
 ## Why This Matters
 
-- **Future AI Agents**: WARP.md guides future AI sessions in this codebase
+- **Future AI Agents**: `.cursor/rules/` and `docs/agents/` guide future AI sessions in this codebase
 - **Team Members**: README helps developers understand the project
 - **Pattern Consistency**: Cursor rules ensure consistent code patterns
 - **Maintenance**: Up-to-date docs reduce confusion and errors
