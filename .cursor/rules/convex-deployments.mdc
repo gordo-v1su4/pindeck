@@ -2,6 +2,22 @@
 
 Current deployment guidance for this repo.
 
+## Two stacks on Hostinger (do not mix)
+
+The VPS runs **two independent** self-hosted Convex deployments. **Pindeck is only the first row.**
+
+| | **Pindeck (this repo)** | **Unfold / Review Room (not Pindeck)** |
+|---|---|---|
+| Compose project | `pindeck-convex` | `review-room-convex` |
+| Typical containers | `pindeck-convex-backend-1`, `pindeck-convex-dashboard-1` | `review-room-convex-backend-1`, `review-room-convex-dashboard-1` |
+| Compose path | `/docker/convex-wv5d/docker-compose.yml` | `/docker/convex-lvow/docker-compose.yml` |
+| API | `https://convex.serving.cloud` | `https://unfold.serving.cloud` |
+| HTTP actions | `https://convex-site.serving.cloud` | `https://unfold-site.serving.cloud` |
+| Dashboard | `https://convex-dashboard.serving.cloud` | `https://unfold-dashboard.serving.cloud` |
+| Admin key (BWS) | `PROXMOX_HOME_HOSTINGER_CONVEX_CURRENT_ADMIN_KEY` | Unfold-specific keys (see `proxmox-home` runbook) |
+
+`bun run deploy:convex` and `scripts/check-pindeck-convex.sh` target **Pindeck only**. The sibling script `proxmox-home/scripts/check-hostinger-convex.sh` checks **both** stacks for infra ops; do not point Pindeck env at Unfold URLs.
+
 ## Production
 
 Pindeck uses the self-hosted Convex deployment on Hostinger:
@@ -40,13 +56,23 @@ environment defaults.
 
 ## Deploy backend changes
 
-After editing `convex/*`, load the self-hosted URL/admin key and run:
+After editing `convex/*`, set Pindeck keys in repo `.env` (see `.env.example`) and run:
 
 ```bash
 bun run deploy:convex
 ```
 
-`package.json` maps this to `convex deploy`.
+`check:prod-target` reads `.env` without executing secret lines as shell. Never `source .env.local` for deploy if it contains unquoted JWT material.
+
+Pindeck-only health check from this repo:
+
+```bash
+./scripts/check-pindeck-convex.sh
+```
+
+Full Hostinger check (Pindeck **and** Unfold) lives in `proxmox-home/scripts/check-hostinger-convex.sh`.
+
+`package.json` maps deploy to `convex deploy` against `CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud`.
 
 ## Trigger.dev split
 

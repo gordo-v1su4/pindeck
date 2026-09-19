@@ -1,5 +1,9 @@
 import { AbortTaskRunError, logger, metadata, task } from "@trigger.dev/sdk";
 
+import {
+  ORCHESTRATION_WORKER_PATHS,
+  orchestrationWorkerUrl,
+} from "../../convex/orchestrationSeam";
 import { pindeckAnalysisQueue } from "./queues";
 
 export type PindeckImageRefreshPayload = {
@@ -33,7 +37,12 @@ export const pindeckImageRefreshTask = task({
       "Analyze image in Convex",
       async (span) => {
         span.setAttribute("pindeck.imageId", payload.imageId);
-        return await fetch(`${siteUrl}/orchestration/image-refresh`, {
+        return await fetch(
+          orchestrationWorkerUrl(
+            siteUrl,
+            ORCHESTRATION_WORKER_PATHS.imageRefresh,
+          ),
+          {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,

@@ -60,20 +60,28 @@ hosts, not Pindeck.
 
 ## Health Checks
 
-The canonical runbook lives in the sibling infrastructure repository:
+**Pindeck only** (this repo):
+
+```bash
+./scripts/check-pindeck-convex.sh
+```
+
+**Both Pindeck and Unfold** (infra / `proxmox-home`):
 
 ```bash
 cd ~/Documents/Github/proxmox-home
 ./scripts/check-hostinger-convex.sh
 ```
 
-Expected results:
+Pindeck-only expected results:
 
 ```text
 API           HEAD expected=200        actual=200 OK
 HTTP_ACTIONS  POST expected=200 401 404 actual=401 OK
 DASHBOARD     HEAD expected=200        actual=200 OK
 ```
+
+The combined Hostinger script also probes `unfold*.serving.cloud` (`review-room-convex-*` containers). Those rows are **not** Pindeck.
 
 Manual checks from this repo:
 

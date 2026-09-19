@@ -1,5 +1,10 @@
 import { AbortTaskRunError, logger, metadata, task } from "@trigger.dev/sdk";
 
+import {
+  ORCHESTRATION_WORKER_PATHS,
+  type OrchestrationWorkerPath,
+  orchestrationWorkerUrl,
+} from "../../convex/orchestrationSeam";
 import { pindeckMediaQueue } from "./queues";
 
 export type PindeckOwnedImagePayload = {
@@ -20,7 +25,7 @@ export const pindeckFinalizeUploadTask = task({
       payload.imageId,
     );
     const result = await logger.trace("Finalize upload in Convex", async () =>
-      invokeConvex("media-finalize", payload, ctx.run.id),
+      invokeConvex(ORCHESTRATION_WORKER_PATHS.mediaFinalize, payload, ctx.run.id),
     );
     logger.info("Pindeck upload finalized", {
       triggerRunId: ctx.run.id,
@@ -45,7 +50,12 @@ export const pindeckExternalIngestTask = task({
     );
     const result = await logger.trace(
       "Ingest external image in Convex",
-      async () => invokeConvex("external-ingest", payload, ctx.run.id),
+      async () =>
+        invokeConvex(
+          ORCHESTRATION_WORKER_PATHS.externalIngest,
+          payload,
+          ctx.run.id,
+        ),
     );
     logger.info("Pindeck external ingest persisted", {
       triggerRunId: ctx.run.id,
@@ -66,7 +76,12 @@ export const pindeckMediaRepairTask = task({
     setMediaStage("repairing", "Repairing durable media", payload.imageId);
     const result = await logger.trace(
       "Repair image media in Convex",
-      async () => invokeConvex("media-repair", payload, ctx.run.id),
+      async () =>
+        invokeConvex(
+          ORCHESTRATION_WORKER_PATHS.mediaRepair,
+          payload,
+          ctx.run.id,
+        ),
     );
     logger.info("Pindeck media repair completed", {
       triggerRunId: ctx.run.id,
@@ -97,13 +112,13 @@ function setMediaStage(stage: string, stageLabel: string, imageId: string) {
 }
 
 async function invokeConvex(
-  path: string,
+  path: OrchestrationWorkerPath,
   payload: PindeckOwnedImagePayload,
   runId: string,
 ) {
   const siteUrl = requireEnv("PINDECK_CONVEX_SITE_URL").replace(/\/+$/, "");
   const token = requireEnv("PINDECK_ORCHESTRATION_TOKEN");
-  const response = await fetch(`${siteUrl}/orchestration/${path}`, {
+  const response = await fetch(orchestrationWorkerUrl(siteUrl, path), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

@@ -4,6 +4,8 @@ set -euo pipefail
 EXPECTED_CLOUD_URL="https://convex.serving.cloud"
 EXPECTED_SITE_URL="https://convex-site.serving.cloud"
 EXPECTED_SELF_HOSTED_URL="https://convex.serving.cloud"
+# Unfold / Review Room stack on the same VPS — not Pindeck (see convex-deployments.mdc).
+FORBIDDEN_HOST_PATTERN="unfold.serving.cloud"
 
 load_env_value() {
   local key="$1"
@@ -44,6 +46,14 @@ self_hosted_target_present() {
   return 0
 }
 
+reject_unfold_targets() {
+  local var value
+  for var in CONVEX_SELF_HOSTED_URL VITE_CONVEX_URL VITE_CONVEX_SITE_URL; do
+    value="${!var:-}"
+    [[ "$value" != *"$FORBIDDEN_HOST_PATTERN"* ]] || fail "${var} points at Unfold/Review Room ($value). Pindeck uses convex.serving.cloud only (Docker project pindeck-convex, containers pindeck-convex-backend-1)."
+  done
+}
+
 # Vercel CI does not have .env. The client bundle only needs
 # VITE_CONVEX_* at build time. Pindeck production is self-hosted, so
 # CONVEX_DEPLOYMENT must remain unset; deploy with CONVEX_SELF_HOSTED_*.
@@ -66,7 +76,8 @@ if is_ci_build; then
 fi
 
 [[ -z "${CONVEX_DEPLOYMENT:-}" ]] || fail "CONVEX_DEPLOYMENT must be unset when targeting self-hosted Convex."
-self_hosted_target_present || fail "CONVEX_SELF_HOSTED_URL must be '$EXPECTED_SELF_HOSTED_URL' and CONVEX_SELF_HOSTED_ADMIN_KEY or PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY must be set."
+reject_unfold_targets
+self_hosted_target_present || fail "CONVEX_SELF_HOSTED_URL must be '$EXPECTED_SELF_HOSTED_URL' and CONVEX_SELF_HOSTED_ADMIN_KEY or PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY must be set (Pindeck admin key for pindeck-convex stack, not review-room-convex)."
 vite_urls_match || fail "VITE_CONVEX_URL must be '$EXPECTED_CLOUD_URL' and VITE_CONVEX_SITE_URL must be '$EXPECTED_SITE_URL'."
 
-echo "Convex target check passed: self-hosted production ($EXPECTED_SELF_HOSTED_URL)"
+echo "Convex target check passed: Pindeck self-hosted ($EXPECTED_SELF_HOSTED_URL) — not Unfold"

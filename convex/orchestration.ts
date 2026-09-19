@@ -1059,7 +1059,7 @@ async function setState(
   progress?: { step?: string; resultJson?: string },
 ) {
   return await ctx.runMutation(
-    (internal as any).images.internalSetOrchestrationState,
+    (internal as any).orchestrationState.internalSetOrchestrationState,
     {
       imageId,
       task,

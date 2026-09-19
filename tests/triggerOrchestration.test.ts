@@ -9,7 +9,12 @@ import {
   orchestrationStatusForTerminalTriggerRun,
   workActivityReadScopeForUser,
   workActivityTagForUser,
-} from "../convex/triggerDispatch";
+} from "../convex/orchestrationCore";
+import {
+  ORCHESTRATION_HTTP_SEAM,
+  ORCHESTRATION_WORKER_PATHS,
+  orchestrationWorkerUrl,
+} from "../convex/orchestrationSeam";
 
 describe("Pindeck Trigger orchestration", () => {
   test("creates stable scoped idempotency keys without exposing Convex ids", () => {
@@ -100,5 +105,16 @@ describe("Pindeck Trigger orchestration", () => {
     expect(workActivityReadScopeForUser("user-a")).toEqual({
       read: { tags: ["user:user-a"] },
     });
+  });
+
+  test("keeps Convex HTTP routes and Trigger worker paths in lockstep", () => {
+    for (const [key, workerPath] of Object.entries(ORCHESTRATION_WORKER_PATHS)) {
+      const httpPath =
+        ORCHESTRATION_HTTP_SEAM[key as keyof typeof ORCHESTRATION_HTTP_SEAM];
+      expect(httpPath).toBe(`/orchestration/${workerPath}`);
+      expect(
+        orchestrationWorkerUrl("https://convex-site.example", workerPath),
+      ).toBe(`https://convex-site.example/orchestration/${workerPath}`);
+    }
   });
 });

@@ -76,8 +76,6 @@ export {
   internalCanModifyImage,
   internalUpdateAnalysis,
   internalSetAiStatus,
-  internalClaimOrchestrationDispatch,
-  internalSetOrchestrationState,
   internalGetMetadataRefreshPayload,
   updateAnalysis,
   updateImageMetadata,

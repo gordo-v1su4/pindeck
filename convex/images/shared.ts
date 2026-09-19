@@ -5,6 +5,13 @@ import {
   isLikelyDirectImageUrl,
   normalizeImageSourceUrl,
 } from "../colorExtractionUrls";
+import {
+  isNextcloudPublicUrl,
+  isRustfsPublicUrl,
+  NEXTCLOUD_PUBLIC_HOST,
+  parseMediaUrlHost,
+  RUSTFS_PUBLIC_HOST,
+} from "../lib/mediaAdapter";
 
 type DbCtx = QueryCtx | MutationCtx;
 
@@ -51,7 +58,6 @@ attachImagesInternalShim(internalApi);
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
 const MAX_SOURCE_LINEAGE_DEPTH = 12;
 const CANONICAL_NEXTCLOUD_PUBLIC_TOKEN = "afc53c40a68aade";
-const RUSTFS_PUBLIC_HOST = "s3.v1su4.dev";
 
 export function triggerOrchestrationEnabled() {
   return process.env.PINDECK_TRIGGER_ORCHESTRATION_ENABLED === "true";
@@ -243,22 +249,18 @@ export function normalizeExternalImageUrl(rawUrl: unknown): string {
 }
 
 export function parseUrlHost(rawUrl: unknown): string | undefined {
-  try {
-    return new URL(String(rawUrl ?? "")).host.toLowerCase();
-  } catch {
-    return undefined;
-  }
+  return parseMediaUrlHost(rawUrl);
 }
 
 export function isCloudHostedUrl(rawUrl: unknown): boolean {
-  return parseUrlHost(rawUrl) === "cloud.v1su4.dev";
+  return isNextcloudPublicUrl(rawUrl);
 }
 
 export function isCanonicalCloudUrl(rawUrl: unknown): boolean {
   try {
     const parsed = new URL(String(rawUrl ?? ""));
     return (
-      parsed.host.toLowerCase() === "cloud.v1su4.dev" &&
+      parsed.host.toLowerCase() === NEXTCLOUD_PUBLIC_HOST &&
       parsed.pathname.startsWith(
         `/public.php/dav/files/${CANONICAL_NEXTCLOUD_PUBLIC_TOKEN}/`,
       )
@@ -269,7 +271,7 @@ export function isCanonicalCloudUrl(rawUrl: unknown): boolean {
 }
 
 export function isRustfsUrl(rawUrl: unknown): boolean {
-  return parseUrlHost(rawUrl) === RUSTFS_PUBLIC_HOST;
+  return isRustfsPublicUrl(rawUrl);
 }
 
 export function looksLikeHttpUrl(rawUrl: unknown): rawUrl is string {

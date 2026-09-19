@@ -1,22 +1,33 @@
 "use node";
 
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { auth as triggerAuth, runs, tasks } from "@trigger.dev/sdk";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import { action, internalAction } from "./_generated/server";
+import {
+  aiStatusForTerminalTriggerRun,
+  createDispatchId,
+  createImageRefreshIdempotencyKey,
+  createOwnedImageTaskIdempotencyKey,
+  createVariationGenerationIdempotencyKey,
+  orchestrationStatusForTerminalTriggerRun,
+  workActivityReadScopeForUser,
+  workActivityTagForUser,
+} from "./orchestrationCore";
 
-const terminalFailureStatuses = [
-  "CANCELED",
-  "FAILED",
-  "CRASHED",
-  "SYSTEM_FAILURE",
-  "EXPIRED",
-  "INTERRUPTED",
-  "TIMED_OUT",
-];
+export {
+  aiStatusForTerminalTriggerRun,
+  createDispatchId,
+  createImageRefreshIdempotencyKey,
+  createOwnedImageTaskIdempotencyKey,
+  createVariationGenerationIdempotencyKey,
+  orchestrationStatusForTerminalTriggerRun,
+  workActivityReadScopeForUser,
+  workActivityTagForUser,
+} from "./orchestrationCore";
 
 export const createWorkActivityToken = action({
   args: {},
@@ -43,16 +54,6 @@ export const createWorkActivityToken = action({
     };
   },
 });
-
-export function workActivityTagForUser(userId: string) {
-  if (!userId.trim())
-    throw new Error("A user ID is required for work activity");
-  return `user:${userId}`;
-}
-
-export function workActivityReadScopeForUser(userId: string) {
-  return { read: { tags: [workActivityTagForUser(userId)] } };
-}
 
 export const dispatchImageMetadataRefresh: any = internalAction({
   args: {
@@ -297,7 +298,7 @@ async function claimDispatch(
     }
     const terminalStatus = orchestrationStatusForTerminalTriggerRun(run.status);
     await ctx.runMutation(
-      (internal as any).images.internalSetOrchestrationState,
+      (internal as any).orchestrationState.internalSetOrchestrationState,
       {
         imageId,
         task,
@@ -346,7 +347,7 @@ async function runDispatchClaim(
   },
 ): Promise<DispatchClaim> {
   return await ctx.runMutation(
-    (internal as any).images.internalClaimOrchestrationDispatch,
+    (internal as any).orchestrationState.internalClaimOrchestrationDispatch,
     args,
   );
 }
@@ -381,7 +382,7 @@ async function recordQueuedRun(
   runId: string,
 ) {
   const applied = await ctx.runMutation(
-    (internal as any).images.internalSetOrchestrationState,
+    (internal as any).orchestrationState.internalSetOrchestrationState,
     {
       imageId,
       task,
@@ -407,7 +408,7 @@ async function recordDispatchFailure(
   updateAiStatus: boolean,
 ) {
   await ctx.runMutation(
-    (internal as any).images.internalSetOrchestrationState,
+    (internal as any).orchestrationState.internalSetOrchestrationState,
     {
       imageId,
       task,
@@ -433,7 +434,7 @@ async function reconcileReusedRun(
     const status = orchestrationStatusForTerminalTriggerRun(run.status);
     if (!status) return;
     await ctx.runMutation(
-      (internal as any).images.internalSetOrchestrationState,
+      (internal as any).orchestrationState.internalSetOrchestrationState,
       {
         imageId,
         task,
@@ -454,72 +455,6 @@ async function reconcileReusedRun(
       error,
     });
   }
-}
-
-export function aiStatusForTerminalTriggerRun(status: string) {
-  if (status === "COMPLETED") return "completed";
-  if (terminalFailureStatuses.includes(status)) return "failed";
-  return undefined;
-}
-
-export function orchestrationStatusForTerminalTriggerRun(status: string) {
-  if (status === "COMPLETED") return "completed" as const;
-  if (terminalFailureStatuses.includes(status)) return "failed" as const;
-  return undefined;
-}
-
-export function createDispatchId(idempotencyKey: string, nonce: string) {
-  const digest = createHash("sha256")
-    .update(`${idempotencyKey}:${nonce}`)
-    .digest("hex");
-  return `pindeck-dispatch:${digest}`;
-}
-
-export function createImageRefreshIdempotencyKey(args: {
-  imageId: string;
-  userId: string;
-  forcePalette?: boolean;
-  runMetadata?: boolean;
-}) {
-  const digest = createHash("sha256")
-    .update(
-      `${args.userId}:${args.imageId}:${args.forcePalette === true}:${args.runMetadata !== false}`,
-    )
-    .digest("hex");
-  return `pindeck-image-refresh:${digest}`;
-}
-
-export function createOwnedImageTaskIdempotencyKey(
-  task: string,
-  args: { imageId: string; userId: string },
-) {
-  const digest = createHash("sha256")
-    .update(`${task}:${args.userId}:${args.imageId}`)
-    .digest("hex");
-  return `${task}:${digest}`;
-}
-
-export function createVariationGenerationIdempotencyKey(args: {
-  imageId: string;
-  userId: string;
-  variationCount: number;
-  modificationMode: string;
-  variationDetail?: string;
-  aspectRatio?: string;
-}) {
-  const digest = createHash("sha256")
-    .update(
-      [
-        args.userId,
-        args.imageId,
-        args.variationCount,
-        args.modificationMode,
-        args.variationDetail ?? "",
-        args.aspectRatio ?? "",
-      ].join(":"),
-    )
-    .digest("hex");
-  return `pindeck-generate-variations:${digest}`;
 }
 
 function errorMessage(error: unknown) {
