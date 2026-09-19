@@ -11,7 +11,7 @@ import {
   NEXTCLOUD_PUBLIC_HOST,
   parseMediaUrlHost,
   RUSTFS_PUBLIC_HOST,
-} from "../mediaAdapter";
+} from "../lib/mediaAdapter";
 
 type DbCtx = QueryCtx | MutationCtx;
 

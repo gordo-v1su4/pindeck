@@ -10,7 +10,7 @@ import {
   normalizeStoragePath as normalizePath,
   toKebabCase,
   trimTrailingSlash,
-} from "./mediaAdapter";
+} from "./lib/mediaAdapter";
 
 type NextcloudConfig = {
   baseUrl: string;

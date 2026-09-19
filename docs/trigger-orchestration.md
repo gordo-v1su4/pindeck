@@ -96,7 +96,9 @@ The HTTP callback seam lives in
 ([`convex/http.ts`](../convex/http.ts) and `src/trigger/*`).
 [`convex/triggerDispatch.ts`](../convex/triggerDispatch.ts) is the Trigger SDK
 dispatch layer only. Do not duplicate `ORCHESTRATION_HTTP_SEAM` /
-`ORCHESTRATION_WORKER_PATHS` path strings.
+`ORCHESTRATION_WORKER_PATHS` path strings. Task payloads are unchanged, but
+after merging worker imports of `orchestrationSeam`, run `bun run trigger:deploy`
+so VM100 runs the updated worker bundle (`proxmox-home/docs/triggerdev-vm100-runbook.md`).
 
 Every callback includes its Trigger run ID and dispatch ID. Convex rejects a stale
 callback if a newer run owns the row, applies orchestration and AI status

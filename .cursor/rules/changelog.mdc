@@ -28,8 +28,8 @@ Rules:
 
 ## 2026-09-18
 
-- **Arch-5 (V1S-87):** [`convex/mediaAdapter.ts`](convex/mediaAdapter.ts) owns canonical paths + public URL formulas (RustFS / Nextcloud / Convex adapters). `mediaStorage` and image host checks call it.
-- **Arch-4 (V1S-86):** Trigger orchestration interface — [`orchestrationSeam.ts`](convex/orchestrationSeam.ts) HTTP paths, [`orchestrationCore.ts`](convex/orchestrationCore.ts) keys/status, [`orchestrationState.ts`](convex/orchestrationState.ts) lease mutations. `triggerDispatch` stays the SDK layer. No Trigger task payload change.
+- **Arch-5 (V1S-87):** [`convex/lib/mediaAdapter.ts`](convex/lib/mediaAdapter.ts) owns canonical paths + public URL formulas; [`convex/mediaAdapter.ts`](convex/mediaAdapter.ts) re-exports. Tests in `convex/lib/mediaAdapter.test.ts`.
+- **Arch-4 (V1S-86):** Trigger orchestration interface — [`orchestrationSeam.ts`](convex/orchestrationSeam.ts) HTTP paths, [`orchestrationCore.ts`](convex/orchestrationCore.ts) keys/status, [`orchestrationState.ts`](convex/orchestrationState.ts) lease mutations. `triggerDispatch` stays the SDK layer. Payloads unchanged; redeploy Trigger workers after merging seam imports (`bun run trigger:deploy`).
 - **Greptile #38:** bot withdrew `.filter` / `.collect` as merge blockers (legacy `status: undefined` + full-library aggregations). Typed `shared.ts` ctx in `27bb6e4`. Follow-up: `by_status` index + status backfill (schema deploy; not V1S-86).
 - **Images shared types (V1S-84):** [`convex/images/shared.ts`](convex/images/shared.ts) cleanup/lineage helpers take `MutationCtx` / `QueryCtx` instead of `any`.
 - **Arch-3 (V1S-85):** removed unused Radix `ImageGrid` + `TableView` and exclusive siblings (`ImageModal`, `EditImageModal`, `GenerateVariationsModal`, `CategoryFilter`). `App.tsx` still wires [`pd/GalleryView`](src/components/pd/GalleryView.tsx) + [`pd/TableView`](src/components/pd/TableView.tsx). Palette re-sample / parent lineage already live there and in [`ImageDetailDrawer`](src/components/pd/ImageDetailDrawer.tsx); dropped unused `@dnd-kit/*` + `@tanstack/react-table`.

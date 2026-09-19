@@ -76,11 +76,11 @@ Orchestration interface:
 | `triggerDispatch.ts` | Trigger SDK `tasks.trigger` only |
 | `orchestration.ts` | Protected HTTP callbacks |
 
-Trigger task payloads are unchanged — no Trigger deploy required.
+Trigger task **payloads** are unchanged, so already-deployed workers stay compatible until you ship new bundles. After merging worker changes that import `orchestrationSeam`, run `bun run trigger:deploy` (see `proxmox-home/docs/triggerdev-vm100-runbook.md`). Convex backend changes deploy with `bun run deploy:convex` after loading self-hosted env (see `proxmox-home/docs/hostinger-convex-runbook.md`).
 
 ## V1S-87 (Arch-5)
 
-[`convex/mediaAdapter.ts`](../../convex/mediaAdapter.ts) is the path/URL interface (`normalizeStoragePath`, RustFS / Nextcloud / Convex adapters). [`convex/mediaStorage.ts`](../../convex/mediaStorage.ts) stays the Node upload/cleanup actions. Host checks in [`convex/images/shared.ts`](../../convex/images/shared.ts) go through the adapter.
+[`convex/lib/mediaAdapter.ts`](../../convex/lib/mediaAdapter.ts) is the path/URL interface (`normalizeStoragePath`, RustFS / Nextcloud / Convex adapters). [`convex/mediaAdapter.ts`](../../convex/mediaAdapter.ts) re-exports it. [`convex/mediaStorage.ts`](../../convex/mediaStorage.ts) stays the Node upload/cleanup actions; host checks in [`convex/images/shared.ts`](../../convex/images/shared.ts) go through the adapter. Unit tests live in [`convex/lib/mediaAdapter.test.ts`](../../convex/lib/mediaAdapter.test.ts).
 
 ## V1S-85 (Arch-3)
 

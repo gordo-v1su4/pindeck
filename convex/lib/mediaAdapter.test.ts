@@ -7,7 +7,7 @@ import {
   normalizeStoragePath,
   rustfsPublicUrl,
   toKebabCase,
-} from "../convex/mediaAdapter";
+} from "./mediaAdapter";
 
 describe("media path adapter", () => {
   test("normalizes and encodes object paths", () => {
