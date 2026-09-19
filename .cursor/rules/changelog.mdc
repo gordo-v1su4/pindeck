@@ -22,6 +22,15 @@ Rules:
 - Include follow-ups only when actionable.
 - Prefer one section per day.
 
+## 2026-09-18
+
+- **App shell (V1S-83 slice 1):** moved **Topbar** + **Sidebar** (filters, aggregations, color picker) to [`src/components/shell/`](src/components/shell/) with no behavior change; `App.tsx` still wires auth, library query, and routes.
+- **Agents docs:** Committed `docs/agents/*` + `.agents/skills/implement/SKILL.md` + [`matt-pocock-workflow.md`](docs/agents/matt-pocock-workflow.md) so implement threads find ticket workflow without plugin-only skill paths.
+- **Linear:** Pindeck project + arch epic **V1S-82** (children **V1S-83**–**87**); repo index [`docs/agents/architecture-linear-backlog.md`](docs/agents/architecture-linear-backlog.md). **V1S-83** in progress (App shell).
+- **Agents:** Pindeck uses Matt Pocock skills + Graft only; **pstack** not used in this repo (uninstall via Cursor **Customize → Plugins** if enabled for this workspace).
+- **Matt Pocock agent setup:** `docs/agents/issue-tracker.md` (GitHub/`gh`), `docs/agents/domain.md` (single-context); `## Agent skills` in [`AGENTS.md`](AGENTS.md). No triage labels until `triage` skill is installed.
+- **Graft:** Per-repo Hermes setup — `@nanonets/graft@0.18.0` devDependency, `trustedDependencies` for tree-sitter, `bun run graft:build` / `graft:map`, Cursor MCP via `bunx graft mcp`; commit `.cursor/rules/graft.mdc`, hooks, and `mcp.json` (not `graft/`).
+
 ## 2026-07-05
 
 - **Auth UI**: Removed Google/GitHub sign-in buttons from [`SignInForm`](src/SignInForm.tsx); OAuth env vars are not configured. Email/password and guest sign-in remain. Backend OAuth providers stay in [`convex/auth.ts`](convex/auth.ts) for future enablement.
