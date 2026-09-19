@@ -62,6 +62,15 @@ main() {
       "${label}" "${method}" "${expected}" "${actual}" "${result}"
   done
 
+  if bunx convex function-spec 2>/dev/null | rg -q '"identifier": "images\.js:list"'; then
+    printf '%-14s %-4s expected=%-18s actual=%s %s\n' \
+      "API_IMAGES_LIST" "SPEC" "images.js:list" "present" "OK"
+  else
+    printf '%-14s %-4s expected=%-18s actual=%s %s\n' \
+      "API_IMAGES_LIST" "SPEC" "images.js:list" "missing" "FAIL"
+    failed=1
+  fi
+
   exit "${failed}"
 }
 

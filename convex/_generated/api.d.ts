@@ -19,6 +19,7 @@ import type * as decks from "../decks.js";
 import type * as discordNotifications from "../discordNotifications.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
+import type * as images from "../images.js";
 import type * as images_analysis from "../images/analysis.js";
 import type * as images_generation from "../images/generation.js";
 import type * as images_index from "../images/index.js";
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   discordNotifications: typeof discordNotifications;
   generations: typeof generations;
   http: typeof http;
+  images: typeof images;
   "images/analysis": typeof images_analysis;
   "images/generation": typeof images_generation;
   "images/index": typeof images_index;

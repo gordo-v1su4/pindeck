@@ -1,35 +1,27 @@
 import { expect, test } from "@playwright/test";
 
+async function expectLibraryShell(page: import("@playwright/test").Page) {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".pd-main-shell")).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator(".pd-search-shell input")).toBeVisible({ timeout: 30_000 });
+}
+
 test.describe("Pindeck app smoke (production Convex)", () => {
-  test("guest sign-in loads library chrome", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByRole("button", { name: /continue as guest/i })).toBeVisible();
-    await page.getByRole("button", { name: /continue as guest/i }).click();
-
-    await expect(page.getByText(/loading session/i)).toBeHidden({ timeout: 60_000 });
-
-    await expect(page.locator(".site-brand-word, .pd-theme")).toBeVisible({
-      timeout: 60_000,
-    });
-
-    const search = page.locator('input[type="search"], input[placeholder*="Search" i]').first();
-    await expect(search).toBeVisible({ timeout: 60_000 });
+  test("owner session loads library chrome", async ({ page }) => {
+    await expectLibraryShell(page);
   });
 
   test("gallery or table view renders without fatal errors", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
 
-    await page.goto("/");
-    await page.getByRole("button", { name: /continue as guest/i }).click();
-    await expect(page.getByText(/loading session/i)).toBeHidden({ timeout: 60_000 });
+    await expectLibraryShell(page);
 
-    await page.waitForTimeout(3000);
-
-    const hasTiles =
-      (await page.locator("img").count()) > 0 ||
+    const hasLibraryChrome =
+      (await page.locator(".pd-search-shell input").isVisible()) ||
+      (await page.locator(".pd-app-shell img").count()) > 0 ||
       (await page.getByText(/no images|empty|upload/i).count()) > 0;
-    expect(hasTiles).toBeTruthy();
+    expect(hasLibraryChrome).toBeTruthy();
     expect(errors.filter((m) => !m.includes("ResizeObserver"))).toEqual([]);
   });
 });

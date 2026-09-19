@@ -65,6 +65,27 @@ code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${SITE_URL}/ingestExter
   exit 1
 }
 
+echo "== Trigger orchestration callbacks (unauthenticated expect 401) =="
+ORCH_PATHS=(
+  "/orchestration/image-refresh"
+  "/orchestration/media-finalize"
+  "/orchestration/external-ingest"
+  "/orchestration/media-repair"
+  "/orchestration/generate-variations/prepare"
+  "/orchestration/generate-variations/persist"
+  "/orchestration/generate-variations/complete"
+)
+for orch_path in "${ORCH_PATHS[@]}"; do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${SITE_URL}${orch_path}" \
+    -H "Content-Type: application/json" \
+    -d '{}')"
+  [[ "$code" == "401" ]] || {
+    echo "ERROR: ${orch_path} expected 401 without callback token, got $code" >&2
+    exit 1
+  }
+done
+echo "OK — ${#ORCH_PATHS[@]} orchestration routes reject unauthenticated POST"
+
 ingest_source() {
   local source_type="$1"
   local external_id="e2e-${source_type}-${RUN_ID}"
@@ -79,18 +100,26 @@ ingest_source() {
     --arg sourceUrl "https://example.com/${source_type}/${RUN_ID}" \
     '{userId:$userId,imageUrl:$imageUrl,externalId:$externalId,sourceType:$sourceType,title:$title,sourceUrl:$sourceUrl,tags:["e2e","original"]}')"
 
-  echo "== ingestExternal (${source_type}) =="
+  echo "== ingestExternal (${source_type}) ==" >&2
   local resp
   resp="$(post_json "/ingestExternal" "$payload")"
-  echo "$resp" | jq .
+  echo "$resp" | jq . >&2
   local image_id
   image_id="$(echo "$resp" | jq -r '.imageId // empty')"
   [[ -n "$image_id" ]] || {
     echo "ERROR: ingestExternal missing imageId" >&2
     exit 1
   }
+  local is_duplicate
+  is_duplicate="$(echo "$resp" | jq -r '.duplicate // false')"
 
-  echo "== discordQueue (list pending for ${source_type} image) =="
+  if [[ "$is_duplicate" == "true" ]]; then
+    echo "(duplicate ingest — skip queue/moderate for ${source_type})" >&2
+    echo "$image_id"
+    return 0
+  fi
+
+  echo "== discordQueue (list pending for ${source_type} image) ==" >&2
   local queue_payload
   queue_payload="$(jq -nc \
     --arg userId "$PINDECK_USER_ID" \
@@ -98,25 +127,25 @@ ingest_source() {
     '{userId:$userId,imageId:$imageId,limit:20}')"
   local queue_resp
   queue_resp="$(post_json "/discordQueue" "$queue_payload")"
-  echo "$queue_resp" | jq '{userId, count:(.items|length), ids:[.items[]._id]}'
+  echo "$queue_resp" | jq '{userId, count:(.items|length), ids:[.items[]._id]}' >&2
 
-  echo "== discordModerate approve =="
+  echo "== discordModerate approve ==" >&2
   local mod_payload
   mod_payload="$(jq -nc \
     --arg userId "$PINDECK_USER_ID" \
     --arg imageId "$image_id" \
     '{userId:$userId,imageId:$imageId,action:"approve"}')"
-  post_json "/discordModerate" "$mod_payload" | jq .
+  post_json "/discordModerate" "$mod_payload" | jq . >&2
 
   if [[ "${E2E_GENERATE:-}" == "1" ]]; then
-    echo "== discordModerate generate (E2E_GENERATE=1 — calls fal/OpenRouter) =="
+    echo "== discordModerate generate (E2E_GENERATE=1 — calls fal/OpenRouter) ==" >&2
     mod_payload="$(jq -nc \
       --arg userId "$PINDECK_USER_ID" \
       --arg imageId "$image_id" \
       '{userId:$userId,imageId:$imageId,action:"generate"}')"
-    post_json "/discordModerate" "$mod_payload" | jq .
+    post_json "/discordModerate" "$mod_payload" | jq . >&2
   else
-    echo "(skip variation generate; set E2E_GENERATE=1 to run fal pipeline)"
+    echo "(skip variation generate; set E2E_GENERATE=1 to run fal pipeline)" >&2
   fi
 
   echo "$image_id"

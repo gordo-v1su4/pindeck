@@ -48,7 +48,7 @@ pindeck/
 
 Key files:
 - `schema.ts`: tables/indexes (`images`, `profiles`, `importBatches`, boards/decks/storyboards, etc.)
-- `images/`: image domain split. [`index.ts`](convex/images/index.ts) re-exports public `api.images.*`; cross-module **internal** calls use the `internalApi.images.*` shim in [`shared.ts`](convex/images/shared.ts) (maps nested `images/analysis`, `images/ingest`, …). Modules: `library.ts`, `ingest.ts`, `moderation.ts`, `lifecycle.ts`, `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts`. Orchestration lease mutations live in [`orchestrationState.ts`](convex/orchestrationState.ts), not `analysis.ts`.
+- `images.ts` + `images/`: root [`images.ts`](convex/images.ts) registers wire path `images:*` for the frontend; [`index.ts`](convex/images/index.ts) re-exports nested modules for `api.images.*`. Cross-module **internal** calls use the `internalApi.images.*` shim in [`shared.ts`](convex/images/shared.ts) (maps nested `images/analysis`, `images/ingest`, …). Modules: `library.ts`, `ingest.ts`, `moderation.ts`, `lifecycle.ts`, `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts`. Orchestration lease mutations live in [`orchestrationState.ts`](convex/orchestrationState.ts), not `analysis.ts`.
 - `orchestrationSeam.ts` / `orchestrationCore.ts` / `triggerDispatch.ts` / `orchestration.ts`: Trigger HTTP seam, Node idempotency/status helpers, SDK dispatch, protected callbacks.
 - `mediaAdapter.ts` + `lib/mediaAdapter.ts` + `mediaStorage.ts`: canonical storage paths / public URLs vs Node upload/cleanup actions.
 - `vision.ts`: analysis + variation generation flow and prompt planning
