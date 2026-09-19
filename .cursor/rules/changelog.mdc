@@ -28,6 +28,7 @@ Rules:
 - **Platform docs:** Single map [`docs/architecture/platform-topology.md`](docs/architecture/platform-topology.md); trimmed duplicates; removed stale [`docs/guides/redesign-deck-port-inventory.md`](docs/guides/redesign-deck-port-inventory.md).
 - **Convex ingest fix:** `ingestExternalHttp` uses nested `internal["images/ingest"].ingestExternal` ref (shim path broke production `/ingestExternal`).
 - **E2E:** `scripts/e2e-production-smoke.sh`, Playwright `tests/e2e/` default base URL `https://pindeck.dev`; npm scripts `e2e:smoke`, `e2e:ui`. Smoke probes unauthenticated `/orchestration/*` callbacks (expect `401`).
+- **Convex orchestration fix:** All Trigger HTTP callbacks and media paths use `internalApi.images.*` from [`shared.ts`](convex/images/shared.ts) (`orchestration.ts`, `mediaStorage.ts`, `images/analysis.ts`, `images/lifecycle.ts`) — fixes production `Couldn't resolve api.images.internalGetMetadataRefreshPayload` on external-ingest / image-refresh.
 - **Ops:** Trigger **`20260919.1`** deployed on app-vm; `/opt/pindeck` reset to `origin/main`.
 - **Convex deploy (V1S-84 follow-up):** `internalApi.images` shim in [`convex/images/shared.ts`](convex/images/shared.ts); production deploy to `https://convex.serving.cloud` restored.
 - **Arch-4 + Arch-5:** Merged [PR #39](https://github.com/gordo-v1su4/pindeck/pull/39) — Trigger orchestration seam (`orchestrationSeam` / `orchestrationCore` / `orchestrationState`) + media adapter (`lib/mediaAdapter.ts`, `mediaAdapter.ts`); rebased on main including Convex shim.

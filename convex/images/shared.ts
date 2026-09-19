@@ -26,6 +26,16 @@ function attachImagesInternalShim(api: Record<string, unknown>) {
     internalSetAiStatus: nested["images/analysis"].internalSetAiStatus,
     internalRefreshMetadataAfterPalette:
       nested["images/analysis"].internalRefreshMetadataAfterPalette,
+    internalGetUploadFinalizePayload:
+      nested["images/uploads"].internalGetUploadFinalizePayload,
+    internalApplyNextcloudUpload:
+      nested["images/lifecycle"].internalApplyNextcloudUpload,
+    internalMarkNextcloudPersistFailed:
+      nested["images/lifecycle"].internalMarkNextcloudPersistFailed,
+    internalListBackfillCandidates:
+      nested["images/lifecycle"].internalListBackfillCandidates,
+    internalQuarantineBrokenImage:
+      nested["images/lifecycle"].internalQuarantineBrokenImage,
     internalGetMetadataRefreshPayload:
       nested["images/analysis"].internalGetMetadataRefreshPayload,
     internalSaveGeneratedImages:
@@ -43,12 +53,6 @@ function attachImagesInternalShim(api: Record<string, unknown>) {
       nested["images/lifecycle"].internalGetMediaRepairPayload,
     internalRecordNextcloudBackfillFailure:
       nested["images/lifecycle"].internalRecordNextcloudBackfillFailure,
-    internalApplyNextcloudUpload:
-      nested["images/lifecycle"].internalApplyNextcloudUpload,
-    internalListBackfillCandidates:
-      nested["images/lifecycle"].internalListBackfillCandidates,
-    internalQuarantineBrokenImage:
-      nested["images/lifecycle"].internalQuarantineBrokenImage,
   };
 }
 

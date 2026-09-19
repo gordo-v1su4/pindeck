@@ -173,7 +173,7 @@ export const enqueueMetadataRefresh = mutation({
       } else {
         await ctx.scheduler.runAfter(
           delay,
-          (internal as any).images.internalRefreshMetadataAfterPalette,
+          internalApi.images.internalRefreshMetadataAfterPalette,
           {
             imageId: img._id,
             userId,
@@ -219,7 +219,7 @@ export const internalRefreshMetadataAfterPalette: any = internalAction({
     error?: string;
   }> => {
     const image: any = await ctx.runQuery(
-      (internal as any).images.internalGetMetadataRefreshPayload,
+      internalApi.images.internalGetMetadataRefreshPayload,
       {
         imageId: args.imageId,
         userId: args.userId,
@@ -244,7 +244,7 @@ export const internalRefreshMetadataAfterPalette: any = internalAction({
     }
 
     if (!paletteOk) {
-      await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.imageId,
         status: "failed",
       });
@@ -257,7 +257,7 @@ export const internalRefreshMetadataAfterPalette: any = internalAction({
     }
 
     if (args.runMetadata === false) {
-      await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.imageId,
         status: "completed",
       });

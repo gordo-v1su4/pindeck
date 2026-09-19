@@ -229,7 +229,7 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
       )
     : undefined;
   const images = await ctx.runQuery(
-    (internal as any).images.internalListBackfillCandidates,
+    internalApi.images.internalListBackfillCandidates,
     {
       limit,
       imageIds,
@@ -324,7 +324,7 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
                 },
               );
         await ctx.runMutation(
-          (internal as any).images.internalApplyNextcloudUpload,
+          internalApi.images.internalApplyNextcloudUpload,
           {
             imageId: image._id,
             imageUrl: published.imageUrl,
@@ -352,7 +352,7 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
           },
         );
         await ctx.runMutation(
-          (internal as any).images.internalApplyNextcloudUpload,
+          internalApi.images.internalApplyNextcloudUpload,
           {
             imageId: image._id,
             imageUrl: persisted.imageUrl,
@@ -378,7 +378,7 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
     } catch (error: any) {
       failed += 1;
       await ctx.runMutation(
-        (internal as any).images.internalRecordNextcloudBackfillFailure,
+        internalApi.images.internalRecordNextcloudBackfillFailure,
         {
           imageId: image._id,
           error: error?.message || "Backfill failed",
@@ -762,7 +762,7 @@ export const quarantineBrokenNextcloudHttp = httpAction(
     const limit = Math.max(1, Math.min(Number(body?.limit ?? 200), 1000));
     const dryRun = Boolean(body?.dryRun);
     const images = await ctx.runQuery(
-      (internal as any).images.internalListBackfillCandidates,
+      internalApi.images.internalListBackfillCandidates,
       {
         limit,
       },
@@ -777,7 +777,7 @@ export const quarantineBrokenNextcloudHttp = httpAction(
     if (!dryRun) {
       for (const image of brokenImages) {
         await ctx.runMutation(
-          (internal as any).images.internalQuarantineBrokenImage,
+          internalApi.images.internalQuarantineBrokenImage,
           {
             imageId: image._id,
           },

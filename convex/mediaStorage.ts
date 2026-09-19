@@ -3,6 +3,7 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { internalApi } from "./images/shared";
 import { preferredImageUrlForSampling } from "./colorExtractionUrls";
 import {
   encodeStoragePath as encodePath,
@@ -759,7 +760,7 @@ export const finalizeUploadedImage = internalAction({
         title: args.title,
       });
 
-      await ctx.runMutation((internal as any).images.internalApplyNextcloudUpload, {
+      await ctx.runMutation(internalApi.images.internalApplyNextcloudUpload, {
         imageId: args.imageId,
         imageUrl: uploaded.imageUrl,
         previewUrl: uploaded.previewUrl,
@@ -810,12 +811,12 @@ export const finalizeUploadedImage = internalAction({
       return { ok: true, imageUrl: uploaded.imageUrl } as const;
     } catch (error: any) {
       console.error("Failed to finalize upload in durable media storage", error);
-      await ctx.runMutation((internal as any).images.internalMarkNextcloudPersistFailed, {
+      await ctx.runMutation(internalApi.images.internalMarkNextcloudPersistFailed, {
         imageId: args.imageId,
         error: error?.message || "Failed to finalize upload",
       });
       if (args.scheduleAnalysis === false) {
-        await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+        await ctx.runMutation(internalApi.images.internalSetAiStatus, {
           imageId: args.imageId,
           status: "failed",
         });
@@ -833,7 +834,7 @@ export const finalizeUploadedImage = internalAction({
         // Keep the upload workflow moving even if RustFS media gateway persistence fails.
         // The source file is already in Convex storage, so analysis and color sampling can still
         // complete and populate the draft card while the persistence error is surfaced separately.
-        await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+        await ctx.runMutation(internalApi.images.internalSetAiStatus, {
           imageId: args.imageId,
           status: "processing",
         });
@@ -864,7 +865,7 @@ export const finalizeUploadedImage = internalAction({
         });
       } catch (fallbackError: any) {
         console.error("Failed to schedule fallback analysis after RustFS persist error", fallbackError);
-        await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+        await ctx.runMutation(internalApi.images.internalSetAiStatus, {
           imageId: args.imageId,
           status: "failed",
         });

@@ -1,5 +1,6 @@
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import { internalApi } from "./images/shared";
 
 type OwnedImageBody = {
   imageId?: string;
@@ -85,7 +86,7 @@ export const mediaFinalizeHttp = httpAction(async (ctx, request) => {
     async (ctx, body) => {
       const owned = { imageId: body.imageId, userId: body.userId };
       const upload = await ctx.runQuery(
-        (internal as any).images.internalGetUploadFinalizePayload,
+        internalApi.images.internalGetUploadFinalizePayload,
         owned,
       );
       if (!upload) {
@@ -175,7 +176,7 @@ export const externalIngestHttp = httpAction(async (ctx, request) => {
         (before.storagePersistStatus !== "succeeded" || !before.storagePath)
       ) {
         const persisted = await ctx.runAction(
-          (internal as any).images.internalRepairImageMedia,
+          internalApi.images.internalRepairImageMedia,
           {
             imageId: body.imageId,
             userId: body.userId,
@@ -277,7 +278,7 @@ export const mediaRepairHttp = httpAction(async (ctx, request) => {
     "pindeck-media-repair",
     async (ctx, body) => {
       const image = await ctx.runQuery(
-        (internal as any).images.internalGetMediaRepairPayload,
+        internalApi.images.internalGetMediaRepairPayload,
         {
           imageId: body.imageId,
           userId: body.userId,
@@ -299,7 +300,7 @@ export const mediaRepairHttp = httpAction(async (ctx, request) => {
         };
       }
       const persisted = await ctx.runAction(
-        (internal as any).images.internalRepairImageMedia,
+        internalApi.images.internalRepairImageMedia,
         {
           imageId: body.imageId,
           userId: body.userId,
@@ -578,7 +579,7 @@ export const variationGenerationPersistHttp = httpAction(
       );
       const artifactKey = `${body.dispatchId}:variation:${body.itemIndex}`;
       const existing = await ctx.runQuery(
-        (internal as any).images.internalGetGeneratedArtifactByKey,
+        internalApi.images.internalGetGeneratedArtifactByKey,
         {
           originalImageId: body.imageId,
           requestedBy: body.userId,
@@ -599,7 +600,7 @@ export const variationGenerationPersistHttp = httpAction(
         );
       }
       await ctx.runMutation(
-        (internal as any).images.internalSaveGeneratedImages,
+        internalApi.images.internalSaveGeneratedImages,
         {
           originalImageId: body.imageId,
           requestedBy: body.userId,
@@ -623,7 +624,7 @@ export const variationGenerationPersistHttp = httpAction(
         },
       );
       const saved = await ctx.runQuery(
-        (internal as any).images.internalGetGeneratedArtifactByKey,
+        internalApi.images.internalGetGeneratedArtifactByKey,
         {
           originalImageId: body.imageId,
           requestedBy: body.userId,
@@ -691,7 +692,7 @@ export const variationGenerationCompleteHttp = httpAction(
         body.dispatchId,
       );
       if ((body.requested ?? 0) > 0 && (body.generated ?? 0) === 0) {
-        await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+        await ctx.runMutation(internalApi.images.internalSetAiStatus, {
           imageId: body.imageId,
           status: "failed",
         });
@@ -700,7 +701,7 @@ export const variationGenerationCompleteHttp = httpAction(
           422,
         );
       }
-      await ctx.runMutation((internal as any).images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: body.imageId,
         status: "completed",
       });
@@ -1002,7 +1003,7 @@ async function runAnalysisOnce(
     "analysis-started",
   );
   const analysis = await ctx.runAction(
-    (internal as any).images.internalRefreshMetadataAfterPalette,
+    internalApi.images.internalRefreshMetadataAfterPalette,
     {
       imageId: args.imageId,
       userId: args.userId,
@@ -1035,7 +1036,7 @@ async function getImagePayload(
   allowActiveShared = false,
 ) {
   return await ctx.runQuery(
-    (internal as any).images.internalGetMetadataRefreshPayload,
+    internalApi.images.internalGetMetadataRefreshPayload,
     {
       imageId,
       userId,
