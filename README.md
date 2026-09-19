@@ -232,6 +232,17 @@ Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_
 
 **Gotcha:** Do not re-declare `--pd-accent`, `--pd-accent-ink`, `--pd-accent-soft`, `--pd-font-*`, etc. on `.pd-theme` — they would override `document.documentElement` and break Tweaks until you move those variables to `:root` defaults only (see [`src/index.css`](src/index.css)).
 
+## Library UI
+
+Production gallery and table are the pd-theme views:
+
+- **Gallery:** [`src/components/pd/GalleryView.tsx`](src/components/pd/GalleryView.tsx)
+- **Table:** [`src/components/pd/TableView.tsx`](src/components/pd/TableView.tsx) — custom table (not TanStack Table)
+- **Image details / variations / lineage:** [`src/components/pd/ImageDetailDrawer.tsx`](src/components/pd/ImageDetailDrawer.tsx)
+- **App chrome:** [`src/components/shell/`](src/components/shell/) (Topbar, Sidebar, view / filter / column hooks)
+
+Unused Radix `ImageGrid`, `TableView`, `ImageModal`, `EditImageModal`, `GenerateVariationsModal`, and `CategoryFilter` were removed (V1S-85), along with `@dnd-kit/*` and `@tanstack/react-table`. Architecture notes live in [`.cursor/rules/project-structure.mdc`](.cursor/rules/project-structure.mdc) and [`.cursor/rules/tech-stack.mdc`](.cursor/rules/tech-stack.mdc). This repo does not use `WARP.md`.
+
 ## Notes
 
 - **Deck composer** ([`src/components/deck/DeckComposer.tsx`](src/components/deck/DeckComposer.tsx)): edits autosave to Convex via **`decks.update`** (debounced ~800ms) with a **Saving… / Saved** indicator; legacy full-state `localStorage` is migrated on first Convex save. Only UI selection index stays in `localStorage`.

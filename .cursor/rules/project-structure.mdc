@@ -22,8 +22,8 @@ Current behavior highlights:
 - Upload flow separates pending/processing/draft/active states.
 - Sidebar (**Type / Genre / Style** + originals / sref filters) shares filter state with Gallery + Table via [`src/lib/libraryFilters.ts`](src/lib/libraryFilters.ts); aggregations from [`api.images.libraryAggregations`](convex/images/library.ts) (re-exported from [`convex/images/index.ts`](convex/images/index.ts)).
 - VLM smart analysis fills `group`, `genre`, `shot`, `style` on `images` (see `convex/vision.ts`); Table **Backfill metadata** runs `enqueueCinematicMetadataBackfill` for the signed-in user’s uploads.
-- **pd Gallery** ([`GalleryView`](src/components/pd/GalleryView.tsx)): sidebar filters + shared library state; aggregation Type/Genre/Style UI uses [`LibraryAggregationFilterParts.tsx`](src/components/pd/LibraryAggregationFilterParts.tsx); tiles are image-first (VAR badge for children); hover **like** + **bookmark → board** (same `boards.addImage` flow as legacy [`ImageGrid`](src/components/ImageGrid.tsx)); variation/generate in drawer, not on the card. **Create New Board** (`CreateBoardModal`) uses **pd-theme** fields. **Decks** tab: **`DeckView`** (`src/components/DeckView.tsx`) + **`src/components/deck/*`** (composer/canvas/section) — aligned with **`claude/redesign`**, not `pd/deck`; **library cards**: **16:9 hero** + per-slide **`PinSwatches`** from **`decks.list` `stripPalettes`** (**`images.colors`**, same as table rows). In **DeckComposer**, hero **five swatches** sample **`heroSampleUrl`**; Convex fallback via **`activeHeroDominantHexes`**; Tweaks **`--pd-accent*`** on composer chrome; **`BlockFrame`** no selection outline; composer edits **autosave via `decks.update`** (debounced Convex persistence).
-- Table view has advanced filters, parent navigation, original-only and Sref-only toggles (pd Table is the one in `App.tsx`; legacy Radix `TableView` may differ).
+- **pd Gallery** ([`GalleryView`](src/components/pd/GalleryView.tsx)): sidebar filters + shared library state; aggregation Type/Genre/Style UI uses [`LibraryAggregationFilterParts.tsx`](src/components/pd/LibraryAggregationFilterParts.tsx); tiles are image-first (VAR badge for children); hover **like** + **bookmark → board** (`boards.addImage`); variation/generate in drawer, not on the card. **Create New Board** (`CreateBoardModal`) uses **pd-theme** fields. **Decks** tab: **`DeckView`** (`src/components/DeckView.tsx`) + **`src/components/deck/*`** (composer/canvas/section) — aligned with **`claude/redesign`**, not `pd/deck`; **library cards**: **16:9 hero** + per-slide **`PinSwatches`** from **`decks.list` `stripPalettes`** (**`images.colors`**, same as table rows). In **DeckComposer**, hero **five swatches** sample **`heroSampleUrl`**; Convex fallback via **`activeHeroDominantHexes`**; Tweaks **`--pd-accent*`** on composer chrome; **`BlockFrame`** no selection outline; composer edits **autosave via `decks.update`** (debounced Convex persistence).
+- Table view ([`pd/TableView`](src/components/pd/TableView.tsx)): sortable columns, row selection, metadata/palette refresh; originals / sref filters via sidebar + [`libraryFilters`](src/lib/libraryFilters.ts). Parent/child lineage lives in [`ImageDetailDrawer`](src/components/pd/ImageDetailDrawer.tsx).
 - App chrome: **Topbar** + **Sidebar** live in [`src/components/shell/`](src/components/shell/); view / filter / column state is in `useAppView`, `useLibraryFilterState`, and `useTableColumnVisibility`. `App.tsx` still owns auth, Convex subscriptions, tweaks, sidebar collapse, keyboard shortcuts, and view bodies.
 
 ## Root Structure
@@ -44,7 +44,7 @@ pindeck/
 
 Key files:
 - `schema.ts`: tables/indexes (`images`, `profiles`, `importBatches`, boards/decks/storyboards, etc.)
-- `images/`: image domain split. [`index.ts`](convex/images/index.ts) re-exports so `api.images.*` / `internal.images.*` stay unchanged (Convex file-based routing). Modules: `library.ts` (list/aggregations/lineage), `ingest.ts` (external ingest + URL normalize), `moderation.ts` (pending queue, approve/deny, Discord HTTP), `lifecycle.ts` (delete/cleanup/media repair/Nextcloud), `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts` (helpers).
+- `images/`: image domain split. [`index.ts`](convex/images/index.ts) re-exports so `api.images.*` / `internal.images.*` stay unchanged (Convex file-based routing). Modules: `library.ts` (list/aggregations/lineage), `ingest.ts` (external ingest + URL normalize), `moderation.ts` (pending queue, approve/deny, Discord HTTP), `lifecycle.ts` (delete/cleanup/media repair/backfill/quarantine), `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts` (helpers).
 - `vision.ts`: analysis + variation generation flow and prompt planning
 - `colorExtraction.ts` + `colorExtractionUrls.ts` + `colorExtractionAdmin.ts` / `colorExtractionWrite.ts`: dominant image swatches (`images.colors`) via sharp + [colorPaletteCore](mdc:src/lib/colorPaletteCore.ts); admin mutations require auth (`reExtractAll` / `reExtractForImage`)
 - `discordNotifications.ts`: webhook status events to Discord channel
@@ -62,12 +62,10 @@ Important image fields:
 Key files:
 - `App.tsx`: auth, Convex subscriptions, tweaks, keyboard shortcuts, view bodies
 - `components/shell/`: **Topbar**, **Sidebar**, `useAppView` / `useLibraryFilterState` / `useTableColumnVisibility`, view ids / table-column types (`types.ts`)
-- `components/ImageGrid.tsx`: gallery views, Sref-only toggle, project rows, quick actions
+- `components/pd/GalleryView.tsx`: library gallery (random / project rows), like + save-to-board
+- `components/pd/TableView.tsx`: library table (sort, selection, metadata/palette refresh)
+- `components/pd/ImageDetailDrawer.tsx`: image details, edit metadata, variations, lineage
 - `components/ImageUploadForm.tsx`: local upload + Discord queue review/approve/discard
-- `components/TableView.tsx`: sortable/filterable table, parent navigation, original/sref toggles
-- `components/ImageModal.tsx`: image details, sref copy, parent linkage
-- `components/GenerateVariationsModal.tsx`: explicit post-review variation settings
-- `components/CategoryFilter.tsx`: category filter tabs
 - `lib/colorExtraction.ts`: frontend color extraction helper
 
 ## Discord Bot (`services/discord-bot/`)
