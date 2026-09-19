@@ -7,7 +7,7 @@ Tracked in Linear project **Pindeck** (V1su4). GitHub remains the default issue 
 | **V1S-82** | [Arch] Pindeck codebase tightening — parent | Backlog | https://linear.app/v1su4/issue/V1S-82 |
 | **V1S-83** | [Arch-1] Deepen application shell — extract from App.tsx | **Done** · [PR #35](https://github.com/gordo-v1su4/pindeck/pull/35) | https://linear.app/v1su4/issue/V1S-83 |
 | **V1S-88** | [Arch-1b] App shell state hooks (view, filters, columns) | **Done** (merged to main) | https://linear.app/v1su4/issue/V1S-88 |
-| **V1S-84** | [Arch-2] Split convex/images.ts by domain seam | Backlog | https://linear.app/v1su4/issue/V1S-84 |
+| **V1S-84** | [Arch-2] Split convex/images.ts by domain seam | **In progress** (branch `gordo/v1s-84-arch-2-split-conveximagests-by-domain-seam`) | https://linear.app/v1su4/issue/V1S-84 |
 | **V1S-85** | [Arch-3] Retire legacy ImageGrid + Radix TableView | Backlog | https://linear.app/v1su4/issue/V1S-85 |
 | **V1S-86** | [Arch-4] Unify Trigger orchestration module interface | Backlog | https://linear.app/v1su4/issue/V1S-86 |
 | **V1S-87** | [Arch-5] Storage-path adapter module (mediaStorage) | Backlog | https://linear.app/v1su4/issue/V1S-87 |
@@ -37,3 +37,19 @@ Tracked in Linear project **Pindeck** (V1su4). GitHub remains the default issue 
 | **V1S-88** | Shell state hooks (view, filters, columns) | Merged to `main` (`00b6973`) |
 
 Close **V1S-83** when V1S-88 is done and acceptance criteria on both are met.
+
+## V1S-84 (Arch-2)
+
+Split `convex/images.ts` into [`convex/images/`](../../convex/images/):
+
+| File | Responsibility |
+|------|----------------|
+| `index.ts` | Re-exports only — keeps `api.images.*` / `internal.images.*` |
+| `library.ts` | list, aggregations, search, getById, getLineage, likes/views |
+| `ingest.ts` | createExternal, ingestExternal, ingestExternalHttp |
+| `moderation.ts` | pending queue, approve/deny, Discord HTTP |
+| `lifecycle.ts` | delete, cleanup, media repair, Nextcloud backfill/quarantine |
+| `uploads.ts` | upload URL, uploadMultiple, drafts/processing |
+| `analysis.ts` | metadata refresh, AI status, orchestration claim/set |
+| `generation.ts` | save generated children + artifact lookup |
+| `shared.ts` | URL/storage/lineage helpers (no Convex wrappers) |

@@ -24,6 +24,7 @@ Rules:
 
 ## 2026-09-18
 
+- **Images backend (V1S-84):** split `convex/images.ts` into [`convex/images/`](convex/images/) (`library`, `ingest`, `moderation`, `lifecycle`, plus uploads/analysis/generation/shared). [`index.ts`](convex/images/index.ts) re-exports so `api.images.*` and HTTP imports from `./images` stay the same.
 - **App shell (V1S-83 slice 1):** moved **Topbar** + **Sidebar** (filters, aggregations, color picker) to [`src/components/shell/`](src/components/shell/) with no behavior change; `App.tsx` still wires auth, library query, and routes.
 - **App shell (V1S-88):** view, library filters, and table column visibility live in [`src/components/shell/`](src/components/shell/) hooks (`useAppView`, `useLibraryFilterState`, `useTableColumnVisibility`); `App.tsx` remains the auth + route shell.
 - **Agents docs:** Committed `docs/agents/*` + `.agents/skills/implement/SKILL.md` + [`matt-pocock-workflow.md`](docs/agents/matt-pocock-workflow.md) so implement threads find ticket workflow without plugin-only skill paths.
