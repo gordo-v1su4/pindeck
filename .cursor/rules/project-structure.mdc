@@ -10,10 +10,14 @@ This file is the quick map of what exists in the repo today.
 ## Project Overview
 
 Pindeck is an image curation app with:
-- React + TypeScript frontend
-- Convex backend (auth, data, storage, HTTP endpoints)
-- Discord ingest/moderation bot (Bun process)
+- React + TypeScript frontend (**Vercel** `pindeck.dev`)
+- Convex backend on **Hostinger `serving`** (`convex.serving.cloud`, HTTP `convex-site.serving.cloud`)
+- Trigger.dev workers on **Proxmox app-vm** (`trigger.v1su4.dev`, deploy from `/opt/pindeck`)
+- RustFS media via **`media.v1su4.dev`**
+- Discord ingest/moderation bot (separate **`discord-bot`** repo + Convex HTTP)
 - AI analysis + variation generation pipeline
+
+**Platform map:** [`docs/architecture/platform-topology.md`](docs/architecture/platform-topology.md) · [`CONTEXT.md`](CONTEXT.md)
 
 Current behavior highlights:
 - Unified dark UI (`pd-theme`): Tweaks panel + `pindeck_tweaks` drive accent tokens via `src/lib/pdTheme.ts` (`--pd-accent*`, TMP `--accent*` mirrors); [`SignInForm`](src/SignInForm.tsx) shares the same variables.

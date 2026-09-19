@@ -18,5 +18,5 @@ Commit your work to the current branch.
 
 - Ticket context: `docs/agents/architecture-linear-backlog.md` (Linear) or GitHub issues per `docs/agents/issue-tracker.md`.
 - Orientation: Graft before grepping (`graft ask`, `graft skeleton`).
-- UI verification: `bun run dev:frontend`, compare to https://pindeck-754f.vercel.app/ when changing library/deck UI.
+- UI verification: `bun run dev:frontend`, compare to https://pindeck.dev when changing library/deck UI.
 - Bun only for scripts (`AGENTS.md`).

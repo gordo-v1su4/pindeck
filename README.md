@@ -6,7 +6,10 @@ AI-powered image gallery + generation app using React, Convex, OpenRouter, and f
 
 ## Production Names
 
-Pindeck has one production frontend and one production backend target:
+Pindeck has one production frontend and one production backend target. Full
+topology (Vercel vs Hostinger Convex vs app-vm Trigger vs RustFS) and flow
+diagrams: **[docs/architecture/platform-topology.md](docs/architecture/platform-topology.md)**.
+Domain glossary: **[CONTEXT.md](CONTEXT.md)**.
 
 | Surface      | Production name          | Target                              |
 | ------------ | ------------------------ | ----------------------------------- |
@@ -14,12 +17,9 @@ Pindeck has one production frontend and one production backend target:
 | Backend      | Self-hosted Convex       | `https://convex.serving.cloud`      |
 | HTTP actions | Self-hosted Convex site  | `https://convex-site.serving.cloud` |
 
-Use `production` only for the Vercel deployment target. Do not create or select
-Convex Cloud deployments named `production`, `production-pindeck`, or similar for
-this app; Pindeck production deploys to self-hosted Convex through
-`CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY`.
+Do not use Convex Cloud or **`unfold.serving.cloud`** for Pindeck. Deploy and env details: **[platform-topology](docs/architecture/platform-topology.md)** and **[self-hosted-convex-ops](docs/self-hosted-convex-ops.md)**.
 
-The old duplicate Vercel test project `pindeck-754f` was removed on June 15, 2026. The only current frontend production project is `pindeck`.
+The removed Vercel preview project **`pindeck-754f`** is not production.
 
 ## Local Production Workflow
 
@@ -58,17 +58,6 @@ bun run serve
 ```
 
 `bun run serve` always uses port `4173` and will kill any process already using that port before starting.
-
-## Current Production Deployments
-
-- Convex production deployment: **self-hosted only**
-- Convex client URL: `https://convex.serving.cloud`
-- Convex HTTP/actions URL: `https://convex-site.serving.cloud`
-- Frontend production project: **Vercel `pindeck`**
-- Frontend production URL: `https://pindeck.dev`
-- Frontend production aliases: `https://www.pindeck.dev`, `https://pindeck-git-main-gordo-v1su4s-projects.vercel.app`, `https://pindeck-gordo-v1su4s-projects.vercel.app`
-- Legacy Convex Cloud deployments have been removed/deleted and must not be used for deploys or frontend env.
-- Discord bot + media gateway deployment source: separate repo `~/Documents/Github/discord-bot`
 
 ## Required Environment Variables
 
@@ -227,7 +216,7 @@ Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_
 ## Unified UI / design tokens (Tweaks)
 
 - Tweaks persisted in `localStorage` (`pindeck_tweaks`) drive **`applyPindeckTweaksToDocument`** in [`src/lib/pdTheme.ts`](src/lib/pdTheme.ts): `--pd-accent`, derived `--pd-accent-ink`, `--pd-accent-soft`, `--pd-accent-hover`, `--pd-accent-contrast-text`, plus TMP-compatible `--accent*` aliases on `document.documentElement`.
-- The static prototype reference lives under [`TMP/`](TMP/) (see [`TMP/HANDOFF.md`](TMP/HANDOFF.md)); larger deck deltas vs [`claude/redesign`](branch) are summarized in [`docs/guides/redesign-deck-port-inventory.md`](docs/guides/redesign-deck-port-inventory.md).
+- The static prototype reference lives under [`TMP/`](TMP/) (see [`TMP/HANDOFF.md`](TMP/HANDOFF.md)). Production UI reference: [pindeck.dev](https://pindeck.dev).
 - Sign-in ([`src/SignInForm.tsx`](src/SignInForm.tsx)) supports **email/password** and **guest**; Google/GitHub OAuth providers remain in [`convex/auth.ts`](convex/auth.ts) but are hidden until OAuth env is configured. Sign-in uses the same CSS variables so primary actions match the Tweaks accent (aligned with [`claude/redesign`](branch) semantics).
 
 **Gotcha:** Do not re-declare `--pd-accent`, `--pd-accent-ink`, `--pd-accent-soft`, `--pd-font-*`, etc. on `.pd-theme` — they would override `document.documentElement` and break Tweaks until you move those variables to `:root` defaults only (see [`src/index.css`](src/index.css)).

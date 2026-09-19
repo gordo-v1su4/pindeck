@@ -1,17 +1,8 @@
 # Trigger.dev Orchestration
 
-Pindeck uses the V1SU4 self-hosted Trigger.dev control plane at
-`https://trigger.v1su4.dev` and keeps a project separate from other workloads.
+**Where workers run:** Proxmox **app-vm** — deploy with `bun run trigger:deploy` from **`/opt/pindeck`** (see [`docs/architecture/platform-topology.md`](architecture/platform-topology.md)).
 
-- Trigger project: `Pindeck`
-- Project ref: `proj_znbdggczxwkeviflncnx`
-- Dashboard: `https://trigger.v1su4.dev/orgs/v1su4-91d9/projects/pindeck-gT25`
-- Platform, CLI, SDK, and build packages: `4.5.3`
-- Task runtime: Bun (experimental), deployed Bun `1.3.3`
-
-The self-hosted platform is pinned to `v4.5.3`, so Pindeck must not upgrade its
-Trigger CLI or `@trigger.dev/*` packages independently. Upgrade the platform
-images, CLI, SDK, and build package together.
+Pindeck uses the self-hosted control plane at `https://trigger.v1su4.dev` (project **`proj_znbdggczxwkeviflncnx`**, SDK/CLI **4.5.3** on app-vm).
 
 ## Workflows
 

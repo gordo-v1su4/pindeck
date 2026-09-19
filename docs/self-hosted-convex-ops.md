@@ -1,27 +1,12 @@
 # Self-Hosted Convex Ops
 
-Pindeck production uses a self-hosted Convex stack on the Hostinger VPS at
-`serving.cloud`. This file is safe to check in: it documents hostnames,
-container names, and commands only. Do not add secret values, admin keys,
-tokens, webhook URLs, or raw verbose deploy output here.
+Pindeck production Convex on Hostinger **`serving`**. **Platform map (all layers):** [`docs/architecture/platform-topology.md`](architecture/platform-topology.md).
 
-## Production Targets
+This file covers **Convex containers, SSH, and health checks** only. Do not add secret values here.
 
-| Role         | Production name              | URL                                      |
-| ------------ | ---------------------------- | ---------------------------------------- |
-| Backend      | Self-hosted Convex           | `https://convex.serving.cloud`           |
-| HTTP actions | Self-hosted Convex site      | `https://convex-site.serving.cloud`      |
-| Dashboard    | Self-hosted Convex dashboard | `https://convex-dashboard.serving.cloud` |
-
-Do not use Convex Cloud deployment names such as `production` or
-`production-pindeck` for this repo. Those names are easy to confuse with
-Vercel's `production` target, but Pindeck's Convex production target is the
-self-hosted stack above.
-
-Local and Vercel production deploys should use:
+Env URLs (Pindeck only):
 
 ```bash
-VITE_CONVEX_URL=https://convex.serving.cloud
 VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud
 CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud
 ```

@@ -30,6 +30,7 @@ import type * as images_shared from "../images/shared.js";
 import type * as images_uploads from "../images/uploads.js";
 import type * as lib_authz from "../lib/authz.js";
 import type * as lib_generationSource from "../lib/generationSource.js";
+import type * as lib_mediaAdapter from "../lib/mediaAdapter.js";
 import type * as lib_variationAccess from "../lib/variationAccess.js";
 import type * as maintenance from "../maintenance.js";
 import type * as mediaAdapter from "../mediaAdapter.js";
@@ -72,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   "images/uploads": typeof images_uploads;
   "lib/authz": typeof lib_authz;
   "lib/generationSource": typeof lib_generationSource;
+  "lib/mediaAdapter": typeof lib_mediaAdapter;
   "lib/variationAccess": typeof lib_variationAccess;
   maintenance: typeof maintenance;
   mediaAdapter: typeof mediaAdapter;

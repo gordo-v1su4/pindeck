@@ -24,7 +24,11 @@ Rules:
 
 ## 2026-09-19
 
-- **Convex deploy (V1S-84 follow-up):** `internalApi.images` shim in [`convex/images/shared.ts`](convex/images/shared.ts) after nested `convex/images/*` modules; production deploy to `https://convex.serving.cloud` restored.
+- **Platform docs:** Single map [`docs/architecture/platform-topology.md`](docs/architecture/platform-topology.md); trimmed duplicates; removed stale [`docs/guides/redesign-deck-port-inventory.md`](docs/guides/redesign-deck-port-inventory.md).
+- **Convex ingest fix:** `ingestExternalHttp` uses nested `internal["images/ingest"].ingestExternal` ref (shim path broke production `/ingestExternal`).
+- **E2E:** `scripts/e2e-production-smoke.sh`, Playwright `tests/e2e/` default base URL `https://pindeck.dev`; npm scripts `e2e:smoke`, `e2e:ui`.
+- **Ops:** Trigger **`20260919.1`** deployed on app-vm; `/opt/pindeck` reset to `origin/main`.
+- **Convex deploy (V1S-84 follow-up):** `internalApi.images` shim in [`convex/images/shared.ts`](convex/images/shared.ts); production deploy to `https://convex.serving.cloud` restored.
 - **Arch-4 + Arch-5:** Merged [PR #39](https://github.com/gordo-v1su4/pindeck/pull/39) — Trigger orchestration seam (`orchestrationSeam` / `orchestrationCore` / `orchestrationState`) + media adapter (`lib/mediaAdapter.ts`, `mediaAdapter.ts`); rebased on main including Convex shim.
 
 ## 2026-09-18
@@ -72,14 +76,13 @@ Rules:
 - Auth UI: guest/email sign-in could show a **blank black main area** while Convex `isLoading` was true because `Authenticated` / `Unauthenticated` both render nothing during load; added **`AuthLoading`** (“Loading session…”) and **`showAppChrome = isAuthenticated && !authLoading`** ([`src/App.tsx`](src/App.tsx)). Sanitized invalid `pindeck_view` from `localStorage`.
 - Library: **`shot`** on [`images`](convex/schema.ts); VLM analysis fills **group / genre / shot / style** ([`convex/vision.ts`](convex/vision.ts)) and [`internalUpdateAnalysis`](convex/images.ts) persists them. **Backfill metadata** in Table schedules [`enqueueCinematicMetadataBackfill`](convex/images.ts) (your uploads only, staggered jobs).
 - Sidebar: **Type** counts, **Genre** + **Style/medium** chips, **Filters** (originals / sref) with shared state in [`src/lib/libraryFilters.ts`](src/lib/libraryFilters.ts); wired on Gallery + Table ([`src/App.tsx`](src/App.tsx)).
-- Table (pd): **Palette** column right-aligned + **Re-sample palettes** on [`src/components/pd/TableView.tsx`](src/components/pd/TableView.tsx) (this is the table wired in [`App.tsx`](src/App.tsx)); visual checkpoints in [`docs/browser-snapshots/`](docs/browser-snapshots/) vs reference [`pindeck-754f.vercel.app`](https://pindeck-754f.vercel.app/).
+- Table (pd): **Palette** column right-aligned + **Re-sample palettes** on [`src/components/pd/TableView.tsx`](src/components/pd/TableView.tsx) (this is the table wired in [`App.tsx`](src/App.tsx)); visual checkpoints in [`docs/browser-snapshots/`](docs/browser-snapshots/) vs [pindeck.dev](https://pindeck.dev).
 - Colors: palette extraction is **dominance-first** (pixel share) with **Lab** separation ([`src/lib/colorPaletteCore.ts`](src/lib/colorPaletteCore.ts), [`convex/colorExtraction.ts`](convex/colorExtraction.ts)); sampling URL prefers **`imageUrl`** ([`convex/colorExtractionUrls.ts`](convex/colorExtractionUrls.ts)); `reExtractAll` requires auth.
 - UI fix: accent Tweaks were ignored because `.pd-theme` re-declared `--pd-accent*` and shadowed `document.documentElement`; moved dynamic tokens to `:root`-only defaults + JS overrides ([`src/index.css`](src/index.css)).
 - Env: restored production Convex URLs in `.env.local` (`tremendous-jaguar-953`) so gallery/data load against real backend (was dev deployment from `convex dev --once`).
 - UI: dynamic accent inks (`src/lib/pdTheme.ts`), global Tweaks CSS on `documentElement`, sign-in uses `--pd-accent*` (parity with cloud redesign).
 - Drawer: TMP letterbox overlay + flex stretch fixes for [`ImageDetailDrawer`](src/components/pd/ImageDetailDrawer.tsx).
-- Decks gallery: accent dot meta row, TMP-style hover shadow, subtitles from Convex deck fields [`DecksGallery`](src/components/pd/deck/DecksGallery.tsx).
-- Docs: [`docs/guides/redesign-deck-port-inventory.md`](docs/guides/redesign-deck-port-inventory.md) summarizes `main` vs `claude/redesign` deck stack.
+- Decks gallery: accent dot meta row, TMP-style hover shadow, subtitles from Convex deck fields (legacy pd deck gallery removed; see [`DeckView`](src/components/DeckView.tsx)).
 
 ## 2026-02-12
 

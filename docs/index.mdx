@@ -37,11 +37,12 @@ Pindeck is the operating surface for ingesting, organizing, generating, and pres
 | --- | --- |
 | App | [pindeck.dev](https://pindeck.dev) |
 | Docs | [docs.pindeck.dev](https://docs.pindeck.dev) |
-| Frontend hosting | Vercel project `pindeck` |
-| Backend | Self-hosted Convex at `https://convex.serving.cloud` |
-| HTTP/actions | `https://convex-site.serving.cloud` |
-| Storage | RustFS-backed media API and public S3-style object URLs |
-| Discord worker | Separate `discord-bot` repository |
+| Convex + HTTP | `convex.serving.cloud` / `convex-site.serving.cloud` (Hostinger `serving`) |
+| Trigger workers | [trigger.v1su4.dev](https://trigger.v1su4.dev) (Proxmox **app-vm**) |
+| Media | [media.v1su4.dev](https://media.v1su4.dev) |
+| Discord bot | Separate `discord-bot` repo → HTTP ingest |
+
+Repo topology: `docs/architecture/platform-topology.md` on GitHub.
 
 ## Start here
 

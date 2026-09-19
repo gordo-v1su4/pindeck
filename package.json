@@ -11,6 +11,8 @@
     "dev:frontend": "vite --open --port 4000 --strictPort",
     "dev:backend": "bunx convex dev",
     "test": "bun test",
+    "e2e:smoke": "bash ./scripts/e2e-production-smoke.sh",
+    "e2e:ui": "bunx playwright test",
     "discord:bot": "bash ./scripts/run-discord-bot.sh",
     "discord:bot:dry-run": "cd services/discord-bot && DISCORD_DRY_RUN=1 bun src/index.js",
     "build": "bun ./scripts/build.ts",

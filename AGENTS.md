@@ -71,13 +71,13 @@ Workflow map + `/implement` fallback: `docs/agents/matt-pocock-workflow.md`. Ven
 
 ### Architecture backlog (Linear)
 
-Codebase deepening (2026-09): Linear project **Pindeck**, parent **V1S-82**. Index: `docs/agents/architecture-linear-backlog.md`. **Start:** V1S-83 (App shell).
+Codebase deepening (2026-09): Linear project **Pindeck**, parent **V1S-82**. Index: `docs/agents/architecture-linear-backlog.md`. Platform map: `docs/architecture/platform-topology.md`.
 
 ## Learned User Preferences
 
 - When the user explicitly approves finished work, commit and push directly to `main` without opening a PR unless they ask for one.
 - Verify UI changes in Cursor’s native browser (or Playwright) with the dev server running and Convex-backed data loaded before calling a slice done.
-- Compare local UI to the published reference at https://pindeck-754f.vercel.app/ when porting or aligning redesign work.
+- Compare local UI to production at [https://pindeck.dev](https://pindeck.dev) when verifying layout.
 - Persist app-facing state in Convex; use object storage (RustFS/S3) for media, not UI preferences or composer state in `localStorage`.
 - Port redesign work surgically—keep existing backend wiring; avoid replacing working Convex integration while changing frontend layout.
 - Use `bun` / `bunx` for repo and global CLIs (e.g. Graft); for MCP server launcher `command` entries, prefer `npx` over `bunx` because Bun often breaks MCP binaries.

@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { FunctionReference } from "convex/server";
 import { httpAction, mutation, internalMutation } from "../_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "../_generated/api";
@@ -11,6 +12,12 @@ import {
   storageProviderFromPayload,
   triggerOrchestrationEnabled,
 } from "./shared";
+
+const internalIngestExternalRef: FunctionReference<"mutation", "internal"> = (
+  internal as unknown as {
+    "images/ingest": { ingestExternal: FunctionReference<"mutation", "internal"> };
+  }
+)["images/ingest"].ingestExternal;
 
 export const createExternal = mutation({
   args: {
@@ -424,7 +431,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
   }
 
   if (triggerOrchestrationEnabled()) {
-    const queued = await ctx.runMutation(internalApi.images.ingestExternal, {
+    const queued = await ctx.runMutation(internalIngestExternalRef, {
       userId: resolvedUserId,
       title: body.title || "External Import",
       description: body.description,
@@ -487,7 +494,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     );
   }
 
-  const ingestResult = await ctx.runMutation(internalApi.images.ingestExternal, {
+  const ingestResult = await ctx.runMutation(internalIngestExternalRef, {
     userId: resolvedUserId,
     title: body.title || "Discord Import",
     description: body.description,
