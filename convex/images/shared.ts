@@ -1,10 +1,12 @@
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import {
   isLikelyDirectImageUrl,
   normalizeImageSourceUrl,
 } from "../colorExtractionUrls";
 
+type DbCtx = QueryCtx | MutationCtx;
 export const internalApi = internal as any;
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
@@ -56,14 +58,17 @@ export function storageProviderFromPayload(args: {
   return undefined;
 }
 
-export async function scheduleStorageCleanup(ctx: any, image: any) {
+export async function scheduleStorageCleanup(
+  ctx: MutationCtx,
+  image: Doc<"images">,
+) {
   const paths = collectNextcloudPaths(image);
   if (paths.length === 0) return;
   if (image.storageProvider === "rustfs" || image.storageBucket) {
     try {
       await ctx.scheduler.runAfter(
         0,
-        internalApi.mediaStorage.cleanupRustfsObjects,
+        internal.mediaStorage.cleanupRustfsObjects,
         {
           bucket: image.storageBucket || "pindeck",
           paths,
@@ -75,43 +80,42 @@ export async function scheduleStorageCleanup(ctx: any, image: any) {
     return;
   }
   try {
-    await ctx.scheduler.runAfter(
-      0,
-      internalApi.mediaStorage.cleanupNextcloudPaths,
-      {
-        paths,
-      },
-    );
+    await ctx.scheduler.runAfter(0, internal.mediaStorage.cleanupNextcloudPaths, {
+      paths,
+    });
   } catch (error) {
     console.warn("Failed to schedule Nextcloud cleanup", error);
   }
 }
 
-export async function cleanupImageReferences(ctx: any, image: Doc<"images">) {
+export async function cleanupImageReferences(
+  ctx: MutationCtx,
+  image: Doc<"images">,
+) {
   const userId = image.uploadedBy;
 
   const boards = await ctx.db
     .query("collections")
-    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
   for (const board of boards) {
-    if (!board.imageIds.some((id: any) => id === image._id)) continue;
+    if (!board.imageIds.some((id) => id === image._id)) continue;
     await ctx.db.patch(board._id, {
-      imageIds: board.imageIds.filter((id: any) => id !== image._id),
+      imageIds: board.imageIds.filter((id) => id !== image._id),
     });
   }
 
   const decks = await ctx.db
     .query("decks")
-    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
   for (const deck of decks) {
     const sourceImageIds = deck.sourceImageIds.filter(
-      (id: any) => id !== image._id,
+      (id) => id !== image._id,
     );
     const slides = deck.slides
-      .filter((slide: any) => slide.imageId !== image._id)
-      .map((slide: any, index: number) => ({ ...slide, order: index + 1 }));
+      .filter((slide) => slide.imageId !== image._id)
+      .map((slide, index) => ({ ...slide, order: index + 1 }));
     if (
       sourceImageIds.length === deck.sourceImageIds.length &&
       slides.length === deck.slides.length
@@ -127,7 +131,7 @@ export async function cleanupImageReferences(ctx: any, image: Doc<"images">) {
 
   const likes = await ctx.db
     .query("likes")
-    .withIndex("by_image", (q: any) => q.eq("imageId", image._id))
+    .withIndex("by_image", (q) => q.eq("imageId", image._id))
     .collect();
   for (const like of likes) {
     await ctx.db.delete(like._id);
@@ -135,17 +139,20 @@ export async function cleanupImageReferences(ctx: any, image: Doc<"images">) {
 
   const generations = await ctx.db
     .query("generations")
-    .withIndex("by_image", (q: any) => q.eq("imageId", image._id))
+    .withIndex("by_image", (q) => q.eq("imageId", image._id))
     .collect();
   for (const generation of generations) {
     await ctx.db.delete(generation._id);
   }
 }
 
-export async function deleteImageRecord(ctx: any, image: Doc<"images">) {
+export async function deleteImageRecord(
+  ctx: MutationCtx,
+  image: Doc<"images">,
+) {
   const generatedChild = await ctx.db
     .query("images")
-    .withIndex("by_parent", (q: any) => q.eq("parentImageId", image._id))
+    .withIndex("by_parent", (q) => q.eq("parentImageId", image._id))
     .first();
   if (generatedChild) {
     throw new Error(
@@ -177,9 +184,13 @@ export function readBearerToken(request: Request) {
     : null;
 }
 
-export function parseUserIdFromBody(body: any) {
-  return typeof body?.userId === "string" && body.userId.trim()
-    ? body.userId.trim()
+export function parseUserIdFromBody(body: unknown) {
+  if (!body || typeof body !== "object" || !("userId" in body)) {
+    return undefined;
+  }
+  const userId = (body as { userId?: unknown }).userId;
+  return typeof userId === "string" && userId.trim()
+    ? userId.trim()
     : undefined;
 }
 
@@ -227,8 +238,10 @@ export function looksLikeHttpUrl(rawUrl: unknown): rawUrl is string {
   return value.startsWith("http://") || value.startsWith("https://");
 }
 
-export function pickBackfillSourceUrl(image: any): string | undefined {
-  const candidates = [image?.imageUrl, image?.previewUrl, image?.sourceUrl];
+export function pickBackfillSourceUrl(
+  image: Partial<Doc<"images">>,
+): string | undefined {
+  const candidates = [image.imageUrl, image.previewUrl, image.sourceUrl];
   for (const candidate of candidates) {
     if (!looksLikeHttpUrl(candidate)) continue;
     return candidate;
@@ -236,28 +249,32 @@ export function pickBackfillSourceUrl(image: any): string | undefined {
   return undefined;
 }
 
-export function pickMediaRepairSourceUrl(image: any): string | undefined {
+export function pickMediaRepairSourceUrl(
+  image: Partial<Doc<"images">>,
+): string | undefined {
   return pickMediaRepairSourceUrls(image)[0];
 }
 
-export function pickMediaRepairSourceUrls(image: any): string[] {
-  const externalCandidates = [image?.sourceUrl]
+export function pickMediaRepairSourceUrls(image: Partial<Doc<"images">>): string[] {
+  const externalCandidates = [image.sourceUrl]
     .map(normalizeImageSourceUrl)
     .filter((candidate) => isLikelyDirectImageUrl(candidate));
   const durableCandidates = [
-    image?.derivativeUrls?.large,
-    image?.derivativeUrls?.medium,
-    image?.previewUrl,
-    image?.imageUrl,
-    image?.derivativeUrls?.small,
+    image.derivativeUrls?.large,
+    image.derivativeUrls?.medium,
+    image.previewUrl,
+    image.imageUrl,
+    image.derivativeUrls?.small,
   ]
     .map(normalizeImageSourceUrl)
     .filter(looksLikeHttpUrl);
   return [...new Set([...externalCandidates, ...durableCandidates])];
 }
 
-export function hasCollapsedNextcloudVariants(image: any): boolean {
-  if (!image?.storagePath || image?.storageProvider !== "nextcloud") {
+export function hasCollapsedNextcloudVariants(
+  image: Partial<Doc<"images">>,
+): boolean {
+  if (!image.storagePath || image.storageProvider !== "nextcloud") {
     return false;
   }
 
@@ -280,7 +297,7 @@ export function hasCollapsedNextcloudVariants(image: any): boolean {
   return collapsedPaths || collapsedUrls;
 }
 
-export function mapImageForDisplay<T extends Record<string, any>>(image: T): T {
+export function mapImageForDisplay<T>(image: T): T {
   return image;
 }
 
@@ -297,42 +314,51 @@ export function shouldQueueAnalysis(image: {
   );
 }
 
-export async function resolveLineageRoot(ctx: any, image: any) {
+export async function resolveLineageRoot(
+  ctx: DbCtx,
+  image: Doc<"images">,
+): Promise<Doc<"images">> {
   let current = image;
   let depth = 0;
 
-  while (current?.parentImageId && depth < MAX_DISCORD_LINEAGE_DEPTH) {
-    const parent = await ctx.db.get(current.parentImageId);
+  while (current.parentImageId && depth < MAX_DISCORD_LINEAGE_DEPTH) {
+    const parent = await ctx.db.get("images", current.parentImageId);
     if (!parent) break;
     current = parent;
     depth += 1;
   }
 
-  return current || image;
+  return current;
 }
 
-export async function isDiscordLineage(ctx: any, image: any) {
-  let current = image;
+export async function isDiscordLineage(
+  ctx: DbCtx,
+  image: Doc<"images">,
+): Promise<boolean> {
+  let current: Doc<"images"> | null = image;
   let depth = 0;
 
   while (current && depth < MAX_DISCORD_LINEAGE_DEPTH) {
     if (current.sourceType === "discord") return true;
     if (!current.parentImageId) return false;
-    current = await ctx.db.get(current.parentImageId);
+    current = await ctx.db.get("images", current.parentImageId);
     depth += 1;
   }
 
   return false;
 }
 
-export async function resolveModeratedLineageSource(ctx: any, image: any) {
-  let current = image;
+export async function resolveModeratedLineageSource(
+  ctx: DbCtx,
+  image: Doc<"images">,
+): Promise<Doc<"images">["sourceType"]> {
+  let current: Doc<"images"> | null = image;
   let depth = 0;
 
   while (current && depth < MAX_SOURCE_LINEAGE_DEPTH) {
     if (isModeratedImportSource(current.sourceType)) return current.sourceType;
     if (!current.parentImageId) return undefined;
-    current = await ctx.db.get(current.parentImageId);
+    current = await ctx.db.get("images", current.parentImageId);
     depth += 1;
   }
 
