@@ -13,7 +13,7 @@ This file reflects the stack currently used by the app. Versions should be valid
 - Backend: Convex (queries/mutations/actions + HTTP routes + storage)
 - Auth: `@convex-dev/auth`
 - UI: Radix Themes + Radix Icons + Tailwind CSS
-- Data Table: TanStack Table
+- Library table: custom [`pd/TableView`](src/components/pd/TableView.tsx)
 - Notifications: Sonner
 - AI analysis: OpenRouter-compatible chat vision requests (via OpenAI SDK)
 - AI image generation: fal.ai Nano Banana Pro edit endpoint
@@ -26,7 +26,6 @@ This file reflects the stack currently used by the app. Versions should be valid
 - `openai`
 - `@fal-ai/client`
 - `@radix-ui/themes`, `@radix-ui/react-icons`
-- `@tanstack/react-table`
 - `sonner`
 - `clsx`, `tailwind-merge`
 

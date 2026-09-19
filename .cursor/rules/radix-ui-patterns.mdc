@@ -241,4 +241,4 @@ className="p-4"        // Padding
 
 - [Radix UI Themes Documentation](https://www.radix-ui.com/themes/docs/overview/getting-started)
 - [Radix UI Primitives](https://www.radix-ui.com/primitives/docs/overview/introduction)
-- Project examples: [ImageModal.tsx](mdc:src/components/ImageModal.tsx), [ImageUploadForm.tsx](mdc:src/components/ImageUploadForm.tsx)
+- Project examples: [ImageDetailDrawer.tsx](mdc:src/components/pd/ImageDetailDrawer.tsx), [ImageUploadForm.tsx](mdc:src/components/ImageUploadForm.tsx)
