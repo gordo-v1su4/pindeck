@@ -14,10 +14,6 @@ import { SignOutButton } from "@/SignOutButton";
 import { Toaster } from "sonner";
 import { PinIcon } from "@/components/ui/pindeck";
 import {
-  defaultLibraryFilters,
-  type LibraryFilters,
-} from "@/lib/libraryFilters";
-import {
   TweaksPanel,
   DEFAULT_TWEAKS,
   type Tweaks,
@@ -26,16 +22,13 @@ import { GalleryView } from "@/components/pd/GalleryView";
 import { TableView } from "@/components/pd/TableView";
 import { BoardsView } from "@/components/pd/BoardsView";
 import { ImageDetailDrawer } from "@/components/pd/ImageDetailDrawer";
-import type { Id } from "../convex/_generated/dataModel";
 import { applyPindeckTweaksToDocument } from "@/lib/pdTheme";
 import {
-  APP_VIEWS,
   Sidebar,
   Topbar,
-  defaultTableVisibleColumns,
-  type AppViewId,
-  type GalleryDisplayMode,
-  type TableColumnKey,
+  useAppView,
+  useLibraryFilterState,
+  useTableColumnVisibility,
 } from "@/components/shell";
 
 const ImageUploadForm = lazy(() =>
@@ -50,34 +43,7 @@ const DeckView = lazy(() =>
 
 const DOCS_URL = "https://docs.pindeck.dev";
 
-const TABLE_COLUMN_VISIBILITY_STORAGE_KEY = "pindeck_table_visible_columns";
 const SIDEBAR_COLLAPSE_STORAGE_KEY = "pindeck_sidebar_collapsed";
-
-const VALID_VIEW_IDS = new Set<string>(APP_VIEWS.map((v) => v.id));
-
-function sanitizeStoredView(raw: string | null): AppViewId {
-  if (raw && VALID_VIEW_IDS.has(raw)) return raw as AppViewId;
-  return "gallery";
-}
-
-function sanitizeGalleryDisplayMode(raw: string | null): GalleryDisplayMode {
-  return raw === "project-rows" || raw === "sref-rows" || raw === "random"
-    ? raw
-    : "random";
-}
-
-function readStoredTableColumnVisibility(): Record<TableColumnKey, boolean> {
-  try {
-    const raw = window.localStorage.getItem(
-      TABLE_COLUMN_VISIBILITY_STORAGE_KEY,
-    );
-    if (!raw) return defaultTableVisibleColumns;
-    const parsed = JSON.parse(raw) as Partial<Record<TableColumnKey, boolean>>;
-    return { ...defaultTableVisibleColumns, ...parsed };
-  } catch {
-    return defaultTableVisibleColumns;
-  }
-}
 
 function shouldStartWithCollapsedSidebar() {
   try {
@@ -94,6 +60,7 @@ function isMobileViewport() {
   return typeof window !== "undefined" && window.innerWidth <= 900;
 }
 
+/** Authenticated shell: auth, Convex library list, tweaks, and view bodies. View / filter / column state lives in `src/components/shell/` hooks. */
 export default function App() {
   const [tweaks, setTweaks] = useState<Tweaks>(() => {
     try {
@@ -110,25 +77,22 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     shouldStartWithCollapsedSidebar,
   );
-  const [view, setView] = useState<AppViewId>(() =>
-    sanitizeStoredView(localStorage.getItem("pindeck_view")),
-  );
+  const {
+    view,
+    setView,
+    selectView,
+    galleryDisplayMode,
+    setGalleryDisplayMode,
+    activeDeckId,
+    setActiveDeckId,
+    openDeck,
+  } = useAppView();
+  const { libraryFilter, setLibraryFilter } = useLibraryFilterState();
+  const { tableVisibleColumns, setTableVisibleColumns } =
+    useTableColumnVisibility();
   const [search, setSearch] = useState("");
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
-  const [activeDeckId, setActiveDeckId] = useState<Id<"decks"> | null>(null);
-  const [libraryFilter, setLibraryFilter] = useState<LibraryFilters>(
-    defaultLibraryFilters,
-  );
   const expandButtonRef = React.useRef<HTMLButtonElement>(null);
-  const [tableVisibleColumns, setTableVisibleColumns] = useState<
-    Record<TableColumnKey, boolean>
-  >(readStoredTableColumnVisibility);
-  const [galleryDisplayMode, setGalleryDisplayMode] =
-    useState<GalleryDisplayMode>(() =>
-      sanitizeGalleryDisplayMode(
-        localStorage.getItem("pindeck_gallery_display_mode"),
-      ),
-    );
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const libraryImages = useQuery(
@@ -178,29 +142,6 @@ export default function App() {
   }, [tweaks.accent, tweaks.typography]);
 
   useEffect(() => {
-    localStorage.setItem("pindeck_view", view);
-  }, [view]);
-
-  useEffect(() => {
-    localStorage.setItem("pindeck_gallery_display_mode", galleryDisplayMode);
-  }, [galleryDisplayMode]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        TABLE_COLUMN_VISIBILITY_STORAGE_KEY,
-        JSON.stringify(tableVisibleColumns),
-      );
-    } catch {
-      // Column visibility should never block app rendering.
-    }
-  }, [tableVisibleColumns]);
-
-  useEffect(() => {
-    if (view !== "deck") setActiveDeckId(null);
-  }, [view]);
-
-  useEffect(() => {
     if (isAuthenticated) return;
     setSelectedImage(null);
     setTweaksOpen(false);
@@ -248,15 +189,6 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  const openDeck = (deckId: Id<"decks">) => {
-    setActiveDeckId(deckId);
-    setView("deck");
-  };
-
-  const selectView = (nextView: string) => {
-    setView(sanitizeStoredView(nextView));
-  };
 
   const toggleSidebar = () => setSidebarCollapsed((collapsed) => !collapsed);
 
