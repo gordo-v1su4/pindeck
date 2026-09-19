@@ -5,8 +5,8 @@ Tracked in Linear project **Pindeck** (V1su4). GitHub remains the default issue 
 | ID | Title | Status | URL |
 |----|--------|--------|-----|
 | **V1S-82** | [Arch] Pindeck codebase tightening — parent | Backlog | https://linear.app/v1su4/issue/V1S-82 |
-| **V1S-83** | [Arch-1] Deepen application shell — extract from App.tsx | **In Progress** · [PR #35](https://github.com/gordo-v1su4/pindeck/pull/35) merged | https://linear.app/v1su4/issue/V1S-83 |
-| **V1S-88** | [Arch-1b] App shell state hooks (view, filters, columns) | **In Progress** (child of V1S-83) | https://linear.app/v1su4/issue/V1S-88 |
+| **V1S-83** | [Arch-1] Deepen application shell — extract from App.tsx | **Done** · [PR #35](https://github.com/gordo-v1su4/pindeck/pull/35) | https://linear.app/v1su4/issue/V1S-83 |
+| **V1S-88** | [Arch-1b] App shell state hooks (view, filters, columns) | **Done** (merged to main) | https://linear.app/v1su4/issue/V1S-88 |
 | **V1S-84** | [Arch-2] Split convex/images.ts by domain seam | Backlog | https://linear.app/v1su4/issue/V1S-84 |
 | **V1S-85** | [Arch-3] Retire legacy ImageGrid + Radix TableView | Backlog | https://linear.app/v1su4/issue/V1S-85 |
 | **V1S-86** | [Arch-4] Unify Trigger orchestration module interface | Backlog | https://linear.app/v1su4/issue/V1S-86 |
@@ -34,6 +34,6 @@ Tracked in Linear project **Pindeck** (V1su4). GitHub remains the default issue 
 | Issue | What | Status |
 |--------|------|--------|
 | **V1S-83** | Topbar + Sidebar → `src/components/shell/` | Merged [PR #35](https://github.com/gordo-v1su4/pindeck/pull/35) |
-| **V1S-88** | Shell state hooks (view, filters, columns) | **In progress** on `gordo/v1s-88-arch-1b-app-shell-state-hooks-view-filters-columns` |
+| **V1S-88** | Shell state hooks (view, filters, columns) | Merged to `main` (`00b6973`) |
 
 Close **V1S-83** when V1S-88 is done and acceptance criteria on both are met.
