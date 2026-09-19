@@ -7,18 +7,18 @@ Tracked in Linear project **Pindeck** (V1su4). GitHub remains the default issue 
 | **V1S-82** | [Arch] Pindeck codebase tightening — parent | Backlog | https://linear.app/v1su4/issue/V1S-82 |
 | **V1S-83** | [Arch-1] Deepen application shell — extract from App.tsx | **Done** · [PR #35](https://github.com/gordo-v1su4/pindeck/pull/35) | https://linear.app/v1su4/issue/V1S-83 |
 | **V1S-88** | [Arch-1b] App shell state hooks (view, filters, columns) | **Done** (merged to main) | https://linear.app/v1su4/issue/V1S-88 |
-| **V1S-84** | [Arch-2] Split convex/images.ts by domain seam | **In progress** (combined PR, `gordo/v1s-84-85-arch-2-and-3`) | https://linear.app/v1su4/issue/V1S-84 |
-| **V1S-85** | [Arch-3] Retire legacy ImageGrid + Radix TableView | **In progress** (combined PR, `gordo/v1s-84-85-arch-2-and-3`) | https://linear.app/v1su4/issue/V1S-85 |
-| **V1S-86** | [Arch-4] Unify Trigger orchestration module interface | Backlog | https://linear.app/v1su4/issue/V1S-86 |
+| **V1S-84** | [Arch-2] Split convex/images.ts by domain seam | **Done** · [PR #38](https://github.com/gordo-v1su4/pindeck/pull/38) (`c5d2aa6`) | https://linear.app/v1su4/issue/V1S-84 |
+| **V1S-85** | [Arch-3] Retire legacy ImageGrid + Radix TableView | **Done** · [PR #38](https://github.com/gordo-v1su4/pindeck/pull/38) | https://linear.app/v1su4/issue/V1S-85 |
+| **V1S-86** | [Arch-4] Unify Trigger orchestration module interface | **Next** · Backlog | https://linear.app/v1su4/issue/V1S-86 |
 | **V1S-87** | [Arch-5] Storage-path adapter module (mediaStorage) | Backlog | https://linear.app/v1su4/issue/V1S-87 |
 
 **Project:** https://linear.app/v1su4/project/pindeck-e51791bcf11f
 
 ## Order
 
-1. **V1S-83** → **V1S-88** (same [Arch-1] theme; finish hooks after PR #35)
-2. **V1S-85** can overlap with V1S-83/V1S-88
-3. **V1S-84** → **V1S-86** → **V1S-87**
+1. **V1S-83** → **V1S-88** (done)
+2. **V1S-85** + **V1S-84** (done together, PR #38)
+3. **V1S-86** → **V1S-87** — pickup **V1S-86** next (`gordo/v1s-86-arch-4-unify-trigger-orchestration-module-interface`)
 
 ## Pickup checklist
 
@@ -53,6 +53,16 @@ Split `convex/images.ts` into [`convex/images/`](../../convex/images/):
 | `analysis.ts` | metadata refresh, AI status, orchestration claim/set |
 | `generation.ts` | save generated children + artifact lookup |
 | `shared.ts` | URL/storage/lineage helpers (no Convex wrappers) |
+
+### Greptile on PR #38 (verbatim)
+
+Threads: [`.filter`](https://github.com/gordo-v1su4/pindeck/pull/38#discussion_r4051866483) · [`.collect`](https://github.com/gordo-v1su4/pindeck/pull/38#discussion_r4051866852) · [`ctx` types](https://github.com/gordo-v1su4/pindeck/pull/38#discussion_r4051865583). Same text is on Linear **V1S-84**.
+
+1. **`.filter` status (withdrawn as merge blocker):** *“That’s a valid scope distinction. For `library.list`, the `withIndex` calls already cover the available `group`/`category` predicates, while the status predicate must currently preserve legacy rows where `status` is `undefined`. Moving it to post-`take()` filtering would change pagination and could allow pending rows to consume the page, so this is not a safe change for the split PR. I’m withdrawing this as a merge blocker for the file split; status backfill plus a status index can be handled in the follow-up ticket.”*
+2. **`.collect` aggregations (withdrawn as merge blocker):** *“You’re right. Because `libraryAggregations` returns exact totals across the full active library, adding `.take()` or cursor pagination here would produce incorrect counts unless the aggregation were accumulated across every page. The `by_status` index/backfill is the appropriate follow-up for making this scalable, and it’s out of scope for this refactor. I’m withdrawing this as a merge blocker for `libraryAggregations`.”*
+3. **`ctx: any`:** fixed in `27bb6e4` (`MutationCtx` / `QueryCtx`). Greptile marked the note **addressed**; no further bot reply.
+
+**Follow-up (not V1S-86):** backfill omitted `images.status` → `"active"` and add `by_status`. Needs a Convex schema deploy. Do not fold into Trigger orchestration.
 
 ## V1S-85 (Arch-3)
 

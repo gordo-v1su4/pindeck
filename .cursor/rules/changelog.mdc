@@ -24,6 +24,7 @@ Rules:
 
 ## 2026-09-18
 
+- **Greptile #38:** bot withdrew `.filter` / `.collect` as merge blockers (legacy `status: undefined` + full-library aggregations). Typed `shared.ts` ctx in `27bb6e4`. Follow-up: `by_status` index + status backfill (schema deploy; not V1S-86).
 - **Images shared types (V1S-84):** [`convex/images/shared.ts`](convex/images/shared.ts) cleanup/lineage helpers take `MutationCtx` / `QueryCtx` instead of `any`.
 - **Arch-3 (V1S-85):** removed unused Radix `ImageGrid` + `TableView` and exclusive siblings (`ImageModal`, `EditImageModal`, `GenerateVariationsModal`, `CategoryFilter`). `App.tsx` still wires [`pd/GalleryView`](src/components/pd/GalleryView.tsx) + [`pd/TableView`](src/components/pd/TableView.tsx). Palette re-sample / parent lineage already live there and in [`ImageDetailDrawer`](src/components/pd/ImageDetailDrawer.tsx); dropped unused `@dnd-kit/*` + `@tanstack/react-table`.
 - **Images backend (V1S-84):** split `convex/images.ts` into [`convex/images/`](convex/images/) (`library`, `ingest`, `moderation`, `lifecycle`, plus uploads/analysis/generation/shared). [`index.ts`](convex/images/index.ts) re-exports so `api.images.*` and HTTP imports from `./images` stay the same.
