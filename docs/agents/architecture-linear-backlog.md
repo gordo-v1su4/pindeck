@@ -9,8 +9,8 @@ Tracked in Linear project **Pindeck** (V1su4). GitHub remains the default issue 
 | **V1S-88** | [Arch-1b] App shell state hooks (view, filters, columns) | **Done** (merged to main) | https://linear.app/v1su4/issue/V1S-88 |
 | **V1S-84** | [Arch-2] Split convex/images.ts by domain seam | **Done** · [PR #38](https://github.com/gordo-v1su4/pindeck/pull/38) (`c5d2aa6`) | https://linear.app/v1su4/issue/V1S-84 |
 | **V1S-85** | [Arch-3] Retire legacy ImageGrid + Radix TableView | **Done** · [PR #38](https://github.com/gordo-v1su4/pindeck/pull/38) | https://linear.app/v1su4/issue/V1S-85 |
-| **V1S-86** | [Arch-4] Unify Trigger orchestration module interface | **In progress** (combined PR, `gordo/v1s-86-87-arch-4-and-5`) | https://linear.app/v1su4/issue/V1S-86 |
-| **V1S-87** | [Arch-5] Storage-path adapter module (mediaStorage) | **In progress** (combined PR, `gordo/v1s-86-87-arch-4-and-5`) | https://linear.app/v1su4/issue/V1S-87 |
+| **V1S-86** | [Arch-4] Unify Trigger orchestration module interface | **Done** · [PR #39](https://github.com/gordo-v1su4/pindeck/pull/39) | https://linear.app/v1su4/issue/V1S-86 |
+| **V1S-87** | [Arch-5] Storage-path adapter module (mediaStorage) | **Done** · [PR #39](https://github.com/gordo-v1su4/pindeck/pull/39) | https://linear.app/v1su4/issue/V1S-87 |
 
 **Project:** https://linear.app/v1su4/project/pindeck-e51791bcf11f
 

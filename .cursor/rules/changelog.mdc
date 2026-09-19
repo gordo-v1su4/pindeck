@@ -24,7 +24,8 @@ Rules:
 
 ## 2026-09-19
 
-- **Convex deploy (V1S-84 follow-up):** After `convex/images/*` split, `internal.images.*` call sites broke deploy typecheck; added runtime shim in [`convex/images/shared.ts`](convex/images/shared.ts) mapping nested `internal["images/analysis"]` (etc.) to legacy `internalApi.images.*`. Production deploy to `https://convex.serving.cloud` succeeds again.
+- **Convex deploy (V1S-84 follow-up):** `internalApi.images` shim in [`convex/images/shared.ts`](convex/images/shared.ts) after nested `convex/images/*` modules; production deploy to `https://convex.serving.cloud` restored.
+- **Arch-4 + Arch-5:** Merged [PR #39](https://github.com/gordo-v1su4/pindeck/pull/39) — Trigger orchestration seam (`orchestrationSeam` / `orchestrationCore` / `orchestrationState`) + media adapter (`lib/mediaAdapter.ts`, `mediaAdapter.ts`); rebased on main including Convex shim.
 
 ## 2026-09-18
 
