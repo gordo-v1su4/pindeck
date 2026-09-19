@@ -12,7 +12,7 @@ import OpenAI from "openai";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { canGenerateVariationFromImage } from "./lib/variationAccess";
 import { generationSourceCandidates } from "./lib/generationSource";
-const internalApi = internal as any;
+import { internalApi } from "./images/shared";
 
 // Shot types: camera position/angle and framing variety (mix of close/medium/wide and angles)
 const SHOT_TYPES = [
@@ -763,7 +763,7 @@ export const internalGenerateRelatedImages = internalAction({
     const falKey = process.env.FAL_KEY;
     if (!falKey) {
       console.error("FAL_KEY not set, skipping image generation");
-      await ctx.runMutation(internal.images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.originalImageId,
         status: "failed",
       });
@@ -790,7 +790,7 @@ export const internalGenerateRelatedImages = internalAction({
     );
     if (!imageUrl) {
       console.error("No reachable source image was available for generation");
-      await ctx.runMutation(internal.images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.originalImageId,
         status: "failed",
       });
@@ -808,7 +808,7 @@ export const internalGenerateRelatedImages = internalAction({
 
     if (count === 0) {
       // No variations requested - just mark complete
-      await ctx.runMutation(internal.images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.originalImageId,
         status: "completed",
       });
@@ -877,7 +877,7 @@ export const internalGenerateRelatedImages = internalAction({
 
     if (validUrls.length === 0) {
       console.error("No valid images generated");
-      await ctx.runMutation(internal.images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.originalImageId,
         status: "failed",
       });
@@ -936,7 +936,7 @@ export const internalGenerateRelatedImages = internalAction({
     }
 
     if (generatedImages.length === 0) {
-      await ctx.runMutation(internal.images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.originalImageId,
         status: "failed",
       });
@@ -948,7 +948,7 @@ export const internalGenerateRelatedImages = internalAction({
       };
     }
 
-    await ctx.runMutation(internal.images.internalSaveGeneratedImages, {
+    await ctx.runMutation(internalApi.images.internalSaveGeneratedImages, {
       originalImageId: args.originalImageId,
       requestedBy: args.requestedBy,
       images: generatedImages,
@@ -1118,7 +1118,7 @@ export const internalSmartAnalyzeImage = internalAction({
       (args.storageId ? await ctx.storage.getUrl(args.storageId) : null);
     if (!imageUrl) {
       console.error("Image not found in storage");
-      await ctx.runMutation(internal.images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.imageId,
         status: "failed",
       });
@@ -1129,14 +1129,14 @@ export const internalSmartAnalyzeImage = internalAction({
       process.env.OPEN_ROUTER_KEY || process.env.OPENROUTER_API_KEY;
     if (!openRouterKey) {
       console.error("OPENROUTER_API_KEY not set");
-      await ctx.runMutation(internal.images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.imageId,
         status: "failed",
       });
       return { ok: false, error: "OPENROUTER_API_KEY not set" };
     }
 
-    await ctx.runMutation(internal.images.internalSetAiStatus, {
+    await ctx.runMutation(internalApi.images.internalSetAiStatus, {
       imageId: args.imageId,
       status: "processing",
     });
@@ -1288,7 +1288,7 @@ export const internalSmartAnalyzeImage = internalAction({
         );
       }
 
-      await ctx.runMutation(internal.images.internalUpdateAnalysis, {
+      await ctx.runMutation(internalApi.images.internalUpdateAnalysis, {
         imageId: args.imageId,
         title,
         description,
@@ -1330,7 +1330,7 @@ export const internalSmartAnalyzeImage = internalAction({
         );
       } else {
         // No variations requested - mark as completed immediately
-        await ctx.runMutation(internal.images.internalSetAiStatus, {
+        await ctx.runMutation(internalApi.images.internalSetAiStatus, {
           imageId: args.imageId,
           status: "completed",
         });
@@ -1339,7 +1339,7 @@ export const internalSmartAnalyzeImage = internalAction({
       return { ok: true };
     } catch (err: any) {
       console.error("Smart analysis failed:", err?.message || err);
-      await ctx.runMutation(internal.images.internalSetAiStatus, {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
         imageId: args.imageId,
         status: "failed",
       });
@@ -1394,7 +1394,7 @@ export const smartAnalyzeImage = httpAction(async (ctx, request) => {
     }
 
     const image = await ctx.runQuery(
-      internal.images.internalGetImageForAnalysis,
+      internalApi.images.internalGetImageForAnalysis,
       {
         imageId,
       },
@@ -1406,7 +1406,7 @@ export const smartAnalyzeImage = httpAction(async (ctx, request) => {
       });
     }
 
-    const allowed = await ctx.runQuery(internal.images.internalCanModifyImage, {
+    const allowed = await ctx.runQuery(internalApi.images.internalCanModifyImage, {
       imageId,
       userId,
     });
@@ -1483,7 +1483,7 @@ export const rerunSmartAnalysis = mutation({
       throw new Error("Image has no source URL");
     }
 
-    await ctx.runMutation(internal.images.internalSetAiStatus, {
+    await ctx.runMutation(internalApi.images.internalSetAiStatus, {
       imageId: args.imageId,
       status: "processing",
     });

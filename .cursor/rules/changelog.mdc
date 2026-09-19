@@ -22,6 +22,10 @@ Rules:
 - Include follow-ups only when actionable.
 - Prefer one section per day.
 
+## 2026-09-19
+
+- **Convex deploy (V1S-84 follow-up):** After `convex/images/*` split, `internal.images.*` call sites broke deploy typecheck; added runtime shim in [`convex/images/shared.ts`](convex/images/shared.ts) mapping nested `internal["images/analysis"]` (etc.) to legacy `internalApi.images.*`. Production deploy to `https://convex.serving.cloud` succeeds again.
+
 ## 2026-09-18
 
 - **Greptile #38:** bot withdrew `.filter` / `.collect` as merge blockers (legacy `status: undefined` + full-library aggregations). Typed `shared.ts` ctx in `27bb6e4`. Follow-up: `by_status` index + status backfill (schema deploy; not V1S-86).

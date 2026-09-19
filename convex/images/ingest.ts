@@ -424,7 +424,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
   }
 
   if (triggerOrchestrationEnabled()) {
-    const queued = await ctx.runMutation(internal.images.ingestExternal, {
+    const queued = await ctx.runMutation(internalApi.images.ingestExternal, {
       userId: resolvedUserId,
       title: body.title || "External Import",
       description: body.description,
@@ -487,7 +487,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     );
   }
 
-  const ingestResult = await ctx.runMutation(internal.images.ingestExternal, {
+  const ingestResult = await ctx.runMutation(internalApi.images.ingestExternal, {
     userId: resolvedUserId,
     title: body.title || "Discord Import",
     description: body.description,

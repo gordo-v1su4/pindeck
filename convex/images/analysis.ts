@@ -11,7 +11,7 @@ import type { Doc } from "../_generated/dataModel";
 import { preferredImageUrlForSampling } from "../colorExtractionUrls";
 import { canModifyImage } from "../lib/authz";
 import { canGenerateVariationFromImage } from "../lib/variationAccess";
-import { triggerOrchestrationEnabled } from "./shared";
+import { triggerOrchestrationEnabled, internalApi } from "./shared";
 
 export const enqueueCinematicMetadataBackfill = mutation({
   args: {
@@ -604,7 +604,7 @@ export const updateAnalysis = mutation({
       throw new Error("Not authorized to update this image");
     }
 
-    await ctx.runMutation(internal.images.internalUpdateAnalysis, args);
+    await ctx.runMutation(internalApi.images.internalUpdateAnalysis, args);
 
     return { success: true };
   },

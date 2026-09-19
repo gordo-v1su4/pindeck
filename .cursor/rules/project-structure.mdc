@@ -44,7 +44,7 @@ pindeck/
 
 Key files:
 - `schema.ts`: tables/indexes (`images`, `profiles`, `importBatches`, boards/decks/storyboards, etc.)
-- `images/`: image domain split. [`index.ts`](convex/images/index.ts) re-exports so `api.images.*` / `internal.images.*` stay unchanged (Convex file-based routing). Modules: `library.ts` (list/aggregations/lineage), `ingest.ts` (external ingest + URL normalize), `moderation.ts` (pending queue, approve/deny, Discord HTTP), `lifecycle.ts` (delete/cleanup/media repair/backfill/quarantine), `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts` (helpers).
+- `images/`: image domain split. [`index.ts`](convex/images/index.ts) re-exports public `api.images.*`; cross-module **internal** calls use the `internalApi.images.*` shim in [`shared.ts`](convex/images/shared.ts) (maps nested `images/analysis`, `images/ingest`, …). Modules: `library.ts`, `ingest.ts`, `moderation.ts`, `lifecycle.ts`, `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts`.
 - `vision.ts`: analysis + variation generation flow and prompt planning
 - `colorExtraction.ts` + `colorExtractionUrls.ts` + `colorExtractionAdmin.ts` / `colorExtractionWrite.ts`: dominant image swatches (`images.colors`) via sharp + [colorPaletteCore](mdc:src/lib/colorPaletteCore.ts); admin mutations require auth (`reExtractAll` / `reExtractForImage`)
 - `discordNotifications.ts`: webhook status events to Discord channel

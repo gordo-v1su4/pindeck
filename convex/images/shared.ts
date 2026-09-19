@@ -7,7 +7,46 @@ import {
 } from "../colorExtractionUrls";
 
 type DbCtx = QueryCtx | MutationCtx;
-export const internalApi = internal as any;
+
+/** Pre-split `internal.images.*` compatibility after V1S-84 nested modules. */
+function attachImagesInternalShim(api: Record<string, unknown>) {
+  const nested = api as Record<string, Record<string, unknown>>;
+  api.images = {
+    internalGetImageForAnalysis:
+      nested["images/analysis"].internalGetImageForAnalysis,
+    internalCanModifyImage: nested["images/analysis"].internalCanModifyImage,
+    internalUpdateAnalysis: nested["images/analysis"].internalUpdateAnalysis,
+    internalSetAiStatus: nested["images/analysis"].internalSetAiStatus,
+    internalRefreshMetadataAfterPalette:
+      nested["images/analysis"].internalRefreshMetadataAfterPalette,
+    internalGetMetadataRefreshPayload:
+      nested["images/analysis"].internalGetMetadataRefreshPayload,
+    internalSaveGeneratedImages:
+      nested["images/generation"].internalSaveGeneratedImages,
+    internalGetGeneratedArtifactByKey:
+      nested["images/generation"].internalGetGeneratedArtifactByKey,
+    ingestExternal: nested["images/ingest"].ingestExternal,
+    internalListDiscordQueue:
+      nested["images/moderation"].internalListDiscordQueue,
+    internalModerateDiscordImage:
+      nested["images/moderation"].internalModerateDiscordImage,
+    internalRepairImageMedia:
+      nested["images/lifecycle"].internalRepairImageMedia,
+    internalGetMediaRepairPayload:
+      nested["images/lifecycle"].internalGetMediaRepairPayload,
+    internalRecordNextcloudBackfillFailure:
+      nested["images/lifecycle"].internalRecordNextcloudBackfillFailure,
+    internalApplyNextcloudUpload:
+      nested["images/lifecycle"].internalApplyNextcloudUpload,
+    internalListBackfillCandidates:
+      nested["images/lifecycle"].internalListBackfillCandidates,
+    internalQuarantineBrokenImage:
+      nested["images/lifecycle"].internalQuarantineBrokenImage,
+  };
+}
+
+export const internalApi: any = internal as any;
+attachImagesInternalShim(internalApi);
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
 const MAX_SOURCE_LINEAGE_DEPTH = 12;
