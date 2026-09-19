@@ -76,8 +76,8 @@ Codebase deepening (2026-09): Linear project **Pindeck**, parent **V1S-82**. Ind
 ## Learned User Preferences
 
 - When the user explicitly approves finished work, commit and push directly to `main` without opening a PR unless they ask for one.
-- Verify UI changes in Cursor’s native browser (or Playwright) with the dev server running and Convex-backed data loaded before calling a slice done.
-- Compare local UI to production at [https://pindeck.dev](https://pindeck.dev) when verifying layout.
+- Before calling work done, verify in Cursor’s native browser: on production, open [https://pindeck.dev](https://pindeck.dev) like a user (sign in, confirm the app shell loads) before Playwright suites or heavy debug scripting; locally, run `bun run dev:frontend` with Convex-backed data loaded.
+- Do not add new E2E or diagnostic test scripts for pindeck unless explicitly asked; exercise the deployed app through real UI buttons and flows.
 - Persist app-facing state in Convex; use object storage (RustFS/S3) for media, not UI preferences or composer state in `localStorage`.
 - Port redesign work surgically—keep existing backend wiring; avoid replacing working Convex integration while changing frontend layout.
 - Use `bun` / `bunx` for repo and global CLIs (e.g. Graft); for MCP server launcher `command` entries, prefer `npx` over `bunx` because Bun often breaks MCP binaries.
@@ -95,3 +95,7 @@ Codebase deepening (2026-09): Linear project **Pindeck**, parent **V1S-82**. Ind
 - Dominant palette swatches come from `images.colors` (and client extraction) across gallery, table, and deck library previews.
 - Sign-in UI exposes email/password and guest only when Google/GitHub OAuth is not configured.
 - Graft is per-repo: add `@nanonets/graft` as a devDependency with tree-sitter packages in `trustedDependencies`, keep `graft/` gitignored, run `bunx graft init --yes` once; after clone or large edits run `bunx graft build` (prefer `bunx graft mcp` in `.cursor/mcp.json` over a global `graft` binary). Reference wiring: **zig-swap** (https://github.com/gordo-v1su4/zig-swap) uses a global `graft` CLI and committed Cursor/hooks only; pindeck uses devDependency + `bunx` MCP so `bun install` suffices on fresh clones.
+- Root [`convex/images.ts`](convex/images.ts) must re-export `list` so the wire path `images:list` works after the V1S-84 `convex/images/` split (`scripts/check-pindeck-convex.sh` enforces this).
+- Pindeck Convex on Hostinger is the **pindeck-convex** Docker stack (`convex.serving.cloud`); do not deploy to or target the **unfold** / review-room stack.
+- Run `bun run trigger:deploy` only on VM100 Linux (**app-vm**, `/opt/pindeck`), not from macOS.
+- Production E2E sign-in uses `gordo@v1su4.com` with `E2E_PASSWORD` in `.env` (never commit); load env via [`scripts/run-playwright-e2e.ts`](scripts/run-playwright-e2e.ts) to avoid shell backtick issues in `.env`.

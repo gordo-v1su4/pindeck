@@ -84,3 +84,6 @@ preview_app.py
 test-results/
 playwright-report/
 tests/e2e/.auth/
+
+# Cursor continual-learning hook state (local transcript index; paths are machine-specific)
+.cursor/hooks/state/
