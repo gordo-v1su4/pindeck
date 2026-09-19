@@ -2,6 +2,11 @@ import { fal } from "@fal-ai/client";
 import { AbortTaskRunError, logger, metadata, task } from "@trigger.dev/sdk";
 
 import {
+  ORCHESTRATION_WORKER_PATHS,
+  type OrchestrationWorkerPath,
+  orchestrationWorkerUrl,
+} from "../../convex/orchestrationSeam";
+import {
   pindeckGenerationOrchestrationQueue,
   pindeckGenerationQueue,
 } from "./queues";
@@ -120,7 +125,7 @@ export const pindeckVariationItemTask = task({
     const persisted = (await logger.trace(
       "Persist generated variation",
       async () =>
-        invokeConvex("generate-variations/persist", {
+        invokeConvex(ORCHESTRATION_WORKER_PATHS.generateVariationsPersist, {
           imageId: payload.imageId,
           userId: payload.userId,
           dispatchId: payload.dispatchId,
@@ -172,7 +177,7 @@ export const pindeckVariationGenerationTask = task({
       failedItems: 0,
     });
 
-    const prepared = (await invokeConvex("generate-variations/prepare", {
+    const prepared = (await invokeConvex(ORCHESTRATION_WORKER_PATHS.generateVariationsPrepare, {
       ...payload,
       runId: ctx.run.id,
     })) as PreparedVariationGeneration;
@@ -252,7 +257,7 @@ export const pindeckVariationGenerationTask = task({
     metadata
       .set("stage", "finalizing")
       .set("stageLabel", "Finalizing generation");
-    const completion = (await invokeConvex("generate-variations/complete", {
+    const completion = (await invokeConvex(ORCHESTRATION_WORKER_PATHS.generateVariationsComplete, {
       imageId: payload.imageId,
       userId: payload.userId,
       dispatchId: payload.dispatchId,
@@ -287,10 +292,13 @@ function setWorkMetadata(values: Record<string, unknown>) {
   for (const [key, value] of Object.entries(values)) metadata.set(key, value);
 }
 
-async function invokeConvex(path: string, body: Record<string, unknown>) {
+async function invokeConvex(
+  path: OrchestrationWorkerPath,
+  body: Record<string, unknown>,
+) {
   const siteUrl = requireEnv("PINDECK_CONVEX_SITE_URL").replace(/\/+$/, "");
   const token = requireEnv("PINDECK_ORCHESTRATION_TOKEN");
-  const response = await fetch(`${siteUrl}/orchestration/${path}`, {
+  const response = await fetch(orchestrationWorkerUrl(siteUrl, path), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

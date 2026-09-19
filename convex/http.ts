@@ -1,6 +1,7 @@
 import { auth } from "./auth";
 import { httpRouter } from "convex/server";
 import { smartAnalyzeImage } from "./vision";
+import { ORCHESTRATION_HTTP_SEAM } from "./orchestrationSeam";
 import {
   externalIngestHttp,
   imageRefreshHttp,
@@ -22,49 +23,49 @@ import {
 const http = httpRouter();
 
 http.route({
-  path: "/orchestration/image-refresh",
+  path: ORCHESTRATION_HTTP_SEAM.imageRefresh,
   method: "POST",
   handler: imageRefreshHttp,
 });
 
 http.route({
-  path: "/orchestration/media-finalize",
+  path: ORCHESTRATION_HTTP_SEAM.mediaFinalize,
   method: "POST",
   handler: mediaFinalizeHttp,
 });
 
 http.route({
-  path: "/orchestration/external-ingest",
+  path: ORCHESTRATION_HTTP_SEAM.externalIngest,
   method: "POST",
   handler: externalIngestHttp,
 });
 
 http.route({
-  path: "/orchestration/media-repair",
+  path: ORCHESTRATION_HTTP_SEAM.mediaRepair,
   method: "POST",
   handler: mediaRepairHttp,
 });
 
 http.route({
-  path: "/orchestration/generate-variations",
+  path: ORCHESTRATION_HTTP_SEAM.generateVariations,
   method: "POST",
   handler: variationGenerationHttp,
 });
 
 http.route({
-  path: "/orchestration/generate-variations/prepare",
+  path: ORCHESTRATION_HTTP_SEAM.generateVariationsPrepare,
   method: "POST",
   handler: variationGenerationPrepareHttp,
 });
 
 http.route({
-  path: "/orchestration/generate-variations/persist",
+  path: ORCHESTRATION_HTTP_SEAM.generateVariationsPersist,
   method: "POST",
   handler: variationGenerationPersistHttp,
 });
 
 http.route({
-  path: "/orchestration/generate-variations/complete",
+  path: ORCHESTRATION_HTTP_SEAM.generateVariationsComplete,
   method: "POST",
   handler: variationGenerationCompleteHttp,
 });

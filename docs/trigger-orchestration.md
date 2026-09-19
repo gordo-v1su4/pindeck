@@ -87,8 +87,18 @@ waiting behind a queue backlog.
 
 The image row stores `orchestrationRunId`, dispatch ID, request digest, claim
 time, lease expiry, task, status, retry-safe progress, cached callback output,
-error, and update time for correlation with the Trigger dashboard. Every
-callback includes its Trigger run ID and dispatch ID. Convex rejects a stale
+error, and update time for correlation with the Trigger dashboard. Lease claim
+and status writes live in [`convex/orchestrationState.ts`](../convex/orchestrationState.ts).
+Idempotency keys, dispatch IDs, and terminal status mapping live in
+[`convex/orchestrationCore.ts`](../convex/orchestrationCore.ts) (Node-only).
+The HTTP callback seam lives in
+[`convex/orchestrationSeam.ts`](../convex/orchestrationSeam.ts)
+([`convex/http.ts`](../convex/http.ts) and `src/trigger/*`).
+[`convex/triggerDispatch.ts`](../convex/triggerDispatch.ts) is the Trigger SDK
+dispatch layer only. Do not duplicate `ORCHESTRATION_HTTP_SEAM` /
+`ORCHESTRATION_WORKER_PATHS` path strings.
+
+Every callback includes its Trigger run ID and dispatch ID. Convex rejects a stale
 callback if a newer run owns the row, applies orchestration and AI status
 atomically, checkpoints completed side effects before the next step, and
 returns the cached terminal result when Trigger retries after a lost HTTP
