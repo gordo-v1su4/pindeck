@@ -37,7 +37,15 @@ export const imageRefreshHttp = httpAction(async (ctx, request) => {
       body.dispatchId,
       task,
     );
-    if (claim.cachedResult) return json(claim.cachedResult);
+    if (claim.cachedResult) {
+      await syncAiStatusAfterOrchestrationSuccess(
+        ctx,
+        body.imageId,
+        task,
+        claim.cachedResult,
+      );
+      return json(claim.cachedResult);
+    }
     const image = await getImagePayload(ctx, body.imageId, body.userId);
     if (!image?.imageUrl) {
       throw new OrchestrationHttpError(
@@ -145,14 +153,22 @@ export const mediaFinalizeHttp = httpAction(async (ctx, request) => {
       const image = await getImagePayload(ctx, body.imageId, body.userId);
       if (!image?.imageUrl)
         throw new Error("Finalized upload is missing its durable URL");
-      await runAnalysisOnce(ctx, {
-        ...body,
+      const analysis = await runAnalysisOnce(ctx, {
+        imageId: body.imageId,
+        userId: body.userId,
+        runId: body.runId,
+        dispatchId: body.dispatchId,
+        task: body.task,
         progress,
         paletteUrl: image.imageUrl,
         forcePalette: !image.colors?.length,
         runMetadata: true,
       });
-      return { ok: true as const, imageUrl: image.imageUrl || imageUrl };
+      return {
+        ok: true as const,
+        imageUrl: image.imageUrl || imageUrl,
+        ...analysis,
+      };
     },
   );
 });
@@ -366,7 +382,15 @@ export const variationGenerationHttp = httpAction(async (ctx, request) => {
       body.dispatchId,
       task,
     );
-    if (claim.cachedResult) return json(claim.cachedResult);
+    if (claim.cachedResult) {
+      await syncAiStatusAfterOrchestrationSuccess(
+        ctx,
+        body.imageId,
+        task,
+        claim.cachedResult,
+      );
+      return json(claim.cachedResult);
+    }
     const image = await getImagePayload(ctx, body.imageId, body.userId, true);
     if (!image) {
       throw new OrchestrationHttpError(
@@ -795,7 +819,15 @@ async function runOwnedImageCallback(
       body.dispatchId,
       task,
     );
-    if (claim.cachedResult) return json(claim.cachedResult);
+    if (claim.cachedResult) {
+      await syncAiStatusAfterOrchestrationSuccess(
+        ctx,
+        body.imageId,
+        task,
+        claim.cachedResult,
+      );
+      return json(claim.cachedResult);
+    }
     const result = await handler(ctx, {
       imageId: body.imageId,
       userId: body.userId,
@@ -926,6 +958,7 @@ async function completeCallback(
   task: string,
   result: Record<string, unknown>,
 ) {
+  await syncAiStatusAfterOrchestrationSuccess(ctx, imageId, task, result);
   const applied = await setState(
     ctx,
     imageId,
@@ -946,6 +979,35 @@ async function completeCallback(
   }
 }
 
+function taskSyncsAiStatus(task: string) {
+  return (
+    task === "pindeck-image-refresh" ||
+    task === "pindeck-generate-variations" ||
+    task === "pindeck-finalize-upload"
+  );
+}
+
+function orchestrationResultSucceeded(result: Record<string, unknown>) {
+  if (result.ok === false) return false;
+  if (result.paletteOk === false || result.metadataOk === false) return false;
+  return true;
+}
+
+async function syncAiStatusAfterOrchestrationSuccess(
+  ctx: any,
+  imageId: string,
+  task: string,
+  result: Record<string, unknown>,
+) {
+  if (!taskSyncsAiStatus(task) || !orchestrationResultSucceeded(result)) {
+    return;
+  }
+  await ctx.runMutation(internalApi.images.internalSetAiStatus, {
+    imageId,
+    status: "completed",
+  });
+}
+
 async function runAnalysisOnce(
   ctx: any,
   args: {
@@ -961,6 +1023,10 @@ async function runAnalysisOnce(
   },
 ) {
   if (args.progress === "analyzed") {
+    await ctx.runMutation(internalApi.images.internalSetAiStatus, {
+      imageId: args.imageId,
+      status: "completed",
+    });
     return {
       ok: true,
       paletteOk: true,
@@ -988,10 +1054,7 @@ async function runAnalysisOnce(
         reconciledAfterRetry: true,
       };
     }
-    throw new OrchestrationHttpError(
-      "Metadata analysis outcome is ambiguous; automatic replay was stopped to avoid duplicate provider work",
-      422,
-    );
+    // Resume analysis after a Trigger retry (previous attempt died mid-step).
   }
 
   await setProgress(
@@ -1084,6 +1147,12 @@ async function orchestrationFailure(
   error: unknown,
 ) {
   const message = error instanceof Error ? error.message : String(error);
+  if (taskSyncsAiStatus(task)) {
+    await ctx.runMutation(internalApi.images.internalSetAiStatus, {
+      imageId,
+      status: "failed",
+    });
+  }
   await setState(ctx, imageId, runId, dispatchId, task, "failed", message);
   const status = error instanceof OrchestrationHttpError ? error.status : 500;
   return json({ error: message }, status);

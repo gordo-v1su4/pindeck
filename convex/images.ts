@@ -63,6 +63,7 @@ export {
   finalizeUploads,
   getProcessingImages,
   clearMyStaleProcessingImages,
+  reconcileMyOrchestrationAiStatus,
   internalGetUploadFinalizePayload,
 } from "./images/uploads";
 

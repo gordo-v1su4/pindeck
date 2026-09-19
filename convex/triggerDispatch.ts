@@ -370,7 +370,9 @@ function acceptedDispatchClaim(claim: DispatchClaim): {
 
 function taskUpdatesAiStatus(task: string) {
   return (
-    task === "pindeck-image-refresh" || task === "pindeck-generate-variations"
+    task === "pindeck-image-refresh" ||
+    task === "pindeck-generate-variations" ||
+    task === "pindeck-finalize-upload"
   );
 }
 

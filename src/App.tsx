@@ -400,9 +400,11 @@ export default function App() {
                 </div>
               )}
               {view === "upload" && (
-                <Suspense fallback={<Placeholder />}>
-                  <ImageUploadForm />
-                </Suspense>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+                  <Suspense fallback={<Placeholder />}>
+                    <ImageUploadForm />
+                  </Suspense>
+                </div>
               )}
             </div>
 

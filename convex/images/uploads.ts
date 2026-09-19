@@ -226,6 +226,12 @@ export const finalizeUploads = mutation({
   },
 });
 
+const orchestrationTasksSyncingAiStatus = new Set([
+  "pindeck-image-refresh",
+  "pindeck-generate-variations",
+  "pindeck-finalize-upload",
+]);
+
 export const getProcessingImages = query({
   args: {},
   returns: v.array(v.any()),
@@ -244,6 +250,17 @@ export const getProcessingImages = query({
     const staleCutoffMs = Date.now() - 18 * 60 * 60 * 1000;
     return allProcessing
       .filter((img) => (img.uploadedAt ?? 0) >= staleCutoffMs)
+      .filter((img) => {
+        const task = img.orchestrationTask;
+        if (
+          img.orchestrationStatus === "completed" &&
+          task &&
+          orchestrationTasksSyncingAiStatus.has(task)
+        ) {
+          return false;
+        }
+        return true;
+      })
       .map((img) => mapImageForDisplay(img));
   },
 });
@@ -257,6 +274,22 @@ export const clearMyStaleProcessingImages = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    const stuck = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("aiStatus"), "processing"))
+      .collect();
+
+    for (const image of stuck) {
+      const task = image.orchestrationTask;
+      if (!task || !orchestrationTasksSyncingAiStatus.has(task)) continue;
+      if (image.orchestrationStatus === "completed") {
+        await ctx.db.patch("images", image._id, { aiStatus: "completed" });
+      } else if (image.orchestrationStatus === "failed") {
+        await ctx.db.patch("images", image._id, { aiStatus: "failed" });
+      }
+    }
+
     const olderThanMs = Math.max(1, args.olderThanHours ?? 18) * 60 * 60 * 1000;
     const cutoff = Date.now() - olderThanMs;
 
@@ -269,8 +302,39 @@ export const clearMyStaleProcessingImages = mutation({
     let updated = 0;
     for (const image of candidates) {
       if ((image.uploadedAt ?? 0) > cutoff) continue;
-      await ctx.db.patch(image._id, { aiStatus: "failed" });
+      await ctx.db.patch("images", image._id, { aiStatus: "failed" });
       updated += 1;
+    }
+
+    return updated;
+  },
+});
+
+/** Upload UI reads aiStatus; Trigger Work reads runs. Reconcile drift after orchestration completes. */
+export const reconcileMyOrchestrationAiStatus = mutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const stuck = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) => q.eq(q.field("aiStatus"), "processing"))
+      .collect();
+
+    let updated = 0;
+    for (const image of stuck) {
+      const task = image.orchestrationTask;
+      if (!task || !orchestrationTasksSyncingAiStatus.has(task)) continue;
+      if (image.orchestrationStatus === "completed") {
+        await ctx.db.patch("images", image._id, { aiStatus: "completed" });
+        updated += 1;
+      } else if (image.orchestrationStatus === "failed") {
+        await ctx.db.patch("images", image._id, { aiStatus: "failed" });
+        updated += 1;
+      }
     }
 
     return updated;

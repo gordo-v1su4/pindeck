@@ -287,6 +287,18 @@ export const internalRefreshMetadataAfterPalette: any = internalAction({
       },
     );
 
+    if (!metadata.ok) {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "failed",
+      });
+    } else {
+      await ctx.runMutation(internalApi.images.internalSetAiStatus, {
+        imageId: args.imageId,
+        status: "completed",
+      });
+    }
+
     return {
       paletteOk: true,
       metadataRan: true,

@@ -139,6 +139,8 @@ ingest_source() {
 
   if [[ "${E2E_GENERATE:-}" == "1" ]]; then
     echo "== discordModerate generate (E2E_GENERATE=1 — calls fal/OpenRouter) ==" >&2
+    echo "(waiting 45s for post-approve metadata refresh to finish before generate)" >&2
+    sleep 45
     mod_payload="$(jq -nc \
       --arg userId "$PINDECK_USER_ID" \
       --arg imageId "$image_id" \

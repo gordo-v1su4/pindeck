@@ -236,6 +236,9 @@ export function ImageUploadForm() {
   const clearMyStaleProcessingImagesMutation = useMutation(
     api.images.clearMyStaleProcessingImages,
   );
+  const reconcileMyOrchestrationAiStatusMutation = useMutation(
+    api.images.reconcileMyOrchestrationAiStatus,
+  );
 
   const localPendingImages = (pendingImages || []).filter(
     (img) => img.sourceType !== "discord" && img.sourceType !== "pinterest",
@@ -319,7 +322,13 @@ export function ImageUploadForm() {
         console.warn("Failed to clear stale processing images", error);
       },
     );
-  }, [clearMyStaleProcessingImagesMutation]);
+    void reconcileMyOrchestrationAiStatusMutation({}).catch((error) => {
+      console.warn("Failed to reconcile orchestration aiStatus", error);
+    });
+  }, [
+    clearMyStaleProcessingImagesMutation,
+    reconcileMyOrchestrationAiStatusMutation,
+  ]);
 
   const refreshPinterestSources = async () => {
     setPinterestSourceLoading(true);
