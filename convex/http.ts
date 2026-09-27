@@ -13,11 +13,10 @@ import {
   variationGenerationPrepareHttp,
 } from "./orchestration";
 import {
-  backfillNextcloudHttp,
+  backfillStorageHttp,
   discordModerateHttp,
   discordQueueHttp,
   ingestExternalHttp,
-  quarantineBrokenNextcloudHttp,
 } from "./images";
 
 const http = httpRouter();
@@ -83,15 +82,9 @@ http.route({
 });
 
 http.route({
-  path: "/admin/backfillNextcloud",
+  path: "/admin/backfillStorage",
   method: "POST",
-  handler: backfillNextcloudHttp,
-});
-
-http.route({
-  path: "/admin/quarantineBrokenNextcloud",
-  method: "POST",
-  handler: quarantineBrokenNextcloudHttp,
+  handler: backfillStorageHttp,
 });
 
 http.route({

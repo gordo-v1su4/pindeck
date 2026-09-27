@@ -903,15 +903,7 @@ export const internalGenerateRelatedImages = internalAction({
         );
 
         if (!persisted.ok) {
-          const isNextcloudUnconfigured =
-            /Missing Nextcloud env|Nextcloud not configured/i.test(
-              persisted.error,
-            );
-          if (!isNextcloudUnconfigured) {
-            console.warn(
-              `Failed to persist generated image ${i + 1}: ${persisted.error}`,
-            );
-          }
+          console.warn(`Failed to persist generated image ${i + 1}: ${persisted.error}`);
           continue;
         }
 
@@ -920,9 +912,7 @@ export const internalGenerateRelatedImages = internalAction({
           sourceUrl: validUrls[i],
           previewUrl: persisted.previewUrl,
           storagePath: persisted.storagePath,
-          storageProvider: persisted.bucket
-            ? ("rustfs" as const)
-            : ("nextcloud" as const),
+          storageProvider: "rustfs" as const,
           storageBucket: persisted.bucket,
           previewStoragePath: persisted.previewStoragePath,
           derivativeUrls: persisted.derivativeUrls,

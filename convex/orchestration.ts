@@ -636,7 +636,7 @@ export const variationGenerationPersistHttp = httpAction(
               sourceUrl: body.sourceUrl,
               previewUrl: persisted.previewUrl,
               storagePath: persisted.storagePath,
-              storageProvider: persisted.bucket ? "rustfs" : "nextcloud",
+              storageProvider: persisted.bucket ? "rustfs" : undefined,
               storageBucket: persisted.bucket,
               previewStoragePath: persisted.previewStoragePath,
               derivativeUrls: persisted.derivativeUrls,

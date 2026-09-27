@@ -108,7 +108,7 @@ export const backfillFromGeneratedImages = mutation({
           sourceUrl: img.sourceUrl,
           parentImageId: img.parentImageId,
           sourceType: img.sourceType,
-          nextcloudPersistStatus: img.nextcloudPersistStatus,
+          storagePersistStatus: img.storagePersistStatus,
           createdAt: img.uploadedAt ?? img._creationTime,
         }),
         createdBy: userId,

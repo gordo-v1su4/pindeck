@@ -6,9 +6,7 @@ import {
   normalizeImageSourceUrl,
 } from "../colorExtractionUrls";
 import {
-  isNextcloudPublicUrl,
   isRustfsPublicUrl,
-  NEXTCLOUD_PUBLIC_HOST,
   parseMediaUrlHost,
   RUSTFS_PUBLIC_HOST,
 } from "../lib/mediaAdapter";
@@ -28,14 +26,12 @@ function attachImagesInternalShim(api: Record<string, unknown>) {
       nested["images/analysis"].internalRefreshMetadataAfterPalette,
     internalGetUploadFinalizePayload:
       nested["images/uploads"].internalGetUploadFinalizePayload,
-    internalApplyNextcloudUpload:
-      nested["images/lifecycle"].internalApplyNextcloudUpload,
-    internalMarkNextcloudPersistFailed:
-      nested["images/lifecycle"].internalMarkNextcloudPersistFailed,
+    internalApplyStorageUpload:
+      nested["images/lifecycle"].internalApplyStorageUpload,
+    internalMarkStoragePersistFailed:
+      nested["images/lifecycle"].internalMarkStoragePersistFailed,
     internalListBackfillCandidates:
       nested["images/lifecycle"].internalListBackfillCandidates,
-    internalQuarantineBrokenImage:
-      nested["images/lifecycle"].internalQuarantineBrokenImage,
     internalGetMetadataRefreshPayload:
       nested["images/analysis"].internalGetMetadataRefreshPayload,
     internalFallbackModeratedAnalysisIfStuck:
@@ -53,8 +49,8 @@ function attachImagesInternalShim(api: Record<string, unknown>) {
       nested["images/lifecycle"].internalRepairImageMedia,
     internalGetMediaRepairPayload:
       nested["images/lifecycle"].internalGetMediaRepairPayload,
-    internalRecordNextcloudBackfillFailure:
-      nested["images/lifecycle"].internalRecordNextcloudBackfillFailure,
+    internalRecordStorageBackfillFailure:
+      nested["images/lifecycle"].internalRecordStorageBackfillFailure,
   };
 }
 
@@ -63,7 +59,6 @@ attachImagesInternalShim(internalApi);
 
 const MAX_DISCORD_LINEAGE_DEPTH = 12;
 const MAX_SOURCE_LINEAGE_DEPTH = 12;
-const CANONICAL_NEXTCLOUD_PUBLIC_TOKEN = "afc53c40a68aade";
 
 export function triggerOrchestrationEnabled() {
   return process.env.PINDECK_TRIGGER_ORCHESTRATION_ENABLED === "true";
@@ -110,7 +105,7 @@ export function assertSafeStoragePath(path: string, field: string): void {
   }
 }
 
-export function collectNextcloudPaths(image: Partial<Doc<"images">>): string[] {
+export function collectStoragePaths(image: Partial<Doc<"images">>): string[] {
   return [
     image?.storagePath,
     image?.previewStoragePath,
@@ -124,7 +119,7 @@ export function collectNextcloudPaths(image: Partial<Doc<"images">>): string[] {
 }
 
 export function storageProviderFromPayload(args: {
-  storageProvider?: "convex" | "nextcloud" | "rustfs";
+  storageProvider?: "convex" | "rustfs";
   storageBucket?: string;
   imageUrl?: string;
   storagePath?: string;
@@ -132,7 +127,6 @@ export function storageProviderFromPayload(args: {
   if (args.storageProvider) return args.storageProvider;
   if (args.storageBucket || parseUrlHost(args.imageUrl) === RUSTFS_PUBLIC_HOST)
     return "rustfs";
-  if (args.storagePath) return "nextcloud";
   return undefined;
 }
 
@@ -140,7 +134,7 @@ export async function scheduleStorageCleanup(
   ctx: MutationCtx,
   image: Doc<"images">,
 ) {
-  const paths = collectNextcloudPaths(image);
+  const paths = collectStoragePaths(image);
   if (paths.length === 0) return;
   if (image.storageProvider === "rustfs" || image.storageBucket) {
     try {
@@ -156,13 +150,6 @@ export async function scheduleStorageCleanup(
       console.warn("Failed to schedule RustFS cleanup", error);
     }
     return;
-  }
-  try {
-    await ctx.scheduler.runAfter(0, internal.mediaStorage.cleanupNextcloudPaths, {
-      paths,
-    });
-  } catch (error) {
-    console.warn("Failed to schedule Nextcloud cleanup", error);
   }
 }
 
@@ -285,24 +272,6 @@ export function parseUrlHost(rawUrl: unknown): string | undefined {
   return parseMediaUrlHost(rawUrl);
 }
 
-export function isCloudHostedUrl(rawUrl: unknown): boolean {
-  return isNextcloudPublicUrl(rawUrl);
-}
-
-export function isCanonicalCloudUrl(rawUrl: unknown): boolean {
-  try {
-    const parsed = new URL(String(rawUrl ?? ""));
-    return (
-      parsed.host.toLowerCase() === NEXTCLOUD_PUBLIC_HOST &&
-      parsed.pathname.startsWith(
-        `/public.php/dav/files/${CANONICAL_NEXTCLOUD_PUBLIC_TOKEN}/`,
-      )
-    );
-  } catch {
-    return false;
-  }
-}
-
 export function isRustfsUrl(rawUrl: unknown): boolean {
   return isRustfsPublicUrl(rawUrl);
 }
@@ -343,32 +312,6 @@ export function pickMediaRepairSourceUrls(image: Partial<Doc<"images">>): string
     .map(normalizeImageSourceUrl)
     .filter(looksLikeHttpUrl);
   return [...new Set([...externalCandidates, ...durableCandidates])];
-}
-
-export function hasCollapsedNextcloudVariants(
-  image: Partial<Doc<"images">>,
-): boolean {
-  if (!image.storagePath || image.storageProvider !== "nextcloud") {
-    return false;
-  }
-
-  const derivativePaths = image?.derivativeStoragePaths;
-  const derivativeUrls = image?.derivativeUrls;
-  if (!derivativePaths || !derivativeUrls) {
-    return true;
-  }
-
-  const collapsedPaths =
-    derivativePaths.small === image.storagePath &&
-    derivativePaths.medium === image.storagePath &&
-    derivativePaths.large === image.storagePath;
-
-  const collapsedUrls =
-    derivativeUrls.small === image.imageUrl &&
-    derivativeUrls.medium === image.imageUrl &&
-    derivativeUrls.large === image.imageUrl;
-
-  return collapsedPaths || collapsedUrls;
 }
 
 export function mapImageForDisplay<T>(image: T): T {

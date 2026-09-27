@@ -13,7 +13,6 @@ import { preferredImageUrlForSampling } from "../colorExtractionUrls";
 import { canModifyImage, isAdminUser } from "../lib/authz";
 import {
   deleteImageRecord,
-  hasCollapsedNextcloudVariants,
   internalApi,
   isRustfsUrl,
   pickBackfillSourceUrl,
@@ -46,8 +45,6 @@ export const enqueueMediaRepair = mutation({
     await ctx.db.patch(args.imageId, {
       storagePersistStatus: "pending",
       storagePersistError: undefined,
-      nextcloudPersistStatus: "pending",
-      nextcloudPersistError: undefined,
     });
     const repairAction = triggerOrchestrationEnabled()
       ? internalApi.triggerDispatch.dispatchMediaRepair
@@ -95,8 +92,6 @@ export const enqueueMediaRepairMany = mutation({
       await ctx.db.patch(image._id, {
         storagePersistStatus: "pending",
         storagePersistError: undefined,
-        nextcloudPersistStatus: "pending",
-        nextcloudPersistError: undefined,
       });
       const repairAction = triggerOrchestrationEnabled()
         ? internalApi.triggerDispatch.dispatchMediaRepair
@@ -140,7 +135,7 @@ export const internalRepairImageMedia = internalAction({
     const sourceUrls = pickMediaRepairSourceUrls(image);
     if (sourceUrls.length === 0) {
       await ctx.runMutation(
-        internalApi.images.internalRecordNextcloudBackfillFailure,
+        internalApi.images.internalRecordStorageBackfillFailure,
         {
           imageId: args.imageId,
           error: "No recoverable image URL found for media regeneration",
@@ -171,7 +166,7 @@ export const internalRepairImageMedia = internalAction({
           ? lastError
           : new Error("All media repair source URLs failed");
       }
-      await ctx.runMutation(internalApi.images.internalApplyNextcloudUpload, {
+      await ctx.runMutation(internalApi.images.internalApplyStorageUpload, {
         imageId: args.imageId,
         imageUrl: persisted.imageUrl,
         previewUrl: persisted.previewUrl,
@@ -197,7 +192,7 @@ export const internalRepairImageMedia = internalAction({
     } catch (error: any) {
       const message = error?.message || "Media regeneration failed";
       await ctx.runMutation(
-        internalApi.images.internalRecordNextcloudBackfillFailure,
+        internalApi.images.internalRecordStorageBackfillFailure,
         {
           imageId: args.imageId,
           error: message,
@@ -208,7 +203,7 @@ export const internalRepairImageMedia = internalAction({
   },
 });
 
-export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
+export const backfillStorageHttp = httpAction(async (ctx, request) => {
   if (request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -272,13 +267,9 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
       continue;
     }
 
-    const mode = image.storagePath
-      ? refreshVariants && variantsNeedRefresh
-        ? "rebuild-variants"
-        : "publish-existing"
-      : pickBackfillSourceUrl(image)
-        ? "re-upload-source"
-        : "unrecoverable";
+    const mode = pickMediaRepairSourceUrl(image)
+      ? "re-upload-source"
+      : "unrecoverable";
 
     if (dryRun) {
       if (mode === "unrecoverable") failed += 1;
@@ -296,76 +287,23 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
     }
 
     try {
-      if (image.storagePath) {
-        const published =
-          refreshVariants && variantsNeedRefresh
-            ? image.storageProvider === "rustfs" || isRustfsUrl(image.imageUrl)
-              ? await ctx.runAction(
-                  (internal as any).mediaStorage.persistExternalImageFromUrl,
-                  {
-                    sourceUrl:
-                      pickMediaRepairSourceUrl(image) ?? image.imageUrl,
-                    title: image.title,
-                  },
-                )
-              : await ctx.runAction(
-                  (internal as any).mediaStorage.reprocessStoredImagePaths,
-                  {
-                    storagePath: image.storagePath,
-                    title: image.title,
-                  },
-                )
-            : await ctx.runAction(
-                (internal as any).mediaStorage.publishStoredImagePaths,
-                {
-                  storagePath: image.storagePath,
-                  previewStoragePath: image.previewStoragePath,
-                  derivativeStoragePaths: image.derivativeStoragePaths,
-                },
-              );
-        await ctx.runMutation(
-          internalApi.images.internalApplyNextcloudUpload,
-          {
-            imageId: image._id,
-            imageUrl: published.imageUrl,
-            previewUrl: published.previewUrl,
-            storageProvider: published.bucket ? "rustfs" : undefined,
-            storageBucket: published.bucket,
-            storagePath: published.storagePath ?? image.storagePath,
-            previewStoragePath:
-              published.previewStoragePath ?? image.previewStoragePath,
-            derivativeUrls: published.derivativeUrls,
-            derivativeStoragePaths:
-              published.derivativeStoragePaths ?? image.derivativeStoragePaths,
-          },
-        );
-      } else {
-        const sourceUrl = pickBackfillSourceUrl(image);
-        if (!sourceUrl) {
-          throw new Error("No recoverable source URL");
-        }
-        const persisted = await ctx.runAction(
-          (internal as any).mediaStorage.persistExternalImageFromUrl,
-          {
-            sourceUrl,
-            title: image.title,
-          },
-        );
-        await ctx.runMutation(
-          internalApi.images.internalApplyNextcloudUpload,
-          {
-            imageId: image._id,
-            imageUrl: persisted.imageUrl,
-            previewUrl: persisted.previewUrl,
-            storageProvider: persisted.bucket ? "rustfs" : undefined,
-            storageBucket: persisted.bucket,
-            storagePath: persisted.storagePath,
-            previewStoragePath: persisted.previewStoragePath,
-            derivativeUrls: persisted.derivativeUrls,
-            derivativeStoragePaths: persisted.derivativeStoragePaths,
-          },
-        );
-      }
+      const sourceUrl = pickMediaRepairSourceUrl(image);
+      if (!sourceUrl) throw new Error("No recoverable source URL");
+      const persisted = await ctx.runAction(
+        internalApi.mediaStorage.persistExternalImageFromUrl,
+        { sourceUrl, title: image.title },
+      );
+      await ctx.runMutation(internalApi.images.internalApplyStorageUpload, {
+        imageId: image._id,
+        imageUrl: persisted.imageUrl,
+        previewUrl: persisted.previewUrl,
+        storageProvider: "rustfs",
+        storageBucket: persisted.bucket,
+        storagePath: persisted.storagePath,
+        previewStoragePath: persisted.previewStoragePath,
+        derivativeUrls: persisted.derivativeUrls,
+        derivativeStoragePaths: persisted.derivativeStoragePaths,
+      });
 
       migrated += 1;
       if (results.length < 50) {
@@ -378,7 +316,7 @@ export const backfillNextcloudHttp = httpAction(async (ctx, request) => {
     } catch (error: any) {
       failed += 1;
       await ctx.runMutation(
-        internalApi.images.internalRecordNextcloudBackfillFailure,
+        internalApi.images.internalRecordStorageBackfillFailure,
         {
           imageId: image._id,
           error: error?.message || "Backfill failed",
@@ -467,13 +405,13 @@ export const removeMany = mutation({
   },
 });
 
-export const internalApplyNextcloudUpload = internalMutation({
+export const internalApplyStorageUpload = internalMutation({
   args: {
     imageId: v.id("images"),
     imageUrl: v.string(),
     previewUrl: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs")),
+      v.union(v.literal("convex"), v.literal("rustfs")),
     ),
     storageBucket: v.optional(v.string()),
     storagePath: v.string(),
@@ -508,8 +446,6 @@ export const internalApplyNextcloudUpload = internalMutation({
       colors: args.colors ?? [],
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
-      nextcloudPersistStatus: "succeeded",
-      nextcloudPersistError: undefined,
       storagePersistStatus: "succeeded",
       storagePersistError: undefined,
       storageMigration: previous
@@ -526,7 +462,7 @@ export const internalApplyNextcloudUpload = internalMutation({
   },
 });
 
-export const internalMarkNextcloudPersistFailed = internalMutation({
+export const internalMarkStoragePersistFailed = internalMutation({
   args: {
     imageId: v.id("images"),
     error: v.string(),
@@ -534,8 +470,6 @@ export const internalMarkNextcloudPersistFailed = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch("images", args.imageId, {
-      nextcloudPersistStatus: "failed",
-      nextcloudPersistError: args.error,
       storagePersistStatus: "failed",
       storagePersistError: args.error,
       storageProvider: "convex",
@@ -544,7 +478,7 @@ export const internalMarkNextcloudPersistFailed = internalMutation({
   },
 });
 
-export const internalRecordNextcloudBackfillFailure = internalMutation({
+export const internalRecordStorageBackfillFailure = internalMutation({
   args: {
     imageId: v.id("images"),
     error: v.string(),
@@ -552,8 +486,6 @@ export const internalRecordNextcloudBackfillFailure = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch("images", args.imageId, {
-      nextcloudPersistStatus: "failed",
-      nextcloudPersistError: args.error,
       storagePersistStatus: "failed",
       storagePersistError: args.error,
     });
@@ -596,7 +528,7 @@ export const internalListBackfillCandidates = internalQuery({
       storagePath: image.storagePath,
       previewStoragePath: image.previewStoragePath,
       derivativeStoragePaths: image.derivativeStoragePaths,
-      nextcloudPersistStatus: image.nextcloudPersistStatus,
+      storagePersistStatus: image.storagePersistStatus,
     }));
   },
 });
@@ -746,7 +678,7 @@ export const internalPurgeAllImagesForUser = internalMutation({
   },
 });
 
-export const backfillNextcloudFailedUploads = mutation({
+export const backfillStorageFailedUploads = mutation({
   args: {
     limit: v.optional(v.number()),
   },
@@ -807,141 +739,5 @@ export const backfillNextcloudFailedUploads = mutation({
     }
 
     return { scheduled };
-  },
-});
-
-export const quarantineBrokenNextcloudImages = mutation({
-  args: {
-    limit: v.optional(v.number()),
-    dryRun: v.optional(v.boolean()),
-  },
-  returns: v.object({
-    scanned: v.number(),
-    quarantined: v.number(),
-    dryRun: v.boolean(),
-    results: v.array(
-      v.object({
-        imageId: v.id("images"),
-        title: v.string(),
-        status: v.string(),
-      }),
-    ),
-  }),
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-
-    const limit = Math.max(1, Math.min(args.limit ?? 200, 1000));
-    const dryRun = Boolean(args.dryRun);
-    const images = await ctx.db
-      .query("images")
-      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
-      .order("desc")
-      .take(limit);
-
-    const brokenImages = images.filter(
-      (image) =>
-        (image.status === "active" || image.status === undefined) &&
-        hasCollapsedNextcloudVariants(image),
-    );
-
-    if (!dryRun) {
-      for (const image of brokenImages) {
-        await ctx.db.patch(image._id, {
-          status: "broken",
-          nextcloudPersistError:
-            image.nextcloudPersistError ||
-            "Quarantined because derivative URLs collapsed to the original Nextcloud asset.",
-        });
-      }
-    }
-
-    return {
-      scanned: images.length,
-      quarantined: brokenImages.length,
-      dryRun,
-      results: brokenImages.slice(0, 100).map((image) => ({
-        imageId: image._id,
-        title: image.title,
-        status: dryRun ? "would-quarantine" : "quarantined",
-      })),
-    };
-  },
-});
-
-export const quarantineBrokenNextcloudHttp = httpAction(
-  async (ctx, request) => {
-    if (request.method !== "POST") {
-      return new Response("Method not allowed", { status: 405 });
-    }
-
-    const apiKey = process.env.INGEST_API_KEY;
-    const token = readBearerToken(request);
-    if (!apiKey || token !== apiKey) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    const body = await request.json().catch(() => ({}));
-    const limit = Math.max(1, Math.min(Number(body?.limit ?? 200), 1000));
-    const dryRun = Boolean(body?.dryRun);
-    const images = await ctx.runQuery(
-      internalApi.images.internalListBackfillCandidates,
-      {
-        limit,
-      },
-    );
-
-    const brokenImages = images.filter(
-      (image: any) =>
-        (image.status === "active" || image.status === undefined) &&
-        hasCollapsedNextcloudVariants(image),
-    );
-
-    if (!dryRun) {
-      for (const image of brokenImages) {
-        await ctx.runMutation(
-          internalApi.images.internalQuarantineBrokenImage,
-          {
-            imageId: image._id,
-          },
-        );
-      }
-    }
-
-    return new Response(
-      JSON.stringify({
-        scanned: images.length,
-        quarantined: brokenImages.length,
-        dryRun,
-        results: brokenImages.slice(0, 100).map((image: any) => ({
-          imageId: image._id,
-          title: image.title,
-          status: dryRun ? "would-quarantine" : "quarantined",
-        })),
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  },
-);
-
-export const internalQuarantineBrokenImage = internalMutation({
-  args: {
-    imageId: v.id("images"),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const image = await ctx.db.get(args.imageId);
-    if (!image) return null;
-
-    await ctx.db.patch(args.imageId, {
-      status: "broken",
-      nextcloudPersistError:
-        image.nextcloudPersistError ||
-        "Quarantined because derivative URLs collapsed to the original Nextcloud asset.",
-    });
-    return null;
   },
 });

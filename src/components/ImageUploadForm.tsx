@@ -2540,7 +2540,7 @@ export function ImageUploadForm() {
                               be caused by AI provider config or downstream
                               media persistence errors.
                             </Text>
-                            {image.nextcloudPersistError && (
+                            {image.storagePersistError && (
                               <Box className="space-y-1 rounded border border-amber-500/30 bg-amber-500/10 p-2">
                                 <Text
                                   size="1"
@@ -2550,7 +2550,7 @@ export function ImageUploadForm() {
                                   Media persistence warning
                                 </Text>
                                 <Text size="1" color="gray">
-                                  {image.nextcloudPersistError}
+                                  {image.storagePersistError}
                                 </Text>
                               </Box>
                             )}
@@ -2579,7 +2579,7 @@ export function ImageUploadForm() {
                           </Box>
                         )}
                         {image.aiStatus !== "failed" &&
-                          image.nextcloudPersistError && (
+                          image.storagePersistError && (
                             <Box className="space-y-1 rounded border border-amber-500/30 bg-amber-500/10 p-2">
                               <Text
                                 size="1"
@@ -2589,7 +2589,7 @@ export function ImageUploadForm() {
                                 Media persistence warning
                               </Text>
                               <Text size="1" color="gray">
-                                {image.nextcloudPersistError}
+                                {image.storagePersistError}
                               </Text>
                             </Box>
                           )}

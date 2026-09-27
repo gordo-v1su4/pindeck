@@ -31,7 +31,7 @@ export const createExternal = mutation({
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs")),
+      v.union(v.literal("convex"), v.literal("rustfs")),
     ),
     storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
@@ -151,7 +151,6 @@ export const createExternal = mutation({
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       colors: args.colors ?? [],
-      nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
       storagePersistStatus: args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
       sourceType: args.sourceType,
@@ -216,7 +215,7 @@ export const ingestExternal = internalMutation({
     sref: v.optional(v.string()),
     storagePath: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs")),
+      v.union(v.literal("convex"), v.literal("rustfs")),
     ),
     storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
@@ -329,11 +328,6 @@ export const ingestExternal = internalMutation({
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       colors: args.colors ?? [],
-      nextcloudPersistStatus: args.deferProcessing
-        ? "pending"
-        : args.storagePath
-          ? "succeeded"
-          : undefined,
       storagePersistStatus: args.deferProcessing
         ? "pending"
         : args.storagePath
@@ -505,7 +499,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     source: body.source,
     sref: body.sref,
     storagePath: persistedImage.storagePath,
-    storageProvider: persistedImage.bucket ? "rustfs" : "nextcloud",
+    storageProvider: persistedImage.bucket ? "rustfs" : undefined,
     storageBucket: persistedImage.bucket,
     previewStoragePath: persistedImage.previewStoragePath,
     colors: persistedImage.colors,

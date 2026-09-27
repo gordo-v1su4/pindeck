@@ -120,7 +120,7 @@ export const uploadMultiple = mutation({
         const imageId = await ctx.db.insert("images", {
           title: upload.title,
           description: upload.description,
-          // Temporary Convex URL while finalizeUploadedImage persists to Nextcloud.
+          // Temporary Convex URL while finalizeUploadedImage persists to Storage.
           imageUrl: tempUrl,
           previewUrl: tempUrl,
           storageId: upload.storageId,
@@ -143,7 +143,6 @@ export const uploadMultiple = mutation({
           status: "draft",
           sourceType: "upload",
           storageProvider: "convex",
-          nextcloudPersistStatus: "pending",
           storagePersistStatus: "pending",
           uploadedAt: Date.now(),
         });
@@ -181,7 +180,7 @@ export const uploadMultiple = mutation({
             );
           }
         } catch (err) {
-          console.error("Failed to schedule Nextcloud finalize action:", err);
+          console.error("Failed to schedule Storage finalize action:", err);
           await ctx.db.patch("images", imageId, { aiStatus: "failed" });
         }
 

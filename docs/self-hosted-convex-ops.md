@@ -312,8 +312,8 @@ Confirmed Pindeck route sources as of 2026-05-24:
 - `convex/http.ts` owns router construction and route registration.
 - `/smartAnalyzeImage` is registered in `convex/http.ts` but the handler is
   imported from `convex/vision.ts`.
-- `/ingestExternal`, `/admin/backfillNextcloud`,
-  `/admin/quarantineBrokenNextcloud`, `/discordQueue`, `/discordModerate`, and
+- `/ingestExternal`, `/admin/backfillStorage`,
+  `/discordQueue`, `/discordModerate`, and
   legacy Discord aliases are registered in `convex/http.ts` but the handlers are
   imported from `convex/images.ts`.
 - `auth.addHttpRoutes(http)` from `@convex-dev/auth` injects
@@ -359,3 +359,20 @@ Current local cleanup note: if local dry runs report a function-version
 downgrade, check `bunx convex --version` and `node_modules/convex/package.json`.
 This repo's committed `bun.lock` resolves Convex `1.41.0`; stale local
 `node_modules` can make local CLI behavior look older than Vercel's install.
+
+
+## Storage schema rollout gate
+
+The storage cleanup uses only `convex` and `rustfs` providers and the existing
+`storagePersistStatus` / `storagePersistError` fields. Before deploying this
+stricter schema, export a database backup and inspect existing `images` records.
+Copy any obsolete provider-specific persistence status/error into the canonical
+fields when those are absent, then remove the obsolete fields using the previous
+schema. Resolve unsupported provider records from verified media locations;
+never relabel an object as RustFS merely because it has a path. Complete this
+migration before deploying the stricter schema; do not disable schema validation.
+
+Pause new jobs and let scheduled upload/repair actions drain before replacing
+the renamed internal functions. Admin backfill callers now use `/admin/backfillStorage`; obsolete provider-specific
+quarantine routes are removed. Validate upload, repair, and cleanup after
+backend deployment before releasing the frontend.

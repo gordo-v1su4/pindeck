@@ -80,7 +80,7 @@ Trigger task **payloads** are unchanged, so already-deployed workers stay compat
 
 ## V1S-87 (Arch-5)
 
-[`convex/lib/mediaAdapter.ts`](../../convex/lib/mediaAdapter.ts) is the path/URL interface (`normalizeStoragePath`, RustFS / Nextcloud / Convex adapters). [`convex/mediaAdapter.ts`](../../convex/mediaAdapter.ts) re-exports it. [`convex/mediaStorage.ts`](../../convex/mediaStorage.ts) stays the Node upload/cleanup actions; host checks in [`convex/images/shared.ts`](../../convex/images/shared.ts) go through the adapter. Unit tests live in [`convex/lib/mediaAdapter.test.ts`](../../convex/lib/mediaAdapter.test.ts).
+[`convex/lib/mediaAdapter.ts`](../../convex/lib/mediaAdapter.ts) is the path/URL interface (`normalizeStoragePath`, RustFS / Convex adapters). [`convex/mediaAdapter.ts`](../../convex/mediaAdapter.ts) re-exports it. [`convex/mediaStorage.ts`](../../convex/mediaStorage.ts) stays the Node upload/cleanup actions; host checks in [`convex/images/shared.ts`](../../convex/images/shared.ts) go through the adapter. Unit tests live in [`convex/lib/mediaAdapter.test.ts`](../../convex/lib/mediaAdapter.test.ts).
 
 ## V1S-85 (Arch-3)
 

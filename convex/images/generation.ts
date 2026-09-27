@@ -62,7 +62,7 @@ export const backfillGenerationsFromAiImages = mutation({
           sourceUrl: img.sourceUrl,
           parentImageId: img.parentImageId,
           sourceType: img.sourceType,
-          nextcloudPersistStatus: img.nextcloudPersistStatus,
+          storagePersistStatus: img.storagePersistStatus,
           createdAt: img.uploadedAt ?? img._creationTime,
         }),
         createdBy: userId,
@@ -94,7 +94,6 @@ export const internalSaveGeneratedImages = internalMutation({
         storageProvider: v.optional(
           v.union(
             v.literal("convex"),
-            v.literal("nextcloud"),
             v.literal("rustfs"),
           ),
         ),
@@ -158,7 +157,6 @@ export const internalSaveGeneratedImages = internalMutation({
         previewStoragePath: img.previewStoragePath,
         derivativeUrls: img.derivativeUrls,
         derivativeStoragePaths: img.derivativeStoragePaths,
-        nextcloudPersistStatus: img.storagePath ? "succeeded" : "failed",
         storagePersistStatus: img.storagePath ? "succeeded" : "failed",
         // Inherit metadata from original (which might have been updated by analysis)
         category: originalImage.category,

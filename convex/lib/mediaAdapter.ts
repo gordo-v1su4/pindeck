@@ -4,10 +4,9 @@
  * path-normalization or public-URL formulas in color extraction / ingest / repair.
  */
 
-export type StorageProvider = "convex" | "nextcloud" | "rustfs";
+export type StorageProvider = "convex" | "rustfs";
 
 export const RUSTFS_PUBLIC_HOST = "s3.v1su4.dev";
-export const NEXTCLOUD_PUBLIC_HOST = "cloud.v1su4.dev";
 
 export function normalizeStoragePath(path: string): string {
   return path
@@ -51,10 +50,6 @@ export function isRustfsPublicUrl(rawUrl: unknown): boolean {
   return parseMediaUrlHost(rawUrl) === RUSTFS_PUBLIC_HOST;
 }
 
-export function isNextcloudPublicUrl(rawUrl: unknown): boolean {
-  return parseMediaUrlHost(rawUrl) === NEXTCLOUD_PUBLIC_HOST;
-}
-
 export function rustfsPublicUrl(args: {
   bucket: string;
   storagePath: string;
@@ -67,30 +62,9 @@ export function rustfsPublicUrl(args: {
   return `https://${host}/${path}`;
 }
 
-export function nextcloudPublicDavUrl(args: {
-  publicBaseUrl: string;
-  token: string;
-  relativePath: string;
-}): string {
-  const segments = normalizeStoragePath(args.relativePath)
-    .split("/")
-    .filter(Boolean);
-  if (segments.length === 0) {
-    throw new Error(
-      `Cannot build a public file URL for folder path ${args.relativePath}`,
-    );
-  }
-  const encodedPath = segments.map((segment) => encodeURIComponent(segment)).join("/");
-  return `${trimTrailingSlash(args.publicBaseUrl)}/public.php/dav/files/${encodeURIComponent(
-    args.token,
-  )}/${encodedPath}`;
-}
-
 export type PublicUrlInput = {
   storagePath: string;
   bucket?: string;
-  publicBaseUrl?: string;
-  token?: string;
 };
 
 export interface MediaPathAdapter {
@@ -113,21 +87,6 @@ export const rustfsPathAdapter: MediaPathAdapter = {
   },
 };
 
-export const nextcloudPathAdapter: MediaPathAdapter = {
-  provider: "nextcloud",
-  normalize: normalizeStoragePath,
-  publicUrl(input) {
-    if (!input.publicBaseUrl || !input.token) {
-      throw new Error("Nextcloud public URLs require publicBaseUrl and token");
-    }
-    return nextcloudPublicDavUrl({
-      publicBaseUrl: input.publicBaseUrl,
-      token: input.token,
-      relativePath: input.storagePath,
-    });
-  },
-};
-
 export const convexStoragePathAdapter: MediaPathAdapter = {
   provider: "convex",
   normalize: normalizeStoragePath,
@@ -142,8 +101,6 @@ export function adapterForProvider(provider: StorageProvider): MediaPathAdapter 
   switch (provider) {
     case "rustfs":
       return rustfsPathAdapter;
-    case "nextcloud":
-      return nextcloudPathAdapter;
     case "convex":
       return convexStoragePathAdapter;
     default: {

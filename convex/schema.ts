@@ -30,7 +30,7 @@ const applicationTables = {
     uniqueId: v.optional(v.string()), // Auto-generated or user-specified unique identifier
     modificationMode: v.optional(v.string()),
     storageProvider: v.optional(
-      v.union(v.literal("convex"), v.literal("nextcloud"), v.literal("rustfs")),
+      v.union(v.literal("convex"), v.literal("rustfs")),
     ),
     storageBucket: v.optional(v.string()),
     storagePath: v.optional(v.string()),
@@ -49,14 +49,6 @@ const applicationTables = {
         large: v.string(),
       }),
     ),
-    nextcloudPersistStatus: v.optional(
-      v.union(
-        v.literal("pending"),
-        v.literal("succeeded"),
-        v.literal("failed"),
-      ),
-    ),
-    nextcloudPersistError: v.optional(v.string()),
     storagePersistStatus: v.optional(
       v.union(
         v.literal("pending"),

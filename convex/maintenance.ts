@@ -487,7 +487,7 @@ export const resetImageDomainData = mutation({
     imagesDeleted: v.number(),
     convexStorageDeleted: v.number(),
     convexStorageFailed: v.number(),
-    nextcloudCleanupScheduled: v.number(),
+    storageCleanupScheduled: v.number(),
     collectionsCleared: v.number(),
     likesDeleted: v.number(),
     generationsDeleted: v.number(),
@@ -503,13 +503,19 @@ export const resetImageDomainData = mutation({
     }
 
     const images = await ctx.db.query("images").collect();
-    const nextcloudPaths = [
-      ...new Set(
-        images
-          .flatMap((img) => [img.storagePath, (img as any).previewStoragePath])
-          .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
-      ),
-    ];
+    const storagePathsByBucket = new Map<string, Set<string>>();
+    for (const image of images) {
+      if (image.storageProvider !== "rustfs" && !image.storageBucket) continue;
+      const bucket = image.storageBucket || "pindeck";
+      const paths = storagePathsByBucket.get(bucket) || new Set<string>();
+      for (const path of [image.storagePath, image.previewStoragePath,
+        ...Object.values(image.derivativeStoragePaths || {})]) {
+        if (path?.trim()) paths.add(path);
+      }
+      storagePathsByBucket.set(bucket, paths);
+    }
+    const storageCleanupScheduled = [...storagePathsByBucket.values()]
+      .reduce((count, paths) => count + paths.size, 0);
 
     const storageIds = [...new Set(images.map((img) => img.storageId).filter(isStorageId))];
 
@@ -550,9 +556,10 @@ export const resetImageDomainData = mutation({
     const importBatches = await ctx.db.query("importBatches").collect();
     for (const batch of importBatches) await ctx.db.delete(batch._id);
 
-    if (nextcloudPaths.length > 0) {
-      await ctx.scheduler.runAfter(0, internalApi.mediaStorage.cleanupNextcloudPaths, {
-        paths: nextcloudPaths,
+    for (const [bucket, paths] of storagePathsByBucket) {
+      if (paths.size === 0) continue;
+      await ctx.scheduler.runAfter(0, internalApi.mediaStorage.cleanupRustfsObjects, {
+        bucket, paths: [...paths],
       });
     }
 
@@ -560,7 +567,7 @@ export const resetImageDomainData = mutation({
       imagesDeleted,
       convexStorageDeleted,
       convexStorageFailed,
-      nextcloudCleanupScheduled: nextcloudPaths.length,
+      storageCleanupScheduled,
       collectionsCleared: collections.length,
       likesDeleted: likes.length,
       generationsDeleted: generations.length,

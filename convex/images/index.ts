@@ -41,18 +41,15 @@ export {
   enqueueMediaRepair,
   enqueueMediaRepairMany,
   internalRepairImageMedia,
-  backfillNextcloudHttp,
+  backfillStorageHttp,
   remove,
   removeMany,
-  internalApplyNextcloudUpload,
-  internalMarkNextcloudPersistFailed,
-  internalRecordNextcloudBackfillFailure,
+  internalApplyStorageUpload,
+  internalMarkStoragePersistFailed,
+  internalRecordStorageBackfillFailure,
   internalListBackfillCandidates,
   internalGetMediaRepairPayload,
-  backfillNextcloudFailedUploads,
-  quarantineBrokenNextcloudImages,
-  quarantineBrokenNextcloudHttp,
-  internalQuarantineBrokenImage,
+  backfillStorageFailedUploads,
 } from "./lifecycle";
 
 export {
