@@ -2,7 +2,7 @@
 
 ![Pindeck gallery with metadata drawer](docs/images/pindeck-gallery-readme.webp)
 
-Pindeck is a reference image library and pitch-deck builder with AI tagging and controlled image variations. Production app: [pindeck.dev](https://pindeck.dev).
+Pindeck is an image curator: bring in work from Discord (Midjourney posts and similar) and from Pinterest boards or pins, organize it, spin up variations from any image in the drawer, and compose pitch decks. Production app: [pindeck.dev](https://pindeck.dev).
 
 ### Stack
 
@@ -14,11 +14,13 @@ Pindeck is a reference image library and pitch-deck builder with AI tagging and 
 
 ### What it does
 
-- Gallery and table views with filters, palette swatches, and image detail drawer
-- Upload flow plus moderated Discord (and external) ingest
-- VLM-backed fields: type, genre, shot, style, tags, and dominant colors
-- Variation generation from parent images with lineage (`parentImageId`)
-- Boards for curation and deck composer for slide-style pitch decks
+- **Discord ingest:** bot queues channel images (typical Midjourney workflow) for approve/deny before they enter the library
+- **Pinterest ingest:** a sibling worker watches boards or profiles and posts new pins to `/ingestExternal`; imports stay pending until you approve them
+- **Direct upload** with the same analysis and storage pipeline as ingested images
+- **Organize:** gallery and table views, sidebar filters, palette swatches, and boards to save images
+- **Variations:** choose modes in the image drawer; `vision.generateVariations` runs fal.ai edits and stores children with `parentImageId` lineage
+- **Metadata:** VLM fills type, genre, shot, style, tags, and dominant colors on active library images
+- **Pitch decks:** deck library plus composer (`decks.update` autosave) built from your curated strips
 
 ## Production Names
 
