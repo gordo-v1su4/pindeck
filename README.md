@@ -2,7 +2,23 @@
 
 ![Pindeck gallery with metadata drawer](docs/images/pindeck-gallery-readme.webp)
 
-AI-powered image gallery + generation app using React, Convex, OpenRouter, and fal.ai.
+Pindeck is a reference image library and pitch-deck builder with AI tagging and controlled image variations. Production app: [pindeck.dev](https://pindeck.dev).
+
+### Stack
+
+- React + TypeScript (Vite) on Vercel
+- Self-hosted Convex (realtime data, auth, HTTP actions)
+- Self-hosted Trigger.dev (upload finalize, ingest, analysis, variation jobs)
+- RustFS object storage for durable media
+- OpenRouter-compatible vision for metadata; fal.ai Nano Banana Pro edit for variations
+
+### What it does
+
+- Gallery and table views with filters, palette swatches, and image detail drawer
+- Upload flow plus moderated Discord (and external) ingest
+- VLM-backed fields: type, genre, shot, style, tags, and dominant colors
+- Variation generation from parent images with lineage (`parentImageId`)
+- Boards for curation and deck composer for slide-style pitch decks
 
 ## Production Names
 
