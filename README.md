@@ -4,7 +4,7 @@
 
 Pindeck is one workspace for curating images so you are not saving Midjourney outputs to disk, uploading them elsewhere, and rebuilding versions in other tools.
 
-React to a Discord image post with your configured ingest emoji and the bot posts it into Pindeck. Storage and external ingest run in the background. Discord and Pinterest imports land in a pending queue; once you approve them, metadata, tags, and palette extraction run automatically. A Pinterest sidecar watches boards or pins and forwards new items the same way.
+React to a Discord image post with your configured ingest emoji and the bot posts it into Pindeck. You can also **upload files manually** from the Upload screen (Convex storage, then the same finalize and analysis pipeline as imports). Point Pindeck at a **Pinterest board URL, profile URL, or pin URL** in Upload → Pinterest (any public board or user the connector can read, not only your own). The Pinterest ingest service extracts pins with gallery-dl; **Run + Send** (or scheduled board polling on the worker) discovers new images and forwards them to Pindeck. Discord and Pinterest items land in a pending queue; once you approve them, metadata, tags, and palette extraction run automatically.
 
 From the library, open an image and hit **Generate** on the Variations tab for fal.ai edits with lineage, or use optional Discord variation buttons after approve. Boards and pitch decks live in the same app. Production: [pindeck.dev](https://pindeck.dev).
 
@@ -18,9 +18,10 @@ From the library, open an image and hit **Generate** on the Variations tab for f
 
 ### What it does
 
-- **Discord ingest:** bot queues channel images (typical Midjourney workflow) for approve/deny before they enter the library
-- **Pinterest ingest:** a sibling worker watches boards or profiles and posts new pins to `/ingestExternal`; imports stay pending until you approve them
-- **Direct upload** with the same analysis and storage pipeline as ingested images
+- **Discord ingest:** react with configured emoji on a channel image; the bot POSTs to Pindeck and items queue for approve/deny (typical Midjourney workflow)
+- **Manual upload:** pick files on Upload → Local; `generateUploadUrl` + `uploadMultiple` queue analysis and RustFS finalize like other sources
+- **Pinterest ingest:** save a board, profile, or pin URL as a source (`VITE_PINTEREST_INGEST_BASE_URL`); **Run** extracts new pins, **Send to Queue** calls `sync-pindeck` into `/ingestExternal`, or use **Run + Send**; scheduled board polling is the hands-off path on the ingest worker
+- **Pinterest review:** `sourceType: "pinterest"` imports stay pending until you approve them in Upload
 - **Organize:** gallery and table views, sidebar filters, palette swatches, and boards to save images
 - **Variations:** choose modes in the image drawer; `vision.generateVariations` runs fal.ai edits and stores children with `parentImageId` lineage
 - **Metadata:** VLM fills type, genre, shot, style, tags, and dominant colors on active library images
