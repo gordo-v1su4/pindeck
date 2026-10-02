@@ -2,7 +2,11 @@
 
 ![Pindeck gallery with metadata drawer](docs/images/pindeck-gallery-readme.webp)
 
-Pindeck is an image curator: bring in work from Discord (Midjourney posts and similar) and from Pinterest boards or pins, organize it, spin up variations from any image in the drawer, and compose pitch decks. Production app: [pindeck.dev](https://pindeck.dev).
+Pindeck is one workspace for curating images so you are not saving Midjourney outputs to disk, uploading them elsewhere, and rebuilding versions in other tools.
+
+React to a Discord image post with your configured ingest emoji and the bot posts it into Pindeck. Storage and external ingest run in the background. Discord and Pinterest imports land in a pending queue; once you approve them, metadata, tags, and palette extraction run automatically. A Pinterest sidecar watches boards or pins and forwards new items the same way.
+
+From the library, open an image and hit **Generate** on the Variations tab for fal.ai edits with lineage, or use optional Discord variation buttons after approve. Boards and pitch decks live in the same app. Production: [pindeck.dev](https://pindeck.dev).
 
 ### Stack
 
