@@ -1,14 +1,8 @@
 # Pindeck
 
-![Pindeck gallery with metadata drawer](docs/images/pindeck-gallery-readme.webp)
+Pindeck is one workspace for curating images so you are not saving Midjourney outputs to disk, uploading them elsewhere, and rebuilding versions in other tools. Live at [pindeck.dev](https://pindeck.dev).
 
-Pindeck is one workspace for curating images so you are not saving Midjourney outputs to disk, uploading them elsewhere, and rebuilding versions in other tools.
-
-React to a Discord image post with your configured ingest emoji and the bot posts it into Pindeck. You can also **upload files manually** from the Upload screen (Convex storage, then the same finalize and analysis pipeline as imports). Point Pindeck at a **Pinterest board URL, profile URL, or pin URL** in Upload → Pinterest (any public board or user the connector can read, not only your own). The Pinterest ingest service extracts pins with gallery-dl; **Run + Send** (or scheduled board polling on the worker) discovers new images and forwards them to Pindeck. Discord and Pinterest items land in a pending queue; once you approve them, metadata, tags, and palette extraction run automatically.
-
-After images are active, vision analysis fills type, genre, shot, style, and tags without manual tagging. Discord ingest parses Midjourney **sref** numbers from post text into each image; variations inherit sref from the parent line, and you can search and filter on sref in the gallery and table. Open an image and hit **Generate** on the Variations tab for fal.ai edits with lineage, or use optional Discord variation buttons after approve. Save images to **boards**, lay out **storyboard** panels from board shots, and build **pitch decks** in the deck composer. Production: [pindeck.dev](https://pindeck.dev).
-
-### Stack
+## Stack
 
 - React + TypeScript (Vite) on Vercel
 - Self-hosted Convex (realtime data, auth, HTTP actions)
@@ -16,7 +10,9 @@ After images are active, vision analysis fills type, genre, shot, style, and tag
 - RustFS object storage for durable media
 - OpenRouter-compatible vision for metadata; fal.ai Nano Banana Pro edit for variations
 
-### What it does
+## What it does
+
+![Pindeck gallery with metadata drawer](docs/images/pindeck-gallery-readme.webp)
 
 - **Discord ingest:** react with configured emoji on a channel image; the bot POSTs to Pindeck and items queue for approve/deny (typical Midjourney workflow)
 - **Manual upload:** Upload → Local; selected files upload through Convex and the same finalize, metadata, and palette pipeline as imports
