@@ -1,21 +1,21 @@
 # Pindeck platform topology
 
-Canonical map of **where Pindeck runs** and **how traffic flows**. Convex SSH/container detail: [`docs/self-hosted-convex-ops.md`](../self-hosted-convex-ops.md). Trigger callbacks: [`docs/trigger-orchestration.md`](../trigger-orchestration.md). Homelab: `proxmox-home/docs/pindeck-platform-topology.md`. Obsidian: `hermes-notebook-vault/04-Projects/Pindeck/`.
+Map of **roles** and **traffic flow**. Convex ops patterns: [`docs/self-hosted-convex-ops.md`](../self-hosted-convex-ops.md). Trigger: [`docs/trigger-orchestration.md`](../trigger-orchestration.md). **URLs** for each layer live in environment variables (`.env.local`, Vercel/Convex dashboard secrets), not in this repo.
 
 ## Production surfaces
 
-| Layer | Host | URL / access |
-| ----- | ---- | ------------ |
-| Frontend | Vercel project **`pindeck`** | [pindeck.dev](https://pindeck.dev) |
-| Convex API | Hostinger **`serving`**, Docker **`pindeck-convex`** | `https://convex.serving.cloud` |
-| HTTP actions | Same stack (ingest, Discord, orchestration) | `https://convex-site.serving.cloud` |
-| Dashboard | Same stack | `https://convex-dashboard.serving.cloud` |
-| Background jobs | Proxmox **VM100 `app-vm`** | `https://trigger.v1su4.dev` · deploy **`/opt/pindeck`** as **gordo** |
-| Object storage | VM114 **`rustfs-storage`** | `https://media.v1su4.dev` (bucket **`pindeck`**) |
-| Discord bot | Separate **`discord-bot`** process | → `convex-site` with `INGEST_API_KEY` |
-| Pinterest | RSSBridge on **`serving`** | `https://rssbridge.serving.cloud/pinterest-ingest` → ingest |
+| Layer | Role |
+| ----- | ---- |
+| Frontend | Static/hosted web app ([pindeck.dev](https://pindeck.dev)) |
+| Convex API | Self-hosted Convex database and functions |
+| HTTP actions | Same Convex stack: `/ingestExternal`, Discord routes, `/orchestration/*` |
+| Dashboard | Self-hosted Convex admin UI |
+| Background jobs | Self-hosted Trigger.dev workers |
+| Object storage | RustFS or S3-compatible media gateway (bucket e.g. `pindeck`) |
+| Discord bot | Separate process calling Convex HTTP with `INGEST_API_KEY` |
+| Pinterest | Optional ingest sidecar → `/ingestExternal` |
 
-**Not Pindeck:** Review Room uses **`unfold*.serving.cloud`** (same VPS, different Compose project).
+Point **one** Convex deployment at Pindeck. Do not mix another product’s Convex stack.
 
 ## Flows
 
@@ -23,11 +23,11 @@ Canonical map of **where Pindeck runs** and **how traffic flows**. Convex SSH/co
 
 ```mermaid
 flowchart LR
-  U[User] --> FE[pindeck.dev]
-  FE --> CVX[convex.serving.cloud]
-  CVX --> RFS[media.v1su4.dev]
-  FE --> TRG[trigger.v1su4.dev]
-  TRG --> SITE[convex-site]
+  U[User] --> FE[Frontend]
+  FE --> CVX[Convex API]
+  CVX --> RFS[Media gateway]
+  FE --> TRG[Trigger.dev]
+  TRG --> SITE[Convex HTTP site]
   SITE --> CVX
 ```
 
@@ -36,18 +36,18 @@ flowchart LR
 ```mermaid
 flowchart LR
   EXT[Discord bot / Pinterest] --> ING[/ingestExternal/]
-  ING --> SITE[convex-site]
+  ING --> SITE[Convex HTTP site]
   SITE --> CVX[Convex]
-  CVX --> RFS[RustFS]
-  CVX -.->|orchestration on| TRG[Trigger app-vm]
+  CVX --> RFS[Object storage]
+  CVX -.->|orchestration| TRG[Trigger workers]
   TRG --> SITE
 ```
 
 ## Deploy after merge
 
-1. **Convex** — workstation: `bun run deploy:convex`
-2. **Trigger** — app-vm: `git pull` in `/opt/pindeck`, `bun run trigger:deploy` as **gordo**
-3. **Frontend** — push **`main`** → Vercel **`pindeck`**
+1. **Convex** — `bun run deploy:convex` with deploy env loaded from `.env.local`
+2. **Trigger** — on your worker host: `bun run trigger:deploy` (see trigger doc)
+3. **Frontend** — push **`main`** → Vercel project for [pindeck.dev](https://pindeck.dev)
 
 ## Verify
 
@@ -56,13 +56,13 @@ flowchart LR
 | Convex | `./scripts/check-pindeck-convex.sh` |
 | HTTP ingest | `./scripts/e2e-production-smoke.sh` |
 | UI | [pindeck.dev](https://pindeck.dev) or `bun run e2e:ui` |
-| Trigger | `curl -fsS https://trigger.v1su4.dev/healthcheck` |
+| Trigger | Health endpoint on your `TRIGGER_API_URL` |
 
 ## Repo layout
 
 ```text
-src/           React (Vercel)
-convex/        Backend (serving)
-src/trigger/   Trigger tasks (built on app-vm)
-services/discord-bot/   Reference; prod bot often in discord-bot repo
+src/           React frontend
+convex/        Backend
+src/trigger/   Trigger task definitions (deploy on worker host)
+services/discord-bot/   Reference; production bot often in a separate repo
 ```

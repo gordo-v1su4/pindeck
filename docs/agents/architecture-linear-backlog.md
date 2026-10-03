@@ -76,7 +76,7 @@ Orchestration interface:
 | `triggerDispatch.ts` | Trigger SDK `tasks.trigger` only |
 | `orchestration.ts` | Protected HTTP callbacks |
 
-Trigger task **payloads** are unchanged, so already-deployed workers stay compatible until you ship new bundles. After merging worker changes that import `orchestrationSeam`, run `bun run trigger:deploy` (see `proxmox-home/docs/triggerdev-vm100-runbook.md`). Convex backend changes deploy with `bun run deploy:convex` after loading self-hosted env (see `proxmox-home/docs/hostinger-convex-runbook.md`).
+Trigger task **payloads** are unchanged, so already-deployed workers stay compatible until you ship new bundles. After merging worker changes that import `orchestrationSeam`, run `bun run trigger:deploy` on the worker host. Convex backend changes deploy with `bun run deploy:convex` after loading env from `.env.local`.
 
 ## V1S-87 (Arch-5)
 

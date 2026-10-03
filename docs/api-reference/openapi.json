@@ -10,8 +10,14 @@
   },
   "servers": [
     {
-      "url": "https://convex-site.serving.cloud",
-      "description": "Self-hosted production Convex HTTP actions"
+      "url": "{convexSiteUrl}",
+      "description": "Convex HTTP actions base URL from VITE_CONVEX_SITE_URL (.env.local, not committed)",
+      "variables": {
+        "convexSiteUrl": {
+          "default": "",
+          "description": "Set to your self-hosted Convex site URL"
+        }
+      }
     }
   ],
   "components": {

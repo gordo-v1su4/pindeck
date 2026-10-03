@@ -24,7 +24,7 @@ Rules:
 
 ## 2026-10-02
 
-- **Docs:** README order: one-line intro, Stack, What it does; GitHub About stays product-only (no stack).
+- **Docs:** Privacy pass — no committed backend URLs; `.env.example` empty vars + `.env.local` note; AGENTS.md env rule.
 
 ## 2026-09-19
 

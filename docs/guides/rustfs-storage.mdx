@@ -13,7 +13,7 @@ Set these in the Convex backend environment:
 
 | Variable | Description |
 |----------|-------------|
-| `MEDIA_GATEWAY_URL` | RustFS media API URL, normally `https://media.v1su4.dev` |
+| `MEDIA_GATEWAY_URL` | RustFS media API base URL (set in `.env.local`) |
 | `MEDIA_GATEWAY_TOKEN` | Bearer token used for writes and deletes |
 | `MEDIA_GATEWAY_BUCKET` | RustFS bucket, normally `pindeck` |
 | `MEDIA_GATEWAY_USER_ID` | Media API user namespace, normally `pindeck` |
@@ -32,11 +32,7 @@ media-uploads/YYYY/MM_DD/high/<file>-w1280.<ext>
 media-uploads/YYYY/MM_DD/high/<file>-w1920.<ext>
 ```
 
-Public URLs should use:
-
-```text
-https://s3.v1su4.dev/pindeck/media-uploads/...
-```
+Public read URLs are derived from your gateway configuration and bucket name (see `convex/lib/mediaAdapter.ts`).
 
 ## Color sampling contract
 

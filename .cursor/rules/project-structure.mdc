@@ -10,10 +10,10 @@ This file is the quick map of what exists in the repo today.
 ## Project Overview
 
 Pindeck is an image curation app with:
-- React + TypeScript frontend (**Vercel** `pindeck.dev`)
-- Convex backend on **Hostinger `serving`** (`convex.serving.cloud`, HTTP `convex-site.serving.cloud`)
-- Trigger.dev workers on **Proxmox app-vm** (`trigger.v1su4.dev`, deploy from `/opt/pindeck`)
-- RustFS media via **`media.v1su4.dev`**
+- React + TypeScript frontend ([pindeck.dev](https://pindeck.dev))
+- Self-hosted Convex (URLs in `.env.local`)
+- Self-hosted Trigger.dev workers (URLs in env; deploy on worker host)
+- RustFS media via configurable media gateway (`MEDIA_GATEWAY_URL`)
 - Discord ingest/moderation bot (separate **`discord-bot`** repo + Convex HTTP)
 - AI analysis + variation generation pipeline
 

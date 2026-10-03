@@ -1,8 +1,8 @@
 # Trigger.dev Orchestration
 
-**Where workers run:** Proxmox **app-vm** — deploy with `bun run trigger:deploy` from **`/opt/pindeck`** (see [`docs/architecture/platform-topology.md`](architecture/platform-topology.md)).
+**Where workers run:** a dedicated Linux host with Trigger.dev workers. Deploy with `bun run trigger:deploy` from a checkout of this repo (see [`docs/architecture/platform-topology.md`](architecture/platform-topology.md)).
 
-Pindeck uses the self-hosted control plane at `https://trigger.v1su4.dev` (project **`proj_znbdggczxwkeviflncnx`**, SDK/CLI **4.5.3** on app-vm).
+Pindeck uses a **self-hosted Trigger.dev** control plane (`TRIGGER_API_URL`, `TRIGGER_PROJECT_REF` in env). SDK/CLI version is pinned in `package.json`.
 
 ## Workflows
 
@@ -54,7 +54,7 @@ All Pindeck tasks use the `medium-1x` machine preset (1 vCPU, 2 GB RAM). The
 default `small-1x` preset has only 0.5 GB RAM; the self-hosted Bun 1.3.3 worker
 committed about 1 GB at startup and crashed with `SIGILL` before media-repair
 task code ran. Do not reduce the preset without a production Bun cold-start
-smoke on VM100.
+smoke on the worker host.
 
 Network, rate-limit, and server failures retry with capped exponential backoff.
 Permanent media failures such as source `404`, invalid image, unsupported
@@ -89,7 +89,7 @@ The HTTP callback seam lives in
 dispatch layer only. Do not duplicate `ORCHESTRATION_HTTP_SEAM` /
 `ORCHESTRATION_WORKER_PATHS` path strings. Task payloads are unchanged, but
 after merging worker imports of `orchestrationSeam`, run `bun run trigger:deploy`
-so VM100 runs the updated worker bundle (`proxmox-home/docs/triggerdev-vm100-runbook.md`).
+so the worker host runs the updated task bundle (keep runbooks private).
 
 Every callback includes its Trigger run ID and dispatch ID. Convex rejects a stale
 callback if a newer run owns the row, applies orchestration and AI status
@@ -116,44 +116,24 @@ continue advancing even when Trigger temporarily reports `durationMs: 0`.
 
 ## Required environment
 
-Set in the Pindeck Trigger `prod` environment:
+Set in the Pindeck Trigger `prod` environment (values in `.env.local` / secret store, not in git):
 
-- `PINDECK_CONVEX_SITE_URL=https://convex-site.serving.cloud`
-- `PINDECK_ORCHESTRATION_TOKEN=<private random token>`
-- `FAL_KEY=<private FAL credential>`
+- `PINDECK_CONVEX_SITE_URL=`
+- `PINDECK_ORCHESTRATION_TOKEN=`
+- `FAL_KEY=`
 
 Set in self-hosted Convex:
 
-- `TRIGGER_API_URL=https://trigger.v1su4.dev`
-- `TRIGGER_SECRET_KEY=<Pindeck production project key>`
-- `PINDECK_ORCHESTRATION_TOKEN=<same private random token>`
+- `TRIGGER_API_URL=`
+- `TRIGGER_SECRET_KEY=`
+- `PINDECK_ORCHESTRATION_TOKEN=` (same token as Trigger env)
 - `PINDECK_TRIGGER_ORCHESTRATION_ENABLED=false` until deployment verification
 
-Never expose these values to the browser or task payloads.
-
-The durable BWS records live in project `hermes_keys`:
-
-- `PINDECK_TRIGGER_API_URL`
-- `PINDECK_TRIGGER_PROJECT_REF`
-- `PINDECK_TRIGGER_PLATFORM_VERSION`
-- `PINDECK_CONVEX_API_URL`
-- `PINDECK_CONVEX_SITE_URL`
-- `PINDECK_ORCHESTRATION_TOKEN`
-- `PINDECK_TRIGGER_SECRET_KEY`
-- `PINDECK_TRIGGER_ORCHESTRATION_ENABLED`
-- `PINDECK_FAL_KEY`
-
-Live Convex and Trigger environment values are runtime truth; BWS is the
-durable secret/configuration source. Tracked files document names and endpoints
-only.
+Never expose these values to the browser or task payloads. Store filled-in values in `.env.local` or your team secret manager; tracked files list names only.
 
 ## Bun and CLI commands
 
-Pindeck uses Bun for dependencies and its deployed Trigger tasks. Trigger's
-official [Bun guide](https://trigger.dev/docs/guides/frameworks/bun) says the
-Trigger CLI itself does not support Bun, so `npx` is the one documented
-exception to this repository's Bun package-execution policy. Do not use
-`bunx --bun` for Trigger CLI commands.
+Pindeck uses Bun for dependencies and deployed Trigger tasks. The Trigger CLI is invoked via `npx` (see Trigger's [Bun guide](https://trigger.dev/docs/guides/frameworks/bun)).
 
 ```bash
 bun install --frozen-lockfile
@@ -161,73 +141,25 @@ bun run trigger:dev
 bun run trigger:deploy
 ```
 
-VM100 pins host Bun `1.3.3` to match the deployed task runtime and uses the
-current Node 24 LTS only for the Trigger CLI's required `npx` entrypoint. A
-deployment dry-run must succeed on VM100 before production deployment:
+Dry-run before production deploy:
 
 ```bash
 bun run trigger:deploy -- --dry-run
 ```
 
-Production deploys run from the Pindeck checkout on VM100 Linux. The script
-logs into VM100's loopback-only registry and uses Trigger CLI 4.5.3's
-`--local-build` flow, then pushes the emitted version tag into that registry,
-so the task image is built by the same Linux Docker host that runs the Trigger
-supervisor. Do not deploy from Docker Desktop: a Windows local
-build can register and activate a version while leaving its image on the wrong
-machine, after which VM100 dequeues runs but fails with `No such image`.
-The Trigger personal access token is stored in BWS as
-`TRIGGER_SELFHOSTED_PAT` and synced to the mode-`600` VM100 deployment env.
-Registry credentials remain in the Trigger stack environment and are mirrored
-in BWS as `TRIGGER_VM100_REGISTRY_USERNAME` and
-`TRIGGER_VM100_REGISTRY_PASSWORD` for recovery and cross-checking.
-
-Trigger CLI 4.5.3 prints the Bun experimental-runtime warning to stdout even
-with `env get --raw`. Scripts comparing a value must select the final output
-line; treating the entire stdout stream as the value creates a false mismatch.
+Run production deploys from the Linux worker host that runs Trigger workers and can push task images to your registry. Avoid deploying from a mismatched machine where the supervisor cannot pull the built image.
 
 ## Deployment and verification
 
-Current production state (2026-07-14):
-
-- Convex callbacks/schema are deployed; all eight unauthenticated callback
-  probes return `401` rather than `404`, including variation prepare, persist,
-  and complete.
-- Trigger deployment `20260714.1` / `srp5iee7` was built on VM100 Linux and
-  exposes all six task IDs. The dashboard worker inventory is runtime truth.
-- Metadata refresh, upload finalization, `removeMany`, external ingest, and
-  media repair passed production end-to-end smokes. The successful media-repair
-  run used the configured `medium-1x` allocation (1 vCPU / 2 GB RAM).
-- `main` includes the complete orchestration integration and Trigger 4.5.3
-  alignment at commit `eb43c53`;
-  the matching Vercel production deployment completed successfully.
-- The orchestration feature flag is `true`, and the live Convex Trigger API key
-  and callback token match their BWS pointers.
-- A one-image Discord production smoke completed through
-  `pindeck-generate-variations` (`run_cmrjr6jvl000a3jt6034qxaef`): FAL returned
-  one requested/one generated variation. The generated child persisted to
-  RustFS with all three derivatives, then `pindeck-image-refresh`
-  (`run_cmrjr789p000c3jt69ubu6fcg`) completed metadata and palette refresh.
-- A two-item browser generation completed through parent run
-  `run_cmrjv95bb000e3fn1anjwr7f0` and serialized child runs
-  `run_cmrjv96z0000g3fn1c5o32q2m` and
-  `run_cmrjv9wlv000j3fn1yr67a8y6`. Both generated children persisted to
-  RustFS, returned real image reads, and appeared under the parent in Work
-  Activity.
-
-1. Confirm the self-hosted platform image is `v4.5.3` and the Pindeck CLI/SDK
-   packages are `4.5.3`.
-2. Confirm the three Trigger production environment variable names exist.
-3. Keep the Convex feature flag `false`.
-4. Deploy Convex callbacks and schema.
-5. Verify every unauthenticated `/orchestration/*` callback returns `401`.
-6. Run the Trigger deployment and confirm all six task IDs are registered.
-7. Trigger one selected metadata refresh and verify Trigger run, callback,
-   image metadata, and Convex orchestration state reach `completed`.
-8. Enable `PINDECK_TRIGGER_ORCHESTRATION_ENABLED=true`.
-9. Verify one direct upload and one external ingest end to end, including the
-   original, preview, three derivatives, palette, metadata, and terminal run.
-10. Keep the legacy flag rollback available until the production checks pass.
+1. Align Trigger platform version with pinned `@trigger.dev/sdk` in `package.json`.
+2. Set Trigger and Convex orchestration env vars (see `.env.example`; values in `.env.local`).
+3. Keep `PINDECK_TRIGGER_ORCHESTRATION_ENABLED=false` until callbacks are verified.
+4. Deploy Convex (`bun run deploy:convex`).
+5. Verify unauthenticated `/orchestration/*` probes return `401` (see `scripts/e2e-production-smoke.sh`).
+6. Deploy Trigger tasks (`bun run trigger:deploy`) and confirm all task IDs register.
+7. Smoke metadata refresh, upload finalize, and external ingest end to end.
+8. Enable `PINDECK_TRIGGER_ORCHESTRATION_ENABLED=true` when ready.
+9. Keep the legacy scheduler path available for rollback until smokes pass.
 
 ## Codex tooling
 

@@ -105,6 +105,6 @@ Do not treat `services/discord-bot` in the Pindeck repo as the deployment source
 
 See the [API reference](/api-reference/introduction) for full endpoint documentation.
 
-## Hostinger DNS note
+## Docker DNS note
 
-The Hostinger bot container runs on the same public host that serves the Convex HTTP domains. If the container resolves `convex-site.serving.cloud` or `convex.serving.cloud` back to `127.0.1.1`, Bun fetches fail with connection errors. The deployed Compose file pins those names to the Docker host gateway (`172.18.0.1`) using `extra_hosts`.
+If the bot runs in Docker on the same host as Convex, ensure the container can reach your Convex HTTP site URL (often via `extra_hosts` or internal networking). Misconfigured loopback DNS causes ingest fetch failures.

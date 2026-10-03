@@ -25,27 +25,21 @@ Pindeck is one workspace for curating images so you are not saving Midjourney ou
 - **Storyboards:** on a board, use the storyboard builder to arrange board images into grid, hero, or strip panels and save layouts to Convex
 - **Pitch decks:** deck library plus composer with autosave to Convex, built from curated image strips
 
-## Production Names
+## Production layout
 
-Pindeck has one production frontend and one production backend target. Full
-topology (Vercel vs Hostinger Convex vs app-vm Trigger vs RustFS) and flow
-diagrams: **[docs/architecture/platform-topology.md](docs/architecture/platform-topology.md)**.
-Domain glossary: **[CONTEXT.md](CONTEXT.md)**.
+Public app: [pindeck.dev](https://pindeck.dev). Backend layers (Convex, Trigger, media gateway, Pinterest sidecar) are **self-hosted**; their URLs live in **`.env.local`** (git-ignored), not in this repo. Flow diagrams: **[docs/architecture/platform-topology.md](docs/architecture/platform-topology.md)**. Glossary: **[CONTEXT.md](CONTEXT.md)**.
 
-| Surface      | Production name          | Target                              |
-| ------------ | ------------------------ | ----------------------------------- |
-| Frontend     | Vercel project `pindeck` | `https://pindeck.dev`               |
-| Backend      | Self-hosted Convex       | `https://convex.serving.cloud`      |
-| HTTP actions | Self-hosted Convex site  | `https://convex-site.serving.cloud` |
+| Surface      | Role |
+| ------------ | ---- |
+| Frontend     | Vercel project `pindeck` → [pindeck.dev](https://pindeck.dev) |
+| Backend      | Self-hosted Convex (`VITE_CONVEX_URL`, `CONVEX_SELF_HOSTED_URL`) |
+| HTTP actions | Self-hosted Convex site (`VITE_CONVEX_SITE_URL`) |
 
-Do not use Convex Cloud or **`unfold.serving.cloud`** for Pindeck. Deploy and env details: **[platform-topology](docs/architecture/platform-topology.md)** and **[self-hosted-convex-ops](docs/self-hosted-convex-ops.md)**.
+Deploy patterns: **[platform-topology](docs/architecture/platform-topology.md)** and **[self-hosted-convex-ops](docs/self-hosted-convex-ops.md)**.
 
-The removed Vercel preview project **`pindeck-754f`** is not production.
+## Local production workflow
 
-## Local Production Workflow
-
-This repo is configured to run locally against the self-hosted Pindeck Convex
-production backend.
+Run the frontend against your configured Convex deployment (usually production credentials in `.env.local` only).
 
 1. Install dependencies:
 
@@ -56,14 +50,16 @@ bun install
 2. Configure env:
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-3. Set self-hosted production Convex URLs in `.env`:
+Fill in Convex, media, and Trigger URLs in **`.env.local`**. See `.env.example` for variable names.
+
+3. Example (values only in `.env.local`, not committed):
 
 ```bash
-VITE_CONVEX_URL=https://convex.serving.cloud
-VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud
+VITE_CONVEX_URL=
+VITE_CONVEX_SITE_URL=
 ```
 
 4. Build production bundle:
@@ -94,7 +90,7 @@ Set in Convex Project Settings:
 - `INGEST_API_KEY` (for Discord ingest)
 - `ADMIN_USER_IDS` / `ADMIN_EMAILS` (optional comma-separated admin overrides for image delete/edit)
 - `DISCORD_STATUS_WEBHOOK_URL` (optional Discord status updates)
-- `MEDIA_GATEWAY_URL=https://media.v1su4.dev`
+- `MEDIA_GATEWAY_URL=` (RustFS media API base URL)
 - `MEDIA_GATEWAY_TOKEN`
 - `MEDIA_GATEWAY_BUCKET=pindeck`
 - `MEDIA_GATEWAY_USER_ID=pindeck`
@@ -108,14 +104,16 @@ Set in Convex Project Settings:
 
 Set for frontend build/runtime:
 
-- `VITE_CONVEX_URL=https://convex.serving.cloud`
-- `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud`
+- `VITE_CONVEX_URL=`
+- `VITE_CONVEX_SITE_URL=`
+
+Set in **`.env.local`** (git-ignored). See `.env.example`.
 
 For Convex function deploys:
 
-- `CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud`
+- `CONVEX_SELF_HOSTED_URL=`
 - `PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY=<Pindeck self-hosted admin key>`
-- `CONVEX_SELF_HOSTED_ADMIN_KEY=<self-hosted admin key>` is also accepted by the Convex CLI, but prefer the Pindeck-prefixed name in Bitwarden so it cannot be confused with Review Room / Unfold.
+- `CONVEX_SELF_HOSTED_ADMIN_KEY=` is also accepted by the Convex CLI; prefer the Pindeck-prefixed name so it is not confused with other projects.
 - Do **not** set `CONVEX_DEPLOYMENT` for Pindeck production.
 
 Vercel production builds deploy Convex when `CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY` are configured. Preview builds without those deploy secrets run as frontend-only builds, so PR checks can still validate the UI without backend deploy credentials.
@@ -126,8 +124,8 @@ Vercel production builds deploy Convex when `CONVEX_SELF_HOSTED_URL` and `CONVEX
 - `bun run build` - Local production frontend build (`vite build`); on Vercel production builds with deploy secrets, the Bun-native `scripts/build.ts` wrapper deploys Convex first, then builds the frontend.
 - `bun run serve` - Production preview on `4173` (auto-kills existing `4173` listener first)
 - `bun run deploy:convex` - Deploy Convex functions with `bunx convex deploy`
-- `bun run trigger:dev` - Run Pindeck Trigger tasks against the V1SU4 self-hosted control plane
-- `bun run trigger:deploy` - Deploy the configured Pindeck Trigger project (VM100 Linux only; see `scripts/deploy-trigger-vm100.sh`)
+- `bun run trigger:dev` - Run Pindeck Trigger tasks against your configured Trigger control plane
+- `bun run trigger:deploy` - Deploy Trigger tasks (run on the Linux worker host; see `docs/trigger-orchestration.md`)
 - `bun run e2e:smoke` - HTTP smoke against production Convex (ingest, orchestration 401 probes, optional `E2E_GENERATE=1` for fal)
 - `bun run e2e:ui` - Playwright app smoke on `https://pindeck.dev` (loads `E2E_*` from `.env` via `scripts/run-playwright-e2e.ts`)
 
@@ -147,7 +145,7 @@ secret, callback, rollout, and verification contract.
 ## Media Upload Pipeline (Convex -> RustFS)
 
 - Uploads first land in Convex storage, then `convex/mediaStorage.finalizeUploadedImage` persists to the RustFS media API.
-- Durable assets live in the `pindeck` bucket and read publicly from `https://s3.v1su4.dev/pindeck/...`.
+- Durable assets live in the configured bucket and are served via your media gateway public URL prefix.
 - RustFS object key format is:
   - `media-uploads/YYYY/MM_DD/original/<file>`
   - `media-uploads/YYYY/MM_DD/preview/<file>-preview.<ext>`
@@ -172,7 +170,7 @@ Gallery, boards, deck, and table all continue to read the same `images.imageUrl`
 
 The Discord bot and media gateway are hosted/deployed from a separate repo:
 
-- Source of truth: `~/Documents/Github/discord-bot`
+- Source of truth: separate **`discord-bot`** repository (not deployed from this tree)
 - This `pindeck` repo consumes those services via:
   - Convex HTTP actions (`/ingestExternal`, `/discordQueue`, `/discordModerate`)
   - Media gateway endpoint/env wiring (`MEDIA_GATEWAY_URL`, token-based auth)
@@ -193,8 +191,7 @@ Typical setup in `.env`:
 Run:
 
 ```bash
-# Run from the separate discord-bot repository:
-cd ~/Documents/Github/discord-bot
+# Run from your checkout of the discord-bot repository:
 bun install
 bun run dev
 ```
@@ -218,23 +215,24 @@ bun run deploy:convex
 This requires `.env` or the shell environment to include:
 
 ```bash
-CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud
-PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY=...
+CONVEX_SELF_HOSTED_URL=
+PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY=
 ```
+
+Values from **`.env.local`** only.
 
 Do **not** set `CONVEX_DEPLOYMENT`; the old Convex Cloud project has been deleted and Pindeck production uses the self-hosted Convex target above.
 No Convex MCP is configured or required for production deploys; use the direct self-hosted Convex CLI target above.
 
-For self-hosted Convex health checks, Hostinger VPS container logs, and safe
-agent access commands, see [`docs/self-hosted-convex-ops.md`](docs/self-hosted-convex-ops.md).
+For self-hosted Convex health checks and CLI patterns, see [`docs/self-hosted-convex-ops.md`](docs/self-hosted-convex-ops.md).
 
 ### Vercel
 
 Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bun run build`, and the Bun-native `scripts/build.ts` wrapper runs `bunx convex deploy --cmd 'bun run build:frontend'` on production builds when the self-hosted Convex deploy secrets are present. Preview builds without those secrets skip Convex deploy and run the frontend build only.
 
-**Vercel builds** do not use `.env`. The check script and **`vite.config.ts`** **default** `VITE_CONVEX_URL` to **`https://convex.serving.cloud`** when unset, so previews deploy without extra env. Set `VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud` when code needs the HTTP/actions URL.
+**Vercel builds** use project env secrets for Convex deploy when configured. Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_HOSTED_URL`**, and **`PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY`** in **`.env.local`** (see `.env.example`). Keep **`CONVEX_DEPLOYMENT` unset**.
 
-Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_HOSTED_URL`**, and **`PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY`** in **`.env`** so `dev` / `deploy:convex` match production (see `.env.example`). Keep **`CONVEX_DEPLOYMENT` unset**.
+Some scripts enforce that configured Convex URLs match the team’s production target; see `scripts/enforce-production-convex.sh`.
 
 ## Unified UI / design tokens (Tweaks)
 
@@ -267,7 +265,7 @@ Unused Radix `ImageGrid`, `TableView`, `ImageModal`, `EditImageModal`, `Generate
 - **Images Convex module:** Public `api.images.*` (wire path `images:*`) is re-exported from root [`convex/images.ts`](convex/images.ts) and [`convex/images/index.ts`](convex/images/index.ts). Domain logic lives in `library`, `ingest`, `moderation`, `lifecycle`, `uploads`, `analysis`, `generation`, and `shared` under [`convex/images/`](convex/images/). HTTP routes still import handlers from `./images`. Trigger orchestration lease/status writes live in [`convex/orchestrationState.ts`](convex/orchestrationState.ts); storage path helpers live in [`convex/lib/mediaAdapter.ts`](convex/lib/mediaAdapter.ts) (re-exported from [`convex/mediaAdapter.ts`](convex/mediaAdapter.ts)).
 - Do not use `bunx convex dev` when targeting production.
 - Vercel does not host the Discord websocket worker; run bot separately (always-on worker/container).
-- Do not treat `services/discord-bot` in this repo as deployment source; use `~/Documents/Github/discord-bot`.
+- Do not treat `services/discord-bot` in this repo as deployment source; use the separate discord-bot repo.
 - Pinterest/FreshRSS automation runs from the standalone Discord worker repo at `discord-bot/services/pinterest-ingest`. It uses `gallery-dl` plus exported cookies to discover Pinterest images, exposes RSS feeds for FreshRSS, and sends new items to this app's `/ingestExternal` endpoint so Pindeck copies the files into RustFS before review.
 - **Docs (Mintlify):** [docs.pindeck.dev](https://docs.pindeck.dev) from repo `docs/` — `docs.json` loads `style.css` + `accent.js` (dark Pindeck chrome; **Docs** top bar passes `?accent=` from Tweaks). Start at **Product workflow** and **Architecture overview** (mermaid: ingest → RustFS → tag/display, board-before-deck).
-- `dev`, `build`, `serve`, `lint`, and `deploy:convex` enforce self-hosted production Convex targets (`https://convex.serving.cloud`) and fail fast otherwise.
+- `dev`, `build`, `serve`, `lint`, and `deploy:convex` can enforce the configured production Convex target via `scripts/enforce-production-convex.sh`.

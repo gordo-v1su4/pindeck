@@ -45,7 +45,7 @@ Today focused on Discord ingest moderation, queue quality, and Discord-to-Pindec
 
 ## Deployment Notes
 
-- Historical note: this session used the now-deleted Convex Cloud backend. Current Pindeck production is self-hosted at `https://convex.serving.cloud` with HTTP/actions at `https://convex-site.serving.cloud`; do not deploy to Convex Cloud for Pindeck.
+- Historical note: this session used the now-deleted Convex Cloud backend. Current Pindeck production uses self-hosted Convex; URLs live in `.env.local` only.
 - Current Vercel production project: `pindeck`.
 - Current Vercel production URL: `https://pindeck.dev`.
 - Stale duplicate Vercel deploy contexts are retired prototype artifacts and should not be used for production validation.

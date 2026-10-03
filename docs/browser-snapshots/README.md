@@ -22,7 +22,7 @@ The current production frontend is the active Vercel project **`pindeck`**:
 
 - Production URL: `https://pindeck.dev`
 - Alternate production alias: `https://www.pindeck.dev`
-- Git branch alias: `https://pindeck-git-main-gordo-v1su4s-projects.vercel.app`
+- Vercel preview URLs vary by project; use your team's preview deployment when comparing snapshots.
 
 Ignore stale duplicate Vercel project/status contexts. Do not use them for production health checks, browser comparisons, or deploy validation.
 

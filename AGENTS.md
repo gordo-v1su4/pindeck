@@ -7,6 +7,8 @@
 - Do not introduce `npm`, `npx`, `yarn`, or `pnpm` commands unless a specific upstream tool cannot run through Bun; document the exception inline when that happens.
 - Keep deployment commands aligned with Bun as well, including Vercel build commands and local scripts.
 
+**Backend and hosting URLs** (Convex, Trigger, media gateway, Pinterest sidecar, etc.) come from environment variables and **`.env.local`** (git-ignored). Never hardcode or commit them in docs, code comments, or examples in this repo.
+
 <!-- TRIGGER.DEV SKILLS START -->
 ## Trigger.dev agent skills
 
@@ -90,12 +92,11 @@ Codebase deepening (2026-09): Linear project **Pindeck**, parent **V1S-82**. Ind
 ## Learned Workspace Facts
 
 - Frontend dev server: `bun run dev:frontend` at http://localhost:4000.
-- Production Convex deployment target is `tremendous-jaguar-953` (enforced by `scripts/enforce-production-convex.sh` and CI `check:prod-target`).
+- Production Convex and related URLs are defined only in `.env.local` / deploy secrets; `scripts/enforce-production-convex.sh` and CI `check:prod-target` validate the configured target.
 - Deck gallery/composer UI follows the `claude/redesign` stack (`DeckView`, `src/components/deck/*`); Tweaks `--pd-accent*` tokens style composer chrome, not slide canvas content.
 - Dominant palette swatches come from `images.colors` (and client extraction) across gallery, table, and deck library previews.
 - Sign-in UI exposes email/password and guest only when Google/GitHub OAuth is not configured.
 - Graft is per-repo: add `@nanonets/graft` as a devDependency with tree-sitter packages in `trustedDependencies`, keep `graft/` gitignored, run `bunx graft init --yes` once; after clone or large edits run `bunx graft build` (prefer `bunx graft mcp` in `.cursor/mcp.json` over a global `graft` binary). Reference wiring: **zig-swap** (https://github.com/gordo-v1su4/zig-swap) uses a global `graft` CLI and committed Cursor/hooks only; pindeck uses devDependency + `bunx` MCP so `bun install` suffices on fresh clones.
 - Root [`convex/images.ts`](convex/images.ts) must re-export `list` so the wire path `images:list` works after the V1S-84 `convex/images/` split (`scripts/check-pindeck-convex.sh` enforces this).
-- Pindeck Convex on Hostinger is the **pindeck-convex** Docker stack (`convex.serving.cloud`); do not deploy to or target the **unfold** / review-room stack.
-- Run `bun run trigger:deploy` only on VM100 Linux (**app-vm**, `/opt/pindeck`), not from macOS.
-- Production E2E sign-in uses `gordo@v1su4.com` with `E2E_PASSWORD` in `.env` (never commit); load env via [`scripts/run-playwright-e2e.ts`](scripts/run-playwright-e2e.ts) to avoid shell backtick issues in `.env`.
+- Run `bun run trigger:deploy` from the Linux worker host where Trigger workers run, not from a casual local macOS shell unless your team documents otherwise.
+- Production E2E credentials use `E2E_EMAIL` and `E2E_PASSWORD` in `.env.local` only (never commit); load env via [`scripts/run-playwright-e2e.ts`](scripts/run-playwright-e2e.ts).

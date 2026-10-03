@@ -2,121 +2,74 @@
 
 Current deployment guidance for this repo.
 
-## Two stacks on Hostinger (do not mix)
+## Self-hosted Convex
 
-The VPS runs **two independent** self-hosted Convex deployments. **Pindeck is only the first row.**
+Pindeck targets a **self-hosted** Convex stack (API + HTTP actions site). URLs and admin keys live in **`.env.local`** (git-ignored) and deploy secrets — never in tracked docs or rules.
 
-| | **Pindeck (this repo)** | **Unfold / Review Room (not Pindeck)** |
-|---|---|---|
-| Compose project | `pindeck-convex` | `review-room-convex` |
-| Typical containers | `pindeck-convex-backend-1`, `pindeck-convex-dashboard-1` | `review-room-convex-backend-1`, `review-room-convex-dashboard-1` |
-| Compose path | `/docker/convex-wv5d/docker-compose.yml` | `/docker/convex-lvow/docker-compose.yml` |
-| API | `https://convex.serving.cloud` | `https://unfold.serving.cloud` |
-| HTTP actions | `https://convex-site.serving.cloud` | `https://unfold-site.serving.cloud` |
-| Dashboard | `https://convex-dashboard.serving.cloud` | `https://unfold-dashboard.serving.cloud` |
-| Admin key (BWS) | `PROXMOX_HOME_HOSTINGER_CONVEX_CURRENT_ADMIN_KEY` | Unfold-specific keys (see `proxmox-home` runbook) |
+| Env var | Role |
+| --- | --- |
+| `VITE_CONVEX_URL` | Browser / Vite client URL |
+| `VITE_CONVEX_SITE_URL` | HTTP actions base URL (`/ingestExternal`, orchestration, Discord routes) |
+| `CONVEX_SELF_HOSTED_URL` | CLI deploy target |
+| `PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY` / `CONVEX_SELF_HOSTED_ADMIN_KEY` | Deploy auth |
 
-`bun run deploy:convex` and `scripts/check-pindeck-convex.sh` target **Pindeck only**. The sibling script `proxmox-home/scripts/check-hostinger-convex.sh` checks **both** stacks for infra ops; do not point Pindeck env at Unfold URLs.
-
-## Production
-
-Pindeck uses the self-hosted Convex deployment on Hostinger:
-
-| Surface | URL |
-|---|---|
-| Convex API and WebSocket | `https://convex.serving.cloud` |
-| Convex HTTP actions | `https://convex-site.serving.cloud` |
-
-The former `tremendous-jaguar-953.convex.cloud` / `.convex.site` deployment is
-retired guidance and must not be used for Pindeck production work.
+Do not set `CONVEX_DEPLOYMENT` for self-hosted Pindeck. Do not point Pindeck env at another product’s Convex stack.
 
 ## Production-first local workflow
 
-The ignored `.env.local` should contain:
-
-```text
-CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud
-VITE_CONVEX_URL=https://convex.serving.cloud
-VITE_CONVEX_SITE_URL=https://convex-site.serving.cloud
-```
-
-Load `CONVEX_SELF_HOSTED_ADMIN_KEY` from BWS secret
-`PROXMOX_HOME_HOSTINGER_CONVEX_CURRENT_ADMIN_KEY` or the gitignored
-`proxmox-home/secrets/credentials.private.md`. Do not put its value in tracked
-files, chat, or logs.
-
-Run the frontend only:
+Copy `.env.example` to `.env.local` and fill in values. Run the frontend only:
 
 ```bash
 bun run dev:frontend
 ```
 
-Avoid `convex dev` while targeting production because it can overwrite local
-environment defaults.
+Avoid `convex dev` while targeting production because it can overwrite local environment defaults.
 
 ## Deploy backend changes
 
-After editing `convex/*`, set Pindeck keys in repo `.env` (see `.env.example`) and run:
+After editing `convex/*`:
 
 ```bash
 bun run deploy:convex
 ```
 
-`check:prod-target` reads `.env` without executing secret lines as shell. Never `source .env.local` for deploy if it contains unquoted JWT material.
+`check:prod-target` validates the configured Convex URLs. Never commit admin keys or paste them into chat/logs.
 
-Pindeck-only health check from this repo:
+Pindeck health check:
 
 ```bash
 ./scripts/check-pindeck-convex.sh
 ```
 
-Full Hostinger check (Pindeck **and** Unfold) lives in `proxmox-home/scripts/check-hostinger-convex.sh`.
-
-`package.json` maps deploy to `convex deploy` against `CONVEX_SELF_HOSTED_URL=https://convex.serving.cloud`.
-
 ## Trigger.dev split
 
-Convex production runtime owns these server-only values:
+Convex runtime (server-only):
 
-- `TRIGGER_API_URL=https://trigger.v1su4.dev`
-- `TRIGGER_SECRET_KEY` from BWS `PINDECK_TRIGGER_SECRET_KEY`
-- `PINDECK_ORCHESTRATION_TOKEN` from BWS `PINDECK_ORCHESTRATION_TOKEN`
+- `TRIGGER_API_URL`
+- `TRIGGER_SECRET_KEY`
+- `PINDECK_ORCHESTRATION_TOKEN`
 - `PINDECK_TRIGGER_ORCHESTRATION_ENABLED`
 
-Trigger.dev production owns:
+Trigger worker environment:
 
-- `PINDECK_CONVEX_SITE_URL=https://convex-site.serving.cloud`
-- `PINDECK_ORCHESTRATION_TOKEN` with the same value as Convex/BWS
+- `PINDECK_CONVEX_SITE_URL`
+- `PINDECK_ORCHESTRATION_TOKEN` (same value as Convex)
+- `FAL_KEY`
 
-The browser must never receive any Trigger secret, orchestration token, Convex
-admin key, or provider key.
+The browser must never receive Trigger secrets, orchestration tokens, Convex admin keys, or provider keys.
 
 ## Vercel build notes
 
-- Frontend build command is `bun run build` (Vite build only).
-- Do not run `convex dev --once` in the Vercel build.
+- Frontend build command is `bun run build`.
+- Convex deploy may run in CI when deploy secrets are configured.
 - Convex, Trigger.dev, and Vercel deployments are separate operations.
 
 ## Other environment boundaries
 
-Convex backend/runtime:
+Convex backend/runtime: `INGEST_API_KEY`, provider keys, `MEDIA_GATEWAY_*`, OAuth secrets.
 
-- `INGEST_API_KEY`
-- `DISCORD_STATUS_WEBHOOK_URL`
-- `OPEN_ROUTER_KEY` / `OPENROUTER_API_KEY`
-- `FAL_KEY`
+Frontend: `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_PINTEREST_INGEST_BASE_URL`.
 
-Frontend/Vercel:
+Discord worker: `DISCORD_*`, `INGEST_API_KEY`, ingest URL overrides.
 
-- `VITE_CONVEX_URL`
-- `VITE_CONVEX_SITE_URL`
-
-Discord worker:
-
-- `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`
-- `PINDECK_USER_ID`
-- `INGEST_API_KEY`
-- `CONVEX_SITE_URL` or explicit Pindeck ingest/moderation URLs
-
-Vercel does not host the Discord websocket worker; it remains an always-on
-separate service.
+Vercel does not host the Discord websocket worker.

@@ -15,10 +15,12 @@ Use this guide when an agent, automation, or external service needs to send imag
 ## Endpoint
 
 ```text
-POST https://convex-site.serving.cloud/ingestExternal
+POST {VITE_CONVEX_SITE_URL}/ingestExternal
 Authorization: Bearer <INGEST_API_KEY>
 Content-Type: application/json
 ```
+
+Set `VITE_CONVEX_SITE_URL` in your local `.env.local` (git-ignored).
 
 ## Required fields
 
@@ -44,12 +46,12 @@ Content-Type: application/json
 ## Minimal request
 
 ```bash
-curl -X POST "https://convex-site.serving.cloud/ingestExternal" \
+curl -X POST "${VITE_CONVEX_SITE_URL}/ingestExternal" \
   -H "Authorization: Bearer $INGEST_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "USER_ID",
-    "imageUrl": "https://example.com/image.jpg",
+    "imageUrl": "<public HTTPS image URL>",
     "sourceType": "pinterest",
     "externalId": "pinterest:board-123:pin-456",
     "sourceUrl": "https://www.pinterest.com/pin/456",
@@ -85,7 +87,9 @@ type PindeckIngestPayload = {
 };
 
 export async function sendToPindeck(payload: PindeckIngestPayload) {
-  const response = await fetch("https://convex-site.serving.cloud/ingestExternal", {
+  const base = process.env.VITE_CONVEX_SITE_URL;
+  if (!base) throw new Error("Set VITE_CONVEX_SITE_URL");
+  const response = await fetch(`${base.replace(/\/$/, "")}/ingestExternal`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.INGEST_API_KEY}`,
