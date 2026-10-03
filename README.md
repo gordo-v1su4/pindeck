@@ -6,7 +6,7 @@ Pindeck is one workspace for curating images so you are not saving Midjourney ou
 
 React to a Discord image post with your configured ingest emoji and the bot posts it into Pindeck. You can also **upload files manually** from the Upload screen (Convex storage, then the same finalize and analysis pipeline as imports). Point Pindeck at a **Pinterest board URL, profile URL, or pin URL** in Upload → Pinterest (any public board or user the connector can read, not only your own). The Pinterest ingest service extracts pins with gallery-dl; **Run + Send** (or scheduled board polling on the worker) discovers new images and forwards them to Pindeck. Discord and Pinterest items land in a pending queue; once you approve them, metadata, tags, and palette extraction run automatically.
 
-From the library, open an image and hit **Generate** on the Variations tab for fal.ai edits with lineage, or use optional Discord variation buttons after approve. Boards and pitch decks live in the same app. Production: [pindeck.dev](https://pindeck.dev).
+After images are active, VLM analysis fills type, genre, shot, style, and tags without manual tagging. Discord ingest parses Midjourney **sref** numbers from post text into each image; variations inherit sref from the parent line, and you can search and filter on sref in the gallery and table. Open an image and hit **Generate** on the Variations tab for fal.ai edits with lineage, or use optional Discord variation buttons after approve. Save images to **boards**, lay out **storyboard** panels from board shots (`storyboards.saveBoardLayout`), and build **pitch decks** in the deck composer. Production: [pindeck.dev](https://pindeck.dev).
 
 ### Stack
 
@@ -19,13 +19,15 @@ From the library, open an image and hit **Generate** on the Variations tab for f
 ### What it does
 
 - **Discord ingest:** react with configured emoji on a channel image; the bot POSTs to Pindeck and items queue for approve/deny (typical Midjourney workflow)
-- **Manual upload:** pick files on Upload → Local; `generateUploadUrl` + `uploadMultiple` queue analysis and RustFS finalize like other sources
-- **Pinterest ingest:** save a board, profile, or pin URL as a source (`VITE_PINTEREST_INGEST_BASE_URL`); **Run** extracts new pins, **Send to Queue** calls `sync-pindeck` into `/ingestExternal`, or use **Run + Send**; scheduled board polling is the hands-off path on the ingest worker
-- **Pinterest review:** `sourceType: "pinterest"` imports stay pending until you approve them in Upload
+- **Manual upload:** Upload → Local; selected files upload through Convex and the same finalize, metadata, and palette pipeline as imports
+- **Pinterest ingest:** Upload → Pinterest; save a board, profile, or pin URL, then **Run + Send** (or **Run** then **Send to Queue**) to extract pins and forward new images into Pindeck; the ingest worker also supports scheduled board polling
+- **Pinterest review:** Pinterest imports stay pending until you approve them in Upload
+- **Auto meta tagging:** after upload finalize or import approve, smart analysis (`internalSmartAnalyzeImage`) writes group/type, genre, shot, style, tags, and dominant colors
+- **Sref tracking:** Discord ingest extracts sref from message text; sref is stored on the image, shown in table/drawer, searchable in the top bar, filterable (originals / sref), and passed into variation prompts; generated children inherit parent/root sref
 - **Organize:** gallery and table views, sidebar filters, palette swatches, and boards to save images
-- **Variations:** choose modes in the image drawer; `vision.generateVariations` runs fal.ai edits and stores children with `parentImageId` lineage
-- **Metadata:** VLM fills type, genre, shot, style, tags, and dominant colors on active library images
-- **Pitch decks:** deck library plus composer (`decks.update` autosave) built from your curated strips
+- **Variations:** pick a mode and count in the image drawer; fal.ai edits create child images with `parentImageId` lineage
+- **Storyboards:** on a board, use the storyboard builder to arrange board images into grid, hero, or strip panels and save layouts to Convex
+- **Pitch decks:** deck library plus composer with autosave to Convex, built from curated image strips
 
 ## Production Names
 

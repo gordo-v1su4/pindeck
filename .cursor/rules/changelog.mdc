@@ -24,7 +24,7 @@ Rules:
 
 ## 2026-10-02
 
-- **Docs:** README intro/What it does: manual upload, Pinterest board/profile URLs, Run+Send and scheduled polling (per Upload UI + ingest sidecar).
+- **Docs:** README documents auto meta tagging, sref tracking, storyboards; About one-liner for owner.
 
 ## 2026-09-19
 
