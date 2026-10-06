@@ -142,6 +142,10 @@ credentials to the browser.
 See [Trigger.dev orchestration](docs/trigger-orchestration.md) for the queue,
 secret, callback, rollout, and verification contract.
 
+## Overall Workflow
+
+![Pindeck workflow: ingest and review, backend processing with Convex, Trigger.dev and RustFS, then library, variations, storyboards and deck creation](docs/images/pindeck-workflow.webp)
+
 ## Media Upload Pipeline (Convex -> RustFS)
 
 - Uploads first land in Convex storage, then `convex/mediaStorage.finalizeUploadedImage` persists to the RustFS media API.
