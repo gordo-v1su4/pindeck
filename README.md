@@ -32,91 +32,14 @@ Public app: [pindeck.dev](https://pindeck.dev). Backend layers (Convex, Trigger,
 | Surface      | Role |
 | ------------ | ---- |
 | Frontend     | Vercel project `pindeck` → [pindeck.dev](https://pindeck.dev) |
-| Backend      | Self-hosted Convex (`VITE_CONVEX_URL`, `CONVEX_SELF_HOSTED_URL`) |
-| HTTP actions | Self-hosted Convex site (`VITE_CONVEX_SITE_URL`) |
+| Backend      | Self-hosted Convex |
+| HTTP actions | Self-hosted Convex HTTP actions |
 
 Deploy patterns: **[platform-topology](docs/architecture/platform-topology.md)** and **[self-hosted-convex-ops](docs/self-hosted-convex-ops.md)**.
 
-## Local production workflow
+## Development
 
-Run the frontend against your configured Convex deployment (usually production credentials in `.env.local` only).
-
-1. Install dependencies:
-
-```bash
-bun install
-```
-
-2. Configure env:
-
-```bash
-cp .env.example .env.local
-```
-
-Fill in Convex, media, and Trigger URLs in **`.env.local`**. See `.env.example` for variable names.
-
-3. Example (values only in `.env.local`, not committed):
-
-```bash
-VITE_CONVEX_URL=
-VITE_CONVEX_SITE_URL=
-```
-
-4. Build production bundle:
-
-```bash
-bun run build
-```
-
-5. Serve production bundle:
-
-```bash
-bun run serve
-```
-
-`bun run serve` always uses port `4173` and will kill any process already using that port before starting.
-
-## Required Environment Variables
-
-### Convex Dashboard (Backend)
-
-Set in Convex Project Settings:
-
-- `JWT_PRIVATE_KEY`
-- `OPENROUTER_API_KEY`
-- `OPENROUTER_VLM_MODEL` (optional)
-- `OPENROUTER_PROVIDER_SORT` (optional)
-- `FAL_KEY`
-- `INGEST_API_KEY` (for Discord ingest)
-- `ADMIN_USER_IDS` / `ADMIN_EMAILS` (optional comma-separated admin overrides for image delete/edit)
-- `DISCORD_STATUS_WEBHOOK_URL` (optional Discord status updates)
-- `MEDIA_GATEWAY_URL=` (RustFS media API base URL)
-- `MEDIA_GATEWAY_TOKEN`
-- `MEDIA_GATEWAY_BUCKET=pindeck`
-- `MEDIA_GATEWAY_USER_ID=pindeck`
-- `MEDIA_GATEWAY_UPLOAD_PREFIX=media-uploads`
-- `PINDECK_STORAGE_PROVIDER=rustfs`
-- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` (optional; Google OAuth — backend-only until env + UI are enabled)
-- `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` (optional; GitHub OAuth — backend-only until env + UI are enabled)
-- `SITE_URL` (public app URL for OAuth redirect/callback; required if OAuth env is set)
-
-### Local / Vercel Frontend
-
-Set for frontend build/runtime:
-
-- `VITE_CONVEX_URL=`
-- `VITE_CONVEX_SITE_URL=`
-
-Set in **`.env.local`** (git-ignored). See `.env.example`.
-
-For Convex function deploys:
-
-- `CONVEX_SELF_HOSTED_URL=`
-- `PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY=<Pindeck self-hosted admin key>`
-- `CONVEX_SELF_HOSTED_ADMIN_KEY=` is also accepted by the Convex CLI; prefer the Pindeck-prefixed name so it is not confused with other projects.
-- Do **not** set `CONVEX_DEPLOYMENT` for Pindeck production.
-
-Vercel production builds deploy Convex when `CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY` are configured. Preview builds without those deploy secrets run as frontend-only builds, so PR checks can still validate the UI without backend deploy credentials.
+For local setup, environment configuration, and deployment, see [Developer setup](docs/developer-setup.md).
 
 ## Scripts
 
@@ -126,8 +49,8 @@ Vercel production builds deploy Convex when `CONVEX_SELF_HOSTED_URL` and `CONVEX
 - `bun run deploy:convex` - Deploy Convex functions with `bunx convex deploy`
 - `bun run trigger:dev` - Run Pindeck Trigger tasks against your configured Trigger control plane
 - `bun run trigger:deploy` - Deploy Trigger tasks (run on the Linux worker host; see `docs/trigger-orchestration.md`)
-- `bun run e2e:smoke` - HTTP smoke against production Convex (ingest, orchestration 401 probes, optional `E2E_GENERATE=1` for fal)
-- `bun run e2e:ui` - Playwright app smoke on `https://pindeck.dev` (loads `E2E_*` from `.env` via `scripts/run-playwright-e2e.ts`)
+- `bun run e2e:smoke` - HTTP smoke for ingest and orchestration
+- `bun run e2e:ui` - Playwright app smoke using the configured test environment
 
 ## Trigger.dev Orchestration
 
@@ -155,7 +78,7 @@ secret, callback, rollout, and verification contract.
   - `media-uploads/YYYY/MM_DD/preview/<file>-preview.<ext>`
   - `media-uploads/YYYY/MM_DD/low/<file>-w320.<ext>`
   - `media-uploads/YYYY/MM_DD/high/<file>-w1280.<ext>` / `w1920.<ext>`
-- Convex and Vercel never receive direct S3 credentials; all writes and deletes go through `MEDIA_GATEWAY_URL`.
+- Convex and Vercel never receive direct S3 credentials; all writes and deletes go through the media gateway.
 
 ### Image record tracking fields
 
@@ -170,73 +93,9 @@ Each image now carries persistence status for observability:
 
 Gallery, boards, deck, and table all continue to read the same `images.imageUrl` / `previewUrl` fields; those URLs should resolve to RustFS-backed public objects.
 
-## Discord Bot (Ingest + Status)
+## Discord integration
 
-The Discord bot and media gateway are hosted/deployed from a separate repo:
-
-- Source of truth: separate **`discord-bot`** repository (not deployed from this tree)
-- This `pindeck` repo consumes those services via:
-  - Convex HTTP actions (`/ingestExternal`, `/discordQueue`, `/discordModerate`)
-  - Media gateway endpoint/env wiring (`MEDIA_GATEWAY_URL`, token-based auth)
-
-Typical setup in `.env`:
-
-- `DISCORD_TOKEN`
-- `DISCORD_CLIENT_ID`
-- `DISCORD_GUILD_ID`
-- `DISCORD_INGEST_EMOJIS` (example: `:pushpin:` equivalent unicode/custom emoji format)
-- `INGEST_API_KEY`
-- `MEDIA_GATEWAY_URL` / `RUSTFS_MEDIA_API_URL` (RustFS-backed media API)
-- `MEDIA_GATEWAY_TOKEN` / `MEDIA_API_TOKEN`
-- `MEDIA_GATEWAY_BUCKET=pindeck`
-- `PINDECK_INGEST_URL` (optional if deriving from Convex site URL)
-- `PINDECK_DISCORD_QUEUE_URL` / `PINDECK_DISCORD_MODERATION_URL` (optional overrides)
-
-Run:
-
-```bash
-# Run from your checkout of the discord-bot repository:
-bun install
-bun run dev
-```
-
-### Discord Bot Deployment
-
-Notes:
-
-- Manage the Discord bot and media gateway from the separate `discord-bot` repo.
-- Keep hostnames, IP addresses, usernames, and SSH targets out of this repository.
-- Pushing to `main` in the separate `discord-bot` repo can trigger its deploy workflow when the required GitHub Actions secrets are configured.
-
-## Deploy
-
-### Convex
-
-```bash
-bun run deploy:convex
-```
-
-This requires `.env` or the shell environment to include:
-
-```bash
-CONVEX_SELF_HOSTED_URL=
-PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY=
-```
-
-Values from **`.env.local`** only.
-
-Do **not** set `CONVEX_DEPLOYMENT`; the old Convex Cloud project has been deleted and Pindeck production uses the self-hosted Convex target above.
-No Convex MCP is configured or required for production deploys; use the direct self-hosted Convex CLI target above.
-
-For self-hosted Convex health checks and CLI patterns, see [`docs/self-hosted-convex-ops.md`](docs/self-hosted-convex-ops.md).
-
-### Vercel
-
-Use the active Vercel project named **`pindeck`** for production deployment. Pushing to `main` on GitHub triggers the Vercel production deploy at `https://pindeck.dev`; Vercel runs `bun run build`, and the Bun-native `scripts/build.ts` wrapper runs `bunx convex deploy --cmd 'bun run build:frontend'` on production builds when the self-hosted Convex deploy secrets are present. Preview builds without those secrets skip Convex deploy and run the frontend build only.
-
-**Vercel builds** use project env secrets for Convex deploy when configured. Locally, keep **`VITE_CONVEX_URL`**, **`VITE_CONVEX_SITE_URL`**, **`CONVEX_SELF_HOSTED_URL`**, and **`PINDECK_CONVEX_SELF_HOSTED_ADMIN_KEY`** in **`.env.local`** (see `.env.example`). Keep **`CONVEX_DEPLOYMENT` unset**.
-
-Some scripts enforce that configured Convex URLs match the team’s production target; see `scripts/enforce-production-convex.sh`.
+Discord ingest and the media gateway run from the separate `discord-bot` repository. See [Developer setup](docs/developer-setup.md#discord-bot-ingest--status) for configuration and deployment notes.
 
 ## Unified UI / design tokens (Tweaks)
 
@@ -260,7 +119,7 @@ Unused Radix `ImageGrid`, `TableView`, `ImageModal`, `EditImageModal`, `Generate
 ## Notes
 
 - **Deck composer** ([`src/components/deck/DeckComposer.tsx`](src/components/deck/DeckComposer.tsx)): edits autosave to Convex via **`decks.update`** (debounced ~800ms) with a **Saving… / Saved** indicator; legacy full-state `localStorage` is migrated on first Convex save. Only UI selection index stays in `localStorage`.
-- **Image permissions**: delete and metadata edit require ownership (or admin via **`ADMIN_USER_IDS`** / **`ADMIN_EMAILS`** in Convex env). Table bulk delete surfaces skipped rows when permission is denied.
+- **Image permissions**: delete and metadata edit require ownership (or configured administrator access). Table bulk delete surfaces skipped rows when permission is denied.
 - **pd Gallery tiles** ([`src/components/pd/GalleryView.tsx`](src/components/pd/GalleryView.tsx)): image-first cards with a **VAR** badge for generated children; **heart** + **bookmark** are **top-right only** (no second like indicator). Like uses optimistic UI; filled **red** heart / **blue** filled bookmark when the image is on a board. Variation generation stays in the image drawer, not on the tile overlay.
 - **Create New Board** (bookmark → Create board, [`src/components/CreateBoardModal.tsx`](src/components/CreateBoardModal.tsx)): **`Dialog`** with **`.pd-theme`** + same field chrome as the image drawer (`var(--pd-line-strong)`, `--pd-accent` primary); **`boards.create`** args remain **name**, **description**, **isPublic**. Image **variation** generation stays on **`vision.generateVariations`** in the drawer (`ImageDetailDrawer`), not this modal.
 - **Decks** ([`src/components/DeckView.tsx`](src/components/DeckView.tsx), [`src/components/deck/`](src/components/deck/)): Matches **`claude/redesign`** — sideways deck library strip, **`DeckComposer`** + **`DeckCanvasPage`**. Composer state **autosaves to Convex** via **`decks.update`** (blocks, palette, slides, FX, typography). **`convex/decks.list`** returns **`stripImageUrls`** + **`stripPalettes`** (**`images.colors[..5]`** per slide, same metadata as the **Table** `PinSwatches` column). Library cards use a **16:9 hero** still for the first slide and a **filmstrip** row for extras, each with **`PinSwatches`**. **Tweaks** **`--pd-accent*`** apply to **composer chrome**; composer **left swatches** client-sample the **active** strip image (Convex fallback by **`imageUrl`**). **`DeckCanvasPage`** slide frames have **no selection outline**; **editable-text** focus uses **`colors.accent`**. Deploy self-hosted Convex after **`decks.list`** / **`decks.update`** changes.
