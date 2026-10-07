@@ -12,7 +12,7 @@ Pindeck is one workspace for curating images so you are not saving Midjourney ou
 
 ## What it does
 
-![Pindeck gallery with metadata drawer](docs/images/pindeck-gallery-readme.webp)
+![Pindeck image gallery and metadata drawer](docs/images/pindeck-workspace.png)
 
 - **Discord ingest:** react with configured emoji on a channel image; the bot POSTs to Pindeck and items queue for approve/deny (typical Midjourney workflow)
 - **Manual upload:** Upload → Local; selected files upload through Convex and the same finalize, metadata, and palette pipeline as imports
