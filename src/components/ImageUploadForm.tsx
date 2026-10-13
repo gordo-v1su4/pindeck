@@ -2601,7 +2601,13 @@ function AgentIngestPanel({
         ))}
       </Grid>
 
-      <Flex justify="end" gap="3" className="pt-4 border-t border-gray-6">
+      {/* Bottom space clears the fixed 22px status bar and lifts the button off the edge. */}
+      <Flex
+        justify="end"
+        gap="3"
+        className="pt-4 border-t border-gray-6"
+        style={{ paddingBottom: 64 }}
+      >
         <Button
           size="2"
           variant="soft"
