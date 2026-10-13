@@ -645,7 +645,7 @@ export function GalleryView({
                   }}
                 >
                   <h2
-                    className="pd-mono"
+                    className="pd-mono pd-sref-heading"
                     style={{
                       margin: 0,
                       fontSize: 13,
@@ -657,7 +657,7 @@ export function GalleryView({
                     {row.name}
                   </h2>
                   <span
-                    className="pd-mono"
+                    className="pd-mono pd-sref-count"
                     style={{ fontSize: 10, color: "var(--pd-ink-faint)" }}
                   >
                     {row.rows.length}{" "}

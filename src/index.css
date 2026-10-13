@@ -2953,7 +2953,7 @@ body {
 
   .pd-search-shell {
     order: 1;
-    flex: 1 1 calc(100% - 48px);
+    flex: 1 1 0;
     width: auto !important;
     max-width: none !important;
     min-width: 0;
@@ -2985,14 +2985,31 @@ body {
     padding: 7px 7px !important;
   }
 
-  .pd-viewnav-label {
-    font-size: 0;
+  .pd-topbar-viewnav .pd-viewnav-label {
+    font-size: 10.5px;
   }
 
   .pd-viewnav-label::after {
-    content: attr(data-short);
-    font-size: 10.5px;
-    letter-spacing: 0.01em;
+    display: none;
+  }
+
+  .pd-topbar-viewnav .pd-topbar-row svg {
+    display: none;
+  }
+
+  .pd-work-trigger {
+    order: 2;
+    flex: 0 0 34px;
+  }
+
+  .pd-sref-heading {
+    font-size: 10px !important;
+    letter-spacing: 0 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .pd-sref-count {
+    display: none;
   }
 
   .pd-tweaks-mobile {
