@@ -82,7 +82,7 @@ export function DocsTable({
 }) {
   return (
     <div
-      className="pd-scroll"
+      className={`pd-scroll pd-docs-table ${columns[0] === "Step" ? "pd-docs-step-table" : ""}`}
       style={{
         border: "1px solid var(--pd-line-strong)",
         borderRadius: "var(--pd-radius)",

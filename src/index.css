@@ -802,7 +802,7 @@ body {
 }
 
 .pd-sidebar-account,
-.pd-docs-diagram-toggle {
+.pd-docs-page-picker {
   display: none;
 }
 
@@ -839,14 +839,64 @@ body {
     flex-shrink: 0;
   }
 
-  .pd-docs-diagram-toggle {
-    display: inline-flex;
-    padding: 4px 6px;
+  .pd-docs-page-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 20px 0;
     font-size: 10px;
-    color: var(--pd-accent-ink);
+    color: var(--pd-ink-mute);
   }
 
-  .pd-docs-diagram[data-zoomed="false"] {
+  .pd-docs-page-picker select {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 7px;
+    font-size: 11px;
+    color: var(--pd-ink);
+    background: var(--pd-bg-1);
+    border: 1px solid var(--pd-line);
+    border-radius: 3px;
+  }
+
+  .pd-docs-table {
+    overflow-x: hidden !important;
+  }
+
+  .pd-docs-table table {
+    table-layout: fixed;
+    font-size: 10.5px !important;
+  }
+
+  .pd-docs-table td,
+  .pd-docs-table th {
+    padding: 6px 7px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .pd-docs-table code {
+    font-size: 9px !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 1px 3px;
+  }
+
+  .pd-docs-table th {
+    white-space: normal !important;
+    font-size: 8.5px !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  .pd-docs-step-table table {
+    table-layout: auto;
+  }
+
+  .pd-docs-step-table td:first-child {
+    white-space: nowrap;
+    font-size: 9.5px;
+  }
+
+  .pd-docs-diagram {
     min-width: 0 !important;
   }
   .pd-work-trigger {

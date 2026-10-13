@@ -197,7 +197,11 @@ function IngestApi() {
             [<Code>sourceUrl</Code>, "string", "Defaults to imageUrl."],
             [<Code>importBatchId</Code>, "Id<importBatches>", "Optional batch grouping."],
             [<Code>colors</Code>, "#rrggbb[] · agent only", "Five swatches, dark to light. Stored as the palette, not as tags."],
-            [<Code>group · genre · style · shot</Code>, "string · agent only", "Facets shown on the card. Trimmed to 120 chars."],
+            ...["group", "genre", "style", "shot"].map((field) => [
+              <Code key={field}>{field}</Code>,
+              "string · agent only",
+              "Facet shown on the card. Trimmed to 120 chars.",
+            ]),
             [<Code>projectName</Code>, "string · agent only", "One per look. Falls back to title."],
             [<Code>uniqueId</Code>, "string · agent only", "Defaults to externalId for agent rows."],
           ]}
@@ -437,6 +441,14 @@ export function DocsView({ page, onPage }: { page: DocsPageId; onPage: (p: DocsP
       onScroll={(e) => setStuck(e.currentTarget.scrollTop > 90)}
       style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 40 }}
     >
+      <label className="pd-docs-page-picker">
+        <span className="pd-mono">Docs page</span>
+        <select value={page} onChange={(event) => onPage(sanitizeDocsPage(event.target.value))}>
+          {DOCS_PAGES.map((item) => (
+            <option key={item.id} value={item.id}>{item.label}</option>
+          ))}
+        </select>
+      </label>
       <div
         className="pd-docs-sticky"
         aria-hidden={!stuck}
