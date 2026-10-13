@@ -36,7 +36,7 @@ Current behavior highlights:
 pindeck/
 ├── .cursor/rules/                 # Cursor rules/docs
 ├── convex/                        # Convex backend
-├── docs/                          # Mintlify site (docs.pindeck.dev): MDX guides, docs.json, style.css, accent.js
+├── docs/                          # Markdown ops notes only (setup, self-hosted Convex, Trigger, Pinterest, architecture). User docs are in-app.
 ├── scripts/                       # Run/deploy helper scripts
 ├── services/discord-bot/          # Discord bot service
 ├── src/                           # Frontend app
@@ -51,7 +51,9 @@ Key files:
 - `images.ts` + `images/`: root [`images.ts`](convex/images.ts) registers wire path `images:*` for the frontend; [`index.ts`](convex/images/index.ts) re-exports nested modules for `api.images.*`. Cross-module **internal** calls use the `internalApi.images.*` shim in [`shared.ts`](convex/images/shared.ts) (maps nested `images/analysis`, `images/ingest`, …). Modules: `library.ts`, `ingest.ts`, `moderation.ts`, `lifecycle.ts`, `uploads.ts`, `analysis.ts`, `generation.ts`, `shared.ts`. Orchestration lease mutations live in [`orchestrationState.ts`](convex/orchestrationState.ts), not `analysis.ts`.
 - `orchestrationSeam.ts` / `orchestrationCore.ts` / `triggerDispatch.ts` / `orchestration.ts`: Trigger HTTP seam, Node idempotency/status helpers, SDK dispatch, protected callbacks.
 - `mediaAdapter.ts` + `lib/mediaAdapter.ts` + `mediaStorage.ts`: canonical storage paths / public URLs vs Node upload/cleanup actions.
-- `vision.ts`: analysis + variation generation flow and prompt planning
+- `vision.ts`: analysis + variation generation flow; prompts come from the shared builder `lib/variationPrompts.ts`
+- `lib/variationPrompts.ts`: pure variation prompt builder shared by server, UI and Docs (`MODE_INSTRUCTIONS`, `SHOT_CHIPS`, `AUTO_SHOT_SEQUENCE` without high angle, lens + no-crew lines, `parse/composeVariationDetail` with `framing:<shot>|<text>` format, legacy `<shot>; <text>` still read)
+- `userPreferences.ts`: per-user UI prefs (`userPreferences` table; Docs last page). localStorage is only a cache.
 - `colorExtraction.ts` + `colorExtractionUrls.ts` + `colorExtractionAdmin.ts` / `colorExtractionWrite.ts`: dominant image swatches (`images.colors`) via sharp + [colorPaletteCore](mdc:src/lib/colorPaletteCore.ts); admin mutations require auth (`reExtractAll` / `reExtractForImage`)
 - `discordNotifications.ts`: webhook status events to Discord channel
 - `http.ts`: public HTTP routes (`/ingestExternal`, `/discordQueue`, `/discordModerate`, `/smartAnalyzeImage`, `/orchestration/*`)
@@ -60,7 +62,7 @@ Key files:
 Important image fields:
 - `status`: `pending` / `draft` / `active`
 - `aiStatus`: `queued` / `processing` / `completed` / `failed`
-- `sourceType`: `upload` / `discord` / `pinterest` / `ai`
+- `sourceType`: `upload` / `discord` / `pinterest` / `agent` / `ai`
 - `sref`, `tags`, `colors`, `group`, `projectName`, `parentImageId`
 
 ## Frontend (`src/`)
@@ -71,7 +73,8 @@ Key files:
 - `components/pd/GalleryView.tsx`: library gallery (random / project rows), like + save-to-board
 - `components/pd/TableView.tsx`: library table (sort, selection, metadata/palette refresh)
 - `components/pd/ImageDetailDrawer.tsx`: image details, edit metadata, variations, lineage
-- `components/ImageUploadForm.tsx`: local upload + Discord queue review/approve/discard
+- `components/ImageUploadForm.tsx`: local upload, Discord/Pinterest queues, Agent tab (pre-filled drafts, Approve / Approve All)
+- `components/docs/`: in-app Docs view (`DocsPages`, `DocsVariations`, themed SVG diagrams in `DocsDiagram(s)`); opened from the top bar **Docs** (`H`); last page saved via `api.userPreferences`
 - `lib/colorExtraction.ts`: frontend color extraction helper
 
 ## Discord Bot (`services/discord-bot/`)

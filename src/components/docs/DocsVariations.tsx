@@ -348,7 +348,7 @@ export function Variations() {
           ]}
         />
         <P>
-          The chip and the text box are stored together in <Code>variationDetail</Code> as <Code>{"<shot>; <text>"}</Code> and split again by <Code>parseVariationDetail</Code>, so a chip can no longer overwrite the mode or your text. The aspect chip is sent only as the <Code>aspect_ratio</Code> parameter and never appears in the prompt.
+          The chip and the text box are stored together in <Code>variationDetail</Code> as <Code>{"framing:<shot>|<text>"}</Code> (an empty shot means Auto; older saved values are still read) and split again by <Code>parseVariationDetail</Code>, so a chip can no longer overwrite the mode or your text. The aspect chip is sent only as the <Code>aspect_ratio</Code> parameter and never appears in the prompt.
         </P>
       </DocsSection>
 

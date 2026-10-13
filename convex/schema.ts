@@ -261,6 +261,13 @@ const applicationTables = {
   })
     .index("by_user", ["userId"])
     .index("by_source_type", ["sourceType"]),
+
+  /** Per-user UI preferences (browser storage is only a cache). */
+  userPreferences: defineTable({
+    userId: v.id("users"),
+    docsPage: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
 };
 
 export default defineSchema({

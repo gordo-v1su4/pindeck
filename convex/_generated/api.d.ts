@@ -42,6 +42,7 @@ import type * as orchestrationSeam from "../orchestrationSeam.js";
 import type * as orchestrationState from "../orchestrationState.js";
 import type * as seed from "../seed.js";
 import type * as storyboards from "../storyboards.js";
+import type * as userPreferences from "../userPreferences.js";
 import type * as triggerDispatch from "../triggerDispatch.js";
 import type * as vision from "../vision.js";
 
@@ -86,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   orchestrationState: typeof orchestrationState;
   seed: typeof seed;
   storyboards: typeof storyboards;
+  userPreferences: typeof userPreferences;
   triggerDispatch: typeof triggerDispatch;
   vision: typeof vision;
 }>;

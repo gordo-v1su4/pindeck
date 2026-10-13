@@ -1,7 +1,7 @@
 /**
  * Pure prompt builder for image variations (no Convex imports, so the app UI,
  * the docs and scripts can use it too). The shot chip and the custom text travel
- * together in the single stored `variationDetail` string as "<shot>; <text>".
+ * together in the single stored `variationDetail` string as "framing:<shot>|<text>" (legacy "<shot>; <text>" is still read).
  */
 
 /** Framing chips shown in the UI. `prompt` is the exact framing text sent. */
@@ -69,10 +69,23 @@ export const MODE_INSTRUCTIONS: Record<string, string> = {
 
 const SHOT_PROMPTS: string[] = SHOT_CHIPS.map((c) => c.prompt).filter(Boolean);
 
-/** Split the stored variationDetail into the chip framing and the free text. */
+/**
+ * Stored format (v2): "framing:<shot>|<text>" — the shot part may be empty (Auto).
+ * Values without the "framing:" marker are legacy (pre-v2) and parsed the old way:
+ * an exact chip phrase, or "<chip phrase>; <text>", otherwise plain text.
+ */
+const V2_MARKER = "framing:";
+
 export function parseVariationDetail(raw?: string): { shot?: string; text?: string } {
   const value = raw?.trim();
   if (!value) return {};
+  if (value.toLowerCase().startsWith(V2_MARKER)) {
+    const rest = value.slice(V2_MARKER.length);
+    const bar = rest.indexOf("|");
+    const shot = (bar === -1 ? rest : rest.slice(0, bar)).trim();
+    const text = bar === -1 ? "" : rest.slice(bar + 1).trim();
+    return { shot: shot || undefined, text: text || undefined };
+  }
   const lower = value.toLowerCase();
   for (const shot of SHOT_PROMPTS) {
     if (lower === shot) return { shot };
@@ -84,10 +97,12 @@ export function parseVariationDetail(raw?: string): { shot?: string; text?: stri
   return { text: value };
 }
 
-/** Join a chip framing and free text into the stored variationDetail string. */
+/** Join a chip framing (or Auto = empty) and free text into the stored variationDetail. */
 export function composeVariationDetail(shot?: string, text?: string): string | undefined {
-  const parts = [shot?.trim(), text?.trim()].filter(Boolean);
-  return parts.length ? parts.join("; ") : undefined;
+  const s = shot?.trim() ?? "";
+  const t = text?.trim() ?? "";
+  if (!s && !t) return undefined;
+  return `${V2_MARKER}${s}|${t}`;
 }
 
 function groupPrefix(mode: string, group?: string) {

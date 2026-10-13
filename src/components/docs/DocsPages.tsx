@@ -65,6 +65,20 @@ function Overview() {
           ]}
         />
       </DocsSection>
+      <DocsSection title="From gallery to deck" meta="Gallery → Board → Deck">
+        <DocsTable
+          columns={["Step", "Where", "Action"]}
+          rows={[
+            ["1 · Bookmark", "Gallery (G)", "Hover a tile → bookmark (Save to board). Pick a board or Create New Board. The bookmark turns blue once the image is on a board. Repeat for every image you want on slides."],
+            ["2 · Open the board", "Boards (B)", "Double-click a board card (or focus it and press Enter). Shots lists the pins; Storyboard lays them out in Grid, Hero or Strip. Lock Board is optional."],
+            ["3 · Convert", "Boards, or the board's Decks tab", "Convert to Deck → creates a deck whose slides come from the board's pins."],
+            ["4 · Compose", "Decks (D)", "Open the deck in the composer; edits autosave. Present or export PDF."],
+          ]}
+        />
+        <Callout title="Empty deck?">
+          Decks only pull images from a board that already has pins. Bookmark from Gallery first, then convert. + BLANK in Decks starts an empty deck without a board.
+        </Callout>
+      </DocsSection>
     </>
   );
 }

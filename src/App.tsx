@@ -7,7 +7,7 @@ import React, {
   Suspense,
   useRef,
 } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "@/SignInForm";
 import { SignOutButton } from "@/SignOutButton";
@@ -97,19 +97,37 @@ export default function App() {
   const [docsPage, setDocsPageState] = useState<DocsPageId>(() =>
     sanitizeDocsPage(localStorage.getItem("pindeck_docs_page")),
   );
+  const saveDocsPagePref = useMutation(api.userPreferences.setDocsPage);
   const setDocsPage = (page: DocsPageId) => {
     setDocsPageState(page);
     try {
+      // localStorage is only a fast cache; Convex holds the preference.
       localStorage.setItem("pindeck_docs_page", page);
     } catch {
       // ignore storage failures
     }
+    void saveDocsPagePref({ docsPage: page }).catch(() => {});
   };
   const [search, setSearch] = useState("");
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
   const expandButtonRef = React.useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const userPrefs = useQuery(
+    api.userPreferences.get,
+    isAuthenticated ? {} : "skip",
+  );
+  const savedDocsPage = userPrefs?.docsPage;
+  useEffect(() => {
+    if (!savedDocsPage) return;
+    const page = sanitizeDocsPage(savedDocsPage);
+    setDocsPageState(page);
+    try {
+      localStorage.setItem("pindeck_docs_page", page);
+    } catch {
+      // ignore storage failures
+    }
+  }, [savedDocsPage]);
   const libraryImages = useQuery(
     api.images.list,
     isAuthenticated ? { limit: 1000 } : "skip",
