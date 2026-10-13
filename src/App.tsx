@@ -24,6 +24,11 @@ import { BoardsView } from "@/components/pd/BoardsView";
 import { ImageDetailDrawer } from "@/components/pd/ImageDetailDrawer";
 import { applyPindeckTweaksToDocument } from "@/lib/pdTheme";
 import {
+  DocsView,
+  sanitizeDocsPage,
+  type DocsPageId,
+} from "@/components/docs/DocsPages";
+import {
   Sidebar,
   Topbar,
   useAppView,
@@ -90,6 +95,17 @@ export default function App() {
   const { libraryFilter, setLibraryFilter } = useLibraryFilterState();
   const { tableVisibleColumns, setTableVisibleColumns } =
     useTableColumnVisibility();
+  const [docsPage, setDocsPageState] = useState<DocsPageId>(() =>
+    sanitizeDocsPage(localStorage.getItem("pindeck_docs_page")),
+  );
+  const setDocsPage = (page: DocsPageId) => {
+    setDocsPageState(page);
+    try {
+      localStorage.setItem("pindeck_docs_page", page);
+    } catch {
+      // ignore storage failures
+    }
+  };
   const [search, setSearch] = useState("");
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
   const expandButtonRef = React.useRef<HTMLButtonElement>(null);
@@ -185,6 +201,7 @@ export default function App() {
       if (e.key === "b") setView("boards");
       if (e.key === "d") setView("deck");
       if (e.key === "u") setView("upload");
+      if (e.key === "h") setView("docs");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -282,6 +299,8 @@ export default function App() {
           setGalleryDisplayMode={setGalleryDisplayMode}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleSidebar}
+          docsPage={docsPage}
+          onDocsPage={setDocsPage}
         />
         {sidebarCollapsed ? (
           <button
@@ -398,6 +417,9 @@ export default function App() {
                     />
                   </Suspense>
                 </div>
+              )}
+              {view === "docs" && (
+                <DocsView page={docsPage} onPage={setDocsPage} />
               )}
               {view === "upload" && (
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">

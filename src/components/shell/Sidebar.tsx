@@ -16,6 +16,7 @@ import {
 } from "@/components/pd/LibraryAggregationFilterParts";
 import { APP_VIEWS, type AppViewId, type GalleryDisplayMode } from "./types";
 import { buildSidebarColorRows } from "./sidebarColors";
+import { DOCS_PAGES, type DocsPageId } from "@/components/docs/DocsPages";
 
 /** When `libraryAggregations` errors (e.g. Convex not redeployed), don't blank the shell. */
 class LibraryAggregationsErrorBoundary extends Component<
@@ -480,7 +481,11 @@ export function Sidebar({
   setGalleryDisplayMode,
   collapsed,
   onToggleCollapsed,
+  docsPage,
+  onDocsPage,
 }: {
+  docsPage?: DocsPageId;
+  onDocsPage?: (page: DocsPageId) => void;
   activeView: AppViewId;
   onView: (v: string) => void;
   libraryFilter: LibraryFilters;
@@ -617,6 +622,57 @@ export function Sidebar({
         className="pd-scroll"
         style={{ flex: 1, overflow: "auto", padding: "8px 12px 14px" }}
       >
+        {activeView === "docs" && (
+          <div style={{ padding: "4px 4px 12px" }}>
+            <div
+              className="pd-mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--pd-ink-faint)",
+                marginBottom: 7,
+              }}
+            >
+              Docs
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {DOCS_PAGES.map((page) => {
+                const selected = docsPage === page.id;
+                return (
+                  <button
+                    key={page.id}
+                    type="button"
+                    className="pd-sidebar-display-row"
+                    onClick={() => onDocsPage?.(page.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      padding: "6px 7px",
+                      borderRadius: 4,
+                      border: "0",
+                      background: selected
+                        ? "rgba(255,255,255,0.05)"
+                        : "transparent",
+                      color: selected
+                        ? "var(--pd-accent-ink)"
+                        : "var(--pd-ink-dim)",
+                      fontSize: 11.5,
+                      textAlign: "left",
+                    }}
+                  >
+                    <PinIcon name={page.icon} size={12} />
+                    <span>{page.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {activeView !== "docs" && (
+          <>
         {activeView === "gallery" && (
           <div
             style={{
@@ -703,6 +759,8 @@ export function Sidebar({
             />
           </LibraryAggregationsErrorBoundary>
         </div>
+          </>
+        )}
       </div>
 
       <div

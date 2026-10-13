@@ -512,7 +512,7 @@ export function Topbar({
         href={docsUrl}
         target="_blank"
         rel="noreferrer"
-        title="Open Pindeck docs"
+        title="Open the previous docs site (docs.pindeck.dev)"
         className="pd-topbar-row pd-docs-link"
         style={{
           display: "flex",
@@ -528,7 +528,7 @@ export function Topbar({
         }}
       >
         <PinIcon name="docs" size={12} />
-        <span>Docs</span>
+        <span>Old docs</span>
         <PinIcon name="external" size={10} stroke={1.5} />
       </a>
 

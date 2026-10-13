@@ -4,6 +4,7 @@ export const APP_VIEWS = [
   { id: "boards", label: "Boards", short: "Bds", icon: "board", hk: "B" },
   { id: "deck", label: "Decks", short: "Dks", icon: "deck", hk: "D" },
   { id: "upload", label: "Upload", short: "Up", icon: "upload", hk: "U" },
+  { id: "docs", label: "Docs", short: "Doc", icon: "docs", hk: "H" },
 ] as const;
 
 export type AppViewId = (typeof APP_VIEWS)[number]["id"];
