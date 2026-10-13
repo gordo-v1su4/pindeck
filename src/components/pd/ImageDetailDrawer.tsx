@@ -1,4 +1,9 @@
 import React, { useEffect, useState } from "react";
+import {
+  SHOT_CHIPS,
+  composeVariationDetail,
+  parseVariationDetail,
+} from "../../../convex/lib/variationPrompts";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -20,31 +25,19 @@ interface ImageDetailDrawerProps {
 const VARIATION_MODES: { id: string; label: string }[] = [
   { id: "shot-variation", label: "Shot Variation" },
   { id: "b-roll", label: "B-Roll" },
+  { id: "b-roll-people", label: "B-Roll + people" },
   { id: "action-shot", label: "Action Shot" },
   { id: "style-variation", label: "Style Variation" },
   { id: "subtle-variation", label: "Subtle Variation" },
   { id: "coverage", label: "Coverage" },
 ];
 
-const SHOT_CHIP_PRESETS: { label: string; detail: string }[] = [
-  { label: "None", detail: "" },
-  { label: "Variation", detail: "variation" },
-  { label: "Close-up", detail: "close-up" },
-  { label: "Medium", detail: "medium shot" },
-  { label: "Wide", detail: "wide shot" },
-  { label: "Extreme wide", detail: "extreme wide shot" },
-  { label: "Dutch", detail: "dutch angle" },
-  { label: "OTS", detail: "over-the-shoulder" },
-  { label: "Low angle", detail: "low angle shot" },
-  { label: "Bird's eye", detail: "bird's eye view" },
-];
-
 const ASPECT_OPTIONS: { label: string; value: string }[] = [
-  { label: "2.39", value: "16:9" },
-  { label: "16:9", value: "16:9" },
-  { label: "1:1", value: "1:1" },
-  { label: "9:16", value: "9:16" },
-  { label: "4:3", value: "4:3" },
+  { label: "Widescreen", value: "16:9" },
+  { label: "Vertical", value: "9:16" },
+  { label: "Square", value: "1:1" },
+  { label: "Classic", value: "4:3" },
+  { label: "Portrait", value: "3:4" },
 ];
 
 const COUNT_OPTIONS = [1, 2, 4, 8];
@@ -146,25 +139,31 @@ export function ImageDetailDrawer({
   const [genMode, setGenMode] = useState(
     image.modificationMode || "shot-variation",
   );
-  const [genDetail, setGenDetail] = useState(image.variationDetail || "");
+  const [genShot, setGenShot] = useState(
+    parseVariationDetail(image.variationDetail).shot ?? "",
+  );
+  const [genText, setGenText] = useState(
+    parseVariationDetail(image.variationDetail).text ?? "",
+  );
   const [genCount, setGenCount] = useState(
     image.variationCount && image.variationCount > 0 ? image.variationCount : 4,
   );
-  /** Aspect label picked in UI (“2.39” maps to Falcon `16:9`). */
-  const [aspectLabel, setAspectLabel] = useState("16:9");
+  /** Aspect label picked in UI; the value sent to FAL comes from ASPECT_OPTIONS. */
+  const [aspectLabel, setAspectLabel] = useState("Widescreen");
 
   const falAspect =
     ASPECT_OPTIONS.find((o) => o.label === aspectLabel)?.value ?? "16:9";
 
   useEffect(() => {
     setGenMode(image.modificationMode || "shot-variation");
-    setGenDetail(image.variationDetail || "");
+    setGenShot(parseVariationDetail(image.variationDetail).shot ?? "");
+    setGenText(parseVariationDetail(image.variationDetail).text ?? "");
     setGenCount(
       image.variationCount && image.variationCount > 0
         ? image.variationCount
         : 4,
     );
-    setAspectLabel("16:9");
+    setAspectLabel("Widescreen");
     setEditDraft(editDraftFromImage(image));
     setTagInput("");
     setMetadataStatus(null);
@@ -218,7 +217,7 @@ export function ImageDetailDrawer({
         imageId: image._id as Id<"images">,
         variationCount: genCount,
         modificationMode: genMode,
-        variationDetail: genDetail.trim() || undefined,
+        variationDetail: composeVariationDetail(genShot, genText),
         aspectRatio: falAspect,
       });
       toast.success(
@@ -603,7 +602,7 @@ export function ImageDetailDrawer({
                 border: "1px solid rgba(255,255,255,0.12)",
               }}
             >
-              16:9
+              Widescreen
             </span>
             {image.style ? (
               <span
@@ -1085,20 +1084,16 @@ export function ImageDetailDrawer({
                 Shot type
               </span>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {SHOT_CHIP_PRESETS.map((s) => {
-                  const sel =
-                    genDetail.trim().toLowerCase() === s.detail.toLowerCase();
-                  return (
-                    <button
-                      key={s.label}
-                      type="button"
-                      onClick={() => setGenDetail(s.detail)}
-                      style={sel ? chipSelected : chipBase}
-                    >
-                      {s.label}
-                    </button>
-                  );
-                })}
+                {SHOT_CHIPS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setGenShot(c.prompt)}
+                    style={genShot === c.prompt ? chipSelected : chipBase}
+                  >
+                    {c.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1170,9 +1165,9 @@ export function ImageDetailDrawer({
                 Custom detail (optional)
               </span>
               <input
-                value={genDetail}
-                onChange={(e) => setGenDetail(e.target.value)}
-                placeholder="Refines prompts for this generation run"
+                value={genText}
+                onChange={(e) => setGenText(e.target.value)}
+                placeholder="Added as Direction: … after the mode and framing"
                 style={{
                   width: "100%",
                   padding: "8px 10px",

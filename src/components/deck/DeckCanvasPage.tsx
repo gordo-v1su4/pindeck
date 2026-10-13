@@ -317,7 +317,7 @@ export function DeckCanvasPage({
                       className="border px-2 py-1"
                       style={{ borderColor: accent, color: accent }}
                     >
-                      16:9 deck
+                      Widescreen deck
                     </span>
                     <span className="border border-white/10 px-2 py-1">
                       Convex media

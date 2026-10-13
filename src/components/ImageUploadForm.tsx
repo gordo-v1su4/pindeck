@@ -1,4 +1,9 @@
 import { useEffect, useState } from "react";
+import {
+  SHOT_CHIPS,
+  composeVariationDetail,
+  parseVariationDetail,
+} from "../../convex/lib/variationPrompts";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -126,31 +131,19 @@ function createUploadUniqueId(): string {
 const VARIATION_MODES: { id: string; label: string }[] = [
   { id: "shot-variation", label: "Shot Variation" },
   { id: "b-roll", label: "B-Roll" },
+  { id: "b-roll-people", label: "B-Roll + people" },
   { id: "action-shot", label: "Action Shot" },
   { id: "style-variation", label: "Style Variation" },
   { id: "subtle-variation", label: "Subtle Variation" },
   { id: "coverage", label: "Coverage" },
 ];
 
-const SHOT_CHIP_PRESETS: { label: string; detail: string }[] = [
-  { label: "None", detail: "" },
-  { label: "Variation", detail: "variation" },
-  { label: "Close-up", detail: "close-up" },
-  { label: "Medium", detail: "medium shot" },
-  { label: "Wide", detail: "wide shot" },
-  { label: "Extreme wide", detail: "extreme wide shot" },
-  { label: "Dutch", detail: "dutch angle" },
-  { label: "OTS", detail: "over-the-shoulder" },
-  { label: "Low angle", detail: "low angle shot" },
-  { label: "Bird's eye", detail: "bird's eye view" },
-];
-
 const ASPECT_OPTIONS: { label: string; value: string }[] = [
-  { label: "16:9", value: "16:9" },
-  { label: "9:16", value: "9:16" },
-  { label: "1:1", value: "1:1" },
-  { label: "4:3", value: "4:3" },
-  { label: "3:4", value: "3:4" },
+  { label: "Widescreen", value: "16:9" },
+  { label: "Vertical", value: "9:16" },
+  { label: "Square", value: "1:1" },
+  { label: "Classic", value: "4:3" },
+  { label: "Portrait", value: "3:4" },
 ];
 
 const COUNT_OPTIONS = [1, 2, 4, 8, 12];
@@ -311,7 +304,8 @@ export function ImageUploadForm() {
   >([]);
   const [variationCount, setVariationCount] = useState(1);
   const [modificationMode, setModificationMode] = useState("shot-variation");
-  const [variationDetail, setVariationDetail] = useState("");
+  const [variationShot, setVariationShot] = useState("");
+  const [variationText, setVariationText] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const hasPendingColorSampling = files.some(
     (file) => file.colorStatus === "pending",
@@ -898,7 +892,7 @@ export function ImageUploadForm() {
             imageId,
             variationCount,
             modificationMode,
-            variationDetail: variationDetail.trim() || undefined,
+            variationDetail: composeVariationDetail(variationShot, variationText),
             aspectRatio: aspectRatio || undefined,
           }),
         ),
@@ -910,7 +904,8 @@ export function ImageUploadForm() {
       setVariationTargetImageIds([]);
       setVariationCount(1);
       setModificationMode("shot-variation");
-      setVariationDetail("");
+      setVariationShot("");
+      setVariationText("");
       setAspectRatio("16:9");
     } catch (error) {
       console.error("Failed to generate variations:", error);
@@ -1632,21 +1627,16 @@ export function ImageUploadForm() {
                       Shot type
                     </Text>
                     <Flex gap="2" wrap="wrap">
-                      {SHOT_CHIP_PRESETS.map((shot) => {
-                        const selected =
-                          variationDetail.trim().toLowerCase() ===
-                          shot.detail.toLowerCase();
-                        return (
-                          <button
-                            key={shot.label}
-                            type="button"
-                            onClick={() => setVariationDetail(shot.detail)}
-                            style={selected ? chipSelected : chipBase}
-                          >
-                            {shot.label}
-                          </button>
-                        );
-                      })}
+                      {SHOT_CHIPS.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setVariationShot(c.prompt)}
+                          style={variationShot === c.prompt ? chipSelected : chipBase}
+                        >
+                          {c.label}
+                        </button>
+                      ))}
                     </Flex>
                   </Box>
 
@@ -1706,14 +1696,14 @@ export function ImageUploadForm() {
                       Custom detail (optional)
                     </Text>
                     <TextField.Root
-                      value={variationDetail}
-                      onChange={(e) => setVariationDetail(e.target.value)}
-                      placeholder="Refines prompts for this generation run"
+                      value={variationText}
+                      onChange={(e) => setVariationText(e.target.value)}
+                      placeholder="Added as Direction: … after the mode and framing"
                       size="2"
                     />
                     <Text size="1" className="mt-1 text-[var(--pd-ink-faint)]">
-                      None is the default; add a shot type only when you want to
-                      steer framing.
+                      Auto is the default. A shot type adds a framing line; this
+                      text adds a direction line. Neither replaces the mode.
                     </Text>
                   </Box>
                 </Flex>
