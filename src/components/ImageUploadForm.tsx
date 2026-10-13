@@ -2580,7 +2580,7 @@ function AgentIngestPanel({
               })
             }
             footer={
-              <Flex justify="end" gap="3" className="pt-2">
+              <Flex justify="end" gap="3" className="pd-upload-card-actions pt-2">
                 <Button
                   variant="soft"
                   color="gray"
@@ -2672,17 +2672,19 @@ function UploadMetadataCard({
   footer?: React.ReactNode;
 }) {
   return (
-    <Card className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <Flex gap="4">
-        <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
+    <Card className="pd-upload-metadata-card overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <Flex gap="4" className="pd-upload-metadata-layout">
+        <Box className="pd-upload-preview w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
           <img
             src={item.preview}
             alt={item.title}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover"
           />
         </Box>
 
-        <Box className="flex-1 space-y-2 min-w-0">
+        <Box className="pd-upload-metadata-fields flex-1 space-y-2 min-w-0">
           <Flex justify="between" align="start" gap="2">
             <Box className="flex-1">
               <TextField.Root

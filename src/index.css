@@ -846,6 +846,33 @@ body {
   }
 
 @media (max-width: 900px) {
+  .pd-upload-metadata-layout {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pd-upload-preview {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .pd-upload-metadata-fields {
+    width: 100%;
+    text-align: left;
+  }
+
+  .pd-upload-card-actions {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .pd-upload-card-actions button {
+    height: 24px;
+    min-height: 24px;
+    padding: 3px 8px;
+    font-size: 11px;
+  }
   .pd-upload-page {
     padding: 0 8px;
   }
