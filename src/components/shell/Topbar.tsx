@@ -18,7 +18,6 @@ export function Topbar({
   searchInputRef,
   view,
   setView,
-  docsUrl,
   tweaksOn,
   onToggleTweaks,
   activityOn,
@@ -35,7 +34,6 @@ export function Topbar({
   searchInputRef: React.RefObject<HTMLInputElement | null>;
   view: string;
   setView: (v: string) => void;
-  docsUrl: string;
   tweaksOn: boolean;
   onToggleTweaks: () => void;
   activityOn: boolean;
@@ -508,29 +506,6 @@ export function Topbar({
         ))}
       </div>
 
-      <a
-        href={docsUrl}
-        target="_blank"
-        rel="noreferrer"
-        title="Open the previous docs site (docs.pindeck.dev)"
-        className="pd-topbar-row pd-docs-link"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "4px 8px",
-          borderRadius: 4,
-          fontSize: 11,
-          fontWeight: 500,
-          color: "var(--pd-ink-dim)",
-          background: "transparent",
-          textDecoration: "none",
-        }}
-      >
-        <PinIcon name="docs" size={12} />
-        <span>Old docs</span>
-        <PinIcon name="external" size={10} stroke={1.5} />
-      </a>
 
       <WorkActivity
         open={activityOn}

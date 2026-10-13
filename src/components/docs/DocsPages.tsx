@@ -2,6 +2,7 @@ import React from "react";
 import { Card } from "@radix-ui/themes";
 import { PinChip, PinKV, PinLabel, PinSwatches } from "@/components/ui/pindeck";
 import { Callout, Code, CodeBlock, DocsHeader, DocsSection, DocsTable, P } from "./DocsBlocks";
+import { Variations } from "./DocsVariations";
 import {
   ArchitectureDiagram,
   IngestSequenceDiagram,
@@ -19,6 +20,7 @@ export const DOCS_PAGES = [
   { id: "storage", label: "Media storage", icon: "image" },
   { id: "trigger", label: "Trigger & Work", icon: "play" },
   { id: "projects", label: "Projects & SREF", icon: "palette" },
+  { id: "variations", label: "Image variations", icon: "sparkle" },
   { id: "secrets", label: "Secrets", icon: "lock" },
 ] as const;
 
@@ -32,8 +34,8 @@ function Overview() {
   return (
     <>
       <DocsHeader
-        eyebrow="Docs · 01"
-        title="Pindeck"
+        eyebrow="Docs"
+        title="Overview"
         lead="A private reference library for cinematic stills. Images come in from five upload sources, get described (by the VLM or by an agent), are stored in RustFS, and are browsed as a gallery, a table, boards and decks."
       />
       <ArchitectureDiagram />
@@ -71,7 +73,7 @@ function Sources() {
   return (
     <>
       <DocsHeader
-        eyebrow="Docs · 02"
+        eyebrow="Docs"
         title="Upload sources"
         lead="Each tab on the Upload page is a source. What differs is when the description is written and whether you review first."
       />
@@ -139,7 +141,7 @@ function IngestApi() {
   return (
     <>
       <DocsHeader
-        eyebrow="Docs · 03 · API"
+        eyebrow="Docs"
         title="Agent ingest API"
         lead="One HTTP endpoint on the Convex site. Host the file first, then post its public URL with everything you already know about the image."
       />
@@ -223,7 +225,7 @@ function Lifecycle() {
   return (
     <>
       <DocsHeader
-        eyebrow="Docs · 04"
+        eyebrow="Docs"
         title="Image lifecycle"
         lead="A row is created once and then only moves forward. Status says where it shows up; aiStatus says whether its description is done."
       />
@@ -252,8 +254,8 @@ function Storage() {
   return (
     <>
       <DocsHeader
-        eyebrow="Docs · 05"
-        title="Media storage pipeline"
+        eyebrow="Docs"
+        title="Media storage"
         lead="Convex never keeps the image bytes long term. The media gateway writes them to RustFS and Convex stores the URLs."
       />
       <MediaPipelineDiagram />
@@ -283,8 +285,8 @@ function TriggerPage() {
   return (
     <>
       <DocsHeader
-        eyebrow="Docs · 06"
-        title="Trigger.dev and Work"
+        eyebrow="Docs"
+        title="Trigger & Work"
         lead="Anything slow runs as a Trigger.dev task on the self-hosted control plane. The Work button in the top bar is a live window onto those runs."
       />
       <TriggerDiagram />
@@ -316,8 +318,8 @@ function Projects() {
   return (
     <>
       <DocsHeader
-        eyebrow="Docs · 07"
-        title="Projects and SREF"
+        eyebrow="Docs"
+        title="Projects & SREF"
         lead="Project Rows groups by projectName, and the SREF field is filterable on its own. Keep each value in exactly one place."
       />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
@@ -367,7 +369,7 @@ function Secrets() {
   return (
     <>
       <DocsHeader
-        eyebrow="Docs · 08"
+        eyebrow="Docs"
         title="Secrets"
         lead="Values live in Bitwarden Secrets Manager (BWS) or the repo's own .env / .env.local, and are read at runtime. They are never written into code, docs, payload files, PRs or skills."
       />
@@ -399,21 +401,61 @@ const PAGE_COMPONENTS: Record<DocsPageId, () => React.ReactElement> = {
   storage: Storage,
   trigger: TriggerPage,
   projects: Projects,
+  variations: Variations,
   secrets: Secrets,
 };
 
 export function DocsView({ page, onPage }: { page: DocsPageId; onPage: (p: DocsPageId) => void }) {
   const Page = PAGE_COMPONENTS[page];
   const idx = DOCS_PAGES.findIndex((p) => p.id === page);
+  const current = DOCS_PAGES[idx];
   const prev = DOCS_PAGES[idx - 1];
   const next = DOCS_PAGES[idx + 1];
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = React.useState(false);
   React.useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [page]);
   return (
-    <div ref={scrollRef} className="pd-scroll pd-fade-in" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 40 }}>
+    <div
+      ref={scrollRef}
+      className="pd-scroll pd-fade-in"
+      onScroll={(e) => setStuck(e.currentTarget.scrollTop > 90)}
+      style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 40 }}
+    >
       <div
+        className="pd-docs-sticky"
+        aria-hidden={!stuck}
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 5,
+          height: 0,
+          overflow: "visible",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 10,
+            padding: "8px 20px",
+            background: "var(--pd-bg-1)",
+            borderBottom: "1px solid var(--pd-line)",
+            opacity: stuck ? 1 : 0,
+            transform: stuck ? "translateY(0)" : "translateY(-6px)",
+            transition: "opacity 160ms ease, transform 160ms ease",
+            pointerEvents: stuck ? "auto" : "none",
+          }}
+        >
+          <span className="pd-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--pd-accent-ink)" }}>
+            Docs
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--pd-ink)" }}>{current.label}</span>
+        </div>
+      </div>
+      <div
+        key={page}
         className="max-w-4xl mx-auto w-full"
         style={{ display: "flex", flexDirection: "column", gap: 24, padding: "16px 20px 32px" }}
       >

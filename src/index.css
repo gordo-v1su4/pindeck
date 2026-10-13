@@ -2959,8 +2959,7 @@ body {
     min-width: 0;
   }
 
-  .pd-breadcrumb,
-  .pd-docs-link {
+  .pd-breadcrumb {
     display: none !important;
   }
 

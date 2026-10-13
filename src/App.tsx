@@ -46,7 +46,6 @@ const DeckView = lazy(() =>
   import("@/components/DeckView").then((mod) => ({ default: mod.DeckView })),
 );
 
-const DOCS_URL = "https://docs.pindeck.dev";
 
 const SIDEBAR_COLLAPSE_STORAGE_KEY = "pindeck_sidebar_collapsed";
 
@@ -341,7 +340,6 @@ export default function App() {
             searchInputRef={searchInputRef}
             view={view}
             setView={selectView}
-            docsUrl={`${DOCS_URL}?accent=${encodeURIComponent(tweaks.accent)}&typography=${encodeURIComponent(tweaks.typography)}`}
             tweaksOn={tweaksOpen}
             onToggleTweaks={() => {
               setActivityOpen(false);
