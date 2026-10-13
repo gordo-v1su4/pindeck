@@ -34,6 +34,7 @@ export function DiagramFrame({
   height: number;
   children: React.ReactNode;
 }) {
+  const [zoomed, setZoomed] = React.useState(false);
   return (
     <figure
       style={{
@@ -49,10 +50,20 @@ export function DiagramFrame({
           <div className="pd-board-section-title">{title}</div>
           <div className="pd-board-section-meta">Fig. {id}</div>
         </div>
+        <button
+          type="button"
+          className="pd-docs-diagram-toggle pd-mono"
+          aria-pressed={zoomed}
+          onClick={() => setZoomed((value) => !value)}
+        >
+          {zoomed ? "Fit diagram" : "Zoom diagram"}
+        </button>
       </div>
       <div className="pd-scroll" style={{ overflowX: "auto" }}>
         <svg
           role="img"
+          className="pd-docs-diagram"
+          data-zoomed={zoomed}
           aria-label={title}
           viewBox={`0 0 ${width} ${height}`}
           style={{ display: "block", width: "100%", minWidth: Math.min(width, 640), height: "auto" }}

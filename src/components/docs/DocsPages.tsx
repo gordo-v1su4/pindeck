@@ -337,7 +337,7 @@ function Projects() {
         lead="Project Rows groups by projectName, and the SREF field is filterable on its own. Keep each value in exactly one place."
       />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
-        <Card style={{ padding: "12px 14px", borderLeft: "2px solid var(--pd-green)" }}>
+          <Card style={{ padding: "12px 14px" }}>
           <PinLabel right={<PinChip mono color="#2ee6a6">right</PinChip>}>Agent card</PinLabel>
           <PinKV k="Title" v="Samurai in burning wasteland" mono={false} />
           <PinKV k="Project" v="Ember Ronin" mono={false} />
@@ -351,7 +351,7 @@ function Projects() {
             <PinSwatches colors={good} size={18} />
           </div>
         </Card>
-        <Card style={{ padding: "12px 14px", borderLeft: "2px solid var(--pd-red)" }}>
+          <Card style={{ padding: "12px 14px" }}>
           <PinLabel right={<PinChip mono color="#ef4343">wrong</PinChip>}>Old format</PinLabel>
           <PinKV k="Title" v="Ember Ronin - sref 779163157" mono={false} />
           <PinKV k="Project" v="Ember Ronin - sref 779163157" mono={false} />

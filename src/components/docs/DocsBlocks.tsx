@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Card, Heading, Text } from "@radix-ui/themes";
+import { Heading, Text } from "@radix-ui/themes";
 import { PinBtn, PinChip, PinLabel } from "@/components/ui/pindeck";
 
 /** Page header: mono eyebrow + Radix heading, same as the Upload page cards. */
@@ -271,7 +271,7 @@ export function CodeBlock({
   );
 }
 
-/** Callout in the glass-card idiom: left accent rule, no shadow. */
+/** A plain note with a title, without decorative edges. */
 export function Callout({
   tone = "accent",
   title,
@@ -281,14 +281,8 @@ export function Callout({
   title: string;
   children: React.ReactNode;
 }) {
-  const rule = tone === "warn" ? "var(--pd-amber)" : "var(--pd-accent)";
   return (
-    <Card
-      style={{
-        borderLeft: `2px solid ${rule}`,
-        padding: "12px 14px",
-      }}
-    >
+    <div className="pd-docs-note" style={{ padding: "8px 0" }}>
       <div
         className="pd-mono"
         style={{
@@ -302,6 +296,6 @@ export function Callout({
         {title}
       </div>
       <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--pd-ink-dim)" }}>{children}</div>
-    </Card>
+    </div>
   );
 }

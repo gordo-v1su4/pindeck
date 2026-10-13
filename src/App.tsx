@@ -319,6 +319,7 @@ export default function App() {
           onToggleCollapsed={toggleSidebar}
           docsPage={docsPage}
           onDocsPage={setDocsPage}
+          accountActions={<SignOutButton onBeforeSignOut={closeTransientUi} />}
         />
         {sidebarCollapsed ? (
           <button

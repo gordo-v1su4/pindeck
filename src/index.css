@@ -801,7 +801,54 @@ body {
   }
 }
 
+.pd-sidebar-account,
+.pd-docs-diagram-toggle {
+  display: none;
+}
+
+.pd-account-shell .pd-user-email-badge,
+.pd-sidebar-account .pd-user-email-badge {
+    min-width: 0;
+    flex: 1;
+    font-size: 11px;
+  }
+
+.pd-account-shell button,
+.pd-sidebar-account button {
+    height: 26px;
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+.pd-account-shell button svg,
+.pd-sidebar-account button svg {
+    width: 12px;
+    height: 12px;
+  }
+
+.pd-topbar-row[aria-current="page"] {
+    color: var(--pd-accent-ink) !important;
+    background: transparent !important;
+  }
+
 @media (max-width: 900px) {
+  .pd-sidebar-account {
+    display: block;
+    padding: 10px 12px;
+    border-top: 1px solid var(--pd-line);
+    flex-shrink: 0;
+  }
+
+  .pd-docs-diagram-toggle {
+    display: inline-flex;
+    padding: 4px 6px;
+    font-size: 10px;
+    color: var(--pd-accent-ink);
+  }
+
+  .pd-docs-diagram[data-zoomed="false"] {
+    min-width: 0 !important;
+  }
   .pd-work-trigger {
     min-width: 34px;
     width: 34px;
@@ -2980,9 +3027,9 @@ body {
   .pd-topbar-viewnav .pd-topbar-row {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 34px;
+    min-height: 26px;
     justify-content: center;
-    padding: 7px 7px !important;
+    padding: 4px 7px !important;
   }
 
   .pd-topbar-viewnav .pd-viewnav-label {
@@ -3003,7 +3050,8 @@ body {
   }
 
   .pd-sref-heading {
-    font-size: 10px !important;
+    font-size: 11px !important;
+    line-height: 1.5;
     letter-spacing: 0 !important;
     overflow-wrap: anywhere;
   }
@@ -3020,12 +3068,7 @@ body {
   }
 
   .pd-account-shell {
-    order: 4;
-    flex: 1 1 100%;
-    margin-left: 0 !important;
-    padding-left: 0 !important;
-    border-left: 0 !important;
-    justify-content: flex-end;
+    display: none !important;
   }
 
   .pd-workspace {
@@ -3047,11 +3090,9 @@ body {
   }
 
   .pd-gallery-section-heading {
-    position: sticky;
-    top: 0;
-    z-index: 3;
+    position: static;
     padding: 6px 0;
-    background: linear-gradient(180deg, var(--pd-bg) 72%, transparent);
+    background: transparent;
   }
 
   .pd-gallery-row-wrap {
@@ -3171,7 +3212,7 @@ body {
 
 @media (max-width: 520px) {
   .pd-topbar-viewnav .pd-topbar-row {
-    padding: 7px 5px !important;
+    padding: 4px 5px !important;
   }
 
   .pd-topbar-viewnav .pd-topbar-row span {

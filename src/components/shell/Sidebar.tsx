@@ -483,7 +483,9 @@ export function Sidebar({
   onToggleCollapsed,
   docsPage,
   onDocsPage,
+  accountActions,
 }: {
+  accountActions?: React.ReactNode;
   docsPage?: DocsPageId;
   onDocsPage?: (page: DocsPageId) => void;
   activeView: AppViewId;
@@ -785,6 +787,9 @@ export function Sidebar({
         <span className="pd-mono" style={{ color: "var(--pd-ink-mute)" }}>
           convex · live
         </span>
+      </div>
+      <div className="pd-sidebar-account">
+        {accountActions}
       </div>
     </aside>
   );

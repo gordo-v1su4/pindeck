@@ -483,6 +483,7 @@ export function Topbar({
           <button
             key={v.id}
             className="pd-topbar-row"
+            aria-current={view === v.id ? "page" : undefined}
             onClick={() => setView(v.id)}
             title={v.label}
             style={{
