@@ -399,6 +399,9 @@ body {
 }
 
 .pd-topbar-row {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  line-height: 1.2;
   transition:
     background 140ms ease,
     color 140ms ease;
@@ -3077,9 +3080,9 @@ body {
   .pd-topbar-viewnav .pd-topbar-row {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 26px;
+    min-height: 22px;
     justify-content: center;
-    padding: 4px 7px !important;
+    padding: 2px 7px !important;
   }
 
   .pd-topbar-viewnav .pd-viewnav-label {
@@ -3262,7 +3265,7 @@ body {
 
 @media (max-width: 520px) {
   .pd-topbar-viewnav .pd-topbar-row {
-    padding: 4px 5px !important;
+    padding: 2px 5px !important;
   }
 
   .pd-topbar-viewnav .pd-topbar-row span {
