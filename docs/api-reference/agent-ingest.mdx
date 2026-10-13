@@ -125,3 +125,54 @@ workflows even if the source URL changes later.
 - Send `sourceUrl` so reviewers can trace where an image came from.
 - Prefer direct image URLs that do not require browser cookies.
 - Retry `502` responses with backoff; they can mean the upstream image host or RustFS persistence step failed.
+
+## Agent operator notes (credentials, VLM behavior, review queue)
+
+These notes cover agents that ingest on the owner's behalf, for example Midjourney sref batches. Reference credentials **by variable name only**. Never paste values into docs, PRs, skills or new files.
+
+### Where the credentials live
+
+| Purpose | Primary (Bitwarden Secrets Manager) | Fallback |
+| --- | --- | --- |
+| Bearer key for `/ingestExternal` | `PROXMOX_HOME_HOSTINGER_DISCORD_BOT_PRIVATE_INGEST_API_KEY` | `INGEST_API_KEY` in the local pindeck repo's `.env` / `.env.local` |
+| Target `userId` | `PROXMOX_HOME_PINDECK_PRIMARY_DISCORD_INGEST_OWNER_CONVEX_USER_ID` | `PINDECK_USER_ID` in `.env.local` |
+| Convex site URL | `PINDECK_CONVEX_SITE_URL` | `VITE_CONVEX_SITE_URL` in `.env.local` |
+| Public image hosting (media gateway) | `MEDIA_GATEWAY_URL`, `MEDIA_GATEWAY_TOKEN` | `MEDIA_GATEWAY_URL` / `MEDIA_GATEWAY_TOKEN` in `.env.local` |
+
+Some BWS values are stored wrapped in backticks. Trim them before use, because a wrapped `userId` fails the `v.id("users")` validator with a 500.
+
+`imageUrl` must be publicly fetchable. To ingest local files, upload them first with `POST {MEDIA_GATEWAY_URL}/upload` (multipart: `userId`, `folder`, `file`; Bearer `MEDIA_GATEWAY_TOKEN`). Then send the returned `publicUrl`.
+
+### Fields that are ignored
+
+The HTTP handler does **not** forward `colors`, `group`, `genre`, `style` or `shot`.
+- Colors come only from server-side sampling.
+- group, genre, style and shot are filled only by the VLM.
+- Agents that want those facets searchable should encode them as tags, for example `shot:Wide Shot`, `genre:Action`, `style:Digital`, `group:Film`.
+
+### VLM behavior by `sourceType`
+
+With `PINDECK_TRIGGER_ORCHESTRATION_ENABLED=true`, the `pindeck-external-ingest` task does the following:
+
+| `sourceType` | Row state | VLM / palette |
+| --- | --- | --- |
+| `upload`, `ai`, or omitted | `status: active` | `runAnalysis` runs immediately (OpenRouter VLM + palette). It fails if OpenRouter has no credits. |
+| `pinterest`, `discord` | `status: pending`, `aiStatus: queued`, `colors: []` | Skipped at ingest. It runs when the item is **approved**. |
+
+With orchestration disabled, the non-moderated path also schedules `vision.internalSmartAnalyzeImage` immediately, and moderated sources wait for approval.
+
+### Review-queue route
+
+Agent batches that must not trigger the VLM should use `sourceType: "pinterest"`. The items land in the Pinterest review queue in the Pindeck UI.
+- Do **not** approve them while OpenRouter has no credits: approval runs the VLM, which also fills the palette.
+- `/discordQueue` lists only Discord-lineage items, so it cannot verify Pinterest-queued rows. Verify in the UI.
+- Re-posting the same `externalId` returns `duplicate: true`. Use `midjourney:<jobId>:<index>` for Midjourney.
+
+### Proposed: `sourceType: "agent"` (not implemented)
+
+A future `agent` source would let an agent supply its own analysis:
+- Accept `colors`, `group`, `genre`, `style`, `shot` (and optionally `aiStatus: "completed"`) in `/ingestExternal`.
+- Persist media, then skip `runAnalysis` when the agent metadata is present.
+- Land the row `active` (or `draft`) without queuing analysis on approval.
+
+This needs changes in `convex/images/ingest.ts` (args and handler), `convex/images/shared.ts` (`isModeratedImportSource` / `shouldQueueAnalysis`) and `convex/orchestration.ts` (`externalIngestHttp`).
