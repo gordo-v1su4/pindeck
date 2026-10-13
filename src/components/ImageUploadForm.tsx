@@ -939,15 +939,17 @@ export function ImageUploadForm() {
   };
 
   return (
-    <Box className="space-y-7 max-w-4xl mx-auto w-full font-[var(--pd-font-sans)]">
-      <Flex gap="2" wrap="wrap" className="pt-2">
+    <Box className="pd-upload-page space-y-7 max-w-4xl mx-auto w-full font-[var(--pd-font-sans)]">
+      <Flex gap="2" wrap="wrap" className="pd-upload-sources pt-2">
         <Button
           variant="soft"
           className="pd-action-tab"
+          aria-label="Local Upload"
           data-active={activeUploadTab === "local"}
           onClick={() => setActiveUploadTab("local")}
         >
-          Local Upload
+          <span className="pd-upload-local-full">Local Upload</span>
+          <span className="pd-upload-local-short">Local</span>
         </Button>
         <Button
           variant="soft"

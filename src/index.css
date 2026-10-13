@@ -809,6 +809,17 @@ body {
   display: none;
 }
 
+.pd-upload-local-short {
+  display: none;
+}
+
+.pd-upload-sources .pd-action-tab {
+  height: 26px;
+  min-height: 26px !important;
+  font-size: 11px !important;
+  padding: 3px 8px;
+}
+
 .pd-account-shell .pd-user-email-badge,
 .pd-sidebar-account .pd-user-email-badge {
     min-width: 0;
@@ -835,6 +846,30 @@ body {
   }
 
 @media (max-width: 900px) {
+  .pd-upload-page {
+    padding: 0 8px;
+  }
+
+  .pd-upload-sources {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .pd-upload-sources .pd-action-tab {
+    min-width: 0;
+    padding: 3px 2px;
+    font-size: 9.5px !important;
+    white-space: nowrap;
+  }
+
+  .pd-upload-local-full {
+    display: none;
+  }
+
+  .pd-upload-local-short {
+    display: inline;
+  }
   .pd-sidebar-account {
     display: block;
     padding: 10px 12px;
