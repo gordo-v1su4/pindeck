@@ -424,7 +424,12 @@ export function ImageDetailDrawer({
         backdropFilter: "blur(var(--pd-glass-blur)) saturate(1.25)",
         display: "flex",
         flexDirection: "column",
-        position: "relative",
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 22,
+        zIndex: 4,
+        maxWidth: "100%",
       }}
     >
       <div

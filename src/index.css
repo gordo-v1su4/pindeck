@@ -3135,7 +3135,7 @@ body {
     width: 100vw !important;
     max-width: 100vw;
     height: min(86dvh, 760px) !important;
-    z-index: 60;
+    z-index: 60 !important;
     border-left: 0 !important;
     border-top: 1px solid var(--pd-glass-line);
     box-shadow: 0 -24px 90px rgba(0, 0, 0, 0.62);
