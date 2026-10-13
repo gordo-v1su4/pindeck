@@ -214,7 +214,7 @@ export function TriggerDiagram() {
       <DEdge points={[[320, 176], [320, 260]]} dashed label="REALTIME" />
 
       <DNode x={24} y={120} w={168} tag="Convex" name="triggerDispatch" sub="1h dedupe · lease" />
-      <DNode x={232} y={120} w={176} kind="async" tag="Self-hosted" name="Trigger.dev" sub="trigger.v1su4.dev" />
+      <DNode x={232} y={120} w={176} kind="async" tag="Self-hosted" name="Trigger.dev" sub="your-trigger.example.com" />
       <DNode x={480} y={28} w={256} h={48} kind="focal" name="pindeck-media · 2" sub="finalize · external-ingest · repair" />
       <DNode x={480} y={96} w={256} h={48} name="pindeck-analysis · 2" sub="image-refresh (VLM + palette)" />
       <DNode x={480} y={168} w={256} h={48} name="generation-orchestration · 2" sub="generate-variations (parent)" />
