@@ -42,6 +42,8 @@ export const createExternal = mutation({
     genre: v.optional(v.string()),
     style: v.optional(v.string()),
     shot: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+    uniqueId: v.optional(v.string()),
     derivativeUrls: v.optional(
       v.object({
         small: v.string(),
@@ -132,15 +134,17 @@ export const createExternal = mutation({
     const agentColors = isAgentImport ? normalizeHexColors(args.colors) : [];
     const tags = [
       ...new Set([
+        // Palette stays in `colors` only (not duplicated as tags).
         ...(args.tags ?? []),
-        // Agent-supplied palette is also searchable as tags.
-        ...agentColors,
         "original",
       ]),
     ];
     const isModeratedImport = isModeratedImportSource(args.sourceType);
     const storageProvider = storageProviderFromPayload(args);
-    const projectName = args.sourceType === "ai" ? undefined : title;
+    // Supplied projectName (one per look/idea) wins; legacy default is the title.
+    const projectName =
+      args.projectName?.trim() ||
+      (args.sourceType === "ai" ? undefined : title);
 
     const imageId = await ctx.db.insert("images", {
       title,
@@ -163,6 +167,7 @@ export const createExternal = mutation({
         : isModeratedImport
           ? "queued"
           : "processing",
+      uniqueId: args.uniqueId ?? (isAgentImport ? args.externalId : undefined),
       group: args.group,
       genre: args.genre,
       style: args.style,
@@ -249,6 +254,8 @@ export const ingestExternal = internalMutation({
     genre: v.optional(v.string()),
     style: v.optional(v.string()),
     shot: v.optional(v.string()),
+    projectName: v.optional(v.string()),
+    uniqueId: v.optional(v.string()),
     derivativeUrls: v.optional(
       v.object({
         small: v.string(),
@@ -332,15 +339,17 @@ export const ingestExternal = internalMutation({
     const agentColors = isAgentImport ? normalizeHexColors(args.colors) : [];
     const tags = [
       ...new Set([
+        // Palette stays in `colors` only (not duplicated as tags).
         ...(args.tags ?? []),
-        // Agent-supplied palette is also searchable as tags.
-        ...agentColors,
         "original",
       ]),
     ];
     const isModeratedImport = isModeratedImportSource(args.sourceType);
     const storageProvider = storageProviderFromPayload(args);
-    const projectName = args.sourceType === "ai" ? undefined : title;
+    // Supplied projectName (one per look/idea) wins; legacy default is the title.
+    const projectName =
+      args.projectName?.trim() ||
+      (args.sourceType === "ai" ? undefined : title);
 
     const imageId = await ctx.db.insert("images", {
       title,
@@ -363,6 +372,7 @@ export const ingestExternal = internalMutation({
         : isModeratedImport
           ? "queued"
           : "processing",
+      uniqueId: args.uniqueId ?? (isAgentImport ? args.externalId : undefined),
       group: args.group,
       genre: args.genre,
       style: args.style,
@@ -450,6 +460,8 @@ function agentFieldsFromBody(body: any) {
     genre: str(body.genre),
     style: str(body.style),
     shot: str(body.shot),
+    projectName: str(body.projectName),
+    uniqueId: str(body.uniqueId),
   };
 }
 

@@ -1030,6 +1030,8 @@ export function ImageUploadForm() {
           {activeUploadTab === "agent" && (
             <AgentIngestPanel
               images={agentImages}
+              categories={categories || []}
+              supportingGroups={groups || []}
               onApprove={async (ids) => {
                 if (!ids.length) return;
                 try {
@@ -1043,7 +1045,7 @@ export function ImageUploadForm() {
               }}
               onDiscard={(id) => void handleReject(id as any)}
               onUpdate={(id, updates) =>
-                void updateImageMetadata(id as any, updates)
+                void updateImageMetadata(id as any, updates as any)
               }
             />
           )}
@@ -1815,236 +1817,72 @@ export function ImageUploadForm() {
 
               <Grid columns={{ initial: "1", lg: "2" }} gap="4">
                 {files.map((file) => (
-                  <Card
+                  <UploadMetadataCard
                     key={file.id}
-                    className="overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <Flex gap="4">
-                      <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                        <img
-                          src={file.preview}
-                          alt={file.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </Box>
-
-                      <Box className="flex-1 space-y-2 min-w-0">
-                        <Flex justify="between" align="start" gap="2">
-                          <Box className="flex-1">
-                            <TextField.Root
-                              value={file.title}
-                              onChange={(e) =>
-                                updateFile(file.id, { title: e.target.value })
-                              }
-                              placeholder="Title (Leave blank for AI)"
-                              size="1"
-                            >
-                              <TextField.Slot>
-                                <MagicWandIcon
-                                  style={{ color: "var(--pd-green)" }}
-                                />
-                              </TextField.Slot>
-                            </TextField.Root>
-                          </Box>
-                          <IconButton
-                            variant="ghost"
-                            color="red"
-                            size="1"
-                            onClick={() => removeFile(file.id)}
-                          >
-                            <Cross2Icon />
-                          </IconButton>
-                        </Flex>
-
-                        <TextField.Root
-                          value={file.description}
-                          onChange={(e) =>
-                            updateFile(file.id, { description: e.target.value })
-                          }
-                          placeholder="Description (Leave blank for AI)"
-                          size="1"
-                        />
-
-                        <Flex gap="2" align="center">
-                          <Select.Root
-                            value={file.category}
-                            onValueChange={(value) =>
-                              updateFile(file.id, { category: value })
-                            }
-                          >
-                            <Select.Trigger
-                              size="1"
-                              placeholder="Select category"
-                            />
-                            <Select.Content>
-                              {(categories || []).map((category) => (
-                                <Select.Item key={category} value={category}>
-                                  {category}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Root>
-                        </Flex>
-
-                        {/* Type (Group) Selection */}
-                        <Select.Root
-                          value={file.group ? file.group : "none"}
-                          onValueChange={(value) =>
-                            updateFile(file.id, {
-                              group: value === "none" ? undefined : value,
-                            })
-                          }
-                        >
-                          <Select.Trigger
-                            size="1"
-                            placeholder="Supporting type"
-                          />
-                          <Select.Content>
-                            <Select.Item value="none">None</Select.Item>
-                            {supportingGroups.map((g) => (
-                              <Select.Item key={g} value={g}>
-                                {g}
-                              </Select.Item>
-                            ))}
-                          </Select.Content>
-                        </Select.Root>
-
-                        {/* Project Name */}
-                        <TextField.Root
-                          value={file.projectName || ""}
-                          onChange={(e) =>
-                            updateFile(file.id, {
-                              projectName: e.target.value || undefined,
-                            })
-                          }
-                          placeholder="Project Name"
-                          size="1"
-                        />
-
-                        {/* Unique ID */}
-                        <TextField.Root
-                          value={file.uniqueId || ""}
-                          onChange={(e) =>
-                            updateFile(file.id, {
-                              uniqueId: e.target.value || undefined,
-                            })
-                          }
-                          placeholder="Unique ID"
-                          size="1"
-                        />
-
-                        <Flex gap="2">
-                          <TextField.Root
-                            value={file.sref}
-                            onChange={(e) =>
-                              updateFile(file.id, { sref: e.target.value })
-                            }
-                            placeholder="Style Ref (sref)"
-                            size="1"
-                            className="flex-1"
-                          />
-                          <TextField.Root
-                            value={file.source}
-                            onChange={(e) =>
-                              updateFile(file.id, { source: e.target.value })
-                            }
-                            placeholder="Source URL/Origin"
-                            size="1"
-                            className="flex-1"
-                          />
-                        </Flex>
-
-                        <Box>
-                          <Flex gap="1" wrap="wrap" className="mb-2">
-                            {sortColorsDarkToLight(file.colors || []).map(
-                              (color) => (
-                                <Box
-                                  key={color}
-                                  className="w-4 h-4 rounded-[3px] border"
-                                  style={getPaletteSwatchStyle(color)}
-                                  title={color}
-                                />
-                              ),
-                            )}
-                            {file.colorStatus === "pending" && (
-                              <Flex align="center" gap="1">
-                                <Box className="w-3 h-3 border-2 border-[var(--pd-green)] border-t-transparent rounded-full animate-spin" />
-                                <Text size="1" color="gray">
-                                  Sampling colors...
-                                </Text>
-                              </Flex>
-                            )}
+                    item={{
+                      preview: file.preview,
+                      title: file.title,
+                      description: file.description,
+                      category: file.category,
+                      group: file.group,
+                      projectName: file.projectName,
+                      uniqueId: file.uniqueId,
+                      sref: file.sref,
+                      source: file.source,
+                      colors: file.colors,
+                      tags: file.tags,
+                    }}
+                    titlePlaceholder="Title (Leave blank for AI)"
+                    descriptionPlaceholder="Description (Leave blank for AI)"
+                    categories={categories || []}
+                    supportingGroups={groups || []}
+                    onChange={(updates) => updateFile(file.id, updates)}
+                    onRemove={() => removeFile(file.id)}
+                    onAddTag={(tag) => addTag(file.id, tag)}
+                    onRemoveTag={(tag) => removeTag(file.id, tag)}
+                    status={
+                      <>
+                        {file.colorStatus === "pending" && (
+                          <Flex align="center" gap="1">
+                            <Box className="w-3 h-3 border-2 border-[var(--pd-green)] border-t-transparent rounded-full animate-spin" />
+                            <Text size="1" color="gray">
+                              Sampling colors...
+                            </Text>
                           </Flex>
+                        )}
 
-                          <Flex align="center" gap="2" className="mb-2 min-h-5">
-                            {file.metadataStatus === "pending" && (
-                              <>
-                                <Box className="w-3 h-3 border-2 border-[var(--pd-accent)] border-t-transparent rounded-full animate-spin" />
-                                <Text size="1" color="gray">
-                                  Generating metadata before upload...
-                                </Text>
-                              </>
-                            )}
-                            {file.metadataStatus === "ready" && (
-                              <>
-                                <CheckIcon color="var(--pd-green)" />
-                                <Text size="1" color="gray">
-                                  Metadata ready
-                                </Text>
-                              </>
-                            )}
-                            {file.metadataStatus === "failed" && (
-                              <>
-                                <Badge color="red" variant="soft" size="1">
-                                  AI metadata failed
-                                </Badge>
-                                <Text size="1" color="gray">
-                                  {file.metadataError ||
-                                    "You can still upload and retry after."}
-                                </Text>
-                              </>
-                            )}
-                          </Flex>
-
-                          <Flex gap="1" wrap="wrap" className="mb-2">
-                            {file.tags.map((tag, index) => (
-                              <Badge
-                                key={tag}
-                                variant="soft"
-                                size="1"
-                                className={compactImageTagClass}
-                                style={getPaletteTagStyleForLabel(
-                                  file.colors,
-                                  tag,
-                                  index,
-                                )}
-                              >
-                                {tag}
-                                <button
-                                  onClick={() => removeTag(file.id, tag)}
-                                  className="ml-1 text-current/70 transition-colors hover:text-current"
-                                >
-                                  <Cross2Icon width="10" height="10" />
-                                </button>
+                        <Flex align="center" gap="2" className="mb-2 min-h-5">
+                          {file.metadataStatus === "pending" && (
+                            <>
+                              <Box className="w-3 h-3 border-2 border-[var(--pd-accent)] border-t-transparent rounded-full animate-spin" />
+                              <Text size="1" color="gray">
+                                Generating metadata before upload...
+                              </Text>
+                            </>
+                          )}
+                          {file.metadataStatus === "ready" && (
+                            <>
+                              <CheckIcon color="var(--pd-green)" />
+                              <Text size="1" color="gray">
+                                Metadata ready
+                              </Text>
+                            </>
+                          )}
+                          {file.metadataStatus === "failed" && (
+                            <>
+                              <Badge color="red" variant="soft" size="1">
+                                AI metadata failed
                               </Badge>
-                            ))}
-                          </Flex>
-
-                          <TextField.Root
-                            placeholder="Add tags..."
-                            size="1"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                addTag(file.id, e.currentTarget.value);
-                                e.currentTarget.value = "";
-                              }
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                    </Flex>
-                  </Card>
+                              <Text size="1" color="gray">
+                                {file.metadataError ||
+                                  "You can still upload and retry after."}
+                              </Text>
+                            </>
+                          )}
+                        </Flex>
+                      </>
+                    }
+                  />
                 ))}
               </Grid>
 
@@ -2682,14 +2520,18 @@ export function ImageUploadForm() {
 
 function AgentIngestPanel({
   images,
+  categories,
+  supportingGroups,
   onApprove,
   onDiscard,
   onUpdate,
 }: {
   images: any[] | undefined;
+  categories: string[];
+  supportingGroups: string[];
   onApprove: (ids: string[]) => Promise<void>;
   onDiscard: (id: string) => void;
-  onUpdate: (id: string, updates: { title?: string; description?: string }) => void;
+  onUpdate: (id: string, updates: Record<string, unknown>) => void;
 }) {
   if (images === undefined) {
     return (
@@ -2706,91 +2548,293 @@ function AgentIngestPanel({
     );
   }
   return (
-    <Box className="mt-6 animate-in fade-in">
-      <Separator size="4" className="mb-6" />
-      <Flex align="center" justify="between" className="mb-4 p-3 border border-gray-200 dark:border-gray-800">
-        <Box>
-          <Heading size="4">Review agent uploads</Heading>
-          <Text size="2" color="gray">
-            {images.length} image{images.length !== 1 ? "s" : ""} with
-            agent metadata
-          </Text>
-        </Box>
+    <Box className="mt-6 space-y-4 animate-in fade-in slide-in-from-bottom-4">
+      <Flex justify="between" align="center">
+        <Text size="2" weight="medium">
+          {images.length} agent image{images.length > 1 ? "s" : ""} ready to
+          review
+        </Text>
+      </Flex>
+
+      <Grid columns={{ initial: "1", lg: "2" }} gap="4">
+        {images.map((image) => (
+          <UploadMetadataCard
+            key={image._id}
+            item={{
+              preview: image.previewUrl || image.imageUrl,
+              title: image.title || "",
+              description: image.description || "",
+              category: image.category,
+              group: image.group,
+              projectName: image.projectName,
+              uniqueId: image.uniqueId,
+              sref: image.sref || "",
+              source: image.source || "",
+              colors: image.colors || [],
+              tags: image.tags || [],
+            }}
+            categories={categories}
+            supportingGroups={supportingGroups}
+            onChange={(updates) => onUpdate(image._id, updates)}
+            onRemove={() => onDiscard(image._id)}
+            onAddTag={(tag) => {
+              const next = tag.trim();
+              if (!next || (image.tags || []).includes(next)) return;
+              onUpdate(image._id, { tags: [...(image.tags || []), next] });
+            }}
+            onRemoveTag={(tag) =>
+              onUpdate(image._id, {
+                tags: (image.tags || []).filter((t: string) => t !== tag),
+              })
+            }
+            footer={
+              <Flex justify="end" gap="3" className="pt-2">
+                <Button
+                  variant="soft"
+                  color="gray"
+                  className="pd-action-secondary"
+                  onClick={() => onDiscard(image._id)}
+                >
+                  Discard
+                </Button>
+                <Button
+                  size="2"
+                  variant="soft"
+                  className="pd-action-primary"
+                  onClick={() => void onApprove([image._id])}
+                >
+                  Approve
+                </Button>
+              </Flex>
+            }
+          />
+        ))}
+      </Grid>
+
+      <Flex justify="end" gap="3" className="pt-4 border-t border-gray-6">
         <Button
           size="2"
-          color="green"
           variant="soft"
           className="pd-action-primary"
           onClick={() => void onApprove(images.map((img) => img._id))}
         >
-          Approve All
+          Approve All ({images.length})
         </Button>
       </Flex>
-      <Grid columns={{ initial: "1", lg: "2" }} gap="4">
-        {images.map((image) => (
-          <Card key={image._id} className="overflow-hidden">
-            <Flex gap="4">
-              <Box className="w-32 h-20 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                <img
-                  src={image.previewUrl || image.imageUrl}
-                  alt={image.title}
-                  className="w-full h-full object-cover"
-                />
-              </Box>
-              <Box className="flex-1 space-y-2 min-w-0">
-                <TextField.Root
-                  value={image.title}
-                  onChange={(e) => onUpdate(image._id, { title: e.target.value })}
-                  size="1"
-                />
-                <TextField.Root
-                  value={image.description || ""}
-                  onChange={(e) =>
-                    onUpdate(image._id, { description: e.target.value })
-                  }
-                  placeholder="Description"
-                  size="1"
-                />
-                <Flex gap="1" wrap="wrap">
-                  {(image.colors || []).map((c: string) => (
-                    <span
-                      key={c}
-                      title={c}
-                      style={{ background: c, width: 16, height: 16, display: "inline-block" }}
-                    />
-                  ))}
-                </Flex>
-                <Text size="1" color="gray" className="block">
-                  {[
-                    image.sref && `sref ${image.sref}`,
-                    image.shot,
-                    image.genre,
-                    image.style,
-                    image.group,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
-                <Flex gap="1" wrap="wrap">
-                  {(image.tags || []).slice(0, 14).map((t: string) => (
-                    <Badge key={t} size="1" variant="soft">
-                      {t}
-                    </Badge>
-                  ))}
-                </Flex>
-                <Flex gap="2">
-                  <Button size="1" color="green" variant="soft" onClick={() => void onApprove([image._id])}>
-                    Approve
-                  </Button>
-                  <Button size="1" color="red" variant="ghost" onClick={() => onDiscard(image._id)}>
-                    Discard
-                  </Button>
-                </Flex>
-              </Box>
-            </Flex>
-          </Card>
-        ))}
-      </Grid>
     </Box>
+  );
+}
+
+type UploadMetadataCardItem = {
+  preview: string;
+  title: string;
+  description?: string;
+  category: string;
+  group?: string;
+  projectName?: string;
+  uniqueId?: string;
+  sref?: string;
+  source?: string;
+  colors?: string[];
+  tags: string[];
+};
+
+/** Hex palette values live in `colors`; never show them as tag chips. */
+function visibleTags(tags: string[]) {
+  return tags.filter((tag) => !/^#[0-9a-f]{6}$/i.test(tag));
+}
+
+/**
+ * Shared metadata card used by Local Upload (pre-upload files) and the Agent
+ * tab (agent-ingested drafts). Same fields, swatches and tag chips for both.
+ */
+function UploadMetadataCard({
+  item,
+  titlePlaceholder = "Title",
+  descriptionPlaceholder = "Description",
+  categories,
+  supportingGroups,
+  onChange,
+  onRemove,
+  onAddTag,
+  onRemoveTag,
+  status,
+  footer,
+}: {
+  item: UploadMetadataCardItem;
+  titlePlaceholder?: string;
+  descriptionPlaceholder?: string;
+  categories: string[];
+  supportingGroups: string[];
+  onChange: (updates: Partial<UploadMetadataCardItem>) => void;
+  onRemove: () => void;
+  onAddTag: (tag: string) => void;
+  onRemoveTag: (tag: string) => void;
+  status?: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <Card className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <Flex gap="4">
+        <Box className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
+          <img
+            src={item.preview}
+            alt={item.title}
+            className="w-full h-full object-cover"
+          />
+        </Box>
+
+        <Box className="flex-1 space-y-2 min-w-0">
+          <Flex justify="between" align="start" gap="2">
+            <Box className="flex-1">
+              <TextField.Root
+                value={item.title}
+                onChange={(e) => onChange({ title: e.target.value })}
+                placeholder={titlePlaceholder}
+                size="1"
+              >
+                <TextField.Slot>
+                  <MagicWandIcon style={{ color: "var(--pd-green)" }} />
+                </TextField.Slot>
+              </TextField.Root>
+            </Box>
+            <IconButton variant="ghost" color="red" size="1" onClick={onRemove}>
+              <Cross2Icon />
+            </IconButton>
+          </Flex>
+
+          <TextField.Root
+            value={item.description}
+            onChange={(e) => onChange({ description: e.target.value })}
+            placeholder={descriptionPlaceholder}
+            size="1"
+          />
+
+          <Flex gap="2" align="center">
+            <Select.Root
+              value={item.category}
+              onValueChange={(value) => onChange({ category: value })}
+            >
+              <Select.Trigger size="1" placeholder="Select category" />
+              <Select.Content>
+                {categories.map((category) => (
+                  <Select.Item key={category} value={category}>
+                    {category}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Flex>
+
+          {/* Type (Group) Selection */}
+          <Select.Root
+            value={item.group ? item.group : "none"}
+            onValueChange={(value) =>
+              onChange({
+                group: value === "none" ? undefined : value,
+              })
+            }
+          >
+            <Select.Trigger size="1" placeholder="Supporting type" />
+            <Select.Content>
+              <Select.Item value="none">None</Select.Item>
+              {supportingGroups.map((g) => (
+                <Select.Item key={g} value={g}>
+                  {g}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+
+          {/* Project Name */}
+          <TextField.Root
+            value={item.projectName || ""}
+            onChange={(e) =>
+              onChange({
+                projectName: e.target.value || undefined,
+              })
+            }
+            placeholder="Project Name"
+            size="1"
+          />
+
+          {/* Unique ID */}
+          <TextField.Root
+            value={item.uniqueId || ""}
+            onChange={(e) =>
+              onChange({
+                uniqueId: e.target.value || undefined,
+              })
+            }
+            placeholder="Unique ID"
+            size="1"
+          />
+
+          <Flex gap="2">
+            <TextField.Root
+              value={item.sref}
+              onChange={(e) => onChange({ sref: e.target.value })}
+              placeholder="Style Ref (sref)"
+              size="1"
+              className="flex-1"
+            />
+            <TextField.Root
+              value={item.source}
+              onChange={(e) => onChange({ source: e.target.value })}
+              placeholder="Source URL/Origin"
+              size="1"
+              className="flex-1"
+            />
+          </Flex>
+
+          <Box>
+            <Flex gap="1" wrap="wrap" className="mb-2">
+              {sortColorsDarkToLight(item.colors || []).map((color) => (
+                <Box
+                  key={color}
+                  className="w-4 h-4 rounded-[3px] border"
+                  style={getPaletteSwatchStyle(color)}
+                  title={color}
+                />
+              ))}
+            </Flex>
+            {status}
+
+            <Flex gap="1" wrap="wrap" className="mb-2">
+              {visibleTags(item.tags).map((tag, index) => (
+                <Badge
+                  key={tag}
+                  variant="soft"
+                  size="1"
+                  className={compactImageTagClass}
+                  style={getPaletteTagStyleForLabel(item.colors, tag, index)}
+                >
+                  {tag}
+                  <button
+                    onClick={() => onRemoveTag(tag)}
+                    className="ml-1 text-current/70 transition-colors hover:text-current"
+                  >
+                    <Cross2Icon width="10" height="10" />
+                  </button>
+                </Badge>
+              ))}
+            </Flex>
+
+            <TextField.Root
+              placeholder="Add tags..."
+              size="1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onAddTag(e.currentTarget.value);
+                  e.currentTarget.value = "";
+                }
+              }}
+            />
+          </Box>
+          {footer}
+        </Box>
+      </Flex>
+    </Card>
   );
 }
