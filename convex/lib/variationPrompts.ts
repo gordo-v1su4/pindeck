@@ -54,7 +54,7 @@ export const MODE_INSTRUCTIONS: Record<string, string> = {
   "shot-variation":
     "Same subject, same location, same moment, same wardrobe and light. Only the camera setup changes.",
   "subtle-variation":
-    "Same subject, same location, same framing. A second later: a small change in expression, glance or posture only.",
+    "Same subject, same location, same wardrobe and light. A second later: a small change in expression, glance or posture only.",
   "action-shot":
     "Same person, same location, same outfit. They are now doing a clear, dynamic physical action, caught mid-motion.",
   "b-roll":

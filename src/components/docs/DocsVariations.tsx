@@ -216,7 +216,7 @@ function VariationFanDiagram() {
 
 /** Fig. 08 — shot sizes and angles, mapped to what the app can actually send. */
 const SHOTS: Array<{ name: string; scale: number; horizon?: number; tilt?: number; auto: string; chip: string }> = [
-  { name: "Extreme CU", scale: 4.2, auto: "#4", chip: "Extreme close-up" },
+  { name: "Extreme CU", scale: 4.2, auto: "#4", chip: "ECU" },
   { name: "Close-up", scale: 3, auto: "#1", chip: "Close-up" },
   { name: "Medium CU", scale: 2.3, auto: "#7", chip: "Medium CU" },
   { name: "Medium", scale: 1.6, auto: "#3", chip: "Medium" },
