@@ -1,3 +1,4 @@
+import { formatSref } from "@/lib/sref";
 import React, { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -76,12 +77,6 @@ function ActionIconButton({
       {children}
     </button>
   );
-}
-
-function parseSrefIds(raw: string | undefined): string[] {
-  const matches = raw?.match(/\d+/g);
-  if (!matches?.length) return [];
-  return Array.from(new Set(matches));
 }
 
 function stableRandomRank(id: string) {
@@ -186,10 +181,10 @@ export function GalleryView({
   const srefRows = useMemo(() => {
     const groups = new Map<string, typeof filtered>();
     for (const image of filtered) {
-      const ids = parseSrefIds(image.sref);
-      const keys = ids.length ? ids.map((id) => `--sref ${id}`) : ["No SREF"];
-      for (const key of keys)
-        groups.set(key, [...(groups.get(key) ?? []), image]);
+      const key = formatSref(image.sref) || "No SREF";
+      const rows = groups.get(key);
+      if (rows) rows.push(image);
+      else groups.set(key, [image]);
     }
     return Array.from(groups, ([name, rows]) => ({ name, rows })).sort(
       (a, b) =>
@@ -267,14 +262,13 @@ export function GalleryView({
         }}
         role="button"
         tabIndex={0}
-        className={`group ${hoverClass} pd-fade-in`}
+        className={`group ${hoverClass}`}
         style={{
           ...cardStyle,
           cursor: "pointer",
           overflow: "hidden",
           breakInside: "avoid",
-          marginBottom: compact ? 0 : gap,
-          animationDelay: `${i * 18}ms`,
+          marginBottom: 0,
           width: compact ? rowWidth : undefined,
           flex: compact ? `0 0 ${rowWidth}px` : undefined,
         }}
@@ -575,7 +569,7 @@ export function GalleryView({
   return (
     <>
       <div
-        className="pd-scroll pd-fade-in pd-gallery-scroll"
+        className="pd-scroll pd-gallery-scroll"
         style={{
           flex: 1,
           overflow: "auto",
@@ -671,11 +665,12 @@ export function GalleryView({
                   </span>
                 </div>
                 <div
-                  className="pd-scroll pd-gallery-row-scroll"
+                  className="pd-gallery-row-wrap"
                   style={{
                     display: "flex",
+                    flexWrap: "wrap",
                     gap,
-                    overflowX: "auto",
+                    overflowX: "hidden",
                     paddingBottom: 8,
                   }}
                 >
@@ -687,7 +682,12 @@ export function GalleryView({
         ) : (
           <div
             className="pd-gallery-masonry"
-            style={{ columnCount: cols, columnGap: gap, maxWidth: "100%" }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+              gap,
+              maxWidth: "100%",
+            }}
           >
             {randomRows.map((img, i) => renderTile(img, i))}
           </div>

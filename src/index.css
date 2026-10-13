@@ -3021,8 +3021,8 @@ body {
   }
 
   .pd-gallery-masonry {
-    column-count: var(--pd-gallery-mobile-cols, 2) !important;
-    column-gap: var(--pd-gallery-mobile-gap, 7px) !important;
+    grid-template-columns: repeat(var(--pd-gallery-mobile-cols, 2), minmax(0, 1fr)) !important;
+    gap: var(--pd-gallery-mobile-gap, 7px) !important;
   }
 
   .pd-gallery-grouped {
@@ -3038,9 +3038,8 @@ body {
   }
 
   .pd-gallery-row-wrap {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    scroll-snap-type: x proximity;
+    flex-wrap: wrap !important;
+    overflow-x: hidden !important;
   }
 
   .pd-gallery-row-wrap > *,
@@ -3163,7 +3162,7 @@ body {
   }
 
   .pd-gallery-masonry {
-    column-count: var(--pd-gallery-mobile-cols, 2) !important;
+    grid-template-columns: repeat(var(--pd-gallery-mobile-cols, 2), minmax(0, 1fr)) !important;
   }
 
   .pd-gallery-row-wrap > *,

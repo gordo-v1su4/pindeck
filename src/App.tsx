@@ -1,5 +1,6 @@
 import React, {
   Component,
+  Activity,
   useState,
   useEffect,
   useLayoutEffect,
@@ -397,7 +398,7 @@ export default function App() {
                 minWidth: 0,
               }}
             >
-              {view === "gallery" && (
+              <Activity mode={view === "gallery" ? "visible" : "hidden"}>
                 <GalleryView
                   search={search}
                   tweaks={tweaks}
@@ -407,7 +408,7 @@ export default function App() {
                   images={libraryImages}
                   onNavigateToBoards={() => selectView("boards")}
                 />
-              )}
+              </Activity>
               {view === "table" && (
                 <TableView
                   search={search}

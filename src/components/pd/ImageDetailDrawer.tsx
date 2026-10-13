@@ -1,3 +1,4 @@
+import { formatSref } from "@/lib/sref";
 import React, { useEffect, useState } from "react";
 import {
   SHOT_CHIPS,
@@ -14,6 +15,7 @@ import { downloadImage } from "@/lib/imageDownload";
 import { ImageLightbox } from "@/components/pd/ImageLightbox";
 import { SmartImage } from "@/components/SmartImage";
 import { getPaletteTagColorForLabel } from "@/lib/utils";
+import { DropdownMenu } from "@radix-ui/themes";
 
 interface ImageDetailDrawerProps {
   image: any;
@@ -176,9 +178,7 @@ export function ImageDetailDrawer({
   ]);
 
   const fmtSref = (s: string | undefined) => {
-    if (!s) return "—";
-    const match = s.match(/\d+/);
-    return match ? `--sref ${match[0]}` : "—";
+    return formatSref(s) || "—";
   };
 
   const dash = (v: string | undefined) => (v?.trim() ? v.trim() : "—");
@@ -418,7 +418,7 @@ export function ImageDetailDrawer({
         flexShrink: 0,
         minHeight: 0,
         alignSelf: "stretch",
-        overflow: "auto",
+        overflow: "hidden",
         background: "var(--pd-glass-bg)",
         borderLeft: "1px solid var(--pd-glass-line)",
         backdropFilter: "blur(var(--pd-glass-blur)) saturate(1.25)",
@@ -439,6 +439,7 @@ export function ImageDetailDrawer({
           background: "var(--pd-glass-header)",
           backdropFilter: "blur(var(--pd-glass-blur)) saturate(1.25)",
           zIndex: 2,
+          flexShrink: 0,
         }}
       >
         <button
@@ -536,7 +537,8 @@ export function ImageDetailDrawer({
         </button>
       </div>
 
-      <div style={{ padding: "12px 14px 0" }}>
+      <div className="pd-scroll" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+      <div style={{ padding: "8px 14px 0" }}>
         <div
           className="pd-letterbox"
           style={
@@ -707,7 +709,7 @@ export function ImageDetailDrawer({
           style={{
             display: "flex",
             gap: 14,
-            padding: "16px 0 10px",
+            padding: "10px 0 6px",
             fontSize: 11,
             color: "var(--pd-ink-mute)",
           }}
@@ -757,9 +759,9 @@ export function ImageDetailDrawer({
         ))}
       </div>
 
-      <div style={{ padding: "14px", paddingBottom: 20 }}>
+      <div style={{ padding: "10px 14px" }}>
         {tab === "edit" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div>
               <label className="pd-mono" style={labelStyle}>
                 Title
@@ -831,8 +833,8 @@ export function ImageDetailDrawer({
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                columnGap: 18,
-                rowGap: 8,
+                columnGap: 14,
+                rowGap: 4,
                 padding: "8px 0 2px",
                 borderTop: "1px solid var(--pd-line)",
                 borderBottom: "1px solid var(--pd-line)",
@@ -865,24 +867,6 @@ export function ImageDetailDrawer({
                   />
                 </div>
               ))}
-              <div style={{ minWidth: 0, gridColumn: "1 / -1" }}>
-                <label className="pd-mono" style={labelStyle}>
-                  Created
-                </label>
-                <div
-                  className="pd-mono"
-                  style={{
-                    ...fieldStyle,
-                    display: "flex",
-                    alignItems: "center",
-                    color: "var(--pd-ink-dim)",
-                  }}
-                >
-                  {formatImageTimestamp(
-                    image.uploadedAt || image._creationTime,
-                  )}
-                </div>
-              </div>
             </div>
 
             <div
@@ -899,117 +883,28 @@ export function ImageDetailDrawer({
               Display SREF: {fmtSref(editDraft.sref)}
             </div>
 
-            <div
-              style={{
-                border: "1px solid var(--pd-line)",
-                background: "rgba(255,255,255,0.025)",
-                borderRadius: 5,
-                padding: "8px 10px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 7,
-              }}
-            >
-              <div>
-                <div
-                  className="pd-mono"
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: "0.08em",
-                    color: "var(--pd-ink-faint)",
-                    textTransform: "uppercase",
-                    marginBottom: 4,
-                  }}
-                >
-                  AI metadata
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "var(--pd-ink-mute)",
-                    lineHeight: 1.35,
-                  }}
-                >
-                  Generate tags, type, genre, shot, style, SREF hints, and
-                  sampled colors.
-                </div>
-              </div>
-              {metadataStatus ? (
-                <div
-                  className="pd-mono"
-                  style={{
-                    fontSize: 10,
-                    color: "var(--pd-ink-faint)",
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {metadataStatus}
-                </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  <button type="button" style={chipBase}>
+                    {metadataBusy || mediaBusy ? "Processing..." : "Metadata actions ▾"}
+                  </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content size="1" align="end">
+                  <DropdownMenu.Item disabled={metadataBusy} onSelect={() => void handleGenerateMetadata()}>
+                    Generate metadata & palette
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={mediaBusy} onSelect={() => void handleRepairMedia()}>
+                    Regenerate media sizes
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+              {metadataStatus || mediaStatus ? (
+                <span role="status" style={{ fontSize: 10, color: "var(--pd-ink-mute)" }}>
+                  {metadataStatus || mediaStatus}
+                </span>
               ) : null}
-              {mediaStatus ? (
-                <div
-                  className="pd-mono"
-                  style={{
-                    fontSize: 10,
-                    color: "var(--pd-ink-faint)",
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {mediaStatus}
-                </div>
-              ) : null}
-              <button
-                type="button"
-                disabled={metadataBusy}
-                onClick={() => void handleGenerateMetadata()}
-                style={{
-                  ...chipSelected,
-                  alignSelf: "flex-start",
-                  cursor: metadataBusy ? "wait" : "pointer",
-                  opacity: metadataBusy ? 0.75 : 1,
-                }}
-              >
-                {metadataBusy ? "Generating..." : "Generate Metadata & Palette"}
-              </button>
-              <button
-                type="button"
-                disabled={mediaBusy}
-                onClick={() => void handleRepairMedia()}
-                style={{
-                  ...chipBase,
-                  alignSelf: "flex-start",
-                  cursor: mediaBusy ? "wait" : "pointer",
-                  opacity: mediaBusy ? 0.75 : 1,
-                }}
-              >
-                {mediaBusy ? "Regenerating..." : "Regenerate Media Sizes"}
-              </button>
-            </div>
-
-            <div
-              style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
-            >
-              <button
-                type="button"
-                onClick={() => setEditDraft(editDraftFromImage(image))}
-                style={chipBase}
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                disabled={saveBusy}
-                onClick={() => void handleSaveMetadata()}
-                style={{
-                  ...chipSelected,
-                  cursor: saveBusy ? "wait" : "pointer",
-                  opacity: saveBusy ? 0.75 : 1,
-                }}
-              >
-                {saveBusy ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </div>
+            </div>    </div>
         )}
         {tab === "variations" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1307,6 +1202,34 @@ export function ImageDetailDrawer({
           </div>
         )}
       </div>
+
+      </div>
+      {tab === "edit" && (
+            <div
+              style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexShrink: 0, padding: "10px 14px", borderTop: "1px solid var(--pd-line)", background: "var(--pd-glass-header)" }}
+            >
+              <button
+                type="button"
+                onClick={() => setEditDraft(editDraftFromImage(image))}
+                style={chipBase}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                disabled={saveBusy}
+                onClick={() => void handleSaveMetadata()}
+                style={{
+                  ...chipSelected,
+                  cursor: saveBusy ? "wait" : "pointer",
+                  opacity: saveBusy ? 0.75 : 1,
+                }}
+              >
+                {saveBusy ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+
+      )}
 
       <ImageLightbox
         image={image}

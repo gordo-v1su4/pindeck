@@ -93,9 +93,9 @@ export function getImageUrlCandidates(
   }
 
   return uniqueUrls([
+    image.derivativeUrls?.medium,
     image.derivativeUrls?.small,
     image.previewUrl,
-    image.derivativeUrls?.medium,
     image.derivativeUrls?.large,
     image.imageUrl,
     sourceCandidate,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ImgHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type ImgHTMLAttributes } from "react";
 
 import {
   getImageUrlCandidates,
@@ -16,65 +16,59 @@ type ImageWithVariants = {
   };
 };
 
-const LOAD_TIMEOUT_MS_BY_VARIANT: Record<ImageUrlVariant, number> = {
-  dense: 2500,
-  card: 2500,
-  detail: 5000,
-  lightbox: 7000,
-};
-
 export function SmartImage({
   image,
   variant,
   alt,
   onLoad,
   onError,
+  loading,
+  decoding = "async",
   ...props
 }: Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   image: ImageWithVariants | null | undefined;
   variant: ImageUrlVariant;
 }) {
-  const candidates = useMemo(
-    () => getImageUrlCandidates(image, variant),
-    [image, variant]
+  const candidates = getImageUrlCandidates(image, variant);
+  const candidateKey = JSON.stringify(candidates);
+  const [selection, setSelection] = useState({ key: candidateKey, index: 0 });
+  const candidateIndex = selection.key === candidateKey ? selection.index : 0;
+  const imageRef = useRef<HTMLImageElement>(null);
+  const lazy = loading === "lazy" || (
+    loading !== "eager" && (variant === "card" || variant === "dense")
   );
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const [activated, setActivated] = useState(!lazy);
+  const src = !lazy || activated ? candidates[candidateIndex] : undefined;
 
   useEffect(() => {
-    setCandidateIndex(0);
-    setLoadedSrc(null);
-  }, [candidates]);
-
-  const src = candidates[candidateIndex] || "";
-
-  useEffect(() => {
-    if (!src || loadedSrc === src || candidateIndex >= candidates.length - 1) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setCandidateIndex((current) =>
-        current < candidates.length - 1 ? current + 1 : current
-      );
-    }, LOAD_TIMEOUT_MS_BY_VARIANT[variant]);
-
-    return () => window.clearTimeout(timeout);
-  }, [candidateIndex, candidates.length, loadedSrc, src, variant]);
+    if (!lazy || activated || !imageRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setActivated(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "160px" },
+    );
+    observer.observe(imageRef.current);
+    return () => observer.disconnect();
+  }, [lazy, activated]);
 
   return (
     <img
       {...props}
+      ref={imageRef}
       src={src}
       alt={alt}
+      loading={loading ?? (lazy ? "lazy" : "eager")}
+      decoding={decoding}
       onLoad={(event) => {
-        setLoadedSrc(event.currentTarget.currentSrc || src);
         onLoad?.(event);
       }}
       onError={(event) => {
         if (candidateIndex < candidates.length - 1) {
-          setLoadedSrc(null);
-          setCandidateIndex((current) => current + 1);
+          setSelection({ key: candidateKey, index: candidateIndex + 1 });
           return;
         }
 
