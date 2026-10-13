@@ -125,3 +125,67 @@ workflows even if the source URL changes later.
 - Send `sourceUrl` so reviewers can trace where an image came from.
 - Prefer direct image URLs that do not require browser cookies.
 - Retry `502` responses with backoff; they can mean the upstream image host or RustFS persistence step failed.
+
+## Agent source (`sourceType: "agent"`)
+
+Use this when an agent has already analyzed the image itself. Pindeck stores the agent's metadata as-is and runs **no** VLM, OpenRouter or palette extraction.
+
+### Extra fields (honored only for `sourceType: "agent"`)
+
+| Field | Description |
+| --- | --- |
+| `colors` | Array of `#rrggbb` hex values (max 12, normalized and deduped). These are also added to `tags`. |
+| `group`, `genre`, `style`, `shot` | Same facets the VLM normally fills, for example `Film`, `Action`, `Digital`, `Wide Shot`. |
+
+For other source types, `colors`, `group`, `genre`, `style` and `shot` are ignored.
+
+### Lifecycle
+
+1. `/ingestExternal` creates the row with `status: "draft"` and `aiStatus: "completed"`.
+2. Media is copied to RustFS by the `pindeck-external-ingest` task (or inline when orchestration is off). That creates the derivatives/thumbnails. The agent palette is **preserved**: no resampling, and no overwrite from the gateway's colors.
+3. The item appears in **Upload → Agent**, pre-filled like a Local Upload result. Title and description are editable there.
+4. **Approve** calls `finalizeUploads`, which only flips `draft → active`. No analysis, palette, variation or notification jobs run. **Discard** deletes the draft.
+
+### Example
+
+```json
+{
+  "userId": "USER_ID",
+  "imageUrl": "<public HTTPS image URL>",
+  "sourceType": "agent",
+  "source": "Midjourney",
+  "externalId": "midjourney:<jobId>:<index>",
+  "sourceUrl": "https://www.midjourney.com/jobs/<jobId>?index=<index>",
+  "title": "Samurai in burning wasteland",
+  "description": "Armored samurai stands amid fire and smoke on a scorched plain.",
+  "tags": ["samurai", "fire", "wide shot", "monochrome yellow", "sref-779163157"],
+  "category": "Film",
+  "sref": "779163157",
+  "colors": ["#9d894e", "#aea063", "#19150e", "#63512d", "#e9d038"],
+  "group": "Film", "genre": "Action", "style": "Digital", "shot": "Wide Shot"
+}
+```
+
+## Operator notes
+
+Reference credentials **by variable name only**. Never paste values into docs, PRs, skills or new files.
+
+| Purpose | Primary (Bitwarden Secrets Manager) | Fallback (local pindeck repo `.env` / `.env.local`) |
+| --- | --- | --- |
+| Bearer key | `PROXMOX_HOME_HOSTINGER_DISCORD_BOT_PRIVATE_INGEST_API_KEY` | `INGEST_API_KEY` |
+| Target `userId` | `PROXMOX_HOME_PINDECK_PRIMARY_DISCORD_INGEST_OWNER_CONVEX_USER_ID` | `PINDECK_USER_ID` |
+| Convex site URL | `PINDECK_CONVEX_SITE_URL` | `VITE_CONVEX_SITE_URL` |
+| Public image hosting | `MEDIA_GATEWAY_URL`, `MEDIA_GATEWAY_TOKEN` | same names |
+
+- **Backticks in BWS values.** Some BWS values are stored wrapped in backticks. Trim them before use, because a wrapped `userId` fails the `v.id("users")` validator with a 500.
+- **Public image URL.** `imageUrl` must be publicly fetchable. To ingest local files, first upload them with `POST {MEDIA_GATEWAY_URL}/upload` (multipart `userId`, `folder`, `file`; Bearer `MEDIA_GATEWAY_TOKEN`), then send the returned `publicUrl`.
+
+### VLM behavior by `sourceType`
+
+| `sourceType` | Initial row | Analysis |
+| --- | --- | --- |
+| `upload`, `ai`, or omitted | `active` | VLM + palette run immediately. |
+| `discord`, `pinterest` | `pending`, `aiStatus: queued` | Skipped at ingest; runs on approval. |
+| `agent` | `draft`, `aiStatus: completed` | Never. The agent metadata is final. |
+
+Re-posting the same `externalId` returns `duplicate: true`. Note that `/discordQueue` lists Discord-lineage items only.

@@ -375,6 +375,20 @@ export function mapImageForDisplay<T>(image: T): T {
   return image;
 }
 
+export function isAgentImportSource(sourceType?: string) {
+  return sourceType === "agent";
+}
+
+/** Keep only #rrggbb values, lowercased, deduped, max 12. */
+export function normalizeHexColors(colors: unknown): string[] {
+  if (!Array.isArray(colors)) return [];
+  const out = colors
+    .map((c) => String(c ?? "").trim().toLowerCase())
+    .map((c) => (c.startsWith("#") ? c : `#${c}`))
+    .filter((c) => /^#[0-9a-f]{6}$/.test(c));
+  return [...new Set(out)].slice(0, 12);
+}
+
 export function isModeratedImportSource(sourceType?: string) {
   return sourceType === "discord" || sourceType === "pinterest";
 }

@@ -210,6 +210,28 @@ export const getDraftImages = query({
   },
 });
 
+/** Agent-ingested drafts (sourceType "agent"), awaiting approval in the Agent tab. */
+export const getAgentImages = query({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    const drafts = await ctx.db
+      .query("images")
+      .withIndex("by_uploaded_by", (q) => q.eq("uploadedBy", userId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("status"), "draft"),
+          q.eq(q.field("sourceType"), "agent"),
+        ),
+      )
+      .order("desc")
+      .collect();
+    return drafts.map((img) => mapImageForDisplay(img));
+  },
+});
+
 export const finalizeUploads = mutation({
   args: { imageIds: v.array(v.id("images")) },
   returns: v.null(),

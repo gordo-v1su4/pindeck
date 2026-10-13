@@ -7,7 +7,9 @@ import { preferredImageUrlForSampling } from "../colorExtractionUrls";
 import {
   assertSafeStoragePath,
   internalApi,
+  isAgentImportSource,
   isModeratedImportSource,
+  normalizeHexColors,
   normalizeExternalImageUrl,
   storageProviderFromPayload,
   triggerOrchestrationEnabled,
@@ -36,6 +38,10 @@ export const createExternal = mutation({
     storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
     colors: v.optional(v.array(v.string())),
+    group: v.optional(v.string()),
+    genre: v.optional(v.string()),
+    style: v.optional(v.string()),
+    shot: v.optional(v.string()),
     derivativeUrls: v.optional(
       v.object({
         small: v.string(),
@@ -56,6 +62,7 @@ export const createExternal = mutation({
         v.literal("upload"),
         v.literal("discord"),
         v.literal("pinterest"),
+        v.literal("agent"),
         v.literal("ai"),
       ),
     ),
@@ -121,9 +128,16 @@ export const createExternal = mutation({
 
     const title = args.title || "Untitled";
     const category = args.category || "General";
-    const tags = args.tags
-      ? [...new Set([...args.tags, "original"])]
-      : ["original"];
+    const isAgentImport = isAgentImportSource(args.sourceType);
+    const agentColors = isAgentImport ? normalizeHexColors(args.colors) : [];
+    const tags = [
+      ...new Set([
+        ...(args.tags ?? []),
+        // Agent-supplied palette is also searchable as tags.
+        ...agentColors,
+        "original",
+      ]),
+    ];
     const isModeratedImport = isModeratedImportSource(args.sourceType);
     const storageProvider = storageProviderFromPayload(args);
     const projectName = args.sourceType === "ai" ? undefined : title;
@@ -141,8 +155,18 @@ export const createExternal = mutation({
       uploadedBy: userId,
       likes: 0,
       views: 0,
-      status: isModeratedImport ? "pending" : "active",
-      aiStatus: isModeratedImport ? "queued" : "processing",
+      // Agent imports arrive pre-analyzed and wait as drafts in the Agent tab
+      // (like Local Upload results). Approval only flips status; no VLM/palette.
+      status: isAgentImport ? "draft" : isModeratedImport ? "pending" : "active",
+      aiStatus: isAgentImport
+        ? "completed"
+        : isModeratedImport
+          ? "queued"
+          : "processing",
+      group: args.group,
+      genre: args.genre,
+      style: args.style,
+      shot: args.shot,
       uploadedAt: Date.now(),
       storageProvider,
       storageBucket: args.storageBucket,
@@ -150,7 +174,7 @@ export const createExternal = mutation({
       previewStoragePath: args.previewStoragePath,
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
-      colors: args.colors ?? [],
+      colors: isAgentImport ? agentColors : (args.colors ?? []),
       nextcloudPersistStatus: args.storagePath ? "succeeded" : undefined,
       storagePersistStatus: args.storagePath ? "succeeded" : undefined,
       externalId: args.externalId,
@@ -180,7 +204,7 @@ export const createExternal = mutation({
       }
     }
 
-    if (!isModeratedImport) {
+    if (!isModeratedImport && !isAgentImport) {
       await ctx.scheduler.runAfter(
         0,
         internal.vision.internalSmartAnalyzeImage,
@@ -221,6 +245,10 @@ export const ingestExternal = internalMutation({
     storageBucket: v.optional(v.string()),
     previewStoragePath: v.optional(v.string()),
     colors: v.optional(v.array(v.string())),
+    group: v.optional(v.string()),
+    genre: v.optional(v.string()),
+    style: v.optional(v.string()),
+    shot: v.optional(v.string()),
     derivativeUrls: v.optional(
       v.object({
         small: v.string(),
@@ -241,6 +269,7 @@ export const ingestExternal = internalMutation({
         v.literal("upload"),
         v.literal("discord"),
         v.literal("pinterest"),
+        v.literal("agent"),
         v.literal("ai"),
       ),
     ),
@@ -299,9 +328,16 @@ export const ingestExternal = internalMutation({
 
     const title = args.title || "Untitled";
     const category = args.category || "General";
-    const tags = args.tags
-      ? [...new Set([...args.tags, "original"])]
-      : ["original"];
+    const isAgentImport = isAgentImportSource(args.sourceType);
+    const agentColors = isAgentImport ? normalizeHexColors(args.colors) : [];
+    const tags = [
+      ...new Set([
+        ...(args.tags ?? []),
+        // Agent-supplied palette is also searchable as tags.
+        ...agentColors,
+        "original",
+      ]),
+    ];
     const isModeratedImport = isModeratedImportSource(args.sourceType);
     const storageProvider = storageProviderFromPayload(args);
     const projectName = args.sourceType === "ai" ? undefined : title;
@@ -319,8 +355,18 @@ export const ingestExternal = internalMutation({
       uploadedBy: args.userId,
       likes: 0,
       views: 0,
-      status: isModeratedImport ? "pending" : "active",
-      aiStatus: isModeratedImport ? "queued" : "processing",
+      // Agent imports arrive pre-analyzed and wait as drafts in the Agent tab
+      // (like Local Upload results). Approval only flips status; no VLM/palette.
+      status: isAgentImport ? "draft" : isModeratedImport ? "pending" : "active",
+      aiStatus: isAgentImport
+        ? "completed"
+        : isModeratedImport
+          ? "queued"
+          : "processing",
+      group: args.group,
+      genre: args.genre,
+      style: args.style,
+      shot: args.shot,
       uploadedAt: Date.now(),
       storageProvider,
       storageBucket: args.storageBucket,
@@ -328,7 +374,7 @@ export const ingestExternal = internalMutation({
       previewStoragePath: args.previewStoragePath,
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
-      colors: args.colors ?? [],
+      colors: isAgentImport ? agentColors : (args.colors ?? []),
       nextcloudPersistStatus: args.deferProcessing
         ? "pending"
         : args.storagePath
@@ -366,7 +412,7 @@ export const ingestExternal = internalMutation({
       }
     }
 
-    if (!args.deferProcessing && !isModeratedImport) {
+    if (!args.deferProcessing && !isModeratedImport && !isAgentImport) {
       await ctx.scheduler.runAfter(
         0,
         internal.vision.internalSmartAnalyzeImage,
@@ -392,6 +438,20 @@ export const ingestExternal = internalMutation({
     };
   },
 });
+
+/** Agent-supplied analysis fields, only honored for sourceType "agent". */
+function agentFieldsFromBody(body: any) {
+  if (!isAgentImportSource(body?.sourceType)) return {};
+  const str = (v: unknown) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, 120) : undefined;
+  return {
+    colors: normalizeHexColors(body.colors),
+    group: str(body.group),
+    genre: str(body.genre),
+    style: str(body.style),
+    shot: str(body.shot),
+  };
+}
 
 export const ingestExternalHttp = httpAction(async (ctx, request) => {
   if (request.method !== "POST") {
@@ -440,6 +500,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
       category: body.category,
       source: body.source,
       sref: body.sref,
+      ...agentFieldsFromBody(body),
       externalId: body.externalId,
       sourceType: body.sourceType,
       sourceUrl: body.sourceUrl || sourceImageUrl,
@@ -509,6 +570,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
     storageBucket: persistedImage.bucket,
     previewStoragePath: persistedImage.previewStoragePath,
     colors: persistedImage.colors,
+    ...agentFieldsFromBody(body),
     derivativeUrls: persistedImage.derivativeUrls,
     derivativeStoragePaths: persistedImage.derivativeStoragePaths,
     externalId: body.externalId,
@@ -520,6 +582,7 @@ export const ingestExternalHttp = httpAction(async (ctx, request) => {
 
   // Pixel-accurate server-side color sampling. Runs against the persisted
   // RustFS URL so we don't depend on cdn.discordapp.com CORS.
+  if (!(isAgentImportSource(body.sourceType) && normalizeHexColors(body.colors).length))
   await ctx.scheduler.runAfter(
     0,
     (internalApi as any).colorExtraction.internalExtractAndStoreColors,

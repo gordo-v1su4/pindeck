@@ -271,6 +271,7 @@ export const externalIngestHttp = httpAction(async (ctx, request) => {
       if (
         image.sourceType !== "discord" &&
         image.sourceType !== "pinterest" &&
+        image.sourceType !== "agent" &&
         progress !== "analyzed"
       ) {
         await runAnalysisOnce(ctx, {

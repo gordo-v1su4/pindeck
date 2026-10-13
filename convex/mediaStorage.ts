@@ -737,6 +737,7 @@ export const finalizeUploadedImage = internalAction({
         v.literal("upload"),
         v.literal("discord"),
         v.literal("pinterest"),
+        v.literal("agent"),
         v.literal("ai")
       )
     ),

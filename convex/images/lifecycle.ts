@@ -184,14 +184,19 @@ export const internalRepairImageMedia = internalAction({
         derivativeStoragePaths: persisted.derivativeStoragePaths,
       });
 
-      await ctx.runAction(
-        internalApi.colorExtraction.internalExtractAndStoreColors,
-        {
-          imageId: args.imageId,
-          imageUrl:
-            preferredImageUrlForSampling(persisted) ?? persisted.imageUrl,
-        },
-      );
+      // Agent rows carry an agent-supplied palette; don't resample over it.
+      const keepAgentPalette =
+        image.sourceType === "agent" && (image.colors?.length ?? 0) > 0;
+      if (!keepAgentPalette) {
+        await ctx.runAction(
+          internalApi.colorExtraction.internalExtractAndStoreColors,
+          {
+            imageId: args.imageId,
+            imageUrl:
+              preferredImageUrlForSampling(persisted) ?? persisted.imageUrl,
+          },
+        );
+      }
 
       return { ok: true, imageUrl: persisted.imageUrl };
     } catch (error: any) {
@@ -505,7 +510,11 @@ export const internalApplyNextcloudUpload = internalMutation({
       storageBucket: args.storageBucket,
       storagePath: args.storagePath,
       previewStoragePath: args.previewStoragePath,
-      colors: args.colors ?? [],
+      // Preserve an agent-supplied palette when media is (re)persisted.
+      colors:
+        previous?.sourceType === "agent" && previous.colors?.length
+          ? previous.colors
+          : (args.colors ?? []),
       derivativeUrls: args.derivativeUrls,
       derivativeStoragePaths: args.derivativeStoragePaths,
       nextcloudPersistStatus: "succeeded",
@@ -619,6 +628,8 @@ export const internalGetMediaRepairPayload = internalQuery({
       sourceUrl: image.sourceUrl,
       storagePath: image.storagePath,
       storagePersistStatus: image.storagePersistStatus,
+      sourceType: image.sourceType,
+      colors: image.colors,
     };
   },
 });

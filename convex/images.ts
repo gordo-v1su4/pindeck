@@ -60,6 +60,7 @@ export {
   generateUploadUrl,
   uploadMultiple,
   getDraftImages,
+  getAgentImages,
   finalizeUploads,
   getProcessingImages,
   clearMyStaleProcessingImages,

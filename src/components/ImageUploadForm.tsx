@@ -221,6 +221,11 @@ export function ImageUploadForm() {
   const pendingImages = useQuery(api.images.getPendingImages);
   const processingImages = useQuery(api.images.getProcessingImages);
   const draftImages = useQuery(api.images.getDraftImages);
+  // Agent-ingested drafts: metadata (title, tags, colors, sref, shot...) arrives
+  // pre-filled from the agent; approval only publishes, no VLM/palette re-run.
+  const agentImages = useQuery((api.images as any).getAgentImages) as
+    | any[]
+    | undefined;
   const approveImage = useMutation(api.images.approveImage);
   const rejectImage = useMutation(api.images.rejectImage);
   const finalizeUploads = useMutation(api.images.finalizeUploads);
@@ -249,7 +254,9 @@ export function ImageUploadForm() {
   const pinterestPendingImages = (pendingImages || []).filter(
     (img) => img.sourceType === "pinterest",
   );
-  const localDraftImages = draftImages || [];
+  const localDraftImages = (draftImages || []).filter(
+    (img) => img.sourceType !== "agent",
+  );
   const supportingGroups = (groups || []).filter(
     (group) => group.toLowerCase() !== "film",
   );
@@ -275,7 +282,7 @@ export function ImageUploadForm() {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [activeUploadTab, setActiveUploadTab] = useState<
-    "local" | "discord" | "pinterest" | "automation"
+    "local" | "discord" | "pinterest" | "automation" | "agent"
   >("local");
   const [pinterestSources, setPinterestSources] = useState<
     PinterestSourceRecord[]
@@ -971,6 +978,14 @@ export function ImageUploadForm() {
         >
           Automation
         </Button>
+        <Button
+          variant="soft"
+          className="pd-action-tab"
+          data-active={activeUploadTab === "agent"}
+          onClick={() => setActiveUploadTab("agent")}
+        >
+          Agent{agentImages?.length ? ` (${agentImages.length})` : ""}
+        </Button>
       </Flex>
 
       {activeUploadTab !== "local" ? (
@@ -980,6 +995,7 @@ export function ImageUploadForm() {
               {activeUploadTab === "discord" && "Discord Ingest"}
               {activeUploadTab === "pinterest" && "Pinterest Import"}
               {activeUploadTab === "automation" && "Automation"}
+              {activeUploadTab === "agent" && "Agent Ingest"}
             </Heading>
             {activeUploadTab === "discord" && (
               <Text size="2" color="gray">
@@ -995,6 +1011,14 @@ export function ImageUploadForm() {
                 queue.
               </Text>
             )}
+            {activeUploadTab === "agent" && (
+              <Text size="2" color="gray">
+                Images sent by agents via /ingestExternal with sourceType
+                "agent". Title, description, tags, colors, sref and shot data
+                are agent-supplied. Approving publishes them as-is; no AI
+                analysis or color extraction runs.
+              </Text>
+            )}
             {activeUploadTab === "automation" && (
               <Text size="2" color="gray">
                 Scheduled board polling is the supported automation path for
@@ -1002,6 +1026,27 @@ export function ImageUploadForm() {
               </Text>
             )}
           </Card>
+
+          {activeUploadTab === "agent" && (
+            <AgentIngestPanel
+              images={agentImages}
+              onApprove={async (ids) => {
+                if (!ids.length) return;
+                try {
+                  // finalizeUploads only flips status draft -> active.
+                  await finalizeUploads({ imageIds: ids as any });
+                  toast.success(`${ids.length} agent image(s) published.`);
+                } catch (error) {
+                  console.error("Agent approve failed:", error);
+                  toast.error("Failed to publish agent images.");
+                }
+              }}
+              onDiscard={(id) => void handleReject(id as any)}
+              onUpdate={(id, updates) =>
+                void updateImageMetadata(id as any, updates)
+              }
+            />
+          )}
 
           {activeUploadTab === "discord" && (
             <Box className="mt-6 animate-in fade-in">
@@ -2631,6 +2676,121 @@ export function ImageUploadForm() {
           )}
         </>
       )}
+    </Box>
+  );
+}
+
+function AgentIngestPanel({
+  images,
+  onApprove,
+  onDiscard,
+  onUpdate,
+}: {
+  images: any[] | undefined;
+  onApprove: (ids: string[]) => Promise<void>;
+  onDiscard: (id: string) => void;
+  onUpdate: (id: string, updates: { title?: string; description?: string }) => void;
+}) {
+  if (images === undefined) {
+    return (
+      <Text size="2" color="gray" className="mt-6 block">
+        Loading agent queue...
+      </Text>
+    );
+  }
+  if (images.length === 0) {
+    return (
+      <Text size="2" color="gray" className="mt-6 block">
+        No agent-ingested images waiting for approval.
+      </Text>
+    );
+  }
+  return (
+    <Box className="mt-6 animate-in fade-in">
+      <Separator size="4" className="mb-6" />
+      <Flex align="center" justify="between" className="mb-4 p-3 border border-gray-200 dark:border-gray-800">
+        <Box>
+          <Heading size="4">Review agent uploads</Heading>
+          <Text size="2" color="gray">
+            {images.length} image{images.length !== 1 ? "s" : ""} with
+            agent metadata
+          </Text>
+        </Box>
+        <Button
+          size="2"
+          color="green"
+          variant="soft"
+          className="pd-action-primary"
+          onClick={() => void onApprove(images.map((img) => img._id))}
+        >
+          Approve All
+        </Button>
+      </Flex>
+      <Grid columns={{ initial: "1", lg: "2" }} gap="4">
+        {images.map((image) => (
+          <Card key={image._id} className="overflow-hidden">
+            <Flex gap="4">
+              <Box className="w-32 h-20 shrink-0 bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                <img
+                  src={image.previewUrl || image.imageUrl}
+                  alt={image.title}
+                  className="w-full h-full object-cover"
+                />
+              </Box>
+              <Box className="flex-1 space-y-2 min-w-0">
+                <TextField.Root
+                  value={image.title}
+                  onChange={(e) => onUpdate(image._id, { title: e.target.value })}
+                  size="1"
+                />
+                <TextField.Root
+                  value={image.description || ""}
+                  onChange={(e) =>
+                    onUpdate(image._id, { description: e.target.value })
+                  }
+                  placeholder="Description"
+                  size="1"
+                />
+                <Flex gap="1" wrap="wrap">
+                  {(image.colors || []).map((c: string) => (
+                    <span
+                      key={c}
+                      title={c}
+                      style={{ background: c, width: 16, height: 16, display: "inline-block" }}
+                    />
+                  ))}
+                </Flex>
+                <Text size="1" color="gray" className="block">
+                  {[
+                    image.sref && `sref ${image.sref}`,
+                    image.shot,
+                    image.genre,
+                    image.style,
+                    image.group,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+                <Flex gap="1" wrap="wrap">
+                  {(image.tags || []).slice(0, 14).map((t: string) => (
+                    <Badge key={t} size="1" variant="soft">
+                      {t}
+                    </Badge>
+                  ))}
+                </Flex>
+                <Flex gap="2">
+                  <Button size="1" color="green" variant="soft" onClick={() => void onApprove([image._id])}>
+                    Approve
+                  </Button>
+                  <Button size="1" color="red" variant="ghost" onClick={() => onDiscard(image._id)}>
+                    Discard
+                  </Button>
+                </Flex>
+              </Box>
+            </Flex>
+          </Card>
+        ))}
+      </Grid>
     </Box>
   );
 }
