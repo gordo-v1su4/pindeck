@@ -1,9 +1,9 @@
 # Dependencies
 node_modules/
 
-# Docs (hosted by Mintlify, not Vercel)
-docs/
-working-docs/
+# Repo-root notes only (anchored so src/components/docs/ is still uploaded)
+/docs/
+/working-docs/
 
 # Development files
 .env.local
