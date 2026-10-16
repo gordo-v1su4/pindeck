@@ -1,8 +1,5 @@
-import { useEffect, useState } from "react";
-import {
-  defaultTableVisibleColumns,
-  type TableColumnKey,
-} from "./types";
+import { useState } from "react";
+import { defaultTableVisibleColumns, type TableColumnKey } from "./types";
 
 export const TABLE_COLUMN_VISIBILITY_STORAGE_KEY =
   "pindeck_table_visible_columns";
@@ -35,18 +32,7 @@ export function readStoredTableColumnVisibility(): Record<
 export function useTableColumnVisibility() {
   const [tableVisibleColumns, setTableVisibleColumns] = useState<
     Record<TableColumnKey, boolean>
-  >(readStoredTableColumnVisibility);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        TABLE_COLUMN_VISIBILITY_STORAGE_KEY,
-        JSON.stringify(tableVisibleColumns),
-      );
-    } catch {
-      // Column visibility should never block app rendering.
-    }
-  }, [tableVisibleColumns]);
+  >(defaultTableVisibleColumns);
 
   return { tableVisibleColumns, setTableVisibleColumns };
 }

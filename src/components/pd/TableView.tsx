@@ -536,10 +536,11 @@ export function TableView({
 
   return (
     <div
-      className="pd-scroll pd-fade-in pd-table-view-scroll"
+      className="pd-fade-in pd-table-view"
       style={{
         flex: 1,
-        overflow: "auto",
+        minHeight: 0,
+        overflow: "hidden",
         padding: 0,
         background: "var(--pd-bg)",
         display: "flex",
@@ -551,6 +552,7 @@ export function TableView({
         style={{
           flexShrink: 0,
           display: "flex",
+          flexWrap: "wrap",
           justifyContent: "space-between",
           alignItems: "center",
           gap: 10,
@@ -569,6 +571,7 @@ export function TableView({
               : "var(--pd-ink-faint)",
             letterSpacing: "0.05em",
             textTransform: "uppercase",
+            flexShrink: 0,
           }}
         >
           {selectedCount
@@ -579,7 +582,7 @@ export function TableView({
         </div>
         <div
           className="pd-table-action-bar"
-          style={{ display: "flex", alignItems: "center", gap: 8 }}
+          style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, minWidth: 0, maxWidth: "100%" }}
         >
           {[
             {
@@ -635,6 +638,8 @@ export function TableView({
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: 10.5,
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
                   minHeight: 24,
                   padding: "3px 8px",
                   borderRadius: 4,
@@ -761,6 +766,7 @@ export function TableView({
           )}
         </div>
       )}
+      <div className="pd-scroll pd-table-view-scroll" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
       <table
         className="pd-data-table"
         style={{
@@ -1150,6 +1156,7 @@ export function TableView({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

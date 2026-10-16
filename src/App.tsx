@@ -12,7 +12,9 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "@/SignInForm";
 import { SignOutButton } from "@/SignOutButton";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
+import { defaultTableVisibleColumns } from "@/components/shell/types";
+import { defaultLibraryFilters } from "@/lib/libraryFilters";
 import { PinIcon } from "@/components/ui/pindeck";
 import {
   TweaksPanel,
@@ -47,41 +49,16 @@ const DeckView = lazy(() =>
   import("@/components/DeckView").then((mod) => ({ default: mod.DeckView })),
 );
 
-
-const SIDEBAR_COLLAPSE_STORAGE_KEY = "pindeck_sidebar_collapsed";
-
-function shouldStartWithCollapsedSidebar() {
-  try {
-    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
-    if (stored === "true") return true;
-    if (stored === "false") return false;
-    return window.matchMedia("(max-width: 900px)").matches;
-  } catch {
-    return false;
-  }
-}
-
 function isMobileViewport() {
   return typeof window !== "undefined" && window.innerWidth <= 900;
 }
 
 /** Authenticated shell: auth, Convex library list, tweaks, and view bodies. View / filter / column state lives in `src/components/shell/` hooks. */
 export default function App() {
-  const [tweaks, setTweaks] = useState<Tweaks>(() => {
-    try {
-      const saved = localStorage.getItem("pindeck_tweaks");
-      return saved
-        ? { ...DEFAULT_TWEAKS, ...JSON.parse(saved) }
-        : DEFAULT_TWEAKS;
-    } catch {
-      return DEFAULT_TWEAKS;
-    }
-  });
+  const [tweaks, setTweaks] = useState<Tweaks>(DEFAULT_TWEAKS);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    shouldStartWithCollapsedSidebar,
-  );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(isMobileViewport);
   const {
     view,
     setView,
@@ -96,18 +73,14 @@ export default function App() {
   const { tableVisibleColumns, setTableVisibleColumns } =
     useTableColumnVisibility();
   const [docsPage, setDocsPageState] = useState<DocsPageId>(() =>
-    sanitizeDocsPage(localStorage.getItem("pindeck_docs_page")),
+    sanitizeDocsPage(null),
   );
   const saveDocsPagePref = useMutation(api.userPreferences.setDocsPage);
   const setDocsPage = (page: DocsPageId) => {
     setDocsPageState(page);
-    try {
-      // localStorage is only a fast cache; Convex holds the preference.
-      localStorage.setItem("pindeck_docs_page", page);
-    } catch {
-      // ignore storage failures
-    }
-    void saveDocsPagePref({ docsPage: page }).catch(() => {});
+    void saveDocsPagePref({ docsPage: page }).catch(() =>
+      toast.error("Could not save Docs preference"),
+    );
   };
   const [search, setSearch] = useState("");
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
@@ -118,36 +91,83 @@ export default function App() {
     api.userPreferences.get,
     isAuthenticated ? {} : "skip",
   );
-  const savedDocsPage = userPrefs?.docsPage;
+  const saveWorkspace = useMutation(api.userPreferences.setWorkspace);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const savedWorkspace = useRef("");
+  const workspace = React.useMemo(
+    () => ({
+      view,
+      galleryDisplayMode,
+      activeDeckId,
+      sidebarCollapsed,
+      tableVisibleColumns,
+      libraryFilter,
+      tweaks,
+    }),
+    [
+      view,
+      galleryDisplayMode,
+      activeDeckId,
+      sidebarCollapsed,
+      tableVisibleColumns,
+      libraryFilter,
+      tweaks,
+    ],
+  );
+  const serializedWorkspace = JSON.stringify(workspace);
+
   useEffect(() => {
-    if (!savedDocsPage) return;
-    const page = sanitizeDocsPage(savedDocsPage);
-    setDocsPageState(page);
-    try {
-      localStorage.setItem("pindeck_docs_page", page);
-    } catch {
-      // ignore storage failures
+    if (!isAuthenticated) {
+      setLoadedUserId(null);
+      return;
     }
-  }, [savedDocsPage]);
+    if (!userPrefs || loadedUserId === userPrefs.userId) return;
+    const saved = userPrefs.workspace;
+    setView(saved?.view ?? "gallery");
+    setGalleryDisplayMode(saved?.galleryDisplayMode ?? "project-rows");
+    setActiveDeckId(saved?.activeDeckId ?? null);
+    setSidebarCollapsed(saved?.sidebarCollapsed ?? isMobileViewport());
+    setTableVisibleColumns({
+      ...defaultTableVisibleColumns,
+      ...saved?.tableVisibleColumns,
+    });
+    setLibraryFilter(saved?.libraryFilter ?? defaultLibraryFilters());
+    setTweaks(saved?.tweaks ?? DEFAULT_TWEAKS);
+    setDocsPageState(sanitizeDocsPage(userPrefs.docsPage ?? null));
+    setSearch("");
+    savedWorkspace.current = saved ? JSON.stringify(saved) : "";
+    setLoadedUserId(userPrefs.userId);
+  }, [isAuthenticated, userPrefs, loadedUserId]);
+
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      !userPrefs ||
+      loadedUserId !== userPrefs.userId ||
+      savedWorkspace.current === serializedWorkspace
+    )
+      return;
+    const timer = window.setTimeout(() => {
+      void saveWorkspace({ workspace })
+        .then(() => {
+          savedWorkspace.current = serializedWorkspace;
+        })
+        .catch(() => toast.error("Could not save workspace layout"));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [
+    isAuthenticated,
+    userPrefs?.userId,
+    loadedUserId,
+    serializedWorkspace,
+    workspace,
+    saveWorkspace,
+  ]);
+
   const libraryImages = useQuery(
     api.images.list,
     isAuthenticated ? { limit: 1000 } : "skip",
   );
-
-  useEffect(() => {
-    localStorage.setItem("pindeck_tweaks", JSON.stringify(tweaks));
-  }, [tweaks]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        SIDEBAR_COLLAPSE_STORAGE_KEY,
-        String(sidebarCollapsed),
-      );
-    } catch {
-      // Sidebar preference should never block app rendering.
-    }
-  }, [sidebarCollapsed]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 900px)");
@@ -244,7 +264,10 @@ export default function App() {
     lineHeight: 1.45,
   };
 
-  if (authLoading) {
+  if (
+    authLoading ||
+    (isAuthenticated && (!userPrefs || loadedUserId !== userPrefs.userId))
+  ) {
     return (
       <div
         className={`pd-theme pd-app-shell ${tweaks.grain ? "pd-grain" : ""}`}
@@ -391,7 +414,7 @@ export default function App() {
             }}
           >
             <div
-              className="pd-view-stage"
+              className={`pd-view-stage${view === "table" && selectedImage ? " pd-table-drawer-open" : ""}`}
               style={{
                 flex: 1,
                 display: "flex",

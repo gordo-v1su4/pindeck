@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { workspacePreferences } from "./lib/workspacePreferences";
 import { authTables } from "@convex-dev/auth/server";
 
 const applicationTables = {
@@ -251,7 +252,7 @@ const applicationTables = {
       v.literal("upload"),
       v.literal("discord"),
       v.literal("pinterest"),
-        v.literal("agent"),
+      v.literal("agent"),
       v.literal("ai"),
     ),
     sourceUrl: v.optional(v.string()),
@@ -266,6 +267,7 @@ const applicationTables = {
   userPreferences: defineTable({
     userId: v.id("users"),
     docsPage: v.optional(v.string()),
+    workspace: v.optional(workspacePreferences),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 };

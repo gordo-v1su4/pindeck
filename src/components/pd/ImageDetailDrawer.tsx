@@ -10,12 +10,13 @@ import { toast } from "sonner";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
 import { PinIcon, PinChip, PinSwatches } from "@/components/ui/pindeck";
-import type { Tweaks } from "../TweaksPanel";
+import type { Tweaks } from "./TweaksPanel";
 import { downloadImage } from "@/lib/imageDownload";
 import { ImageLightbox } from "@/components/pd/ImageLightbox";
 import { SmartImage } from "@/components/SmartImage";
 import { getPaletteTagColorForLabel } from "@/lib/utils";
-import { DropdownMenu } from "@radix-ui/themes";
+import { DropdownMenu, Select } from "@radix-ui/themes";
+import { normalizeLibraryGroup } from "@/lib/libraryFilters";
 
 interface ImageDetailDrawerProps {
   image: any;
@@ -43,6 +44,7 @@ const ASPECT_OPTIONS: { label: string; value: string }[] = [
 ];
 
 const COUNT_OPTIONS = [1, 2, 4, 8];
+const TYPE_OPTIONS = ["Film", "Music Video", "Video Game Cinematic", "Commercial", "Moodboard"];
 
 type EditDraft = {
   title: string;
@@ -245,12 +247,12 @@ export function ImageDetailDrawer({
         tags: editDraft.tags,
         category: editDraft.category.trim() || "Uncategorized",
         sref: cleanOptional(editDraft.sref),
-        group: cleanOptional(editDraft.group),
+        group: editDraft.group.trim(),
         genre: cleanOptional(editDraft.genre),
         shot: cleanOptional(editDraft.shot),
         style: cleanOptional(editDraft.style),
         projectName: cleanOptional(editDraft.projectName),
-        moodboardName: cleanOptional(editDraft.moodboardName),
+        moodboardName: editDraft.moodboardName.trim(),
         source: cleanOptional(editDraft.source),
         uniqueId: cleanOptional(editDraft.uniqueId),
       });
@@ -452,6 +454,7 @@ export function ImageDetailDrawer({
           style={{
             width: 24,
             height: 24,
+            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -466,6 +469,7 @@ export function ImageDetailDrawer({
           <div
             style={{
               fontSize: 13,
+              lineHeight: "18px",
               fontWeight: 600,
               color: "var(--pd-ink)",
               overflow: "hidden",
@@ -479,8 +483,12 @@ export function ImageDetailDrawer({
             className="pd-mono"
             style={{
               fontSize: 10,
+              lineHeight: "14px",
               color: "var(--pd-ink-faint)",
               letterSpacing: "0.04em",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {image._id} · {image.sref || "—"}
@@ -489,10 +497,14 @@ export function ImageDetailDrawer({
             className="pd-mono"
             style={{
               fontSize: 9,
+              lineHeight: "13px",
               color: "var(--pd-ink-mute)",
               letterSpacing: "0.06em",
               textTransform: "uppercase",
               marginTop: 4,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {dash(image.shot)} · {dash(image.style)} · {dash(image.genre)}
@@ -536,6 +548,7 @@ export function ImageDetailDrawer({
             color: "var(--pd-ink-dim)",
             fontSize: 10,
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           Download
@@ -561,7 +574,7 @@ export function ImageDetailDrawer({
             image={image}
             variant="detail"
             alt={image.title}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            style={{ position: "absolute", inset: 0, display: "block", width: "100%", height: "100%", objectFit: "cover" }}
           />
           <button
             type="button"
@@ -663,7 +676,7 @@ export function ImageDetailDrawer({
                 gap: 0,
                 borderRadius: 3,
                 overflow: "hidden",
-                height: 18,
+                height: 20,
               }}
             >
               {image.colors.map((c: string, i: number) => (
@@ -717,6 +730,7 @@ export function ImageDetailDrawer({
             padding: "10px 0 6px",
             fontSize: 11,
             color: "var(--pd-ink-mute)",
+            whiteSpace: "nowrap",
           }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -726,7 +740,7 @@ export function ImageDetailDrawer({
             <PinIcon name="heart" size={11} /> {image.likes}
           </span>
           <div style={{ flex: 1 }} />
-          <span className="pd-mono" style={{ color: "var(--pd-ink-faint)" }}>
+          <span className="pd-mono" style={{ color: "var(--pd-ink-faint)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
             {formatImageTimestamp(image.uploadedAt || image._creationTime)}
           </span>
         </div>
@@ -861,15 +875,27 @@ export function ImageDetailDrawer({
                   <label className="pd-mono" style={labelStyle}>
                     {label}
                   </label>
-                  <input
+                  {key === "group" ? (
+                    <Select.Root
+                      value={TYPE_OPTIONS.find((type) => type.toLowerCase().replace(/\s/g, "") === normalizeLibraryGroup(editDraft.group).toLowerCase().replace(/\s/g, "")) ?? "unassigned"}
+                      onValueChange={(value) => updateEditDraft({ group: value === "unassigned" ? "" : value })}
+                    >
+                      <Select.Trigger aria-label="Type" variant="ghost" style={{ ...fieldStyle, display: "flex", justifyContent: "space-between", margin: 0 }} />
+                      <Select.Content>
+                        {TYPE_OPTIONS.map((type) => <Select.Item key={type} value={type}>{type}</Select.Item>)}
+                        <Select.Item value="unassigned">Unassigned</Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+                  ) : <input
                     value={editDraft[key as keyof EditDraft] as string}
                     onChange={(e) =>
                       updateEditDraft({
                         [key]: e.target.value,
                       } as Partial<EditDraft>)
                     }
+                    aria-label={label}
                     style={fieldStyle}
-                  />
+                  />}
                 </div>
               ))}
             </div>

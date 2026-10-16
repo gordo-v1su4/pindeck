@@ -33,6 +33,8 @@ import type * as lib_authz from "../lib/authz.js";
 import type * as lib_generationSource from "../lib/generationSource.js";
 import type * as lib_mediaAdapter from "../lib/mediaAdapter.js";
 import type * as lib_variationAccess from "../lib/variationAccess.js";
+import type * as lib_variationPrompts from "../lib/variationPrompts.js";
+import type * as lib_workspacePreferences from "../lib/workspacePreferences.js";
 import type * as maintenance from "../maintenance.js";
 import type * as mediaAdapter from "../mediaAdapter.js";
 import type * as mediaStorage from "../mediaStorage.js";
@@ -42,8 +44,8 @@ import type * as orchestrationSeam from "../orchestrationSeam.js";
 import type * as orchestrationState from "../orchestrationState.js";
 import type * as seed from "../seed.js";
 import type * as storyboards from "../storyboards.js";
-import type * as userPreferences from "../userPreferences.js";
 import type * as triggerDispatch from "../triggerDispatch.js";
+import type * as userPreferences from "../userPreferences.js";
 import type * as vision from "../vision.js";
 
 import type {
@@ -78,6 +80,8 @@ declare const fullApi: ApiFromModules<{
   "lib/generationSource": typeof lib_generationSource;
   "lib/mediaAdapter": typeof lib_mediaAdapter;
   "lib/variationAccess": typeof lib_variationAccess;
+  "lib/variationPrompts": typeof lib_variationPrompts;
+  "lib/workspacePreferences": typeof lib_workspacePreferences;
   maintenance: typeof maintenance;
   mediaAdapter: typeof mediaAdapter;
   mediaStorage: typeof mediaStorage;
@@ -87,8 +91,8 @@ declare const fullApi: ApiFromModules<{
   orchestrationState: typeof orchestrationState;
   seed: typeof seed;
   storyboards: typeof storyboards;
-  userPreferences: typeof userPreferences;
   triggerDispatch: typeof triggerDispatch;
+  userPreferences: typeof userPreferences;
   vision: typeof vision;
 }>;
 

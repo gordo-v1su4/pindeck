@@ -571,8 +571,27 @@ export const updateImageMetadata = mutation({
     if (args.style !== undefined) patch.style = args.style;
     if (args.shot !== undefined) patch.shot = args.shot;
     if (args.projectName !== undefined) patch.projectName = args.projectName;
-    if (args.moodboardName !== undefined)
-      patch.moodboardName = args.moodboardName;
+    if (args.moodboardName !== undefined) {
+      const name = args.moodboardName.trim();
+      patch.moodboardName = name;
+      if (name) {
+        // Board membership and metadata must succeed together, including retries.
+        const boards = await ctx.db.query("collections")
+          .withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+        const board = boards.find((candidate) =>
+          candidate.name.trim().toLowerCase() === name.toLowerCase());
+        if (board) {
+          patch.moodboardName = board.name;
+          if (!board.imageIds.includes(args.imageId)) {
+            await ctx.db.patch(board._id, { imageIds: [...board.imageIds, args.imageId] });
+          }
+        } else {
+          await ctx.db.insert("collections", {
+            name, userId, isPublic: false, imageIds: [args.imageId],
+          });
+        }
+      }
+    }
     if (args.uniqueId !== undefined) patch.uniqueId = args.uniqueId;
 
     await ctx.db.patch("images", args.imageId, patch);

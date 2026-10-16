@@ -3032,6 +3032,12 @@ body {
   display: none;
 }
 
+@media (min-width: 901px) {
+  .pd-view-stage.pd-table-drawer-open {
+    margin-right: 440px;
+  }
+}
+
 .pd-data-table {
   min-width: 1180px;
 }

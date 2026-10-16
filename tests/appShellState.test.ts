@@ -28,9 +28,9 @@ describe("sanitizeGalleryDisplayMode", () => {
     expect(sanitizeGalleryDisplayMode("random")).toBe("random");
   });
 
-  test("falls back to random", () => {
-    expect(sanitizeGalleryDisplayMode(null)).toBe("random");
-    expect(sanitizeGalleryDisplayMode("grid")).toBe("random");
+  test("falls back to project rows", () => {
+    expect(sanitizeGalleryDisplayMode(null)).toBe("project-rows");
+    expect(sanitizeGalleryDisplayMode("grid")).toBe("project-rows");
   });
 });
 
