@@ -122,7 +122,14 @@ interface TableViewProps {
   /** When provided, avoids a duplicate `images.list` subscription. */
   images?: any[] | undefined;
   visibleColumns: Record<ColumnKey, boolean>;
+  columnWidths: Record<string, number>;
+  onColumnWidthsChange: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 }
+
+const DEFAULT_COLUMN_WIDTHS: Record<"title" | ColumnKey, number> = {
+  title: 360, date: 84, group: 118, genre: 78, shot: 120, style: 86,
+  tags: 340, palette: 128, sref: 170, likes: 38, views: 46,
+};
 
 export function TableView({
   search,
@@ -130,12 +137,27 @@ export function TableView({
   libraryFilter,
   images: imagesProp,
   visibleColumns,
+  columnWidths,
+  onColumnWidthsChange,
 }: TableViewProps) {
+  const tableScrollRef = React.useRef<HTMLDivElement>(null);
+  const [tableWidth, setTableWidth] = useState(0);
+  const columnDrag = React.useRef<{
+    key: string; nextKey: string; x: number; width: number; nextWidth: number; weight: number;
+  } | null>(null);
   const queriedImages = useQuery(
     api.images.list,
     imagesProp === undefined ? { limit: 1000 } : "skip",
   );
   const images = imagesProp ?? queriedImages;
+  const imagesLoaded = images !== undefined;
+  useEffect(() => {
+    const element = tableScrollRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setTableWidth(element.clientWidth));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [imagesLoaded]);
   const loggedInUser = useQuery(api.auth.loggedInUser);
   const enqueueMetadataRefresh = useMutation(api.images.enqueueMetadataRefresh);
   const removeMany = useMutation(api.images.removeMany);
@@ -478,8 +500,71 @@ export function TableView({
 
   const tableUtilityRowHeight = 34;
   const stickyTableHeaderTop = 0;
+  const columnKeys = (Object.keys(DEFAULT_COLUMN_WIDTHS) as Array<"title" | ColumnKey>)
+    .filter((key) => key === "title" || visibleColumns[key]);
+  const columnWeight = (key: "title" | ColumnKey) => {
+    const saved = columnWidths[key];
+    return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_COLUMN_WIDTHS[key];
+  };
+  const totalWeight = columnKeys.reduce((sum, key) => sum + columnWeight(key), 0);
+  const columnWidth = (key: "title" | ColumnKey) => {
+    const share = columnWeight(key) / totalWeight;
+    return tableWidth ? `${Math.max(0, tableWidth - 76) * share}px` : undefined;
+  };
+  const resizeHandle = (key: "title" | ColumnKey, label: string) => {
+    const nextKey = columnKeys[columnKeys.indexOf(key) + 1];
+    if (!nextKey) return null;
+    return <span
+      className="pd-column-resize-handle"
+      role="separator"
+      aria-label={`Resize ${label} column`}
+      aria-orientation="vertical"
+      aria-valuenow={Math.round(columnWeight(key))}
+      tabIndex={0}
+      onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const cell = event.currentTarget.parentElement!;
+        columnDrag.current = { key, nextKey, x: event.clientX,
+          width: cell.getBoundingClientRect().width,
+          nextWidth: cell.nextElementSibling!.getBoundingClientRect().width,
+          weight: columnWeight(key) + columnWeight(nextKey) };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        const drag = columnDrag.current;
+        if (!drag) return;
+        const combinedWidth = drag.width + drag.nextWidth;
+        const minimum = Math.min(32, combinedWidth / 3);
+        const width = Math.max(minimum, Math.min(combinedWidth - minimum,
+          drag.width + event.clientX - drag.x));
+        const weight = drag.weight * width / combinedWidth;
+        onColumnWidthsChange((current) => ({ ...current,
+          [drag.key]: weight, [drag.nextKey]: drag.weight - weight }));
+      }}
+      onPointerUp={(event) => {
+        columnDrag.current = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+      }}
+      onLostPointerCapture={() => { columnDrag.current = null; }}
+      onPointerCancel={() => { columnDrag.current = null; }}
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        event.stopPropagation();
+        const combined = columnWeight(key) + columnWeight(nextKey);
+        const weight = Math.max(combined * 0.05, Math.min(combined * 0.95,
+          columnWeight(key) + combined * (event.key === "ArrowRight" ? 0.03 : -0.03)));
+        onColumnWidthsChange((current) => ({ ...current, [key]: weight, [nextKey]: combined - weight }));
+      }}
+    />;
+  };
 
-  const headerCell = (label: string, key: SortKey, w?: number) => (
+  const headerCell = (label: string, key: SortKey) => (
     <th
       style={{
         padding: "7px 8px",
@@ -497,7 +582,7 @@ export function TableView({
         top: stickyTableHeaderTop,
         zIndex: 12,
         cursor: "pointer",
-        width: w,
+        width: columnWidth(key === "uploadedAt" ? "date" : key),
       }}
       onClick={() =>
         setSort({
@@ -506,7 +591,7 @@ export function TableView({
         })
       }
     >
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, maxWidth: "100%", overflow: "hidden", whiteSpace: "nowrap" }}>
         {label}
         {sort.by === key ? (
           <span aria-hidden="true" style={{ color: "var(--pd-accent-ink)" }}>
@@ -514,6 +599,7 @@ export function TableView({
           </span>
         ) : null}
       </span>
+      {resizeHandle(key === "uploadedAt" ? "date" : key, label)}
     </th>
   );
 
@@ -766,7 +852,7 @@ export function TableView({
           )}
         </div>
       )}
-      <div className="pd-scroll pd-table-view-scroll" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+      <div ref={tableScrollRef} className="pd-scroll pd-table-view-scroll" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
       <table
         className="pd-data-table"
         style={{
@@ -815,13 +901,13 @@ export function TableView({
                 <span className="pd-filter-checkbox-box" aria-hidden="true" />
               </label>
             </th>
-            {headerCell("Title", "title", 360)}
-            {visibleColumns.date && headerCell("Date", "uploadedAt", 84)}
-            {visibleColumns.group && headerCell("Type", "group", 118)}
-            {visibleColumns.genre && headerCell("Genre", "genre", 78)}
-            {visibleColumns.shot && headerCell("Shot", "shot", 120)}
-            {visibleColumns.style && headerCell("Style", "style", 86)}
-            {visibleColumns.tags && headerCell("Tags", "tags", 340)}
+            {headerCell("Title", "title")}
+            {visibleColumns.date && headerCell("Date", "uploadedAt")}
+            {visibleColumns.group && headerCell("Type", "group")}
+            {visibleColumns.genre && headerCell("Genre", "genre")}
+            {visibleColumns.shot && headerCell("Shot", "shot")}
+            {visibleColumns.style && headerCell("Style", "style")}
+            {visibleColumns.tags && headerCell("Tags", "tags")}
             {visibleColumns.palette && (
               <th
                 style={{
@@ -839,15 +925,16 @@ export function TableView({
                   position: "sticky",
                   top: stickyTableHeaderTop,
                   zIndex: 12,
-                  width: 128,
+                  width: columnWidth("palette"),
                 }}
               >
                 Palette
+                {resizeHandle("palette", "Palette")}
               </th>
             )}
-            {visibleColumns.sref && headerCell("Sref", "sref", 170)}
-            {visibleColumns.likes && headerCell("♥", "likes", 38)}
-            {visibleColumns.views && headerCell("👁", "views", 46)}
+            {visibleColumns.sref && headerCell("Sref", "sref")}
+            {visibleColumns.likes && headerCell("♥", "likes")}
+            {visibleColumns.views && headerCell("👁", "views")}
           </tr>
         </thead>
         <tbody>

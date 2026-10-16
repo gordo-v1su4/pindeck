@@ -72,6 +72,7 @@ export default function App() {
   const { libraryFilter, setLibraryFilter } = useLibraryFilterState();
   const { tableVisibleColumns, setTableVisibleColumns } =
     useTableColumnVisibility();
+  const [tableColumnWidths, setTableColumnWidths] = useState<Record<string, number>>({});
   const [docsPage, setDocsPageState] = useState<DocsPageId>(() =>
     sanitizeDocsPage(null),
   );
@@ -101,6 +102,7 @@ export default function App() {
       activeDeckId,
       sidebarCollapsed,
       tableVisibleColumns,
+      tableColumnWidths,
       libraryFilter,
       tweaks,
     }),
@@ -110,6 +112,7 @@ export default function App() {
       activeDeckId,
       sidebarCollapsed,
       tableVisibleColumns,
+      tableColumnWidths,
       libraryFilter,
       tweaks,
     ],
@@ -132,6 +135,7 @@ export default function App() {
       ...saved?.tableVisibleColumns,
     });
     setLibraryFilter(saved?.libraryFilter ?? defaultLibraryFilters());
+    setTableColumnWidths(saved?.tableColumnWidths ?? {});
     setTweaks(saved?.tweaks ?? DEFAULT_TWEAKS);
     setDocsPageState(sanitizeDocsPage(userPrefs.docsPage ?? null));
     setSearch("");
@@ -440,6 +444,8 @@ export default function App() {
                   libraryFilter={libraryFilter}
                   images={libraryImages}
                   visibleColumns={tableVisibleColumns}
+                  columnWidths={tableColumnWidths}
+                  onColumnWidthsChange={setTableColumnWidths}
                 />
               )}
               {view === "boards" && (

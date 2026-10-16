@@ -18,6 +18,7 @@ export const workspacePreferences = v.object({
   activeDeckId: v.union(v.id("decks"), v.null()),
   sidebarCollapsed: v.boolean(),
   tableVisibleColumns: v.record(v.string(), v.boolean()),
+  tableColumnWidths: v.optional(v.record(v.string(), v.number())),
   libraryFilter: v.object({
     group: v.union(v.string(), v.null()),
     genre: v.union(v.string(), v.null()),

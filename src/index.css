@@ -3039,7 +3039,33 @@ body {
 }
 
 .pd-data-table {
-  min-width: 1180px;
+  min-width: 0;
+}
+
+.pd-column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.pd-column-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: 0;
+  width: 2px;
+  background: var(--pd-line-strong);
+}
+
+.pd-column-resize-handle:hover::after,
+.pd-column-resize-handle:focus-visible::after {
+  background: var(--pd-accent);
 }
 
 @media (hover: none), (pointer: coarse) {
