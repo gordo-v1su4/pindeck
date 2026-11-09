@@ -1,12 +1,12 @@
 # Pindeck platform topology
 
-Map of **roles** and **traffic flow**. Convex ops patterns: [`docs/self-hosted-convex-ops.md`](../self-hosted-convex-ops.md). Trigger: [`docs/trigger-orchestration.md`](../trigger-orchestration.md). **URLs** for each layer live in environment variables (`.env.local`, Vercel/Convex dashboard secrets), not in this repo.
+Map of **roles** and **traffic flow**. Convex ops patterns: [`docs/self-hosted-convex-ops.md`](../self-hosted-convex-ops.md). Trigger: [`docs/trigger-orchestration.md`](../trigger-orchestration.md). **URLs** for each layer live in environment variables (`.env.local`, BWS-derived runtime configuration), not in this repo.
 
 ## Production surfaces
 
 | Layer | Role |
 | ----- | ---- |
-| Frontend | Static/hosted web app ([pindeck.dev](https://pindeck.dev)) |
+| Frontend | Hostinger Caddy serves the static web app ([pindeck.dev](https://pindeck.dev)) |
 | Convex API | Self-hosted Convex database and functions |
 | HTTP actions | Same Convex stack: `/ingestExternal`, Discord routes, `/orchestration/*` |
 | Dashboard | Self-hosted Convex admin UI |
@@ -47,7 +47,7 @@ flowchart LR
 
 1. **Convex** — `bun run deploy:convex` with deploy env loaded from `.env.local`
 2. **Trigger** — on your worker host: `bun run trigger:deploy` (see trigger doc)
-3. **Frontend** — push **`main`** → Vercel project for [pindeck.dev](https://pindeck.dev)
+3. **Frontend** - inject the existing BWS public Convex records and run `bun run build`, then publish `dist/` to Hostinger. Frontend releases are currently manual; see `proxmox-home/docs/pindeck-platform-topology.md`. Frontend builds do not deploy Convex.
 
 ## Verify
 

@@ -57,7 +57,11 @@ Do not use `--prod` with self-hosted targets. Production is selected by `CONVEX_
 
 ## Deployment notes
 
-Pushing to `main` can trigger Vercel. When deploy secrets are configured, the build wrapper may run `bunx convex deploy` before the frontend build. There should not be a separate GitHub Actions Convex deployment unless your team adds one.
+Frontend builds do not deploy Convex. Release backend functions explicitly with
+`bun run deploy:convex` under the existing BWS-backed self-hosted deployment
+environment. Backend target validation remains strict in CI; frontend builds
+require only the public client configuration. Hostinger frontend releases are
+currently manual; see `proxmox-home/docs/pindeck-platform-topology.md`.
 
 ## Backend image upgrades
 

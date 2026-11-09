@@ -54,24 +54,11 @@ reject_unfold_targets() {
   done
 }
 
-# Vercel CI does not have .env. The client bundle only needs
-# VITE_CONVEX_* at build time. Pindeck production is self-hosted, so
-# CONVEX_DEPLOYMENT must remain unset; deploy with CONVEX_SELF_HOSTED_*.
-is_ci_build() {
-  [[ "${VERCEL:-}" == "1" ]] ||
-    [[ "${CI:-}" == "true" ]] ||
-    [[ "${CI:-}" == "1" ]] ||
-    [[ "${GITHUB_ACTIONS:-}" == "true" ]]
-}
-
-if is_ci_build; then
-  # Default empty env to production Convex (same fallback as vite.config.ts) so CI
-  # succeeds without Dashboard secrets; explicit wrong URLs still fail fast.
-  v_url="${VITE_CONVEX_URL:-$EXPECTED_CLOUD_URL}"
-  v_site="${VITE_CONVEX_SITE_URL:-$EXPECTED_SITE_URL}"
-  [[ "$v_url" == "$EXPECTED_CLOUD_URL" ]] || fail "CI VITE_CONVEX_URL must be '$EXPECTED_CLOUD_URL' (got '${VITE_CONVEX_URL:-}'. Clear or fix Vercel env)."
-  [[ "$v_site" == "$EXPECTED_SITE_URL" ]] || fail "CI VITE_CONVEX_SITE_URL must be '$EXPECTED_SITE_URL' (got '${VITE_CONVEX_SITE_URL:-}'. Clear or fix Vercel env)."
-  echo "Convex target check passed: production VITE_* (CI — defaulted if unset)"
+# Frontend builds need public configuration only. Backend deployment checks stay
+# strict in every environment, including CI, and require self-hosted credentials.
+if [[ "${1:-}" == "--frontend" ]]; then
+  vite_urls_match || fail "Frontend VITE_CONVEX_URL and VITE_CONVEX_SITE_URL must explicitly match the configured Pindeck target."
+  echo "Convex target check passed: frontend public configuration"
   exit 0
 fi
 
